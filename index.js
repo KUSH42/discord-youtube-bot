@@ -351,11 +351,11 @@ async function announceYouTubeContent(item) {
 
     let messageContent;
     if (item.type === 'upload') {
-        messageContent = `🎬 **New Video Upload!**\n**${item.title}**\n${item.url}`;
+        messageContent = `**@everyone** 🎬 **New Video Upload!**\n**${item.title}**\n${item.url}`;
     } else if (item.type === 'livestream') {
-        messageContent = `🔴 **Livestream Started!**\n**${item.title}**\n${item.url}`;
+        messageContent = `**@everyone** 🔴 **Livestream Started!**\n**${item.title}**\n${item.url}`;
     } else { // Fallback for unknown content type
-        messageContent = `✨ **New YouTube Content!**\n**${item.title}**\n${item.url}`;
+        messageContent = `**@everyone** ✨ **New YouTube Content!**\n**${item.title}**\n${item.url}`;
     }
 
     try {
