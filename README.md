@@ -30,14 +30,9 @@ Before running the bot, ensure you have the following:
 git clone https://github.com/KUSH42/youtube-discord-bot.git
 ```
 
-**2. Initialize Node.js project:**  
+**2. Install dependencies:**  
 ```
-npm init -y
-```
-
-**3. Install dependencies:**  
-```
-npm install discord.js googleapis dotenv express body-parser xml2js node-fetch winston winston-daily-rotate-file
+npm install
 ```
 
 ### **2. Obtain API Keys and IDs**
@@ -104,10 +99,6 @@ LOG_LEVEL=info # Log level: error, warn, info, verbose, debug, silly
 * This URL must be publicly accessible from the internet.  
 * If you're testing locally, you'll need a tunneling service like [ngrok](https://ngrok.com/). Run ngrok http 3000 (if your PSH_PORT is 3000) and use the https URL ngrok provides (e.g., https://abcdef.ngrok.io/webhook/youtube). Remember ngrok URLs change with each session unless you have a paid account.  
 * For production, deploy your bot to a cloud platform (e.g., Heroku, Railway, Render) or a Virtual Private Server (VPS) where you can configure a stable public URL.
-
-### **4. Create index.js**
-
-Save the provided bot code into a file named index.js in your project's root directory.
 
 ## **Running the Bot**
 
