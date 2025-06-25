@@ -4,6 +4,10 @@
 // and then announces them in a designated Discord text channel.
 // It now also includes file logging using the winston library and webhook signature verification.
 // Added auto-renewal for the PubSubHubbub subscription.
+// Enhanced error logging for PubSubHubbub subscription attempts,
+// focusing on explicit fetch response details and common error properties.
+// FIXED: Error logging now correctly captures 'message' and 'stack' by passing the Error object directly.
+// FIXED: 'fetch is not a function' by explicitly importing the default export from 'node-fetch'.
 
 // --- Required Libraries ---
 // You will need to install these packages:
@@ -15,7 +19,13 @@ const dotenv = require('dotenv');
 const express = require('express');
 const bodyParser = require('body-parser');
 const xml2js = require('xml2js'); // For parsing the Atom feed XML
-const fetch = require('node-fetch'); // For making HTTP requests in Node.js
+
+// FIXED: Explicitly import the default export for node-fetch.
+// The debug output confirms that 'require("node-fetch")' returns an object
+// where the actual fetch function is located under the 'default' property.
+const fetch = require('node-fetch').default;
+
+
 const winston = require('winston'); // For logging
 require('winston-daily-rotate-file'); // For daily log rotation
 const crypto = require('crypto'); // For cryptographic operations (HMAC verification)
@@ -49,36 +59,83 @@ const logger = winston.createLogger({
     format: winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.errors({ stack: true }), // Include stack trace for errors
-        winston.format.splat(), // Allow string interpolation like console.log
-        winston.format.json() // JSON format for file logs
+        winston.format.splat() // Allows string interpolation
     ),
     transports: [
-        // Console transport
+        // Console transport (uses colorize and printf)
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.colorize(), // Colorize output for console
                 winston.format.printf(
                     info => `${info.timestamp} ${info.level}: ${info.message}` +
-                            (info.stack ? `\n${info.stack}` : '')
+                            (info.stack ? `\n${info.stack}` : '') // Explicitly add stack
                 )
             )
         }),
-        // File transport with daily rotation
+        // File transport with daily rotation (now uses printf for full error visibility)
         new winston.transports.DailyRotateFile({
             filename: `${LOG_FILE_PATH}-%DATE%.log`, // e.g., bot.log-2023-10-27.log
             datePattern: 'YYYY-MM-DD',
             zippedArchive: true, // Zip old log files
             maxSize: '20m', // Max size of a log file before rotation
-            maxFiles: '14d' // Keep logs for 14 days
+            maxFiles: '14d', // Keep logs for 14 days
+            format: winston.format.combine( // Apply printf format to file logs specifically
+                winston.format.printf(
+                    (info) => {
+                        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
+                        if (info.stack) {
+                            logMessage += `\nStack: ${info.stack}`;
+                        }
+                        // Add more specific error properties if they exist
+                        if (info.error && typeof info.error === 'object') {
+                            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
+                            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
+                            const otherErrorProps = { ...info.error };
+                            delete otherErrorProps.message;
+                            delete otherErrorProps.stack;
+                            delete otherErrorProps.name;
+                            delete otherErrorProps.code;
+                            if (Object.keys(otherErrorProps).length > 0) {
+                                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
+                            }
+                        }
+                        return logMessage;
+                    }
+                )
+            )
         })
     ],
+    // Exception and rejection handlers remain the same, using DailyRotateFile with printf
     exceptionHandlers: [
         new winston.transports.DailyRotateFile({
             filename: `${LOG_FILE_PATH}-exceptions-%DATE%.log`,
             datePattern: 'YYYY-MM-DD',
             zippedArchive: true,
             maxSize: '20m',
-            maxFiles: '14d'
+            maxFiles: '14d',
+            format: winston.format.combine(
+                winston.format.printf(
+                    (info) => {
+                        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
+                        if (info.stack) {
+                            logMessage += `\nStack: ${info.stack}`;
+                        }
+                        if (info.error && typeof info.error === 'object') {
+                            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
+                            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
+                            const otherErrorProps = { ...info.error };
+                            delete otherErrorProps.message;
+                            delete otherErrorProps.stack;
+                            delete otherErrorProps.name;
+                            delete otherErrorProps.code;
+                            if (Object.keys(otherErrorProps).length > 0) {
+                                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
+                            }
+                        }
+                        return logMessage;
+                    }
+                )
+            )
         })
     ],
     rejectionHandlers: [
@@ -87,7 +144,30 @@ const logger = winston.createLogger({
             datePattern: 'YYYY-MM-DD',
             zippedArchive: true,
             maxSize: '20m',
-            maxFiles: '14d'
+            maxFiles: '14d',
+            format: winston.format.combine(
+                winston.format.printf(
+                    (info) => {
+                        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
+                        if (info.stack) {
+                            logMessage += `\nStack: ${info.stack}`;
+                        }
+                        if (info.error && typeof info.error === 'object') {
+                            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
+                            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
+                            const otherErrorProps = { ...info.error };
+                            delete otherErrorProps.message;
+                            delete otherErrorProps.stack;
+                            delete otherErrorProps.name;
+                            delete otherErrorProps.code;
+                            if (Object.keys(otherErrorProps).length > 0) {
+                                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
+                            }
+                        }
+                        return logMessage;
+                    }
+                )
+            )
         })
     ]
 });
@@ -118,9 +198,8 @@ let subscriptionRenewalTimer = null;
 
 // --- Express Server Setup ---
 const app = express();
-// Raw body needed for HMAC verification later, so parse as buffer
 app.use(bodyParser.raw({ type: 'application/atom+xml', limit: '5mb' }));
-app.use(bodyParser.urlencoded({ extended: true })); // For subscription challenges
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Middleware to convert raw body to text for XML parsing (after HMAC verification)
 app.use((req, res, next) => {
@@ -132,16 +211,17 @@ app.use((req, res, next) => {
 });
 
 // --- PubSubHubbub Endpoint ---
-// This endpoint will receive verification challenges and notifications from YouTube.
-app.post('/webhook/youtube', async (req, res) => {
-    // PubSubHubbub subscription verification
+// This endpoint will receive verification challenges AND notifications from YouTube.
+
+// Handles GET requests for PubSubHubbub subscription verification
+app.get('/webhook/youtube', (req, res) => {
     if (req.query['hub.mode'] === 'subscribe' && req.query['hub.challenge']) {
         const challenge = req.query['hub.challenge'];
         const topic = req.query['hub.topic'];
         const leaseSeconds = req.query['hub.lease_seconds'];
-        const verifyToken = req.query['hub.verify_token']; // Get the verify token from the query
+        const verifyToken = req.query['hub.verify_token'];
 
-        logger.info(`Received PubSubHubbub subscription challenge for topic: ${topic}`);
+        logger.info(`Received PubSubHubbub subscription challenge (GET) for topic: ${topic}`);
         logger.info(`Challenge: ${challenge}, Lease Seconds: ${leaseSeconds}`);
 
         // Verify the hub.verify_token if it was sent and matches our expected token
@@ -150,11 +230,20 @@ app.post('/webhook/youtube', async (req, res) => {
             return res.status(403).send('Forbidden: Verify token mismatch.');
         }
 
-        res.status(200).send(challenge); // Respond with the challenge to verify
-        logger.info('Responded to PubSubHubbub challenge.');
+        // Respond with the challenge to verify the subscription
+        res.status(200).send(challenge);
+        logger.info('Responded to PubSubHubbub GET challenge with challenge string.');
         return;
     }
 
+    // If it's a GET request but not a PubSubHubbub challenge, return 400 Bad Request
+    logger.warn('Received unhandled GET request to webhook endpoint: %s %s', req.method, req.url);
+    res.status(400).send('Bad Request: This endpoint only handles PubSubHubbub GET challenges or POST notifications.');
+});
+
+
+// Existing: Handles POST requests for PubSubHubbub notifications
+app.post('/webhook/youtube', async (req, res) => {
     // PubSubHubbub notification (new video/livestream update)
     if (req.headers['content-type'] === 'application/atom+xml' && req.rawBody) {
         logger.info('Received PubSubHubbub notification.');
@@ -195,13 +284,10 @@ app.post('/webhook/youtube', async (req, res) => {
                 const channelId = entry['yt:channelId'];
                 const title = entry.title;
                 const link = entry.link.$.href; // Get the href attribute of the link tag
-                // const published = new Date(entry.published); // Not directly used in announcement, but useful for logs
 
-                // Check if the notification is for the channel we are monitoring
                 if (channelId === YOUTUBE_CHANNEL_ID) {
                     if (!announcedVideos.has(videoId)) {
                         logger.info(`New content detected: ${title} (${videoId})`);
-                        // Fetch additional details to see if it's a livestream or an upload
                         const videoDetailsResponse = await youtube.videos.list({
                             part: 'liveStreamingDetails,snippet',
                             id: videoId
@@ -210,11 +296,10 @@ app.post('/webhook/youtube', async (req, res) => {
                         const videoItem = videoDetailsResponse.data.items[0];
                         if (videoItem) {
                             let contentType = 'upload';
-                            // Check for livestream status based on YouTube Data API details
                             if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
-                                contentType = 'livestream'; // Is or was live
+                                contentType = 'livestream';
                             } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
-                                contentType = 'livestream'; // Currently live or scheduled
+                                contentType = 'livestream';
                             }
 
                             const content = {
@@ -224,10 +309,9 @@ app.post('/webhook/youtube', async (req, res) => {
                                 type: contentType
                             };
                             await announceYouTubeContent(content);
-                            announcedVideos.add(videoId); // Mark as announced
+                            announcedVideos.add(videoId);
                         } else {
                             logger.warn(`Could not fetch details for video ID: ${videoId}. Announcing as generic content.`);
-                            // Announce anyway if details couldn't be fetched, better than missing it.
                             await announceYouTubeContent({ id: videoId, title: title, url: link, type: 'unknown' });
                             announcedVideos.add(videoId);
                         }
@@ -242,10 +326,12 @@ app.post('/webhook/youtube', async (req, res) => {
             }
             res.status(200).send('Notification received and processed.');
         } catch (error) {
-            logger.error('Error parsing or processing PubSubHubbub notification:', error.message, error);
+            // Corrected: Pass the Error object directly to logger.error
+            logger.error('Error parsing or processing PubSubHubbub notification:', error);
             res.status(500).send('Error processing notification.');
         }
     } else {
+        // This 'else' block from the original POST handler is still for unexpected requests
         logger.warn('Received unknown request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
         res.status(400).send('Bad Request');
     }
@@ -259,7 +345,7 @@ app.post('/webhook/youtube', async (req, res) => {
 async function announceYouTubeContent(item) {
     const channel = client.channels.cache.get(DISCORD_ANNOUNCEMENT_CHANNEL_ID);
     if (!channel) {
-        logger.error(`Discord announcement channel with ID ${DISCORD_ANNOUNCEMENT_CHANNEL_CHANNEL_ID} not found.`);
+        logger.error(`Discord announcement channel with ID ${DISCORD_ANNOUNCEMENT_CHANNEL_ID} not found.`);
         return;
     }
 
@@ -276,7 +362,8 @@ async function announceYouTubeContent(item) {
         await channel.send(messageContent);
         logger.info(`Announced: ${item.title} (${item.type})`);
     } catch (error) {
-        logger.error(`Error sending Discord message for ${item.id}:`, error.message, error);
+        // Corrected: Pass the Error object directly to logger.error
+        logger.error(`Error sending Discord message for ${item.id}:`, error);
     }
 }
 
@@ -344,14 +431,13 @@ async function subscribeToYouTubePubSubHubbub() {
                 logger.warn('Renewal time is non-positive, subscription will not be auto-renewed. Consider increasing lease_seconds or reducing renewal_buffer_seconds.');
             }
         } else {
+            // Log full response details if not OK
             const errorText = await response.text();
-            logger.error('Failed to subscribe to PubSubHubbub: Status=%d, Error=%s', response.status, errorText);
-            // Consider a retry mechanism here for failed subscriptions
-            // For example, retry after a short delay with exponential backoff
+            logger.error('Failed to subscribe to PubSubHubbub: Status=%d, StatusText=%s, ErrorResponse=%s', response.status, response.statusText, errorText);
         }
     } catch (error) {
-        logger.error('Error during PubSubHubbub subscription:', error.message, error);
-        // Consider a retry mechanism for network errors
+        // Corrected: Pass the Error object directly to logger.error
+        logger.error('Error during PubSubHubbub subscription:', error);
     }
 }
 
@@ -368,16 +454,17 @@ client.once('ready', async () => {
         // Once the server is listening, subscribe to YouTube updates
         subscribeToYouTubePubSubHubbub();
     }).on('error', (err) => {
-        logger.error('Failed to start Express server:', err.message, err);
+        // Corrected: Pass the Error object directly to logger.error
+        logger.error('Failed to start Express server:', err);
         process.exit(1); // Exit if server cannot start
     });
 });
 
 client.on('error', error => {
-    logger.error('A Discord client error occurred:', error.message, error);
+    // Corrected: Pass the Error object directly to logger.error
+    logger.error('A Discord client error occurred:', error);
 });
 
 // Login to Discord with your bot's token
 client.login(DISCORD_BOT_TOKEN)
-    .catch(error => logger.error('Failed to login to Discord:', error.message, error));
-
+    .catch(error => logger.error('Failed to login to Discord:', error));
