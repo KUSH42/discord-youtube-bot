@@ -68,7 +68,7 @@ const logger = winston.createLogger({
                 winston.format.colorize(), // Colorize output for console
                 winston.format.printf(
                     info => `${info.timestamp} ${info.level}: ${info.message}` +
-                            (info.stack ? `\n${info.stack}` : '') // Explicitly add stack
+                        (info.stack ? `\n${info.stack}` : '') // Explicitly add stack
                 )
             )
         }),
@@ -276,14 +276,35 @@ app.post('/webhook/youtube', async (req, res) => {
         try {
             const parser = new xml2js.Parser({ explicitArray: false });
             const result = await parser.parseStringPromise(req.body); // Use string body for parsing
-
+            
+            logger.info(JSON.stringify(result, null, 2));
             const entry = result.feed.entry;
 
             if (entry) {
                 const videoId = entry['yt:videoId'];
                 const channelId = entry['yt:channelId'];
                 const title = entry.title;
-                const link = entry.link.$.href; // Get the href attribute of the link tag
+                let link = 'No Link Available';
+                
+                if (entry.link) {
+                    if (typeof entry.link === 'string') {
+                        link = entry.link;
+                    } else if (Array.isArray(entry.link)) {
+                        const alternateLink = entry.link.find(l => l.rel === 'alternate' || l.type === 'text/html');
+                        if (alternateLink && alternateLink.href) {
+                            link = alternateLink.href;
+                        } else if (entry.link[0] && entry.link[0].href) {
+                            link = entry.link[0].href;
+                        } else if (entry.link[0] && entry.link[0].$ && entry.link[0].$.href) {
+                            link = entry.link[0].$.href;
+                        }
+                    } else if (entry.link.href) { // Try this first if it's not an array and has href directly
+                        link = entry.link.href;
+                    } else if (entry.link.$ && entry.link.$.href) { // original approach
+                        link = entry.link.$.href;
+                    }
+                }
+                logger.info(`Extracted link: ${link}`);
 
                 if (channelId === YOUTUBE_CHANNEL_ID) {
                     if (!announcedVideos.has(videoId)) {
