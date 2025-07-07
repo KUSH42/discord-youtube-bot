@@ -49,7 +49,7 @@ const PSH_PORT = process.env.PORT || 3000; // Port for the Express server to lis
 // X (Twitter) Monitoring Config
 const X_USER_HANDLE = process.env.X_USER_HANDLE;
 const DISCORD_X_POSTS_CHANNEL_ID = process.env.DISCORD_X_POSTS_CHANNEL_ID; // For original posts and replies
-const DISCORD_X_REPOSTS_CHANNEL_ID = process.env.DISCORD_X_REPOSTS_CHANNEL_ID; // For reposts
+const DISCORD_X_RETWEEET_CHANNEL_ID = process.env.DISCORD_X_RETWEEET_CHANNEL_ID; // For reposts
 
 // Logging configuration
 const LOG_FILE_PATH = process.env.LOG_FILE_PATH || 'bot.log'; // Path to the log file
@@ -374,6 +374,8 @@ async function initializeYouTubeMonitor() {
     }
     logger.info(`[YouTube Poller] Initializing monitor for channel ID: ${YOUTUBE_CHANNEL_ID}`);
     await populateInitialYouTubeHistory();
+    // Start polling as a fallback to PubSubHubbub
+    pollYouTubeChannel();
 }
 
 
@@ -394,30 +396,39 @@ app.use((req, res, next) => {
 
 
 // --- PubSubHubbub Endpoint ---
-// This endpoint will receive verification challenges AND notifications from YouTube.
-// Handles POST requests for PubSubHubbub subscription verification
-app.post('/webhook/youtube', async (req, res) => {
-    if (req.query['hub.mode'] === 'subscribe' && req.query['hub.challenge']) {
-        const challenge = req.query['hub.challenge'];
-        const topic = req.query['hub.topic'];
-        const leaseSeconds = req.query['hub.lease_seconds'];
-        const verifyToken = req.query['hub.verify_token'];
+// This endpoint will receive verification challenges (GET) and notifications (POST) from YouTube.
 
-        logger.info(`Received PubSubHubbub subscription challenge for topic: ${topic}`);
-        logger.info(`Challenge: ${challenge}, Lease Seconds: ${leaseSeconds}`);
+// Handles GET requests for PubSubHubbub subscription verification
+app.get('/webhook/youtube', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const challenge = req.query['hub.challenge'];
+    const topic = req.query['hub.topic'];
+    const leaseSeconds = req.query['hub.lease_seconds'];
+    const verifyToken = req.query['hub.verify_token'];
 
-        // Verify the hub.verify_token if it was sent and matches our expected token
+    // Handle both 'subscribe' and 'unsubscribe' challenges as per PubSubHubbub spec
+    if ((mode === 'subscribe' || mode === 'unsubscribe') && challenge) {
+        logger.info(`Received PubSubHubbub subscription challenge via GET for topic: ${topic}`);
+        logger.info(`Mode: ${mode}, Challenge: ${challenge}, Lease Seconds: ${leaseSeconds || 'N/A'}`);
+
+        // Optional: Verify the hub.verify_token if it was sent with the request
         if (PSH_VERIFY_TOKEN && verifyToken && verifyToken !== PSH_VERIFY_TOKEN) {
-            logger.warn(`Subscription challenge rejected: hub.verify_token mismatch. Expected: ${PSH_VERIFY_TOKEN}, Received: ${verifyToken}`);
+            logger.warn(`Subscription challenge rejected due to hub.verify_token mismatch. Expected: ${PSH_VERIFY_TOKEN}, Received: ${verifyToken}`);
             return res.status(403).send('Forbidden: Verify token mismatch.');
         }
 
-        // Respond with the challenge to verify the subscription
+        // Respond with the challenge string to confirm the subscription
         res.status(200).send(challenge);
-        logger.info('Responded to PubSubHubbub challenge with challenge string.');
-        return;
+        logger.info('Successfully responded to PubSubHubbub challenge.');
+    } else {
+        logger.warn('Received an unknown or malformed GET request to the webhook endpoint.', { query: req.query });
+        res.status(400).send('Bad Request: Missing or invalid hub parameters for GET request.');
     }
+});
 
+
+// Handles POST requests for PubSubHubbub notifications
+app.post('/webhook/youtube', async (req, res) => {
      // PubSubHubbub notification (new video/livestream update)
     if (req.headers['content-type'] === 'application/atom+xml' && req.rawBody) {
         logger.info('Received PubSubHubbub notification.');
@@ -530,7 +541,7 @@ app.post('/webhook/youtube', async (req, res) => {
         }
     } else {
         // This 'else' block from the original POST handler is still for unexpected requests
-        logger.warn('Received unknown request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
+        logger.warn('Received unknown POST request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
         res.status(400).send('Bad Request');
     }
 });
@@ -614,7 +625,7 @@ async function subscribeToYouTubePubSubHubbub() {
 // --- X (Twitter) Monitoring Section ---
 async function populateInitialTweetIds() {
     const tweetUrlRegex = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/\w+\/status\/(\d+)/g;
-    const channelIds = [DISCORD_X_POSTS_CHANNEL_ID, DISCORD_X_REPOSTS_CHANNEL_ID].filter(id => id);
+    const channelIds = [DISCORD_X_POSTS_CHANNEL_ID, DISCORD_X_RETWEEET_CHANNEL_ID].filter(id => id);
 
     for (const channelId of channelIds) {
         try {
@@ -634,7 +645,7 @@ async function populateInitialTweetIds() {
 }
 
 async function announceXContent(tweet) {
-    const channelId = tweet.type === 'repost' ? DISCORD_X_REPOSTS_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
+    const channelId = tweet.type === 'repost' ? DISCORD_X_RETWEEET_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
     if (!channelId) {
         logger.warn(`No channel configured for tweet type '${tweet.type}'. Skipping.`);
         return;
@@ -683,12 +694,26 @@ async function pollXProfile() {
         logger.info(`[X Scraper] Navigating to X profile: ${profileUrl}`);
 
         await page.goto(profileUrl, { waitUntil: 'networkidle2' });
+
+        // Scroll down to load more tweets to ensure we capture all recent activity
+        logger.info('[X Scraper] Scrolling page to load more tweets.');
+        for (let i = 0; i < 3; i++) { // Scroll down 3 times
+            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for new tweets to load
+        }
+
         await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 });
 
         const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', articles => {
             return articles.map(article => {
-                const socialContext = article.querySelector('div[data-testid="socialContext"]');
-                const isRepost = socialContext ? socialContext.innerText.includes('reposted') : false;
+                const socialContextEl = article.querySelector('div[data-testid="socialContext"]');
+                const socialContextText = socialContextEl ? socialContextEl.innerText : '';
+
+                // Ignore pinned tweets, as they are old but always at the top
+                if (socialContextText.includes('Pinned')) {
+                    return null;
+                }
+                const isRepost = socialContextText.includes('reposted');
                 
                 const links = Array.from(article.querySelectorAll('a'));
                 const statusLink = links.find(a => a.href.includes('/status/'));
@@ -699,26 +724,35 @@ async function pollXProfile() {
                 const url = statusLink.href;
                 const idMatch = url.match(/\/status\/(\d+)/);
                 if (!idMatch) return null;
-
                 const id = idMatch[1];
+
                 const authorHandle = (article.querySelector('div[data-testid="User-Name"] a > div > span')?.innerText || '').trim();
                 const text = article.querySelector('div[data-testid="tweetText"]')?.innerText || '';
+
+                // Get timestamp to ensure chronological processing
+                const timeEl = article.querySelector('time[datetime]');
+                const timestamp = timeEl ? timeEl.getAttribute('datetime') : null;
+                if (!timestamp) return null; // We need a timestamp to sort correctly
 
                 let type = 'post';
                 if (isRepost) type = 'repost';
                 else if (replyLink) type = 'reply';
 
-                return { id, text, url, authorHandle, type };
+                return { id, text, url, authorHandle, type, timestamp };
             }).filter(t => t !== null);
         });
         
         if(browser) await browser.close();
 
-        const newTweets = scrapedTweets.filter(tweet => !knownTweetIds.has(tweet.id));
+        let newTweets = scrapedTweets.filter(tweet => !knownTweetIds.has(tweet.id));
         if (newTweets.length > 0) {
             logger.info(`[X Scraper] Found ${newTweets.length} new tweets.`);
-            for (const tweet of newTweets.reverse()) { // Process oldest first
-                logger.info(`[X Scraper] Processing new tweet link: ${tweet.url}`);
+
+            // Sort by timestamp to ensure chronological order (oldest first)
+            newTweets.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            for (const tweet of newTweets) { // Process in chronological order
+                logger.info(`[X Scraper] Processing new tweet from ${tweet.timestamp}: ${tweet.url}`);
                 await announceXContent(tweet);
                 knownTweetIds.add(tweet.id);
             }
@@ -739,7 +773,7 @@ async function pollXProfile() {
 }
 
 async function initializeXMonitor() {
-    if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_REPOSTS_CHANNEL_ID)) {
+    if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_RETWEEET_CHANNEL_ID)) {
         logger.warn('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
         return;
     }
@@ -780,14 +814,12 @@ client.once('ready', async () => {
         // Once the server is listening, subscribe to YouTube updates
         subscribeToYouTubePubSubHubbub();
     }).on('error', (err) => {
-        // Corrected: Pass the Error object directly to logger.error
         logger.error('Failed to start Express server:', err);
         process.exit(1); // Exit if server cannot start
     });
 });
 
 client.on('error', error => {
-    // Corrected: Pass the Error object directly to logger.error
     logger.error('A Discord client error occurred:', error);
 });
 
