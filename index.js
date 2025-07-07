@@ -41,7 +41,7 @@ const DISCORD_YOUTUBE_CHANNEL_ID = process.env.DISCORD_YOUTUBE_CHANNEL_ID; // Fo
 
 // PubSubHubbub specific configurations
 const PSH_SECRET = process.env.PSH_SECRET || 'your_super_secret_string_here'; // A secret string for verifying notification requests
-const PSH_CALLBACK_URL = process.env.PSH_CALLBACK_URL; // IMPORTANT: Your bot's publicly accessible URL + /webhook/youtube
+const PSH_CALLBACK_URL = process.env.PSH_CALLBACK_URL; // IMPORTANT: Your bot's publicly accessible URL for the webhook (e.g., https://your.domain/webhook/youtube)
 // Optional: A token sent with the subscription request and echoed back in the challenge for verification
 const PSH_VERIFY_TOKEN = process.env.PSH_VERIFY_TOKEN || 'your_optional_verify_token';
 const PSH_PORT = process.env.PORT || 3000; // Port for the Express server to listen on
@@ -394,10 +394,22 @@ app.use((req, res, next) => {
 
 
 // --- PubSubHubbub Endpoint ---
-// This endpoint will receive verification challenges (GET) and notifications (POST) from YouTube.
+// This endpoint will receive verification challenges AND notifications from YouTube.
+let webhookPath = '/webhook/youtube-test'; // Default path
+if (PSH_CALLBACK_URL) {
+    try {
+        const callbackUrlObject = new URL(PSH_CALLBACK_URL);
+        webhookPath = callbackUrlObject.pathname;
+        logger.info(`Webhook listener configured for path: ${webhookPath}`);
+    } catch (error) {
+        logger.error(`Invalid PSH_CALLBACK_URL ('${PSH_CALLBACK_URL}'). Could not parse URL. Using default path '${webhookPath}'.`, error);
+    }
+} else {
+    logger.warn(`PSH_CALLBACK_URL is not set. Using default webhook path: '${webhookPath}'. PubSubHubbub will likely fail.`);
+}
 
 // Handles GET requests for PubSubHubbub subscription verification
-app.get('/webhook/youtube', (req, res) => {
+app.get(webhookPath, (req, res) => {
     const mode = req.query['hub.mode'];
     const challenge = req.query['hub.challenge'];
     const topic = req.query['hub.topic'];
@@ -418,15 +430,15 @@ app.get('/webhook/youtube', (req, res) => {
         // Respond with the challenge string to confirm the subscription
         res.status(200).send(challenge);
         logger.info('Successfully responded to PubSubHubbub challenge.');
-    } else {
-        logger.warn('Received an unknown or malformed GET request to the webhook endpoint.', { query: req.query });
-        res.status(400).send('Bad Request: Missing or invalid hub parameters for GET request.');
+        return;
     }
+        logger.warn('Received unknown GET request to webhook endpoint.');
+    res.status(400).send('Bad Request');
 });
 
 
 // Handles POST requests for PubSubHubbub notifications
-app.post('/webhook/youtube', async (req, res) => {
+app.post(webhookPath, async (req, res) => {
      // PubSubHubbub notification (new video/livestream update)
     if (req.headers['content-type'] === 'application/atom+xml' && req.rawBody) {
         logger.info('Received PubSubHubbub notification.');
