@@ -145,5 +145,19 @@ The bot will log messages to your console and also create log files (e.g., bot.l
   * **Subscription Status:** Check your logs to see if the PubSubHubbub subscription request sent successfully. message appears. If not, there's an issue with the subscription process itself.  
 * **npm install errors:** Ensure you have Node.js and npm installed correctly. Try clearing npm cache (npm cache clean --force) and reinstalling.  
 * **X-Hub-Signature mismatch! errors:** This indicates a problem with PSH_SECRET or how the raw body is being processed. Ensure PSH_SECRET is exactly the same on both your bot and what you registered with the PubSubHubbub hub (though YouTube handles this behind the scenes based on your subscription request). If this happens often, try resetting your PSH_SECRET to a new, strong string.
+*   **Nginx/Reverse Proxy Configuration:** If deployed to a VPS/cloud, ensure your reverse proxy (e.g., Nginx) is correctly configured to forward requests from `https://your-domain.com/webhook/youtube` to `http://localhost:3000/webhook/youtube`. Common issues include:
+       *   Nginx not running (`sudo systemctl status nginx`).
+       *   Incorrect `ssl_certificate` or `ssl_certificate_key` paths in Nginx config (check `sudo nginx -t`).
+       *   Server firewall blocking port 443 inbound (from Cloudflare) or port 3000 internally (from Nginx to Node.js). Use `sudo ufw status verbose` or `sudo firewall-cmd --list-all` to check. Pay attention to `(13: Permission denied)` errors in Nginx logs, which can point to SELinux.
+*   **`YOUTUBE_API_KEY`:** Ensure your YouTube Data API Key is correct and that the "YouTube Data API v3" is enabled for your Google Cloud project.
+*   **`YOUTUBE_CHANNEL_ID`:** Verify that the channel ID is correct.
+*   **`DISCORD_ANNOUNCEMENT_CHANNEL_ID`:** Confirm the Discord channel ID is correct and that the bot has permissions to send messages there.
+*   **`PSH_SECRET`:** Ensure the `PSH_SECRET` in your `.env` matches what you are using (and that it's a strong, random string). If signature verification fails, notifications will be rejected.
+*   **Subscription Status:** Check your logs to see if the `PubSubHubbub subscription request sent successfully.` message appears. If not, there's an issue with the subscription process itself.
+*   **`X-Hub-Signature mismatch!` errors:**
+*   This indicates a problem with `PSH_SECRET` or how the raw body is being processed.
+*   Ensure `PSH_SECRET` is exactly the same on both your bot and what you registered with the PubSubHubbub hub.
+*   If this happens often, try resetting your `PSH_SECRET` to a new, strong string.
 
-Feel free to contribute, open issues, or suggest improvements!
+
+*Feel free to contribute, open issues, or suggest improvements!*
