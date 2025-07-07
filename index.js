@@ -418,7 +418,6 @@ app.post('/webhook/youtube', async (req, res) => {
             const parser = new xml2js.Parser({ explicitArray: false });
             const result = await parser.parseStringPromise(req.body); // Use string body for parsing
             
-            logger.info(JSON.stringify(result, null, 2));
             const entry = result.feed.entry;
 
             if (entry) {
@@ -644,21 +643,27 @@ async function pollXProfile() {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
         await page.setViewport({ width: 1280, height: 1080 });
 
-        const profileUrl = `https://x.com/${X_USER_HANDLE}`;
-        logger.info(`[X Scraper] Navigating to X profile: ${profileUrl}`);
+         const urlsToScrape = [
+            `https://x.com/${X_USER_HANDLE}`, // Main 'Posts' tab
+            `https://x.com/${X_USER_HANDLE}/with_replies` // 'Replies' tab
+        ];
+        const allScrapedTweets = [];
 
-        await page.goto(profileUrl, { waitUntil: 'networkidle2' });
+        for (const url of urlsToScrape) {
+            logger.info(`[X Scraper] Navigating to X page: ${url}`);
+            try {
+                await page.goto(url, { waitUntil: 'networkidle2' });
 
-        // Scroll down to load more tweets to ensure we capture all recent activity
-        logger.info('[X Scraper] Scrolling page to load more tweets.');
-        for (let i = 0; i < 3; i++) { // Scroll down 3 times
-            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for new tweets to load
+                // Scroll down to load more tweets
+                logger.info(`[X Scraper] Scrolling page to load more tweets on ${url}.`);
+                for (let i = 0; i < 3; i++) {
+                    await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for new tweets to load
         }
 
         await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 });
 
-        const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
+        const tweetsFromPage = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
             return articles.map(article => {
                 const socialContextEl = article.querySelector('div[data-testid="socialContext"]');
                 const socialContextText = socialContextEl ? socialContextEl.innerText : '';
@@ -707,13 +712,28 @@ async function pollXProfile() {
                 return { id, text, url, authorHandle: finalAuthorHandle, type, timestamp };
         
             }).filter(t => t !== null);
-        }, X_USER_HANDLE); // Pass user handle to the browser context
+                 }, X_USER_HANDLE);
+                
+                allScrapedTweets.push(...tweetsFromPage);
+
+            } catch (pageError) {
+                logger.warn(`[X Scraper] Could not fully process ${url}. It might be empty or had a loading issue. Error: ${pageError.message}`);
+            }
+        }
         
         if(browser) await browser.close();
 
-        let newTweets = scrapedTweets.filter(tweet => !knownTweetIds.has(tweet.id));
+        // Deduplicate tweets by ID, as replies can show up on the main timeline
+        const uniqueTweetsMap = new Map();
+        for (const tweet of allScrapedTweets) {
+            if (!uniqueTweetsMap.has(tweet.id)) {
+                uniqueTweetsMap.set(tweet.id, tweet);
+            }
+        }
+        const uniqueScrapedTweets = Array.from(uniqueTweetsMap.values());
+        let newTweets = uniqueScrapedTweets.filter(tweet => !knownTweetIds.has(tweet.id));
         if (newTweets.length > 0) {
-            logger.info(`[X Scraper] Found ${newTweets.length} new tweets.`);
+            logger.info(`[X Scraper] Found ${newTweets.length} new tweets across all monitored tabs.`);
 
             // Sort by timestamp to ensure chronological order (oldest first)
             newTweets.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -724,7 +744,7 @@ async function pollXProfile() {
                 knownTweetIds.add(tweet.id);
             }
         } else {
-            logger.info(`[X Scraper] No new tweets found for @${X_USER_HANDLE}.`);
+            logger.info(`[X Scraper] No new tweets found for @${X_USER_HANDLE} across monitored tabs.`);
         }
         // Schedule next poll with random jitter
         const nextPollIn = (5 * 60 * 1000) + (Math.random() * 60 * 1000); // 5-6 minutes
