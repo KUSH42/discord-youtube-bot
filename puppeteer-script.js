@@ -1,5 +1,5 @@
-const puppeteer = require('puppeteer');
-const express = require('express');
+import puppeteer from 'puppeteer';
+import express from 'express';
 
 const app = express();
 const port = 3013; // Or any other port you want your API to listen on

@@ -17,14 +17,13 @@
 import { Client, GatewayIntentBits, Partials, ChannelType } from 'discord.js';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
-import Transport from 'winston-transport';
 import puppeteer from 'puppeteer';
 import express from 'express';
 import bodyParser from 'body-parser';
 import xml2js from 'xml2js'; // For parsing the Atom feed XML
-import * as fetch from 'node-fetch' ;
+import fetch from 'node-fetch' ;
 import * as winston  from 'winston';    // For logging
-import  'winston-daily-rotate-file';    // For daily log rotation
+import 'winston-daily-rotate-file';    // For daily log rotation
 import Transport from 'winston-transport';
 import crypto from 'crypto';            // For cryptographic operations (HMAC verification)
 
@@ -380,8 +379,9 @@ async function initializeYouTubeMonitor() {
 
 // --- Express Server Setup ---
 const app = express();
+// Raw body needed for HMAC verification later, so parse as buffer
 app.use(bodyParser.raw({ type: 'application/atom+xml', limit: '5mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: true })); // For subscription challenges
 
 // Middleware to convert raw body to text for XML parsing (after HMAC verification)
 app.use((req, res, next) => {
@@ -395,15 +395,15 @@ app.use((req, res, next) => {
 
 // --- PubSubHubbub Endpoint ---
 // This endpoint will receive verification challenges AND notifications from YouTube.
-// Handles GET requests for PubSubHubbub subscription verification
-app.get('/webhook/youtube', (req, res) => {
+// Handles POST requests for PubSubHubbub subscription verification
+app.post('/webhook/youtube', async (req, res) => {
     if (req.query['hub.mode'] === 'subscribe' && req.query['hub.challenge']) {
         const challenge = req.query['hub.challenge'];
         const topic = req.query['hub.topic'];
         const leaseSeconds = req.query['hub.lease_seconds'];
         const verifyToken = req.query['hub.verify_token'];
 
-        logger.info(`Received PubSubHubbub subscription challenge (GET) for topic: ${topic}`);
+        logger.info(`Received PubSubHubbub subscription challenge for topic: ${topic}`);
         logger.info(`Challenge: ${challenge}, Lease Seconds: ${leaseSeconds}`);
 
         // Verify the hub.verify_token if it was sent and matches our expected token
@@ -414,19 +414,11 @@ app.get('/webhook/youtube', (req, res) => {
 
         // Respond with the challenge to verify the subscription
         res.status(200).send(challenge);
-        logger.info('Responded to PubSubHubbub GET challenge with challenge string.');
+        logger.info('Responded to PubSubHubbub challenge with challenge string.');
         return;
     }
 
-    // If it's a GET request but not a PubSubHubbub challenge, return 400 Bad Request
-    logger.warn('Received unhandled GET request to webhook endpoint: %s %s', req.method, req.url);
-    res.status(400).send('Bad Request: This endpoint only handles PubSubHubbub GET challenges or POST notifications.');
-});
-
-
-// Existing: Handles POST requests for PubSubHubbub notifications
-app.post('/webhook/youtube', async (req, res) => {
-    // PubSubHubbub notification (new video/livestream update)
+     // PubSubHubbub notification (new video/livestream update)
     if (req.headers['content-type'] === 'application/atom+xml' && req.rawBody) {
         logger.info('Received PubSubHubbub notification.');
 
@@ -488,9 +480,11 @@ app.post('/webhook/youtube', async (req, res) => {
                 }
                 logger.info(`Extracted link: ${link}`);
 
+                // Check if the notification is for the channel we are monitoring
                 if (channelId === YOUTUBE_CHANNEL_ID) {
                     if (!announcedVideos.has(videoId)) {
                         logger.info(`New content detected: ${title} (${videoId})`);
+                        // Fetch additional details to see if it's a livestream or an upload
                         const videoDetailsResponse = await youtube.videos.list({
                             part: 'liveStreamingDetails,snippet',
                             id: videoId
@@ -499,10 +493,11 @@ app.post('/webhook/youtube', async (req, res) => {
                         const videoItem = videoDetailsResponse.data.items[0];
                         if (videoItem) {
                             let contentType = 'upload';
+                            // Check for livestream status based on YouTube Data API details
                             if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
-                                contentType = 'livestream';
+                                contentType = 'livestream'; // Is or was live
                             } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
-                                contentType = 'livestream';
+                                contentType = 'livestream'; // Currently live or scheduled
                             }
 
                             const content = {
@@ -512,11 +507,11 @@ app.post('/webhook/youtube', async (req, res) => {
                                 type: contentType
                             };
                             await announceYouTubeContent(content);
-                            announcedVideos.add(videoId);
+                            announcedVideos.add(videoId); // Mark as announced
                         } else {
                             logger.warn(`Could not fetch details for video ID: ${videoId}. Announcing as generic content.`);
                             await announceYouTubeContent({ id: videoId, title: title, url: link, type: 'unknown' });
-                            announcedVideos.add(videoId);
+                            announcedVideos.add(videoId); // Mark as announced
                         }
                     } else {
                         logger.info(`Content already announced: ${title} (${videoId})`);
@@ -606,6 +601,8 @@ async function subscribeToYouTubePubSubHubbub() {
         } else {
             // Log full response details if not OK
             const errorText = await response.text();
+            // Consider a retry mechanism here for failed subscriptions
+            // For example, retry after a short delay with exponential backoff
             logger.error('Failed to subscribe to PubSubHubbub: Status=%d, StatusText=%s, ErrorResponse=%s', response.status, response.statusText, errorText);
         }
     } catch (error) {
@@ -659,6 +656,7 @@ async function announceXContent(tweet) {
         await sendMirroredMessage(channel, message);
         logger.info(`Announced tweet ${tweet.id} from ${tweet.authorHandle}.`);
     } catch (error) {
+        // Consider a retry mechanism for network errors
         logger.error(`Failed to announce tweet ${tweet.id}:`, error);
     }
 }
