@@ -116,10 +116,27 @@ class DiscordTransport extends Transport {
         this.client = opts.client;
         this.channelId = opts.channelId;
         this.channel = null;
+
+        // Buffering options
+        this.buffer = [];
+        this.flushInterval = opts.flushInterval || 5000; // 5 seconds
+        this.maxBufferSize = opts.maxBufferSize || 20;    // 20 log entries
+        this.flushTimer = null;
+
+        this.startFlushing();
+    }
+
+    startFlushing() {
+        if (this.flushTimer) {
+            clearInterval(this.flushTimer);
+        }
+        this.flushTimer = setInterval(() => this.flush(), this.flushInterval);
     }
 
     async log(info, callback) {
         setImmediate(() => this.emit('logged', info));
+
+        // Channel initialization logic
         if (!this.client.isReady() || this.channel === 'errored') {
             return callback();
         }
@@ -128,6 +145,7 @@ class DiscordTransport extends Transport {
                 const fetchedChannel = await this.client.channels.fetch(this.channelId);
                 if (fetchedChannel && fetchedChannel.isTextBased()) {
                     this.channel = fetchedChannel;
+                    // Send initialization message immediately, not buffered
                     this.channel.send('✅ **Winston logging transport initialized for this channel.**').catch(console.error);
                 } else {
                     this.channel = 'errored';
@@ -139,19 +157,43 @@ class DiscordTransport extends Transport {
             }
         }
         if (!this.channel || this.channel === 'errored') return callback();
+
+        
+        // Buffering logic
         const { level, message, stack } = info;
         let logMessage = `**[${level.toUpperCase()}]**: ${message}`;
         if (stack) logMessage += `\n\`\`\`\n${stack}\n\`\`\``;
+        
+        this.buffer.push(logMessage);
+
+        if (this.buffer.length >= this.maxBufferSize) {
+            await this.flush();
+        }
+
+        callback();
+    }
+
+    async flush() {
+        if (this.buffer.length === 0 || !this.channel || this.channel === 'errored') {
+            return;
+        }
+
+        const messagesToFlush = [...this.buffer];
+        this.buffer = [];
+
+        const combinedMessage = messagesToFlush.join('\n');
         try {
-            for (const part of splitMessage(logMessage, { maxLength: 1980 })) {
+            for (const part of splitMessage(combinedMessage, { maxLength: 1980 })) {
                 if (part) await this.channel.send(part);
             }
         } catch (error) {
-            console.error('[DiscordTransport] Failed to send log message to Discord:', error);
+            console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
+            // Optional: re-add messages to buffer if flush fails.
+            // For now, we'll drop the logs to prevent infinite loops on repeated errors.
         }
-        callback();
     }
 }
+
 
 // --- Logger Setup ---
 // Helper for file log formatting to fix syntax errors from duplication and improve maintainability.
