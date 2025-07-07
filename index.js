@@ -49,7 +49,7 @@ const PSH_PORT = process.env.PORT || 3000; // Port for the Express server to lis
 // X (Twitter) Monitoring Config
 const X_USER_HANDLE = process.env.X_USER_HANDLE;
 const DISCORD_X_POSTS_CHANNEL_ID = process.env.DISCORD_X_POSTS_CHANNEL_ID; // For original posts and replies
-const DISCORD_X_RETWEEET_CHANNEL_ID = process.env.DISCORD_X_RETWEEET_CHANNEL_ID; // For reposts
+const DISCORD_X_REPOSTS_CHANNEL_ID = process.env.DISCORD_X_REPOSTS_CHANNEL_ID; // For reposts
 
 // Logging configuration
 const LOG_FILE_PATH = process.env.LOG_FILE_PATH || 'bot.log'; // Path to the log file
@@ -154,6 +154,30 @@ class DiscordTransport extends Transport {
 }
 
 // --- Logger Setup ---
+// Helper for file log formatting to fix syntax errors from duplication and improve maintainability.
+const fileLogFormat = winston.format.printf(
+    (info) => {
+        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
+        if (info.stack) {
+            logMessage += `\nStack: ${info.stack}`;
+        }
+        // Add more specific error properties if they exist
+        if (info.error && typeof info.error === 'object') {
+            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
+            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
+            const otherErrorProps = { ...info.error };
+            delete otherErrorProps.message;
+            delete otherErrorProps.stack;
+            delete otherErrorProps.name;
+            delete otherErrorProps.code;
+            if (Object.keys(otherErrorProps).length > 0) {
+                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
+            }
+        }
+        return logMessage;
+    }
+);
+
 const logger = winston.createLogger({
     level: LOG_LEVEL,
     format: winston.format.combine(
@@ -173,40 +197,16 @@ const logger = winston.createLogger({
                 )
             )
         }),
-        // File transport with daily rotation (now uses printf for full error visibility)
+        // File transport with daily rotation
         new winston.transports.DailyRotateFile({
-            filename: `${LOG_FILE_PATH}-%DATE%.log`, // e.g., bot.log-27-10-2023.log
+            filename: `${LOG_FILE_PATH}-%DATE%.log`,
             datePattern: 'DD-MM-YYYY',
-            zippedArchive: true, // Zip old log files
-            maxSize: '20m', // Max size of a log file before rotation
-            maxFiles: '14d', // Keep logs for 14 days
-            format: winston.format.combine( // Apply printf format to file logs specifically
-                winston.format.printf(
-                    (info) => {
-                        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
-                        if (info.stack) {
-                            logMessage += `\nStack: ${info.stack}`;
-                        }
-                        // Add more specific error properties if they exist
-                        if (info.error && typeof info.error === 'object') {
-                            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
-                            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
-                            const otherErrorProps = { ...info.error };
-                            delete otherErrorProps.message;
-                            delete otherErrorProps.stack;
-                            delete otherErrorProps.name;
-                            delete otherErrorProps.code;
-                            if (Object.keys(otherErrorProps).length > 0) {
-                                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
-                            }
-                        }
-                        return logMessage;
-                    }
-                )
-            )
+            zippedArchive: true,
+            maxSize: '20m',
+            maxFiles: '14d',
+            format: winston.format.combine(fileLogFormat) // Use the shared format
         })
     ],
-    // Exception and rejection handlers remain the same, using DailyRotateFile with printf
     exceptionHandlers: [
         new winston.transports.DailyRotateFile({
             filename: `${LOG_FILE_PATH}-exceptions-%DATE%.log`,
@@ -214,29 +214,7 @@ const logger = winston.createLogger({
             zippedArchive: true,
             maxSize: '20m',
             maxFiles: '14d',
-            format: winston.format.combine(
-                winston.format.printf(
-                    (info) => {
-                        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
-                        if (info.stack) {
-                            logMessage += `\nStack: ${info.stack}`;
-                        }
-                        if (info.error && typeof info.error === 'object') {
-                            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
-                            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
-                            const otherErrorProps = { ...info.error };
-                            delete otherErrorProps.message;
-                            delete otherErrorProps.stack;
-                            delete otherErrorProps.name;
-                            delete otherErrorProps.code;
-                            if (Object.keys(otherErrorProps).length > 0) {
-                                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
-                            }
-                        }
-                        return logMessage;
-                    }
-                )
-            )
+            format: winston.format.combine(fileLogFormat) // Use the shared format
         })
     ],
     rejectionHandlers: [
@@ -246,31 +224,9 @@ const logger = winston.createLogger({
             zippedArchive: true,
             maxSize: '20m',
             maxFiles: '14d',
-            format: winston.format.combine(
-                winston.format.printf(
-                    (info) => {
-                        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
-                        if (info.stack) {
-                            logMessage += `\nStack: ${info.stack}`;
-                        }
-                        if (info.error && typeof info.error === 'object') {
-                            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
-                            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
-                            const otherErrorProps = { ...info.error };
-                            delete otherErrorProps.message;
-                            delete otherErrorProps.stack;
-                            delete otherErrorProps.name;
-                            delete otherErrorProps.code;
-                            if (Object.keys(otherErrorProps).length > 0) {
-                                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
-                            }
-                        }
-                        return logMessage;
-                    }
-                )
-            )
+            format: winston.format.combine(fileLogFormat) // Use the shared format
         })
-    ] 
+    ]
 });
 
 
@@ -625,7 +581,7 @@ async function subscribeToYouTubePubSubHubbub() {
 // --- X (Twitter) Monitoring Section ---
 async function populateInitialTweetIds() {
     const tweetUrlRegex = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/\w+\/status\/(\d+)/g;
-    const channelIds = [DISCORD_X_POSTS_CHANNEL_ID, DISCORD_X_RETWEEET_CHANNEL_ID].filter(id => id);
+    const channelIds = [DISCORD_X_POSTS_CHANNEL_ID, DISCORD_X_REPOSTS_CHANNEL_ID].filter(id => id);
 
     for (const channelId of channelIds) {
         try {
@@ -645,7 +601,8 @@ async function populateInitialTweetIds() {
 }
 
 async function announceXContent(tweet) {
-    const channelId = tweet.type === 'repost' ? DISCORD_X_RETWEEET_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
+    // Route 'repost' types to the reposts channel, and all other types ('post') to the posts channel.
+    const channelId = tweet.type === 'repost' ? DISCORD_X_REPOSTS_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
     if (!channelId) {
         logger.warn(`No channel configured for tweet type '${tweet.type}'. Skipping.`);
         return;
@@ -659,15 +616,12 @@ async function announceXContent(tweet) {
         let message;
         if (tweet.type === 'repost') {
             message = `🔄 **${tweet.authorHandle} reposted:**\n${tweet.url}`;
-        } else if (tweet.type === 'reply') {
-            message = `↩️ **${tweet.authorHandle} replied:**\n${tweet.text}\n${tweet.url}`;
-        } else {
+        } else { // This handles 'post' type, which includes original tweets, replies, and quote tweets.
             message = `🐦 **New post by ${tweet.authorHandle}:**\n${tweet.text}\n${tweet.url}`;
         }
         await sendMirroredMessage(channel, message);
         logger.info(`Announced tweet ${tweet.id} from ${tweet.authorHandle}.`);
     } catch (error) {
-        // Consider a retry mechanism for network errors
         logger.error(`Failed to announce tweet ${tweet.id}:`, error);
     }
 }
@@ -704,43 +658,56 @@ async function pollXProfile() {
 
         await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 });
 
-        const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', articles => {
+        const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
             return articles.map(article => {
                 const socialContextEl = article.querySelector('div[data-testid="socialContext"]');
                 const socialContextText = socialContextEl ? socialContextEl.innerText : '';
-
-                // Ignore pinned tweets, as they are old but always at the top
+        
+                // Ignore pinned tweets
                 if (socialContextText.includes('Pinned')) {
                     return null;
                 }
-                const isRepost = socialContextText.includes('reposted');
+        
+                const authorHandle = (article.querySelector('div[data-testid="User-Name"] a > div > span')?.innerText || '').trim();
+                let type = 'post';
+                let finalAuthorHandle = authorHandle;
+                let isRelevant = false;
+        
+                // Case 1: It's a retweet by our target user.
+                if (socialContextText.includes('reposted') && socialContextText.toLowerCase().includes(targetUserHandle.toLowerCase())) {
+                    type = 'repost';
+                    finalAuthorHandle = `@${targetUserHandle}`;
+                    isRelevant = true;
+                } 
+                // Case 2: It's an original tweet, reply, or quote tweet by our target user.
+                else if (authorHandle.toLowerCase() === `@${targetUserHandle}`.toLowerCase()) {
+                    type = 'post'; // All non-reposts are treated as 'post' for routing.
+                    isRelevant = true;
+                }
                 
+                // If the tweet is not from or reposted by the target user, ignore it.
+                if (!isRelevant) {
+                    return null;
+                }
+        
                 const links = Array.from(article.querySelectorAll('a'));
                 const statusLink = links.find(a => a.href.includes('/status/'));
-                const replyLink = links.find(a => a.href.includes('in_reply_to'));
-
                 if (!statusLink) return null;
-
+        
                 const url = statusLink.href;
                 const idMatch = url.match(/\/status\/(\d+)/);
                 if (!idMatch) return null;
                 const id = idMatch[1];
-
-                const authorHandle = (article.querySelector('div[data-testid="User-Name"] a > div > span')?.innerText || '').trim();
+                
                 const text = article.querySelector('div[data-testid="tweetText"]')?.innerText || '';
-
-                // Get timestamp to ensure chronological processing
                 const timeEl = article.querySelector('time[datetime]');
                 const timestamp = timeEl ? timeEl.getAttribute('datetime') : null;
-                if (!timestamp) return null; // We need a timestamp to sort correctly
-
-                let type = 'post';
-                if (isRepost) type = 'repost';
-                else if (replyLink) type = 'reply';
-
-                return { id, text, url, authorHandle, type, timestamp };
+                if (!timestamp) return null;
+        
+                return { id, text, url, authorHandle: finalAuthorHandle, type, timestamp };
+        
             }).filter(t => t !== null);
-        });
+        }, X_USER_HANDLE); // Pass user handle to the browser context
         
         if(browser) await browser.close();
 
@@ -773,7 +740,7 @@ async function pollXProfile() {
 }
 
 async function initializeXMonitor() {
-    if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_RETWEEET_CHANNEL_ID)) {
+    if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_REPOSTS_CHANNEL_ID)) {
         logger.warn('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
         return;
     }
@@ -814,12 +781,14 @@ client.once('ready', async () => {
         // Once the server is listening, subscribe to YouTube updates
         subscribeToYouTubePubSubHubbub();
     }).on('error', (err) => {
+        // Corrected: Pass the Error object directly to logger.error
         logger.error('Failed to start Express server:', err);
         process.exit(1); // Exit if server cannot start
     });
 });
 
 client.on('error', error => {
+    // Corrected: Pass the Error object directly to logger.error
     logger.error('A Discord client error occurred:', error);
 });
 
