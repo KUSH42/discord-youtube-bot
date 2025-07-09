@@ -672,17 +672,17 @@ async function announceXContent(tweet) {
     switch (tweet.tweetCategory) {
         case 'Post':
             channelId = DISCORD_X_POSTS_CHANNEL_ID;
-            message = `🐦 **New post by ${tweet.author}:**\n${tweet.text || ''}\n${tweet.url}`;
+            message = `🐦 **New post by ${tweet.author}:**\n${tweet.url}`;
             break;
         case 'Reply':
             channelId = DISCORD_X_REPLIES_CHANNEL_ID;
             // Assuming 'text' contains the reply content. May need refinement based on actual scrape result.
-            message = `↩️ **${tweet.author} replied:**\n${tweet.text || ''}\n${tweet.url}`;
+            message = `↩️ **${tweet.author} replied:**\n${tweet.url}`;
             break;
         case 'Quote':
             channelId = DISCORD_X_QUOTES_CHANNEL_ID;
             // Assuming 'text' contains the quote content. May need refinement.
-            message = `💬 **${tweet.author} quoted:**\n${tweet.text || ''}\n${tweet.url}`;
+            message = `💬 **${tweet.author} quoted:**\n${tweet.url}`;
             break;
         case 'Retweet':
             channelId = DISCORD_X_RETWEETS_CHANNEL_ID;
@@ -803,13 +803,23 @@ async function pollXProfile() {
         // Navigate and wait for the main content to load, but not necessarily all network requests
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
 
-        // Wait for the first tweet element to appear before scrolling
+        // Wait for the first tweet article element to appear before scrolling
+        logger.info('[X Scraper] Waiting for tweet article elements...');
         try {
-            await page.waitForSelector('article[data-testid="tweet"] a[href*="/status/"]', { timeout: 30000 }); // Wait for a link within a tweet article
-            logger.info('[X Scraper] Found initial tweet elements. Proceeding with scrolling.');
+            // Waiting directly for the tweet article element
+            await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 }); // Adjusted timeout after explicit wait
+            logger.info('[X Scraper] Successfully found initial tweet article elements. Proceeding with scrolling.');
         } catch (e) {
-            logger.warn('[X Scraper] Initial tweet elements not found within timeout. Page structure might have changed or no tweets in results.', e);
-            // Optionally, handle this case - maybe return or try a different approach
+            logger.warn('[X Scraper] Initial tweet article elements not found within timeout or an error occurred during waitForSelector.', e);
+            // If initial articles are not found, it might mean no tweets matched the search criteria,
+            // or the page structure is unexpected. We should probably log this and proceed to the next poll.
+             logger.info('[X Scraper] No tweet articles found on the page after initial wait. Skipping scraping for this cycle.');
+             // Do not close the browser immediately here, let the finally block handle it.
+             // Schedule the next poll and return.
+             const nextPollIn = Math.floor(Math.random() * (QUERY_INTERVALL_MAX - QUERY_INTERVALL_MIN + 1)) + QUERY_INTERVALL_MIN;
+             logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
+             setTimeout(pollXProfile, nextPollIn);
+             return; // Exit the function early if no tweets are found initially
         }
 
         // Scroll down to load more tweets
@@ -818,12 +828,12 @@ async function pollXProfile() {
         // Based on how many tweets typically appear per scroll and the desired history depth
         for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
             await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Increased wait for loading
+            await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for loading
         }
 
         // Add a longer wait after scrolling to allow all dynamic content to load
         logger.info(`[X Scraper] Finished scrolling. Waiting for page to settle.`);
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
 
         // Verify the current URL before attempting to scrape
         const currentUrl = page.url();
@@ -848,17 +858,19 @@ async function pollXProfile() {
         // Now attempt to scrape using $$eval on the search results page
         const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
             console.log(`[$$eval] Found ${articles.length} potential tweet articles.`);
+
             const tweets = articles.map((article, index) => {
                 try {
                     console.log(`[$$eval] Processing article index ${index}...`);
                     // Extract tweet URL and ID
+                    // Look for the primary link to the tweet's status page within the article
                     const tweetLink = article.querySelector('a[href*="/status/"]');
                     console.log(`[$$eval] Tweet link element found: ${!!tweetLink}`);
 
                     let tweetID = null;
                     let url = tweetLink ? tweetLink.href : null; // Get URL if link exists
 
-                    // Attempt to extract tweet ID from data attribute first
+                    // Attempt to extract tweet ID from data attribute first (more reliable)
                     tweetID = article.getAttribute('data-tweet-id');
                     if (tweetID) {
                         console.log(`[$$eval] Extracted Tweet ID from data-tweet-id: ${tweetID}`);
@@ -870,7 +882,7 @@ async function pollXProfile() {
                     } else if (url) {
                     console.log(`[$$eval] data-tweet-id not found. Attempting to extract from URL: ${url}`);
                         // Fallback to extracting from URL if data-tweet-id is not present
-                        // Using regex literal for matching tweet ID from URL to avoid escaping issues
+                        // Using regex literal for matching tweet ID from URL
                         const idMatch = url.match(/\/status\/(\d+)/);
                         console.log(`[$$eval] ID match result from URL: ${idMatch ? idMatch[1] : 'null'}`);
                         if (idMatch && idMatch[1]) { // Ensure match and capture group exist
@@ -902,22 +914,39 @@ async function pollXProfile() {
                     const timestamp = timeElement.getAttribute('datetime');
                     console.log(`[$$eval] Extracted Timestamp: ${timestamp}`);
 
-                    // Extract tweet text content (excluding replies/quotes within the text)
-                    // This is a heuristic and might need adjustment
+                    // Extract tweet text content
+                    // This selector should target the main text content block
                     const tweetTextElement = article.querySelector('div[data-testid="tweetText"]');
                     const text = tweetTextElement ? tweetTextElement.innerText : '';
                     console.log(`[$$eval] Extracted Text (partial): ${text.substring(0, 100)}...`);
 
-                    // Determine tweet category
+                    // Determine tweet category based on the presence of reply indicators
                     let tweetCategory = 'Post'; // Default to Post
 
-                    // Check for a quote tweet specific structure (a link to the quoted tweet's status within the tweet body)
+                    // Check for indicators of a reply tweet.
+                    // Look for a link within the article that points to a parent tweet's status page.
+                    // This is a common pattern for the "Replying to" link.
+                    const replyIndicatorLink = article.querySelector('a[href*="/status/"][role="link"] .css-1jxf684'); // Looking for a link with status URL and a specific text span child
+                    console.log(`[$$eval] Reply indicator link found: ${!!replyIndicatorLink}`);
+
+                    if (replyIndicatorLink) {
+                         // Further check if the link's text content is an @mention, which is typical for replies.
+                         // This adds a layer of certainty without relying on dynamic classes.
+                         if (replyIndicatorLink.innerText.startsWith('@')) {
+                             tweetCategory = 'Reply';
+                             console.log(`[$$eval] Classified as Reply based on indicator link and @mention text.`);
+                         } else {
+                             console.log(`[$$eval] Found reply indicator link but text is not an @mention. Keeping as Post for now.`);
+                         }
+                    }
+
+                    // Check for a quote tweet specific structure *only if* it's not already classified as a Reply
                     // This selector is a heuristic and might need adjustment
                     const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
                      console.log(`[$$eval] Quote tweet block found: ${!!quoteTweetBlock}`);
-
-                    if (quoteTweetBlock && quoteTweetBlock.href !== tweetLink.href && tweetCategory === 'Post') { // Only classify as Quote if not already Retweet/Reply
+                    if (tweetCategory === 'Post' && quoteTweetBlock && quoteTweetBlock.href !== tweetLink.href) { // Only classify as Quote if it's still a 'Post' and the quote link is different from the main tweet link
                          tweetCategory = 'Quote';
+                         console.log(`[$$eval] Classified as Quote.`);
                     }
 
                     // The author is the target user handle for all relevant tweets in this search
