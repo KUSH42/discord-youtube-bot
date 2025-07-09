@@ -720,7 +720,7 @@ async function pollXProfile() {
     try {
         logger.info(`[X Scraper] Launching browser instance for scraping.`);
         browser = await puppeteer.launch({
-            headless: true,
+            headless: false,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -729,13 +729,23 @@ async function pollXProfile() {
             ]
         });
 
+
         const page = await browser.newPage();
+
+        // Listen for console messages from the browser context
+        page.on('console', (msg) => {
+            const msgArgs = msg.args();
+            for (let i = 0; i < msgArgs.length; ++i) {
+                msgArgs[i].jsonValue().then(value => {
+                    // Log the browser console message with a prefix
+                    logger.info(`[Browser Console]: ${value}`);
+                }).catch(e => logger.error(`[Browser Console] Error getting console message value: ${e}`));
+            }
+        });
+
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
         await page.setViewport({ width: 1280, height: 1080 });
 
-        // Load authentication cookies if available
-        // Load authentication cookies if available
-        // Load authentication cookies if available
         // Load authentication cookies if available
         if (TWITTER_AUTH_COOKIES) {
             try {
@@ -790,7 +800,17 @@ async function pollXProfile() {
         const searchUrl = `https://x.com/search?q=(from%3A${X_USER_HANDLE})%20since%3A${searchDateFrom}&f=live&pf=on&src=typed_query`;
 
         logger.info(`[X Scraper] Navigating to advanced search URL: ${searchUrl}`);
-        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
+        // Navigate and wait for the main content to load, but not necessarily all network requests
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+
+        // Wait for the first tweet element to appear before scrolling
+        try {
+            await page.waitForSelector('article[data-testid="tweet"] a[href*="/status/"]', { timeout: 30000 }); // Wait for a link within a tweet article
+            logger.info('[X Scraper] Found initial tweet elements. Proceeding with scrolling.');
+        } catch (e) {
+            logger.warn('[X Scraper] Initial tweet elements not found within timeout. Page structure might have changed or no tweets in results.', e);
+            // Optionally, handle this case - maybe return or try a different approach
+        }
 
         // Scroll down to load more tweets
         logger.info(`[X Scraper] Scrolling page to load more tweets.`);
@@ -798,33 +818,95 @@ async function pollXProfile() {
         // Based on how many tweets typically appear per scroll and the desired history depth
         for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
             await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
-            await new Promise(resolve => setTimeout(resolve, 3000)); // Increased wait for loading
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Increased wait for loading
         }
 
-        await page.waitForSelector('article[data-testid="tweet"]', { timeout: 60000 }); // Increased timeout
+        // Add a longer wait after scrolling to allow all dynamic content to load
+        logger.info(`[X Scraper] Finished scrolling. Waiting for page to settle.`);
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds
 
-        // The logic inside $$eval will need to be updated to handle the new page structure
-        // and classify tweets. This is a placeholder and will be refined in the next step.
+        // Verify the current URL before attempting to scrape
+        const currentUrl = page.url();
+        logger.info(`[X Scraper] Current URL before scraping: ${currentUrl}`);
+
+        // Check if the URL is still the search URL or if it navigated away
+        if (!currentUrl.startsWith(`https://x.com/search`)) {
+            logger.warn(`[X Scraper] Page navigated away from search results to: ${currentUrl}. Skipping scraping.`);
+            // Skip the scraping part and proceed to the next poll cycle
+            await browser.close();
+            const nextPollIn = Math.floor(Math.random() * (QUERY_INTERVALL_MAX - QUERY_INTERVALL_MIN + 1)) + QUERY_INTERVALL_MIN;
+            logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
+            setTimeout(pollXProfile, nextPollIn);
+            return; // Exit the function early
+       }
+
+        // Take a screenshot to inspect the page state if still on the search page
+        const screenshotPath = './screenshot_before_scrape.png'; // Define a path for the screenshot
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        logger.info(`[X Scraper] Screenshot saved to ${screenshotPath}`);
+
+        // Now attempt to scrape using $$eval on the search results page
         const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
-            const tweets = articles.map(article => {
+            console.log(`[$$eval] Found ${articles.length} potential tweet articles.`);
+            const tweets = articles.map((article, index) => {
                 try {
+                    console.log(`[$$eval] Processing article index ${index}...`);
                     // Extract tweet URL and ID
                     const tweetLink = article.querySelector('a[href*="/status/"]');
-                    if (!tweetLink) return null;
-                    const url = tweetLink.href;
-                    const idMatch = url.match('/\\/status\\/(\\d+)/');
-                    if (!idMatch) return null;
-                    const tweetID = idMatch[1];
+                    console.log(`[$$eval] Tweet link element found: ${!!tweetLink}`);
+
+                    let tweetID = null;
+                    let url = tweetLink ? tweetLink.href : null; // Get URL if link exists
+
+                    // Attempt to extract tweet ID from data attribute first
+                    tweetID = article.getAttribute('data-tweet-id');
+                    if (tweetID) {
+                        console.log(`[$$eval] Extracted Tweet ID from data-tweet-id: ${tweetID}`);
+                        // If ID is found via data attribute, construct URL if not available from link
+                        if (!url && tweetID && targetUserHandle) {
+                             url = `https://x.com/${targetUserHandle}/status/${tweetID}`;
+                             console.log(`[$$eval] Constructed URL: ${url}`);
+                        }
+                    } else if (url) {
+                    console.log(`[$$eval] data-tweet-id not found. Attempting to extract from URL: ${url}`);
+                        // Fallback to extracting from URL if data-tweet-id is not present
+                        // Using regex literal for matching tweet ID from URL to avoid escaping issues
+                        const idMatch = url.match(/\/status\/(\d+)/);
+                        console.log(`[$$eval] ID match result from URL: ${idMatch ? idMatch[1] : 'null'}`);
+                        if (idMatch && idMatch[1]) { // Ensure match and capture group exist
+                             tweetID = idMatch[1];
+                             console.log(`[$$eval] Extracted Tweet ID from URL: ${tweetID}`);
+                        } else {
+                             console.log(`[$$eval] Could not extract tweet ID from URL ${url}. Skipping.`);
+                             return null;
+                        }
+                    } else {
+                         console.log(`[$$eval] No tweet link or data-tweet-id found for article index ${index}. Skipping.`);
+                         return null;
+                    }
+
+                    // Ensure tweetID is available before proceeding
+                    if (!tweetID) {
+                        console.log(`[$$eval] Tweet ID is null after extraction attempts for article index ${index}. Skipping.`);
+                        return null;
+                    }
 
                     // Extract timestamp
                     const timeElement = article.querySelector('time[datetime]');
-                    if (!timeElement) return null;
+                    console.log(`[$$eval] Time element found: ${!!timeElement}`);
+                    if (!timeElement) {
+                        console.log(`[$$eval] No time element found for article index ${index}. Skipping.`);
+                        // Decide if a tweet without a timestamp is valid; for now, let's skip to be safe.
+                        return null;
+                    }
                     const timestamp = timeElement.getAttribute('datetime');
+                    console.log(`[$$eval] Extracted Timestamp: ${timestamp}`);
 
                     // Extract tweet text content (excluding replies/quotes within the text)
                     // This is a heuristic and might need adjustment
                     const tweetTextElement = article.querySelector('div[data-testid="tweetText"]');
-                    let text = tweetTextElement ? tweetTextElement.innerText : '';
+                    const text = tweetTextElement ? tweetTextElement.innerText : '';
+                    console.log(`[$$eval] Extracted Text (partial): ${text.substring(0, 100)}...`);
 
                     // Determine tweet category
                     let tweetCategory = 'Post'; // Default to Post
@@ -832,30 +914,32 @@ async function pollXProfile() {
                     // Check for a quote tweet specific structure (a link to the quoted tweet's status within the tweet body)
                     // This selector is a heuristic and might need adjustment
                     const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
+                     console.log(`[$$eval] Quote tweet block found: ${!!quoteTweetBlock}`);
+
                     if (quoteTweetBlock && quoteTweetBlock.href !== tweetLink.href && tweetCategory === 'Post') { // Only classify as Quote if not already Retweet/Reply
                          tweetCategory = 'Quote';
                     }
 
-                    // If it's a retweet, the text content might be the original tweet's text, or empty.
-                    // If it's a quote tweet, the text content is the quoting text.
-                    // If it's a reply, the text content is the reply text.
-                    // If it's a simple post, the text content is the post text.
-
-
                     // The author is the target user handle for all relevant tweets in this search
                     // This is because the search is filtered by 'from:targetUserHandle'
                     const author = `@${targetUserHandle}`;
+                    console.log(`[$$eval] Determined Author: ${author}`);
+                    console.log(`[$$eval] Determined Category: ${tweetCategory}`);
 
-                    return { tweetID, author, timestamp, tweetCategory, text };
+                    const tweetData = { tweetID, author, timestamp, tweetCategory, text, url };
+                    console.log(`[$$eval] Successfully extracted tweet data: ${JSON.stringify(tweetData)}`);
+                    return tweetData;
                 } catch (e) {
-                    console.error('Error processing tweet article:', e);
+                    console.error('[$$eval] Error processing tweet article:', e);
                     return null;
                 }
             }).filter(tweet => tweet !== null); // Filter out any null results from mapping
 
+            console.log(`[$$eval] Finished processing articles. Found ${tweets.length} valid tweets.`);
             return tweets;
         }, X_USER_HANDLE);
 
+        logger.info(`[X Scraper] Scraped tweets before filtering: ${JSON.stringify(scrapedTweets)}`);
 
         // Deduplicate tweets by ID, which might still be necessary
         const uniqueTweetsMap = new Map();
@@ -940,12 +1024,12 @@ client.once('ready', async () => {
     }
 
     // Initialize YouTube monitoring
-//    initializeYouTubeMonitor();
+    initializeYouTubeMonitor();
 
     // Initialize X (Twitter) monitoring
     initializeXMonitor();
 
-    /*// Start the Express server
+    // Start the Express server
     app.listen(PSH_PORT, () => {
         logger.info(`PubSubHubbub server listening on port ${PSH_PORT}`);
         // Once the server is listening, subscribe to YouTube updates
@@ -954,7 +1038,7 @@ client.once('ready', async () => {
         // Corrected: Pass the Error object directly to logger.error
         logger.error('Failed to start Express server:', err);
         process.exit(1); // Exit if server cannot start
-    });*/
+    });
 });
 
 client.on('error', error => {
