@@ -51,6 +51,10 @@ const X_USER_HANDLE = process.env.X_USER_HANDLE;
 const DISCORD_X_POSTS_CHANNEL_ID = process.env.DISCORD_X_POSTS_CHANNEL_ID; // For original posts and replies
 const DISCORD_X_REPOSTS_CHANNEL_ID = process.env.DISCORD_X_REPOSTS_CHANNEL_ID; // For reposts
 
+// X (Twitter) Polling Interval (in milliseconds)
+const QUERY_INTERVALL_MIN = parseInt(process.env.X_QUERY_INTERVALL_MIN, 10) || 300000; // Default to 5 minutes
+const QUERY_INTERVALL_MAX = parseInt(process.env.X_QUERY_INTERVALL_MAX, 10) || 600000; // Default to 10 minutes
+
 // Logging configuration
 const LOG_FILE_PATH = process.env.LOG_FILE_PATH || 'bot.log'; // Path to the log file
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // 'error', 'warn', 'info', 'verbose', 'debug', 'silly'
@@ -653,11 +657,12 @@ async function populateInitialTweetIds() {
     logger.info(`Populated ${knownTweetIds.size} known tweet IDs from Discord history.`);
 }
 
+
 async function announceXContent(tweet) {
-    // Route 'repost' types to the reposts channel, and all other types ('post') to the posts channel.
-    const channelId = tweet.type === 'repost' ? DISCORD_X_REPOSTS_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
+    // Route Retweet types to the reposts channel, and others to the posts channel.
+    const channelId = tweet.tweetCategory === 'Retweet' ? DISCORD_X_REPOSTS_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
     if (!channelId) {
-        logger.warn(`No channel configured for tweet type '${tweet.type}'. Skipping.`);
+        logger.warn(`No channel configured for tweet category '${tweet.tweetCategory}'. Skipping.`);
         return;
     }
     try {
@@ -667,20 +672,36 @@ async function announceXContent(tweet) {
             return;
         }
         let message;
-        if (tweet.type === 'repost') {
-            message = `🔄 **${tweet.authorHandle} reposted:**\n${tweet.url}`;
-        } else { // This handles 'post' type, which includes original tweets, replies, and quote tweets.
-            message = `🐦 **New post by ${tweet.authorHandle}:**\n${tweet.text}\n${tweet.url}`;
+        switch (tweet.tweetCategory) {
+            case 'Post':
+                message = `🐦 **New post by ${tweet.author}:**\n${tweet.text || ''}\n${tweet.url}`;
+                break;
+            case 'Reply':
+                // Assuming 'text' contains the reply content. May need refinement based on actual scrape result.
+                message = `↩️ **${tweet.author} replied:**\n${tweet.text || ''}\n${tweet.url}`;
+                break;
+            case 'Quote':
+                // Assuming 'text' contains the quote content. May need refinement.
+                message = `💬 **${tweet.author} quoted:**\n${tweet.text || ''}\n${tweet.url}`;
+                break;
+            case 'Retweet':
+                // Retweets from search results might not contain the original tweet's text easily.
+                // Announcing with just the link for now, similar to the old 'repost' logic.
+                message = `🔄 **${tweet.author} reposted:**\n${tweet.url}`;
+                break;
+            default:
+                logger.warn(`Unknown tweet category: ${tweet.tweetCategory} for tweet ${tweet.tweetID}. Announcing as generic post.`);
+                message = `📄 **New activity by ${tweet.author}:**\n${tweet.url}`;
         }
+
         await sendMirroredMessage(channel, message);
-        logger.info(`Announced tweet ${tweet.id} from ${tweet.authorHandle}.`);
+        logger.info(`Announced tweet ${tweet.tweetID} from ${tweet.author}. Category: ${tweet.tweetCategory}.`);
     } catch (error) {
-        logger.error(`Failed to announce tweet ${tweet.id}:`, error);
+        logger.error(`Failed to announce tweet ${tweet.tweetID}:`, error);
     }
 }
 
 async function pollXProfile() {
-    let browser;
     try {
         logger.info(`[X Scraper] Launching browser instance for scraping.`);
         browser = await puppeteer.launch({
@@ -697,119 +718,132 @@ async function pollXProfile() {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
         await page.setViewport({ width: 1280, height: 1080 });
 
-         const urlsToScrape = [
-            `https://x.com/${X_USER_HANDLE}`, // Main 'Posts' tab
-            `https://x.com/${X_USER_HANDLE}/with_replies` // 'Replies' tab
-        ];
-        const allScrapedTweets = [];
+        // Calculate yesterday's date for the search query
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const searchDateFrom = yesterday.toISOString().split('T')[0]; // Format as YYYY-MM-DD
 
-        for (const url of urlsToScrape) {
-            logger.info(`[X Scraper] Navigating to X page: ${url}`);
-            try {
-                await page.goto(url, { waitUntil: 'networkidle2' });
+        // Construct the advanced search URL
+        const searchUrl = `https://x.com/search?q=(from%3A${X_USER_HANDLE})%20since%3A${searchDateFrom}&f=live&pf=on&src=typed_query`;
 
-                // Scroll down to load more tweets
-                logger.info(`[X Scraper] Scrolling page to load more tweets on ${url}.`);
-                for (let i = 0; i < 3; i++) {
-                    await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for new tweets to load
+        logger.info(`[X Scraper] Navigating to advanced search URL: ${searchUrl}`);
+        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
+
+        // Scroll down to load more tweets
+        logger.info(`[X Scraper] Scrolling page to load more tweets.`);
+        // Keep scrolling logic, but adjust the number of scrolls and wait time if necessary
+        // Based on how many tweets typically appear per scroll and the desired history depth
+        for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
+            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Increased wait for loading
         }
 
-        await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 });
+        await page.waitForSelector('article[data-testid="tweet"]', { timeout: 60000 }); // Increased timeout
 
-        const tweetsFromPage = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
-            return articles.map(article => {
-                const socialContextEl = article.querySelector('div[data-testid="socialContext"]');
-                const socialContextText = socialContextEl ? socialContextEl.innerText : '';
-        
-                // Ignore pinned tweets
-                if (socialContextText.includes('Pinned')) {
+        // The logic inside $$eval will need to be updated to handle the new page structure
+        // and classify tweets. This is a placeholder and will be refined in the next step.
+        const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
+            const tweets = articles.map(article => {
+                try {
+                    // Extract tweet URL and ID
+                    const tweetLink = article.querySelector('a[href*="/status/"]');
+                    if (!tweetLink) return null;
+                    const url = tweetLink.href;
+                    const idMatch = url.match('/\\/status\\/(\\d+)/');
+                    if (!idMatch) return null;
+                    const tweetID = idMatch[1];
+
+                    // Extract timestamp
+                    const timeElement = article.querySelector('time[datetime]');
+                    if (!timeElement) return null;
+                    const timestamp = timeElement.getAttribute('datetime');
+
+                    // Extract tweet text content (excluding replies/quotes within the text)
+                    // This is a heuristic and might need adjustment
+                    const tweetTextElement = article.querySelector('div[data-testid="tweetText"]');
+                    let text = tweetTextElement ? tweetTextElement.innerText : '';
+
+                    // Determine tweet category
+                    let tweetCategory = 'Post'; // Default to Post
+
+                    // Check for a quote tweet specific structure (a link to the quoted tweet's status within the tweet body)
+                    // This selector is a heuristic and might need adjustment
+                    const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
+                    if (quoteTweetBlock && quoteTweetBlock.href !== tweetLink.href && tweetCategory === 'Post') { // Only classify as Quote if not already Retweet/Reply
+                         tweetCategory = 'Quote';
+                    }
+
+                    // If it's a retweet, the text content might be the original tweet's text, or empty.
+                    // If it's a quote tweet, the text content is the quoting text.
+                    // If it's a reply, the text content is the reply text.
+                    // If it's a simple post, the text content is the post text.
+
+
+                    // The author is the target user handle for all relevant tweets in this search
+                    // This is because the search is filtered by 'from:targetUserHandle'
+                    const author = `@${targetUserHandle}`;
+
+                    return { tweetID, author, timestamp, tweetCategory, text };
+                } catch (e) {
+                    console.error('Error processing tweet article:', e);
                     return null;
                 }
-        
-                const authorHandle = (article.querySelector('div[data-testid="User-Name"] a > div > span')?.innerText || '').trim();
-                let type = 'post';
-                let finalAuthorHandle = authorHandle;
-                let isRelevant = false;
-        
-                // Case 1: It's a retweet by our target user.
-                if (socialContextText.includes('reposted') && socialContextText.toLowerCase().includes(targetUserHandle.toLowerCase())) {
-                    type = 'repost';
-                    finalAuthorHandle = `@${targetUserHandle}`;
-                    isRelevant = true;
-                } 
-                // Case 2: It's an original tweet, reply, or quote tweet by our target user.
-                else if (authorHandle.toLowerCase() === `@${targetUserHandle}`.toLowerCase()) {
-                    type = 'post'; // All non-reposts are treated as 'post' for routing.
-                    isRelevant = true;
-                }
-                
-                // If the tweet is not from or reposted by the target user, ignore it.
-                if (!isRelevant) {
-                    return null;
-                }
-        
-                const links = Array.from(article.querySelectorAll('a'));
-                const statusLink = links.find(a => a.href.includes('/status/'));
-                if (!statusLink) return null;
-        
-                const url = statusLink.href;
-                const idMatch = url.match(/\/status\/(\d+)/);
-                if (!idMatch) return null;
-                const id = idMatch[1];
-                
-                const text = article.querySelector('div[data-testid="tweetText"]')?.innerText || '';
-                const timeEl = article.querySelector('time[datetime]');
-                const timestamp = timeEl ? timeEl.getAttribute('datetime') : null;
-                if (!timestamp) return null;
-        
-                return { id, text, url, authorHandle: finalAuthorHandle, type, timestamp };
-        
-            }).filter(t => t !== null);
-                 }, X_USER_HANDLE);
-                
-                allScrapedTweets.push(...tweetsFromPage);
+            }).filter(tweet => tweet !== null); // Filter out any null results from mapping
 
-            } catch (pageError) {
-                logger.warn(`[X Scraper] Could not fully process ${url}. It might be empty or had a loading issue. Error: ${pageError.message}`);
-            }
-        }
-        
-        if(browser) await browser.close();
+            return tweets;
+        }, X_USER_HANDLE);
 
-        // Deduplicate tweets by ID, as replies can show up on the main timeline
+
+        // Deduplicate tweets by ID, which might still be necessary
         const uniqueTweetsMap = new Map();
-        for (const tweet of allScrapedTweets) {
-            if (!uniqueTweetsMap.has(tweet.id)) {
-                uniqueTweetsMap.set(tweet.id, tweet);
+        for (const tweet of scrapedTweets) {
+            // Ensure tweet and tweet.tweetID are not null/undefined before using has()
+             if (tweet && tweet.tweetID && !uniqueTweetsMap.has(tweet.tweetID)) {
+                uniqueTweetsMap.set(tweet.tweetID, tweet);
             }
         }
         const uniqueScrapedTweets = Array.from(uniqueTweetsMap.values());
-        let newTweets = uniqueScrapedTweets.filter(tweet => !knownTweetIds.has(tweet.id));
+
+        // Filter for truly new tweets
+        let newTweets = uniqueScrapedTweets.filter(tweet => tweet && tweet.tweetID && !knownTweetIds.has(tweet.tweetID));
+
+
         if (newTweets.length > 0) {
-            logger.info(`[X Scraper] Found ${newTweets.length} new tweets across all monitored tabs.`);
+            logger.info(`[X Scraper] Found ${newTweets.length} new tweets from search results.`);
 
             // Sort by timestamp to ensure chronological order (oldest first)
-            newTweets.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            newTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
 
             for (const tweet of newTweets) { // Process in chronological order
-                logger.info(`[X Scraper] Processing new tweet from ${tweet.timestamp}: ${tweet.url}`);
+                logger.info(`[X Scraper] Processing new tweet ${tweet.tweetID} from ${tweet.timestamp}, Category: ${tweet.tweetCategory}.`);
+                // Call announceXContent with the new tweet object structure
                 await announceXContent(tweet);
-                knownTweetIds.add(tweet.id);
+                // Ensure tweet.tweetID exists before adding to knownTweetIds
+                if (tweet && tweet.tweetID) {
+                    knownTweetIds.add(tweet.tweetID);
+                }
             }
         } else {
-            logger.info(`[X Scraper] No new tweets found for @${X_USER_HANDLE} across monitored tabs.`);
+            logger.info(`[X Scraper] No new tweets found for @${X_USER_HANDLE} from search results.`);
         }
+
         // Schedule next poll with random jitter
-        const nextPollIn = (5 * 60 * 1000) + (Math.random() * 60 * 1000); // 5-6 minutes
+        const nextPollIn = Math.floor(Math.random() * (QUERY_INTERVALL_MAX - QUERY_INTERVALL_MIN + 1)) + QUERY_INTERVALL_MIN;
+        logger.info(`[X Scraper] Next check in ${nextPollIn / 1000} seconds.`);
         setTimeout(pollXProfile, nextPollIn);
 
     } catch (error) {
         logger.error('[X Scraper] Error during polling:', error);
-        if(browser) await browser.close();
-        const nextPollIn = 30 * 60 * 1000; // Wait 30 minutes on error
-        logger.info(`[X Scraper] Retrying in ${nextPollIn / 60000} minutes.`);
+        // On error, wait the maximum interval before retrying to avoid rapid failed attempts
+        const nextPollIn = QUERY_INTERVALL_MAX; // Use max interval on error
+        logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
         setTimeout(pollXProfile, nextPollIn);
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
     }
 }
 
