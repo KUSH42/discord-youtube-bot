@@ -33,6 +33,7 @@ dotenv.config();
 // --- Configuration Variables ---
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_BOT_SUPPORT_LOG_CHANNEL = process.env.DISCORD_BOT_SUPPORT_LOG_CHANNEL; // For logging and message mirroring
+const DEBUG_LOG = process.env.DEBUG_LOG; // For extended logging
 
 // YouTube Monitoring Config
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY; // Still needed for initial channel info
@@ -734,12 +735,14 @@ async function pollXProfile() {
 
         // Listen for console messages from the browser context
         page.on('console', (msg) => {
-            const msgArgs = msg.args();
-            for (let i = 0; i < msgArgs.length; ++i) {
-                msgArgs[i].jsonValue().then(value => {
-                    // Log the browser console message with a prefix
-                    logger.info(`[Browser Console]: ${value}`);
-                }).catch(e => logger.error(`[Browser Console] Error getting console message value: ${e}`));
+            if (!DEBUG_LOG) {
+                const msgArgs = msg.args();
+                for (let i = 0; i < msgArgs.length; ++i) {
+                    msgArgs[i].jsonValue().then(value => {
+                        // Log the browser console message with a prefix
+                        logger.info(`[Browser Console]: ${value}`);
+                    }).catch(e => logger.error(`[Browser Console] Error getting console message value: ${e}`));
+                }
             }
         });
 
@@ -801,39 +804,17 @@ async function pollXProfile() {
 
         logger.info(`[X Scraper] Navigating to advanced search URL: ${searchUrl}`);
         // Navigate and wait for the main content to load, but not necessarily all network requests
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+        // Using 'networkidle2' might be more reliable for dynamic content than 'domcontentloaded'
+        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
-        // Wait for the first tweet article element to appear before scrolling
-        logger.info('[X Scraper] Waiting for tweet article elements...');
-        try {
-            // Waiting directly for the tweet article element
-            await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 }); // Adjusted timeout after explicit wait
-            logger.info('[X Scraper] Successfully found initial tweet article elements. Proceeding with scrolling.');
-        } catch (e) {
-            logger.warn('[X Scraper] Initial tweet article elements not found within timeout or an error occurred during waitForSelector.', e);
-            // If initial articles are not found, it might mean no tweets matched the search criteria,
-            // or the page structure is unexpected. We should probably log this and proceed to the next poll.
-             logger.info('[X Scraper] No tweet articles found on the page after initial wait. Skipping scraping for this cycle.');
-             // Do not close the browser immediately here, let the finally block handle it.
-             // Schedule the next poll and return.
-             const nextPollIn = Math.floor(Math.random() * (QUERY_INTERVALL_MAX - QUERY_INTERVALL_MIN + 1)) + QUERY_INTERVALL_MIN;
-             logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
-             setTimeout(pollXProfile, nextPollIn);
-             return; // Exit the function early if no tweets are found initially
-        }
+        // Take a screenshot immediately after navigation to see the initial page state
+        const screenshotPathInitial = './screenshot_after_goto.png';
+        await page.screenshot({ path: screenshotPathInitial, fullPage: true });
+        logger.info(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
 
-        // Scroll down to load more tweets
-        logger.info(`[X Scraper] Scrolling page to load more tweets.`);
-        // Keep scrolling logic, but adjust the number of scrolls and wait time if necessary
-        // Based on how many tweets typically appear per scroll and the desired history depth
-        for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
-            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
-            await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for loading
-        }
-
-        // Add a longer wait after scrolling to allow all dynamic content to load
-        logger.info(`[X Scraper] Finished scrolling. Waiting for page to settle.`);
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
+        // Capture and log the full HTML content of the page after navigation (first 1000 chars)
+        const htmlContent = await page.content();
+        logger.info(`[X Scraper] HTML content after navigation (first 1000 chars): ${htmlContent.substring(0, 1000)}...`);
 
         // Verify the current URL before attempting to scrape
         const currentUrl = page.url();
@@ -850,14 +831,18 @@ async function pollXProfile() {
             return; // Exit the function early
        }
 
-        // Take a screenshot to inspect the page state if still on the search page
-        const screenshotPath = './screenshot_before_scrape.png'; // Define a path for the screenshot
-        await page.screenshot({ path: screenshotPath, fullPage: true });
-        logger.info(`[X Scraper] Screenshot saved to ${screenshotPath}`);
+        // Use a Map to store unique tweets found across all scrolls
+        const uniqueTweetsMap = new Map();
 
-        // Now attempt to scrape using $$eval on the search results page
-        const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
-            console.log(`[$$eval] Found ${articles.length} potential tweet articles.`);
+        logger.info(`[X Scraper] Scrolling page and scraping incrementally.`);
+
+        // Scroll down and scrape tweets in each step
+        for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
+            // Wait for any potential loading indicators to disappear or for a short period
+            await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for loading
+
+            const scrapedTweetsInStep = await page.$$eval('article[data-testid="tweet"]', (articles, targetUserHandle) => {
+                console.log(`[$$eval] Found ${articles.length} potential tweet articles in this step.`);
 
             const tweets = articles.map((article, index) => {
                 try {
@@ -868,7 +853,7 @@ async function pollXProfile() {
                     console.log(`[$$eval] Tweet link element found: ${!!tweetLink}`);
 
                     let tweetID = null;
-                    let url = tweetLink ? tweetLink.href : null; // Get URL if link exists
+                    let url = tweetLink ? tweetLink.href : null;
 
                     // Attempt to extract tweet ID from data attribute first (more reliable)
                     tweetID = article.getAttribute('data-tweet-id');
@@ -919,33 +904,38 @@ async function pollXProfile() {
                     const tweetTextElement = article.querySelector('div[data-testid="tweetText"]');
                     const text = tweetTextElement ? tweetTextElement.innerText : '';
                     console.log(`[$$eval] Extracted Text (partial): ${text.substring(0, 100)}...`);
-
+                    
                     // Determine tweet category based on the presence of reply indicators
                     let tweetCategory = 'Post'; // Default to Post
 
-                    // Check for indicators of a reply tweet.
-                    // Look for a link within the article that points to a parent tweet's status page.
-                    // This is a common pattern for the "Replying to" link.
-                    const replyIndicatorLink = article.querySelector('a[href*="/status/"][role="link"] .css-1jxf684'); // Looking for a link with status URL and a specific text span child
-                    console.log(`[$$eval] Reply indicator link found: ${!!replyIndicatorLink}`);
+                    // Check for indicators of a reply tweet by looking for the specific HTML structure:
+                    // A div element containing the text "Replying to" and having a nested div > a > span structure.
+                    let isReply = false;
+                    const replyIndicatorDivs = article.querySelectorAll('div');
 
-                    if (replyIndicatorLink) {
-                         // Further check if the link's text content is an @mention, which is typical for replies.
-                         // This adds a layer of certainty without relying on dynamic classes.
-                         if (replyIndicatorLink.innerText.startsWith('@')) {
-                             tweetCategory = 'Reply';
-                             console.log(`[$$eval] Classified as Reply based on indicator link and @mention text.`);
-                         } else {
-                             console.log(`[$$eval] Found reply indicator link but text is not an @mention. Keeping as Post for now.`);
-                         }
+                    for (const div of replyIndicatorDivs) {
+                        // Check if the div contains the "Replying to" text
+                        if (div.textContent.trim().startsWith('Replying to')) {
+                            // Check if it has the required nested structure: div > a > span
+                            const nestedSpan = div.querySelector('div > a > span');
+                            if (nestedSpan) {
+                                isReply = true;
+                                console.log(`[$$eval] Identified reply based on structural pattern.`);
+                                break; // Found the reply indicator, no need to check further divs
+                            }
+                        }
+                    }
+
+                    if (isReply) {
+                         tweetCategory = 'Reply';
                     }
 
                     // Check for a quote tweet specific structure *only if* it's not already classified as a Reply
                     // This selector is a heuristic and might need adjustment
                     const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
-                     console.log(`[$$eval] Quote tweet block found: ${!!quoteTweetBlock}`);
-                    if (tweetCategory === 'Post' && quoteTweetBlock && quoteTweetBlock.href !== tweetLink.href) { // Only classify as Quote if it's still a 'Post' and the quote link is different from the main tweet link
-                         tweetCategory = 'Quote';
+                    console.log(`[$$eval] Quote tweet block found: ${!!quoteTweetBlock}`);
+                    if (tweetCategory === 'Post' && quoteTweetBlock && tweetLink && quoteTweetBlock.href !== tweetLink.href) {
+                        tweetCategory = 'Quote';
                          console.log(`[$$eval] Classified as Quote.`);
                     }
 
@@ -968,20 +958,28 @@ async function pollXProfile() {
             return tweets;
         }, X_USER_HANDLE);
 
-        logger.info(`[X Scraper] Scraped tweets before filtering: ${JSON.stringify(scrapedTweets)}`);
+        logger.info(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
 
-        // Deduplicate tweets by ID, which might still be necessary
-        const uniqueTweetsMap = new Map();
-        for (const tweet of scrapedTweets) {
+        for (const tweet of scrapedTweetsInStep) {
             // Ensure tweet and tweet.tweetID are not null/undefined before using has()
              if (tweet && tweet.tweetID && !uniqueTweetsMap.has(tweet.tweetID)) {
                 uniqueTweetsMap.set(tweet.tweetID, tweet);
+            } else {
+                logger.warn('[X Scraper] Skipping tweet with missing ID in scroll step', tweet);
             }
         }
-        const uniqueScrapedTweets = Array.from(uniqueTweetsMap.values());
 
-        // Filter for truly new tweets
-        let newTweets = uniqueScrapedTweets.filter(tweet => tweet && tweet.tweetID && !knownTweetIds.has(tweet.tweetID));
+        // Scroll down to load more content
+        await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+    }
+
+    logger.info(`[X Scraper] Finished scrolling and scraping. Total unique tweets found in session: ${uniqueTweetsMap.size}.`);
+
+    // Convert the map values to an array
+    const allScrapedTweetsInSession = Array.from(uniqueTweetsMap.values());
+
+        // Filter for truly new tweets that haven't been announced before
+        let newTweets = allScrapedTweetsInSession.filter(tweet => tweet && tweet.tweetID && !knownTweetIds.has(tweet.tweetID));
 
 
         if (newTweets.length > 0) {
@@ -1031,7 +1029,6 @@ async function initializeXMonitor() {
     await populateInitialTweetIds();
     pollXProfile(); // Start the first poll
 }
-
 
 // --- Main Bot Events ---
 client.once('ready', async () => {
