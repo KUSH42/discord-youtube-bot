@@ -2,7 +2,7 @@
 // © 2025 Marco Keller. All rights reserved. This software and its content are proprietary and confidential. Unauthorized reproduction or distribution is strictly prohibited.
 // This script sets up a Discord bot that:
 // 1. Polls a specific YouTube channel for new videos and livestreams.
-// 2. Polls a specific X (Twitter) profile for new posts, replies, and reposts.
+// 2. Polls a specific X (Twitter) profile for new posts, replies, and retweets.
 // It announces new content in designated Discord channels using a polling architecture
 // suitable for environments that do not support running a web server.
 // Features include winston logging and forwarding all logs and messages to a dedicated support channel.
@@ -48,8 +48,13 @@ const PSH_PORT = process.env.PORT || 3000; // Port for the Express server to lis
 
 // X (Twitter) Monitoring Config
 const X_USER_HANDLE = process.env.X_USER_HANDLE;
-const DISCORD_X_POSTS_CHANNEL_ID = process.env.DISCORD_X_POSTS_CHANNEL_ID; // For original posts and replies
-const DISCORD_X_REPOSTS_CHANNEL_ID = process.env.DISCORD_X_REPOSTS_CHANNEL_ID; // For reposts
+const DISCORD_X_POSTS_CHANNEL_ID = process.env.DISCORD_X_POSTS_CHANNEL_ID; // For original posts
+const DISCORD_X_REPLIES_CHANNEL_ID = process.env.DISCORD_X_REPLIES_CHANNEL_ID; // For replies
+const DISCORD_X_QUOTES_CHANNEL_ID = process.env.DISCORD_X_QUOTES_CHANNEL_ID; // For quote tweets
+const DISCORD_X_RETWEETS_CHANNEL_ID = process.env.DISCORD_X_RETWEETS_CHANNEL_ID; // For retweets
+
+// Twitter Authentication Cookies (obtain from a logged-in browser session)
+const TWITTER_AUTH_COOKIES = process.env.TWITTER_AUTH_COOKIES; // Store serialized cookies here
 
 // X (Twitter) Polling Interval (in milliseconds)
 const QUERY_INTERVALL_MIN = parseInt(process.env.X_QUERY_INTERVALL_MIN, 10) || 300000; // Default to 5 minutes
@@ -638,7 +643,8 @@ async function subscribeToYouTubePubSubHubbub() {
 // --- X (Twitter) Monitoring Section ---
 async function populateInitialTweetIds() {
     const tweetUrlRegex = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/\w+\/status\/(\d+)/g;
-    const channelIds = [DISCORD_X_POSTS_CHANNEL_ID, DISCORD_X_REPOSTS_CHANNEL_ID].filter(id => id);
+    // Include all potential X announcement channel IDs
+    const channelIds = [DISCORD_X_POSTS_CHANNEL_ID, DISCORD_X_REPLIES_CHANNEL_ID, DISCORD_X_QUOTES_CHANNEL_ID, DISCORD_X_RETWEETS_CHANNEL_ID].filter(id => id);
 
     for (const channelId of channelIds) {
         try {
@@ -659,49 +665,58 @@ async function populateInitialTweetIds() {
 
 
 async function announceXContent(tweet) {
-    // Route Retweet types to the reposts channel, and others to the posts channel.
-    const channelId = tweet.tweetCategory === 'Retweet' ? DISCORD_X_REPOSTS_CHANNEL_ID : DISCORD_X_POSTS_CHANNEL_ID;
+    let channelId;
+    let message;
+
+    // Determine the target channel and message format based on tweet category
+    switch (tweet.tweetCategory) {
+        case 'Post':
+            channelId = DISCORD_X_POSTS_CHANNEL_ID;
+            message = `🐦 **New post by ${tweet.author}:**\n${tweet.text || ''}\n${tweet.url}`;
+            break;
+        case 'Reply':
+            channelId = DISCORD_X_REPLIES_CHANNEL_ID;
+            // Assuming 'text' contains the reply content. May need refinement based on actual scrape result.
+            message = `↩️ **${tweet.author} replied:**\n${tweet.text || ''}\n${tweet.url}`;
+            break;
+        case 'Quote':
+            channelId = DISCORD_X_QUOTES_CHANNEL_ID;
+            // Assuming 'text' contains the quote content. May need refinement.
+            message = `💬 **${tweet.author} quoted:**\n${tweet.text || ''}\n${tweet.url}`;
+            break;
+        case 'Retweet':
+            channelId = DISCORD_X_RETWEETS_CHANNEL_ID;
+            // Retweets from search results might not contain the original tweet's text easily.
+            // Announcing with just the link for now, similar to the old 'retweet' logic.
+            message = `🔄 **${tweet.author} retweeted:**\n${tweet.url}`;
+            break;
+        default:
+            logger.warn(`Unknown tweet category: ${tweet.tweetCategory} for tweet ${tweet.tweetID}. Announcing as generic post.`);
+            channelId = DISCORD_X_POSTS_CHANNEL_ID; // Fallback to posts channel
+            message = `📄 **New activity by ${tweet.author}:**\n${tweet.url}`;
+    }
+
     if (!channelId) {
-        logger.warn(`No channel configured for tweet category '${tweet.tweetCategory}'. Skipping.`);
+        logger.warn(`No Discord channel configured for tweet category '${tweet.tweetCategory}'. Skipping announcement for tweet ${tweet.tweetID}.`);
         return;
     }
+
     try {
         const channel = await client.channels.fetch(channelId);
         if (!channel || !channel.isTextBased()) {
-            logger.error(`X announcement channel ${channelId} not found or is not a text channel.`);
+            logger.error(`Configured Discord channel ${channelId} for tweet category '${tweet.tweetCategory}' not found or is not a text channel. Skipping announcement for tweet ${tweet.tweetID}.`);
             return;
-        }
-        let message;
-        switch (tweet.tweetCategory) {
-            case 'Post':
-                message = `🐦 **New post by ${tweet.author}:**\n${tweet.text || ''}\n${tweet.url}`;
-                break;
-            case 'Reply':
-                // Assuming 'text' contains the reply content. May need refinement based on actual scrape result.
-                message = `↩️ **${tweet.author} replied:**\n${tweet.text || ''}\n${tweet.url}`;
-                break;
-            case 'Quote':
-                // Assuming 'text' contains the quote content. May need refinement.
-                message = `💬 **${tweet.author} quoted:**\n${tweet.text || ''}\n${tweet.url}`;
-                break;
-            case 'Retweet':
-                // Retweets from search results might not contain the original tweet's text easily.
-                // Announcing with just the link for now, similar to the old 'repost' logic.
-                message = `🔄 **${tweet.author} reposted:**\n${tweet.url}`;
-                break;
-            default:
-                logger.warn(`Unknown tweet category: ${tweet.tweetCategory} for tweet ${tweet.tweetID}. Announcing as generic post.`);
-                message = `📄 **New activity by ${tweet.author}:**\n${tweet.url}`;
         }
 
         await sendMirroredMessage(channel, message);
-        logger.info(`Announced tweet ${tweet.tweetID} from ${tweet.author}. Category: ${tweet.tweetCategory}.`);
+        logger.info(`Announced tweet ${tweet.tweetID} from ${tweet.author} in channel ${channelId}. Category: ${tweet.tweetCategory}.`);
     } catch (error) {
-        logger.error(`Failed to announce tweet ${tweet.tweetID}:`, error);
+        logger.error(`Failed to announce tweet ${tweet.tweetID} in channel ${channelId}:`, error);
     }
 }
 
 async function pollXProfile() {
+    let browser = null; // Declare browser outside try and initialize to null
     try {
         logger.info(`[X Scraper] Launching browser instance for scraping.`);
         browser = await puppeteer.launch({
@@ -717,6 +732,53 @@ async function pollXProfile() {
         const page = await browser.newPage();
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
         await page.setViewport({ width: 1280, height: 1080 });
+
+        // Load authentication cookies if available
+        // Load authentication cookies if available
+        // Load authentication cookies if available
+        // Load authentication cookies if available
+        if (TWITTER_AUTH_COOKIES) {
+            try {
+                const cookies = JSON.parse(TWITTER_AUTH_COOKIES);
+                // Process cookies to keep only standard Puppeteer cookie properties and ensure correct types
+                const processedCookies = cookies.map(cookie => {
+                    // Construct a new cookie object with properties expected by Puppeteer
+                    const standardCookie = {
+                        name: cookie.name,
+                        value: cookie.value,
+                        domain: cookie.domain,
+                        path: cookie.path,
+                        expires: typeof cookie.expires === 'number' ? cookie.expires : (cookie.expires ? new Date(cookie.expires).getTime() / 1000 : -1), // Convert to Unix timestamp in seconds, -1 for session cookies
+                        httpOnly: cookie.httpOnly || false,
+                        secure: cookie.secure || false,
+                        sameSite: cookie.sameSite || 'None'
+                    };
+
+                    // Puppeteer requires 'url' for setCookie, construct it if missing or incomplete
+                    if (!standardCookie.url && standardCookie.domain && standardCookie.path !== undefined) {
+                         // Basic URL construction, adjust protocol if necessary (http vs https)
+                         const protocol = standardCookie.secure ? 'https' : 'http';
+                         standardCookie.url = `${protocol}://${standardCookie.domain}${standardCookie.path}`;
+                    } else if (cookie.url) { // Prefer original url if provided
+                         standardCookie.url = cookie.url;
+                    }
+
+                    // Filter out cookies that are critically missing required properties for Puppeteer
+                    if (!standardCookie.name || standardCookie.value === undefined || !standardCookie.domain || standardCookie.path === undefined || !standardCookie.url) {
+                         logger.warn('[X Scraper] Skipping potentially malformed cookie:', standardCookie);
+                         return null; // Indicate this cookie should be filtered out
+                    }
+
+                    return standardCookie;
+                }).filter(cookie => cookie !== null); // Filter out any null results from mapping
+
+                await page.setCookie(...processedCookies);
+                logger.info(`[X Scraper] Attempted to load ${cookies.length} Twitter authentication cookies. Successfully loaded ${processedCookies.length} cookies.`);
+            } catch (e) {
+                logger.error('[X Scraper] Failed to parse or set Twitter authentication cookies. Ensure the TWITTER_AUTH_COOKIES env var is a valid JSON array of cookie objects and the format is compatible with Puppeteer:', e);
+                // Continue without cookies, but expect potential issues like login prompts or missing tweets.
+            }
+        }
 
         // Calculate yesterday's date for the search query
         const today = new Date();
@@ -848,7 +910,7 @@ async function pollXProfile() {
 }
 
 async function initializeXMonitor() {
-    if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_REPOSTS_CHANNEL_ID)) {
+    if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_RETWEETS_CHANNEL_ID)) {
         logger.warn('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
         return;
     }
@@ -878,12 +940,12 @@ client.once('ready', async () => {
     }
 
     // Initialize YouTube monitoring
-    initializeYouTubeMonitor();
+//    initializeYouTubeMonitor();
 
     // Initialize X (Twitter) monitoring
     initializeXMonitor();
 
-    // Start the Express server
+    /*// Start the Express server
     app.listen(PSH_PORT, () => {
         logger.info(`PubSubHubbub server listening on port ${PSH_PORT}`);
         // Once the server is listening, subscribe to YouTube updates
@@ -892,7 +954,7 @@ client.once('ready', async () => {
         // Corrected: Pass the Error object directly to logger.error
         logger.error('Failed to start Express server:', err);
         process.exit(1); // Exit if server cannot start
-    });
+    });*/
 });
 
 client.on('error', error => {
