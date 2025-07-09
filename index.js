@@ -33,7 +33,6 @@ dotenv.config();
 // --- Configuration Variables ---
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_BOT_SUPPORT_LOG_CHANNEL = process.env.DISCORD_BOT_SUPPORT_LOG_CHANNEL; // For logging and message mirroring
-const DEBUG_LOG = process.env.DEBUG_LOG; // For extended logging
 
 // YouTube Monitoring Config
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY; // Still needed for initial channel info
@@ -405,7 +404,7 @@ app.use((req, res, next) => {
 
 // --- PubSubHubbub Endpoint ---
 // This endpoint will receive verification challenges AND notifications from YouTube.
-let webhookPath = '/webhook/youtube-test'; // Default path
+let webhookPath = '/webhook/youtube'; // Default path
 if (PSH_CALLBACK_URL) {
     try {
         const callbackUrlObject = new URL(PSH_CALLBACK_URL);
@@ -442,7 +441,8 @@ app.get(webhookPath, (req, res) => {
         logger.info('Successfully responded to PubSubHubbub challenge.');
         return;
     }
-        logger.warn('Received unknown GET request to webhook endpoint.');
+    // Log details for unknown GET requests
+    logger.warn('Received unknown GET request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
     res.status(400).send('Bad Request');
 });
 
@@ -560,7 +560,7 @@ app.post(webhookPath, async (req, res) => {
         }
     } else {
         // This 'else' block from the original POST handler is still for unexpected requests
-        logger.warn('Received unknown POST request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
+        logger.warn('Received unknown request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
         res.status(400).send('Bad Request');
     }
 });
@@ -721,7 +721,7 @@ async function pollXProfile() {
     try {
         logger.info(`[X Scraper] Launching browser instance for scraping.`);
         browser = await puppeteer.launch({
-            headless: false,
+            headless: logger.level !== 'debug', // Run headless unless debug logging is enabled
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -735,7 +735,8 @@ async function pollXProfile() {
 
         // Listen for console messages from the browser context
         page.on('console', (msg) => {
-            if (!DEBUG_LOG) {
+            // Log console messages only when debug logging is enabled
+            if (logger.level === 'debug') {
                 const msgArgs = msg.args();
                 for (let i = 0; i < msgArgs.length; ++i) {
                     msgArgs[i].jsonValue().then(value => {
@@ -808,13 +809,15 @@ async function pollXProfile() {
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
         // Take a screenshot immediately after navigation to see the initial page state
-        const screenshotPathInitial = './screenshot_after_goto.png';
-        await page.screenshot({ path: screenshotPathInitial, fullPage: true });
-        logger.info(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
+        if (logger.level === 'debug') {
+            const screenshotPathInitial = './screenshot_after_goto.png';
+            await page.screenshot({ path: screenshotPathInitial, fullPage: true });
+            logger.debug(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
+        }
 
         // Capture and log the full HTML content of the page after navigation (first 1000 chars)
         const htmlContent = await page.content();
-        logger.info(`[X Scraper] HTML content after navigation (first 1000 chars): ${htmlContent.substring(0, 1000)}...`);
+        logger.debug(`[X Scraper] HTML content after navigation (first 1000 chars): ${htmlContent.substring(0, 1000)}...`);
 
         // Verify the current URL before attempting to scrape
         const currentUrl = page.url();
@@ -837,7 +840,7 @@ async function pollXProfile() {
         logger.info(`[X Scraper] Scrolling page and scraping incrementally.`);
 
         // Scroll down and scrape tweets in each step
-        for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
+        for (let i = 0; i < 3; i++) { // Scroll 3 times as search might yield more results
             // Wait for any potential loading indicators to disappear or for a short period
             await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for loading
 
@@ -965,7 +968,7 @@ async function pollXProfile() {
              if (tweet && tweet.tweetID && !uniqueTweetsMap.has(tweet.tweetID)) {
                 uniqueTweetsMap.set(tweet.tweetID, tweet);
             } else {
-                logger.warn('[X Scraper] Skipping tweet with missing ID in scroll step', tweet);
+                logger.debug('[X Scraper] Skipping tweet with missing ID in scroll step', tweet);
             }
         }
 
@@ -1022,7 +1025,7 @@ async function pollXProfile() {
 
 async function initializeXMonitor() {
     if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_RETWEETS_CHANNEL_ID)) {
-        logger.warn('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
+        logger.debug('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
         return;
     }
     logger.info(`[X Scraper] Initializing monitor for X user: @${X_USER_HANDLE}`);
