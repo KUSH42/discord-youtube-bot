@@ -78,7 +78,7 @@ let subscriptionRenewalTimer = null;
 // --- Global State ---
 let botStartTime = null; // To store the bot's startup time
 let isPostingEnabled = true; // Flag to control if the bot is allowed to post messages (affects all Discord output)
-let isAnnouncementEnabled = true; // Flag to control if announcements are posted to non-support channels
+let isAnnouncementEnabled = false; // Flag to control if announcements are posted to non-support channels
 const allowedUserIds = process.env.ALLOWED_USER_IDS ? process.env.ALLOWED_USER_IDS.split(',').map(id => id.trim()) : []; // List of User IDs allowed to restart
 
 // --- Utility Functions ---
@@ -338,20 +338,23 @@ async function populateInitialYouTubeHistory() {
  * @param {object} item - The video/livestream item object with id, title, url, type.
  */
 async function announceYouTubeContent(item) {
-    // Check if announcement posting is enabled before proceeding
-    if (!isAnnouncementEnabled) {
-        logger.info(`Announcement posting is disabled. Skipping YouTube announcement for ${item.title}.`);
-        return;
-    }
-
     const channel = client.channels.cache.get(DISCORD_YOUTUBE_CHANNEL_ID);
     if (!channel) {
         logger.error(`Discord announcement channel ${DISCORD_YOUTUBE_CHANNEL_ID} not found.`);
         return;
     }
+
     const messageContent = item.type === 'upload'
         ? `@everyone 🎬 New Video Upload!\n${item.title}\n${item.url}`
         : `@everyone 🔴 Livestream Started!\n${item.title}\n${item.url}`;
+
+    // Check if announcement posting is enabled before proceeding
+    if (!isAnnouncementEnabled) {
+        announcedVideos.add(item.id);
+        logger.info(`Announcement posting is disabled. Skipping YouTube announcement for ${item.title}.`);
+        logger.info(messageContent);
+        return;
+    }
     try {
         // sendMirroredMessage already checks isPostingEnabled
         await sendMirroredMessage(channel, messageContent);
@@ -391,7 +394,7 @@ app.use((req, res, next) => {
 
 // --- PubSubHubbub Endpoint ---
 // This endpoint will receive verification challenges AND notifications from YouTube.
-let webhookPath = '/webhook/youtube-test'; // Default path
+let webhookPath = '/webhook/youtube'; // Default path
 if (PSH_CALLBACK_URL) {
     try {
         const callbackUrlObject = new URL(PSH_CALLBACK_URL);
@@ -1022,7 +1025,7 @@ async function pollXProfile() {
             return tweets;
         }, X_USER_HANDLE);
 
-        logger.info(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
+        logger.debug(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
 
         for (const tweet of scrapedTweetsInStep) {
             // Ensure tweet and tweet.tweetID are not null/undefined before using has()
@@ -1056,7 +1059,10 @@ async function pollXProfile() {
              if (botStartTime && tweet.timestamp) {
                  const tweetTime = new Date(tweet.timestamp);
                  if (tweetTime.getTime() < botStartTime.getTime()) {
-                     logger.info(`[X Scraper] Skipping old tweet ${tweet.tweetID} published before bot startup: ${tweet.timestamp}`);
+                     // Log only if this old tweet hasn't been seen before in this session
+                     if (!knownTweetIds.has(tweet.tweetID)) {
+                          logger.info(`[X Scraper] Skipping old tweet ${tweet.tweetID} published before bot startup: ${tweet.timestamp}`);
+                     }
                      knownTweetIds.add(tweet.tweetID); // Mark old tweets as known to prevent future checks
                      return false; // Skip tweets older than bot startup
                  }
@@ -1249,54 +1255,14 @@ client.on('messageCreate', async message => {
             `**${COMMAND_PREFIX}restart**: Performs a soft restart of the bot. Requires specific user authorization (\`ALLOWED_USER_IDS\`). Re-enables support log posting but retains the announcement toggle state.`,
             `**${COMMAND_PREFIX}announce <true|false>**: Toggles announcement posting to non-support channels. Does *not* affect the support log output.`,
             `**${COMMAND_PREFIX}readme**: Displays this command information.`,
-            `You can set the command prefix using the \`COMMAND_PREFIX\` environment variable. Default is \`!\`.`,
+            // You can set the command prefix using the COMMAND_PREFIX environment variable. Default is '!'.
         ];
         const readmeMessage = `**Discord Bot Message Commands**\n\nThese commands can only be used in the configured support channel.\n\n${commandList.join('\n')}`;
         await message.reply(readmeMessage);
       }
 });
 
-client.once('ready', async () => {
-    logger.info(`Logged in as ${client.user.tag}!`);
-    logger.info('Bot is ready to receive YouTube PubSubHubbub notifications.');
 
-    // Set the bot startup time
-    botStartTime = new Date();
-    logger.info(`Bot started at: ${botStartTime.toISOString()}`);
-
-    process.on('unhandledRejection', error => {
-        logger.error('Unhandled Rejection:', error);
-    });
-    process.on('uncaughtException', error => {
-        logger.error('Uncaught Exception:', error);
-        // In a real-world scenario, you might want to gracefully shut down here.
-        // For now, we log it to ensure visibility.
-    });
-
-    if (DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
-        logger.add(new DiscordTransport({ level: 'info', client: client, channelId: DISCORD_BOT_SUPPORT_LOG_CHANNEL }));
-    } else {
-        logger.warn('DISCORD_BOT_SUPPORT_LOG_CHANNEL not set. Discord logging and slash commands are disabled.');
-    }
-
-    // Initialize YouTube monitoring (relies on PubSubHubbub)
-    initializeYouTubeMonitor();
-
-    // Initialize X (Twitter) monitoring (still uses polling)
-    initializeXMonitor();
-
-    // Start the Express server for PubSubHubbub
-    app.listen(PSH_PORT, () => {
-        logger.info(`PubSubHubbub server listening on port ${PSH_PORT}`);
-        // Once the server is listening, subscribe to YouTube updates
-        // The initial subscription will now happen as part of softRestart if enabled
-        // subscribeToYouTubePubSubHubbub(); // Removed initial direct call
-    }).on('error', (err) => {
-        // Corrected: Pass the Error object directly to logger.error
-        logger.error('Failed to start Express server:', err);
-        process.exit(1); // Exit if server cannot start
-    });
-});
 
 client.on('error', error => {
     // Corrected: Pass the Error object directly to logger.error
