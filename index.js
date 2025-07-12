@@ -27,13 +27,14 @@ import 'winston-daily-rotate-file';    // For daily log rotation
 import Transport from 'winston-transport';
 import crypto from 'crypto';            // For cryptographic operations (HMAC verification)
 
+
 // Load environment variables from .env file
 dotenv.config();
 
 // --- Configuration Variables ---
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+const COMMAND_PREFIX = process.env.COMMAND_PREFIX || '!'; // Define a command prefix, default is '!'
 const DISCORD_BOT_SUPPORT_LOG_CHANNEL = process.env.DISCORD_BOT_SUPPORT_LOG_CHANNEL; // For logging and message mirroring
-const DEBUG_LOG = process.env.DEBUG_LOG; // For extended logging
 
 // YouTube Monitoring Config
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY; // Still needed for initial channel info
@@ -74,6 +75,12 @@ let knownTweetIds = new Set();
 // --- PubSubHubbub Auto-Renewal Timer ---
 let subscriptionRenewalTimer = null;
 
+// --- Global State ---
+let botStartTime = null; // To store the bot's startup time
+let isPostingEnabled = true; // Flag to control if the bot is allowed to post messages (affects all Discord output)
+let isAnnouncementEnabled = false; // Flag to control if announcements are posted to non-support channels
+const allowedUserIds = process.env.ALLOWED_USER_IDS ? process.env.ALLOWED_USER_IDS.split(',').map(id => id.trim()) : []; // List of User IDs allowed to restart
+
 // --- Utility Functions ---
 /**
  * Splits a string into multiple chunks of a specified maximum length, respecting line breaks.
@@ -106,7 +113,23 @@ function splitMessage(text, { maxLength = 2000 } = {}) {
  * Sends a message to a target channel and mirrors it to the support log channel.
  */
 async function sendMirroredMessage(targetChannel, content) {
+    if (!isPostingEnabled) {
+        logger.info(`Posting is disabled. Skipping message to ${targetChannel.name}.`);
+        // Optionally send a notification to the support channel that posting is disabled
+         if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && targetChannel.id !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
+             client.channels.fetch(DISCORD_BOT_SUPPORT_LOG_CHANNEL).then(supportChannel => {
+                 if (supportChannel && supportChannel.isTextBased()) {
+                     supportChannel.send(`(Posting is currently disabled. Skipped message to ${targetChannel.name})`).catch(err => logger.error(`Failed to send disabled posting notification:`, err));
+                 }
+             }).catch(() => logger.warn(`Could not fetch support channel ${DISCORD_BOT_SUPPORT_LOG_CHANNEL} to notify about skipped message.`));
+         }
+        return; // Do not send the message if posting is disabled
+    }
+
+    // Original logic for sending the message
     await targetChannel.send(content);
+
+    // Mirroring logic
     if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && targetChannel.id !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
         client.channels.fetch(DISCORD_BOT_SUPPORT_LOG_CHANNEL).then(supportChannel => {
             if (supportChannel && supportChannel.isTextBased()) {
@@ -129,7 +152,7 @@ class DiscordTransport extends Transport {
 
         // Buffering options
         this.buffer = [];
-        this.flushInterval = opts.flushInterval || 5000; // 5 seconds
+        this.flushInterval = opts.flushInterval || 2000; // 2 seconds
         this.maxBufferSize = opts.maxBufferSize || 20;    // 20 log entries
         this.flushTimer = null;
 
@@ -288,11 +311,11 @@ const client = new Client({
     partials: [Partials.Channel]
 });
 
-// --- YouTube Monitoring Section (Polling) ---
+// --- YouTube Monitoring Section ---
 const youtube = google.youtube({ version: 'v3', auth: YOUTUBE_API_KEY });
 
 async function populateInitialYouTubeHistory() {
-    const videoUrlRegex = /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/g;
+    const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
     if (!DISCORD_YOUTUBE_CHANNEL_ID) return;
 
     try {
@@ -320,10 +343,20 @@ async function announceYouTubeContent(item) {
         logger.error(`Discord announcement channel ${DISCORD_YOUTUBE_CHANNEL_ID} not found.`);
         return;
     }
+
     const messageContent = item.type === 'upload'
         ? `@everyone 🎬 New Video Upload!\n${item.title}\n${item.url}`
         : `@everyone 🔴 Livestream Started!\n${item.title}\n${item.url}`;
+
+    // Check if announcement posting is enabled before proceeding
+    if (!isAnnouncementEnabled) {
+        announcedVideos.add(item.id);
+        logger.info(`Announcement posting is disabled. Skipping YouTube announcement for ${item.title}.`);
+        logger.info(messageContent);
+        return;
+    }
     try {
+        // sendMirroredMessage already checks isPostingEnabled
         await sendMirroredMessage(channel, messageContent);
         logger.info(`Announced YT content: ${item.title}`);
     } catch (error) {
@@ -331,59 +364,15 @@ async function announceYouTubeContent(item) {
     }
 }
 
-async function pollYouTubeChannel() {
-    try {
-        logger.info(`[YouTube Poller] Checking for new videos for channel ${YOUTUBE_CHANNEL_ID}.`);
-        const searchResponse = await youtube.search.list({
-            part: 'id',
-            channelId: YOUTUBE_CHANNEL_ID,
-            order: 'date',
-            maxResults: 10,
-            type: 'video'
-        });
-
-        const videoIds = searchResponse.data.items.map(item => item.id.videoId).filter(id => !announcedVideos.has(id));
-
-        if (videoIds.length > 0) {
-            logger.info(`[YouTube Poller] Found ${videoIds.length} potential new videos. Fetching details.`);
-            const detailsResponse = await youtube.videos.list({
-                part: 'snippet,liveStreamingDetails',
-                id: videoIds.join(','),
-            });
-
-            for (const video of detailsResponse.data.items.reverse()) { // Process oldest first
-                if (!announcedVideos.has(video.id)) {
-                    const type = video.snippet.liveBroadcastContent === 'live' || video.liveStreamingDetails?.actualStartTime ? 'livestream' : 'upload';
-                    await announceYouTubeContent({
-                        id: video.id,
-                        title: video.snippet.title,
-                        url: `https://www.youtube.com/watch?v=${video.id}`,
-                        type: type
-                    });
-                    announcedVideos.add(video.id);
-                }
-            }
-        } else {
-            logger.info(`[YouTube Poller] No new videos found.`);
-        }
-    } catch (error) {
-        logger.error('[YouTube Poller] Error during polling:', error);
-    } finally {
-        const nextPollIn = 10 * 60 * 1000; // 10 minutes
-        logger.info(`[YouTube Poller] Next check in ${nextPollIn / 60000} minutes.`);
-        setTimeout(pollYouTubeChannel, nextPollIn);
-    }
-}
-
 async function initializeYouTubeMonitor() {
     if (!YOUTUBE_API_KEY || !YOUTUBE_CHANNEL_ID || !DISCORD_YOUTUBE_CHANNEL_ID) {
-        logger.warn('[YouTube Poller] Not configured. Required env vars are missing. Skipping.');
+        logger.warn('[YouTube Monitor] Not configured. Required env vars are missing. Skipping.');
         return;
     }
-    logger.info(`[YouTube Poller] Initializing monitor for channel ID: ${YOUTUBE_CHANNEL_ID}`);
+    logger.info(`[YouTube Monitor] Initializing monitor for channel ID: ${YOUTUBE_CHANNEL_ID}`);
+    // Populate history to avoid re-announcing existing videos in the channel
     await populateInitialYouTubeHistory();
-    // Start polling as a fallback to PubSubHubbub
-    pollYouTubeChannel();
+    // YouTube monitoring now relies solely on PubSubHubbub.
 }
 
 
@@ -405,7 +394,7 @@ app.use((req, res, next) => {
 
 // --- PubSubHubbub Endpoint ---
 // This endpoint will receive verification challenges AND notifications from YouTube.
-let webhookPath = '/webhook/youtube-test'; // Default path
+let webhookPath = '/webhook/youtube'; // Default path
 if (PSH_CALLBACK_URL) {
     try {
         const callbackUrlObject = new URL(PSH_CALLBACK_URL);
@@ -442,7 +431,8 @@ app.get(webhookPath, (req, res) => {
         logger.info('Successfully responded to PubSubHubbub challenge.');
         return;
     }
-        logger.warn('Received unknown GET request to webhook endpoint.');
+    // Log details for unknown GET requests
+    logger.warn('Received unknown GET request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
     res.status(400).send('Bad Request');
 });
 
@@ -481,7 +471,7 @@ app.post(webhookPath, async (req, res) => {
         try {
             const parser = new xml2js.Parser({ explicitArray: false });
             const result = await parser.parseStringPromise(req.body); // Use string body for parsing
-            
+
             const entry = result.feed.entry;
 
             if (entry) {
@@ -514,7 +504,7 @@ app.post(webhookPath, async (req, res) => {
                 if (channelId === YOUTUBE_CHANNEL_ID) {
                     if (!announcedVideos.has(videoId)) {
                         logger.info(`New content detected: ${title} (${videoId})`);
-                        // Fetch additional details to see if it's a livestream or an upload
+                        // Fetch additional details to see if it's a livestream or an upload and get published date
                         const videoDetailsResponse = await youtube.videos.list({
                             part: 'liveStreamingDetails,snippet',
                             id: videoId
@@ -522,24 +512,43 @@ app.post(webhookPath, async (req, res) => {
 
                         const videoItem = videoDetailsResponse.data.items[0];
                         if (videoItem) {
-                            let contentType = 'upload';
-                            // Check for livestream status based on YouTube Data API details
-                            if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
-                                contentType = 'livestream'; // Is or was live
-                            } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
-                                contentType = 'livestream'; // Currently live or scheduled
-                            }
+                            const publishedAt = new Date(videoItem.snippet.publishedAt);
 
-                            const content = {
-                                id: videoId,
-                                title: title,
-                                url: link,
-                                type: contentType
-                            };
-                            await announceYouTubeContent(content);
-                            announcedVideos.add(videoId); // Mark as announced
+                            // Only announce if the video was published after the bot started
+                            if (botStartTime && publishedAt.getTime() >= botStartTime.getTime()) {
+                                let contentType = 'upload';
+                                // Check for livestream status based on YouTube Data API details
+                                if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
+                                    contentType = 'livestream'; // Is or was live
+                                } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
+                                    contentType = 'livestream'; // Currently live or scheduled
+                                }
+
+                                const content = {
+                                    id: videoId,
+                                    title: title,
+                                    url: link,
+                                    type: contentType
+                                };
+                                await announceYouTubeContent(content);
+                                announcedVideos.add(videoId); // Mark as announced
+                            } else if (botStartTime && publishedAt.getTime() < botStartTime.getTime()) {
+                                logger.info(`Skipping announcement for old YouTube content published before bot startup: ${title} (${videoId}) published on ${publishedAt.toISOString()}`);
+                                announcedVideos.add(videoId); // Still mark as known to prevent future checks
+                            } else {
+                                // botStartTime might not be set yet if notification is received very early
+                                logger.warn(`Bot startup time not yet set, cannot determine if YouTube content is old. Announcing: ${title} (${videoId})`);
+                                let contentType = 'upload';
+                                if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
+                                    contentType = 'livestream';
+                                } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
+                                    contentType = 'livestream';
+                                }
+                                await announceYouTubeContent({ id: videoId, title: title, url: link, type: contentType });
+                                announcedVideos.add(videoId);
+                            }
                         } else {
-                            logger.warn(`Could not fetch details for video ID: ${videoId}. Announcing as generic content.`);
+                            logger.warn(`Could not fetch details for video ID: ${videoId}. Cannot determine if old. Announcing as generic content.`);
                             await announceYouTubeContent({ id: videoId, title: title, url: link, type: 'unknown' });
                             announcedVideos.add(videoId); // Mark as announced
                         }
@@ -560,10 +569,58 @@ app.post(webhookPath, async (req, res) => {
         }
     } else {
         // This 'else' block from the original POST handler is still for unexpected requests
-        logger.warn('Received unknown POST request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
+        logger.warn('Received unknown request to webhook endpoint: Method=%s, URL=%s, Content-Type=%s', req.method, req.url, req.headers['content-type']);
         res.status(400).send('Bad Request');
     }
 });
+
+/**
+ * Subscribes to the YouTube channel's PubSubHubbub feed.
+ * This needs to be called once when the bot starts, or manually if lease expires.
+ * It also sets up a timer to auto-renew the subscription.
+ */
+/**
+ * Unsubscribes from the YouTube channel's PubSubHubbub feed.
+ */
+async function unsubscribeFromYouTubePubSubHubbub() {
+    const hubUrl = 'https://pubsubhubbub.appspot.com/'; // Google's PubSubHubbub hub
+    const topicUrl = `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${YOUTUBE_CHANNEL_ID}`;
+
+    logger.info(`Attempting to unsubscribe from PubSubHubbub for channel: ${YOUTUBE_CHANNEL_ID}`);
+
+    // Clear the renewal timer as we are manually unsubscribing
+    if (subscriptionRenewalTimer) {
+        clearTimeout(subscriptionRenewalTimer);
+        subscriptionRenewalTimer = null;
+        logger.info('Cleared PubSubHubbub subscription renewal timer during unsubscribe.');
+    }
+
+    const params = new URLSearchParams({
+        'hub.mode': 'unsubscribe',
+        'hub.callback': PSH_CALLBACK_URL,
+        'hub.topic': topicUrl,
+        'hub.secret': PSH_SECRET // Your shared secret
+    });
+
+    try {
+        const response = await fetch(hubUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params.toString()
+        });
+
+        if (response.ok) {
+            logger.info('PubSubHubbub unsubscribe request sent successfully.');
+        } else {
+            const errorText = await response.text();
+            logger.error('Failed to unsubscribe from PubSubHubbub: Status=%d, StatusText=%s, ErrorResponse=%s', response.status, response.statusText, errorText);
+        }
+    } catch (error) {
+        logger.error('Error during PubSubHubbub unsubscribe:', error);
+    }
+}
 
 /**
  * Subscribes to the YouTube channel's PubSubHubbub feed.
@@ -665,10 +722,16 @@ async function populateInitialTweetIds() {
 }
 
 
+
 async function announceXContent(tweet) {
+    // Check if announcement posting is enabled before proceeding
+     if (!isAnnouncementEnabled) {
+        logger.info(`Announcement posting is disabled. Skipping X announcement for tweet ${tweet.tweetID}.`);
+        return;
+    }
+
     let channelId;
     let message;
-
     // Determine the target channel and message format based on tweet category
     switch (tweet.tweetCategory) {
         case 'Post':
@@ -718,10 +781,11 @@ async function announceXContent(tweet) {
 
 async function pollXProfile() {
     let browser = null; // Declare browser outside try and initialize to null
+    await populateInitialTweetIds(); // In case somebody else is also posting tweets on the channel
     try {
         logger.info(`[X Scraper] Launching browser instance for scraping.`);
         browser = await puppeteer.launch({
-            headless: false,
+            headless: logger.level !== 'debug', // Run headless unless debug logging is enabled
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -735,7 +799,8 @@ async function pollXProfile() {
 
         // Listen for console messages from the browser context
         page.on('console', (msg) => {
-            if (!DEBUG_LOG) {
+            // Log console messages only when debug logging is enabled
+            if (logger.level === 'debug') {
                 const msgArgs = msg.args();
                 for (let i = 0; i < msgArgs.length; ++i) {
                     msgArgs[i].jsonValue().then(value => {
@@ -808,13 +873,15 @@ async function pollXProfile() {
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
         // Take a screenshot immediately after navigation to see the initial page state
-        const screenshotPathInitial = './screenshot_after_goto.png';
-        await page.screenshot({ path: screenshotPathInitial, fullPage: true });
-        logger.info(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
+        if (logger.level === 'debug') {
+            const screenshotPathInitial = './screenshot_after_goto.png';
+            await page.screenshot({ path: screenshotPathInitial, fullPage: true });
+            logger.debug(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
+        }
 
         // Capture and log the full HTML content of the page after navigation (first 1000 chars)
         const htmlContent = await page.content();
-        logger.info(`[X Scraper] HTML content after navigation (first 1000 chars): ${htmlContent.substring(0, 1000)}...`);
+        logger.debug(`[X Scraper] HTML content after navigation (first 1000 chars): ${htmlContent.substring(0, 1000)}...`);
 
         // Verify the current URL before attempting to scrape
         const currentUrl = page.url();
@@ -837,7 +904,7 @@ async function pollXProfile() {
         logger.info(`[X Scraper] Scrolling page and scraping incrementally.`);
 
         // Scroll down and scrape tweets in each step
-        for (let i = 0; i < 5; i++) { // Increased scrolls as search might yield more results
+        for (let i = 0; i < 3; i++) { // Scroll 3 times as search might yield more results
             // Wait for any potential loading indicators to disappear or for a short period
             await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for loading
 
@@ -958,14 +1025,14 @@ async function pollXProfile() {
             return tweets;
         }, X_USER_HANDLE);
 
-        logger.info(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
+        logger.debug(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
 
         for (const tweet of scrapedTweetsInStep) {
             // Ensure tweet and tweet.tweetID are not null/undefined before using has()
              if (tweet && tweet.tweetID && !uniqueTweetsMap.has(tweet.tweetID)) {
                 uniqueTweetsMap.set(tweet.tweetID, tweet);
             } else {
-                logger.warn('[X Scraper] Skipping tweet with missing ID in scroll step', tweet);
+                logger.debug('[X Scraper] Skipping tweet with missing ID in scroll step', tweet);
             }
         }
 
@@ -978,12 +1045,37 @@ async function pollXProfile() {
     // Convert the map values to an array
     const allScrapedTweetsInSession = Array.from(uniqueTweetsMap.values());
 
-        // Filter for truly new tweets that haven't been announced before
-        let newTweets = allScrapedTweetsInSession.filter(tweet => tweet && tweet.tweetID && !knownTweetIds.has(tweet.tweetID));
+        // Filter for truly new tweets that haven't been announced before AND are newer than bot startup
+        let newTweets = allScrapedTweetsInSession.filter(tweet => {
+             if (!tweet || !tweet.tweetID) {
+                 logger.debug('[X Scraper] Skipping tweet with missing ID during filtering.', tweet);
+                 return false; // Skip tweets with missing IDs
+             }
+             if (knownTweetIds.has(tweet.tweetID)) {
+                 logger.debug(`[X Scraper] Skipping already known tweet ${tweet.tweetID}.`);
+                 return false; // Skip already announced tweets
+             }
+             // Check if the tweet timestamp is after the bot started
+             if (botStartTime && tweet.timestamp) {
+                 const tweetTime = new Date(tweet.timestamp);
+                 if (tweetTime.getTime() < botStartTime.getTime()) {
+                     // Log only if this old tweet hasn't been seen before in this session
+                     if (!knownTweetIds.has(tweet.tweetID)) {
+                          logger.info(`[X Scraper] Skipping old tweet ${tweet.tweetID} published before bot startup: ${tweet.timestamp}`);
+                     }
+                     knownTweetIds.add(tweet.tweetID); // Mark old tweets as known to prevent future checks
+                     return false; // Skip tweets older than bot startup
+                 }
+             } else if (!botStartTime) {
+                 // If botStartTime is not set yet, cannot determine if old, announce for now.
+                 logger.warn(`[X Scraper] Bot startup time not yet set, cannot determine if tweet ${tweet.tweetID} is old. Announcing.`);
+             }
+             return true; // This is a new tweet, not old, and hasn't been announced
+        });
 
 
         if (newTweets.length > 0) {
-            logger.info(`[X Scraper] Found ${newTweets.length} new tweets from search results.`);
+            logger.info(`[X Scraper] Found ${newTweets.length} new tweets from search results that are newer than bot startup.`);
 
             // Sort by timestamp to ensure chronological order (oldest first)
             newTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -999,7 +1091,7 @@ async function pollXProfile() {
                 }
             }
         } else {
-            logger.info(`[X Scraper] No new tweets found for @${X_USER_HANDLE} from search results.`);
+            logger.info(`[X Scraper] No new tweets found for @${X_USER_HANDLE} from search results after filtering.`);
         }
 
         // Schedule next poll with random jitter
@@ -1022,7 +1114,7 @@ async function pollXProfile() {
 
 async function initializeXMonitor() {
     if (!X_USER_HANDLE || (!DISCORD_X_POSTS_CHANNEL_ID && !DISCORD_X_RETWEETS_CHANNEL_ID)) {
-        logger.warn('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
+        logger.debug('[X Scraper] Not configured. X_USER_HANDLE and at least one DISCORD_X channel ID are required. Skipping.');
         return;
     }
     logger.info(`[X Scraper] Initializing monitor for X user: @${X_USER_HANDLE}`);
@@ -1034,6 +1126,11 @@ async function initializeXMonitor() {
 client.once('ready', async () => {
     logger.info(`Logged in as ${client.user.tag}!`);
     logger.info('Bot is ready to receive YouTube PubSubHubbub notifications.');
+
+    // Set the bot startup time
+    botStartTime = new Date();
+    logger.info(`Bot started at: ${botStartTime.toISOString()}`);
+
     process.on('unhandledRejection', error => {
         logger.error('Unhandled Rejection:', error);
     });
@@ -1049,23 +1146,123 @@ client.once('ready', async () => {
         logger.warn('DISCORD_BOT_SUPPORT_LOG_CHANNEL not set. Discord logging is disabled.');
     }
 
-    // Initialize YouTube monitoring
+    // Initialize YouTube monitoring (relies on PubSubHubbub)
     initializeYouTubeMonitor();
 
-    // Initialize X (Twitter) monitoring
+    // Initialize X (Twitter) monitoring (still uses polling)
     initializeXMonitor();
 
-    // Start the Express server
+    // Start the Express server for PubSubHubbub
     app.listen(PSH_PORT, () => {
         logger.info(`PubSubHubbub server listening on port ${PSH_PORT}`);
         // Once the server is listening, subscribe to YouTube updates
-        subscribeToYouTubePubSubHubbub();
+        // The initial subscription will now happen as part of softRestart if enabled
+        // subscribeToYouTubePubSubHubbub(); // Removed initial direct call
     }).on('error', (err) => {
         // Corrected: Pass the Error object directly to logger.error
         logger.error('Failed to start Express server:', err);
         process.exit(1); // Exit if server cannot start
     });
 });
+
+// Soft restart function
+async function softRestart() {
+    logger.info('Initiating soft restart...');
+
+    // 1. Unsubscribe from existing PubSubHubbub subscription
+    await unsubscribeFromYouTubePubSubHubbub();
+
+    // Give YouTube a moment to process unsubscribe (optional but can help)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 2. Reset relevant state (optional, but can help ensure a clean state)
+    announcedVideos.clear();
+    knownTweetIds.clear();
+    botStartTime = new Date(); // Reset bot start time for filtering old content
+    logger.info(`State reset. New bot start time: ${botStartTime.toISOString()}`);
+
+    // 3. Re-initialize monitors and resubscribe
+    logger.info('Re-initializing monitors and resubscribing...');
+    initializeYouTubeMonitor(); // This will now include subscribing if enabled
+    initializeXMonitor();
+
+    // Re-enable support log posting on restart, but keep announcement state
+    isPostingEnabled = true;
+    logger.info('Support log posting re-enabled.');
+
+    logger.info('Soft restart complete.');
+}
+
+// --- Message Command Handling ---
+client.on('messageCreate', async message => {
+    // Ignore bot messages to prevent loops or responding to non-commands
+    if (message.author.bot) return;
+
+    // Only process commands if a support channel is configured AND the message is in that channel
+    if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && message.channel.id !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
+        return; // Ignore messages from other channels
+    }
+
+    // Check if the message starts with the command prefix
+    if (!message.content.startsWith(COMMAND_PREFIX)) {
+        return; // Ignore messages that don't start with the prefix
+    }
+
+    // Extract command and arguments
+    const args = message.content.slice(COMMAND_PREFIX.length).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+    const user = message.author;
+
+    logger.info(`${user.tag} (${user.id}) attempted command: ${COMMAND_PREFIX}${command} ${args.join(' ')}`);
+
+    // --- Command Logic ---
+    if (command === 'kill') {
+        isPostingEnabled = false;
+        logger.warn(`${user.tag} (${user.id}) executed ${COMMAND_PREFIX}kill command. All Discord posting is now disabled.`);
+        await message.reply('🛑 All Discord posting has been stopped.');
+    } else if (command === 'restart') {
+        // Check if the user is authorized
+        if (allowedUserIds.includes(user.id)) {
+            logger.info(`${user.tag} (${user.id}) executed authorized ${COMMAND_PREFIX}restart command. Initiating soft restart.`);
+            await message.reply('🔄 Initiating soft restart...');
+            try {
+                await softRestart();
+                await message.channel.send('✅ Soft restart complete.'); // Confirm restart in support channel
+            } catch (error) {
+                logger.error('Error during soft restart:', error);
+                await message.channel.send('❌ An error occurred during soft restart.');
+            }
+        } else {
+            logger.warn(`${user.tag} (${user.id}) attempted unauthorized ${COMMAND_PREFIX}restart command.`);
+            await message.reply('🚫 You are not authorized to use this command.');
+        }
+    } else if (command === 'announce') {
+        if (args.length === 0) {
+            await message.reply(`Current announcement state: ${isAnnouncementEnabled ? 'enabled' : 'disabled'}. Usage: ${COMMAND_PREFIX}announce <true|false>`);
+            return;
+        }
+        const enableArg = args[0].toLowerCase();
+        if (enableArg === 'true' || enableArg === 'false') {
+            isAnnouncementEnabled = enableArg === 'true';
+            logger.info(`${user.tag} (${user.id}) executed ${COMMAND_PREFIX}announce command. Announcement posting is now ${isAnnouncementEnabled ? 'enabled' : 'disabled'}.`);
+            await message.reply(`📣 Announcement posting is now **${isAnnouncementEnabled ? 'enabled' : 'disabled'}**. (Support log is unaffected)`);
+        } else {
+            await message.reply(`Invalid argument for ${COMMAND_PREFIX}announce. Use \`${COMMAND_PREFIX}announce true\` or \`${COMMAND_PREFIX}announce false\`.`);
+        }
+    } else if (command === 'readme') {
+            const commandList = [
+            `**${COMMAND_PREFIX}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
+            `**${COMMAND_PREFIX}restart**: Performs a soft restart of the bot. Requires specific user authorization (\`ALLOWED_USER_IDS\`). Re-enables support log posting but retains the announcement toggle state.`,
+            `**${COMMAND_PREFIX}announce <true|false>**: Toggles announcement posting to non-support channels. Does *not* affect the support log output.`,
+            `**${COMMAND_PREFIX}readme**: Displays this command information.`,
+            // You can set the command prefix using the COMMAND_PREFIX environment variable. Default is '!'.
+        ];
+        const readmeMessage = `**Discord Bot Message Commands**\n\nThese commands can only be used in the configured support channel.\n\n${commandList.join('\n')}`;
+        await message.reply(readmeMessage);
+      }
+});
+
+
 
 client.on('error', error => {
     // Corrected: Pass the Error object directly to logger.error
