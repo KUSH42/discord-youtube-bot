@@ -20,10 +20,10 @@ import dotenv from 'dotenv';
 import puppeteer from 'puppeteer';
 import express from 'express';
 import bodyParser from 'body-parser';
-import xml2js from 'xml2js'; // For parsing the Atom feed XML
+import xml2js from 'xml2js';            // For parsing the Atom feed XML
 import fetch from 'node-fetch' ;
 import * as winston  from 'winston';    // For logging
-import 'winston-daily-rotate-file';    // For daily log rotation
+import 'winston-daily-rotate-file';     // For daily log rotation
 import Transport from 'winston-transport';
 import crypto from 'crypto';            // For cryptographic operations (HMAC verification)
 
@@ -55,8 +55,12 @@ const DISCORD_X_REPLIES_CHANNEL_ID = process.env.DISCORD_X_REPLIES_CHANNEL_ID; /
 const DISCORD_X_QUOTES_CHANNEL_ID = process.env.DISCORD_X_QUOTES_CHANNEL_ID; // For quote tweets
 const DISCORD_X_RETWEETS_CHANNEL_ID = process.env.DISCORD_X_RETWEETS_CHANNEL_ID; // For retweets
 
-// Twitter Authentication Cookies (obtain from a logged-in browser session)
-const TWITTER_AUTH_COOKIES = process.env.TWITTER_AUTH_COOKIES; // Store serialized cookies here
+// X (Twitter) Authentication Credentials (for automatic cookie refresh)
+const TWITTER_USERNAME = process.env.TWITTER_USERNAME;
+const TWITTER_PASSWORD = process.env.TWITTER_PASSWORD;
+
+// Twitter Authentication Cookies (will be obtained and managed automatically)
+// const TWITTER_AUTH_COOKIES = process.env.TWITTER_AUTH_COOKIES; // Store serialized cookies here - no longer needed directly from env
 
 // X (Twitter) Polling Interval (in milliseconds)
 const QUERY_INTERVALL_MIN = parseInt(process.env.X_QUERY_INTERVALL_MIN, 10) || 300000; // Default to 5 minutes
@@ -77,11 +81,191 @@ let subscriptionRenewalTimer = null;
 
 // --- Global State ---
 let botStartTime = null; // To store the bot's startup time
+let currentTwitterCookies = null; // Global variable to store active Twitter cookies
 let isPostingEnabled = true; // Flag to control if the bot is allowed to post messages (affects all Discord output)
 let isAnnouncementEnabled = false; // Flag to control if announcements are posted to non-support channels
 const allowedUserIds = process.env.ALLOWED_USER_IDS ? process.env.ALLOWED_USER_IDS.split(',').map(id => id.trim()) : []; // List of User IDs allowed to restart
 
 // --- Utility Functions ---
+/**
+ * Refreshes the Twitter authentication cookies by performing a login simulation using Puppeteer.
+ * Stores the new cookies in the global `currentTwitterCookies` variable.
+ */
+async function refreshTwitterCookies() {
+    logger.info('[X Scraper] Attempting to refresh Twitter cookies...');
+    let browser = null;
+    try {
+        if (!TWITTER_USERNAME || !TWITTER_PASSWORD) {
+            logger.error('[X Scraper] TWITTER_USERNAME or TWITTER_PASSWORD environment variables are not set. Cannot refresh cookies.');
+            return false; // Indicate failure
+        }
+
+        browser = await puppeteer.launch({
+            headless: logger.level !== 'debug',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+            ]
+        });
+
+        const page = await browser.newPage();
+
+        // Listen for console messages from the browser context (optional, for debugging)
+        page.on('console', (msg) => {
+             if (logger.level === 'debug') {
+                const msgArgs = msg.args();
+                for (let i = 0; i < msgArgs.length; ++i) {
+                    msgArgs[i].jsonValue().then(value => {
+                        logger.info(`[Browser Console - Cookie Refresh]: ${value}`);
+                    }).catch(e => logger.error(`[Browser Console - Cookie Refresh] Error getting console message value: ${e}`));
+                }
+            }
+        });
+
+
+        logger.info('[X Scraper] Navigating to Twitter login page.');
+        // Navigate to the login page - use twitter.com as it might be more stable for login flow
+        await page.goto('https://twitter.com/login', { waitUntil: 'networkidle2' });
+
+        // Take a screenshot immediately after navigation for debugging
+        if (logger.level === 'debug') {
+            const screenshotPath = './screenshot_login_page.png';
+            await page.screenshot({ path: screenshotPath, fullPage: true });
+            logger.debug(`[X Scraper] Login page screenshot saved to ${screenshotPath}`);
+        }
+
+
+        // --- Login Form Filling ---
+        // Wait for the username input field and type the username
+        // Selector might need adjustment based on current X login page HTML
+        const usernameSelector = 'input[name="text"]'; // Common selector for username/email input
+        await page.waitForSelector(usernameSelector, { timeout: 10000 });
+        await page.type(usernameSelector, TWITTER_USERNAME, { delay: 50 }); // Simulate typing
+
+        // Add a short delay after typing the username
+        await page.waitForTimeout(3000); // Wait for 3 seconds after typing username
+
+        // Click the "Next" button after entering username
+        // Selector might need adjustment
+        // ; // Original selector
+        // Attempting a more robust selector for the 'Next' button by looking for a span with the text.
+        const nextButtonSelector = 'button:has(span:has-text("Next"))';
+
+        logger.debug(`[X Scraper] Waiting for Next button with selector: ${nextButtonSelector}`);
+        try {
+            await page.waitForSelector(nextButtonSelector, { timeout: 30000 }); // Increased timeout to 30 seconds
+            logger.debug('[X Scraper] Next button found. Clicking...');
+            await page.click(nextButtonSelector);
+            logger.debug('[X Scraper] Next button clicked.');
+        } catch (error) {
+            logger.error('[X Scraper] Error waiting for or clicking Next button:', error);
+            // Capture screenshot and HTML on failure to wait for Next button
+            if (logger.level === 'debug') {
+                const screenshotPathNextButton = './screenshot_next_button_timeout.png';
+                await page.screenshot({ path: screenshotPathNextButton, fullPage: true });
+                logger.debug(`[X Scraper] Screenshot on Next button timeout saved to ${screenshotPathNextButton}`);
+
+                const htmlContentOnTimeout = await page.content();
+                logger.debug(`[X Scraper] HTML content on Next button timeout (first 2000 chars): ${htmlContentOnTimeout.substring(0, 2000)}...`);
+            }
+            // Re-throw the error or handle it appropriately, likely exiting this refresh attempt.
+            throw error; // Re-throw to be caught by the main try/catch
+        }
+
+        // After clicking Next, check if we are still on the username input page
+        const usernameInputSelector = 'input[name="text"]'; // Re-declare or ensure access to username selector
+        const usernameInputStillVisible = await page.$(usernameInputSelector) !== null;
+        const currentUrlAfterNextClick = page.url();
+        if (usernameInputStillVisible || currentUrlAfterNextClick.includes('/login')) {
+             logger.error('[X Scraper] After clicking "Next", still on login page or an intermediate page displaying username input. Check for unhandled intermediate steps.');
+             // Optionally, add a screenshot here for debugging the intermediate state
+             if (logger.level === 'debug') {
+                 const screenshotPathIntermediate = './screenshot_after_next_click.png';
+                 await page.screenshot({ path: screenshotPathIntermediate, fullPage: true });
+                 logger.debug(`[X Scraper] Screenshot after clicking Next saved to ${screenshotPathIntermediate}`);
+             }
+             // Although we log an error, we will still attempt to wait for the password field
+             // in case the page is just slow or the selector check was too early.
+        }
+
+        // After clicking Next, wait briefly and check if the password field is immediately available.
+        // If not, it suggests a possible intermediate step (like phone verification, etc.).
+        const passwordSelector = 'input[name="password"]'; // Common selector for password input
+
+        logger.debug('[X Scraper] Waiting briefly for password input after clicking Next...');
+        try {
+            // Use a short timeout to check for the password field's presence quickly
+            await page.waitForSelector(passwordSelector, { timeout: 5000, visible: true });
+            logger.debug('[X Scraper] Password input field found immediately. Proceeding.');
+        } catch (error) {
+            // If the password field is not found quickly, log a warning about a potential intermediate step.
+            logger.warn('[X Scraper] Password input field not immediately found after clicking Next (timed out after 5s). Likely an intermediate step is present. Will proceed to wait with main timeout.', error);
+             // Optional: Add code here to attempt to identify specific intermediate elements if known.
+             // For now, we just log the warning and let the main waitForSelector handle the rest.
+        }
+
+        // Add a longer fixed wait after potential intermediate step check and before the main password field wait
+        await page.waitForTimeout(5000); // Increased fixed wait after typing username
+
+        // Wait for the password input field with the main timeout (30 seconds now)
+        await page.waitForSelector(passwordSelector, { timeout: 30000 }); // Main wait for password input
+        await page.type(passwordSelector, TWITTER_PASSWORD, { delay: 50 });
+
+        // Click the "Log in" button
+        // Selector might need adjustment
+        const loginButtonSelector = 'button[data-testid="LoginForm_Login_Button"]'; // Common selector for the login button
+        await page.waitForSelector(loginButtonSelector, { timeout: 10000 });
+        await page.click(loginButtonSelector);
+
+        // --- Wait for Login Success ---
+        // Wait for navigation to the main feed or a known post-login element
+        // We can wait for the URL to change significantly or for a common element on the feed page.
+        // Waiting for the URL to NOT be the login page is a simple check.
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }); // Wait up to 30 seconds for navigation after login attempt
+
+        // Check if login was successful by verifying the URL or presence of a known element
+        const postLoginUrl = page.url();
+        if (postLoginUrl.includes('/home') || postLoginUrl === 'https://twitter.com/' || postLoginUrl === 'https://x.com/') { // Check for common post-login URLs
+             logger.info('[X Scraper] Login appeared successful. Retrieving cookies.');
+
+             // Retrieve all cookies after successful login
+            const cookies = await page.cookies();
+            // Store cookies in the global variable, serialized as JSON
+            currentTwitterCookies = JSON.stringify(cookies);
+            logger.info(`[X Scraper] Successfully retrieved ${cookies.length} new Twitter cookies.`);
+
+             // Optional: Log a subset of cookie names for verification in debug mode
+             if (logger.level === 'debug') {
+                 logger.debug('[X Scraper] Retrieved cookie names:', cookies.map(c => c.name).join(', '));
+             }
+
+            await browser.close();
+            return true; // Indicate success
+
+        } else {
+            // If we are still on a login-related page or an unexpected page after waiting
+            logger.error(`[X Scraper] Login failed or redirected to unexpected URL: ${postLoginUrl}. Check credentials or login flow.`);
+             // Capture screenshot on failure for debugging
+            if (logger.level === 'debug') {
+                const screenshotPath = './screenshot_login_failure.png';
+                await page.screenshot({ path: screenshotPath, fullPage: true });
+                logger.debug(`[X Scraper] Login failure screenshot saved to ${screenshotPath}`);
+            }
+            await browser.close();
+            return false; // Indicate failure
+        }
+
+    } catch (error) {
+        logger.error('[X Scraper] Error during cookie refresh:', error);
+        if (browser) {
+            await browser.close();
+        }
+        return false; // Indicate failure
+    }
+}
+
 /**
  * Splits a string into multiple chunks of a specified maximum length, respecting line breaks.
  */
@@ -814,48 +998,68 @@ async function pollXProfile() {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
         await page.setViewport({ width: 1280, height: 1080 });
 
-        // Load authentication cookies if available
-        if (TWITTER_AUTH_COOKIES) {
-            try {
-                const cookies = JSON.parse(TWITTER_AUTH_COOKIES);
-                // Process cookies to keep only standard Puppeteer cookie properties and ensure correct types
-                const processedCookies = cookies.map(cookie => {
-                    // Construct a new cookie object with properties expected by Puppeteer
-                    const standardCookie = {
-                        name: cookie.name,
-                        value: cookie.value,
-                        domain: cookie.domain,
-                        path: cookie.path,
-                        expires: typeof cookie.expires === 'number' ? cookie.expires : (cookie.expires ? new Date(cookie.expires).getTime() / 1000 : -1), // Convert to Unix timestamp in seconds, -1 for session cookies
-                        httpOnly: cookie.httpOnly || false,
-                        secure: cookie.secure || false,
-                        sameSite: cookie.sameSite || 'None'
-                    };
-
-                    // Puppeteer requires 'url' for setCookie, construct it if missing or incomplete
-                    if (!standardCookie.url && standardCookie.domain && standardCookie.path !== undefined) {
-                         // Basic URL construction, adjust protocol if necessary (http vs https)
-                         const protocol = standardCookie.secure ? 'https' : 'http';
-                         standardCookie.url = `${protocol}://${standardCookie.domain}${standardCookie.path}`;
-                    } else if (cookie.url) { // Prefer original url if provided
-                         standardCookie.url = cookie.url;
-                    }
-
-                    // Filter out cookies that are critically missing required properties for Puppeteer
-                    if (!standardCookie.name || standardCookie.value === undefined || !standardCookie.domain || standardCookie.path === undefined || !standardCookie.url) {
-                         logger.warn('[X Scraper] Skipping potentially malformed cookie:', standardCookie);
-                         return null; // Indicate this cookie should be filtered out
-                    }
-
-                    return standardCookie;
-                }).filter(cookie => cookie !== null); // Filter out any null results from mapping
-
-                await page.setCookie(...processedCookies);
-                logger.info(`[X Scraper] Attempted to load ${cookies.length} Twitter authentication cookies. Successfully loaded ${processedCookies.length} cookies.`);
-            } catch (e) {
-                logger.error('[X Scraper] Failed to parse or set Twitter authentication cookies. Ensure the TWITTER_AUTH_COOKIES env var is a valid JSON array of cookie objects and the format is compatible with Puppeteer:', e);
-                // Continue without cookies, but expect potential issues like login prompts or missing tweets.
+        // Ensure we have valid cookies before proceeding with scraping
+        if (!currentTwitterCookies) {
+            logger.info('[X Scraper] No current cookies available. Attempting to refresh.');
+            const success = await refreshTwitterCookies();
+            if (!success) {
+                logger.error('[X Scraper] Failed to obtain valid Twitter cookies. Skipping this poll cycle.');
+                // Schedule next poll even on failure to avoid getting stuck
+                const nextPollIn = QUERY_INTERVALL_MAX; // Use max interval on error
+                logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
+                setTimeout(pollXProfile, nextPollIn);
+                if (browser) { await browser.close(); }
+                return; // Exit the function if cookie refresh failed
             }
+        } else {
+            logger.info('[X Scraper] Using current Twitter cookies.');
+        }
+
+        // Set the obtained authentication cookies
+        try {
+            const cookies = JSON.parse(currentTwitterCookies);
+             // Process cookies to keep only standard Puppeteer cookie properties and ensure correct types
+            const processedCookies = cookies.map(cookie => {
+                // Construct a new cookie object with properties expected by Puppeteer
+                const standardCookie = {
+                    name: cookie.name,
+                    value: cookie.value,
+                    domain: cookie.domain,
+                    path: cookie.path,
+                    expires: typeof cookie.expires === 'number' ? cookie.expires : (cookie.expires ? new Date(cookie.expires).getTime() / 1000 : -1), // Convert to Unix timestamp in seconds, -1 for session cookies
+                    httpOnly: cookie.httpOnly || false,
+                    secure: cookie.secure || false,
+                    sameSite: cookie.sameSite || 'None'
+                };
+
+                // Puppeteer requires 'url' for setCookie, construct it if missing or incomplete
+                if (!standardCookie.url && standardCookie.domain && standardCookie.path !== undefined) {
+                     // Basic URL construction, adjust protocol if necessary (http vs https)
+                     const protocol = standardCookie.secure ? 'https' : 'http';
+                     standardCookie.url = `${protocol}://${standardCookie.domain}${standardCookie.path}`;
+                } else if (cookie.url) { // Prefer original url if provided
+                     standardCookie.url = cookie.url;
+                }
+
+                // Filter out cookies that are critically missing required properties for Puppeteer
+                if (!standardCookie.name || standardCookie.value === undefined || !standardCookie.domain || standardCookie.path === undefined || !standardCookie.url) {
+                     logger.warn('[X Scraper] Skipping potentially malformed cookie during set:', standardCookie);
+                     return null; // Indicate this cookie should be filtered out
+                }
+
+                return standardCookie;
+            }).filter(cookie => cookie !== null); // Filter out any null results from mapping
+
+            await page.setCookie(...processedCookies);
+            logger.info(`[X Scraper] Successfully set ${processedCookies.length} Twitter cookies for the page.`);
+        } catch (e) {
+            logger.error('[X Scraper] Failed to parse or set current Twitter authentication cookies:', e);
+             // If setting cookies fails, it's likely a critical issue, skip scraping.
+             await browser.close();
+             const nextPollIn = QUERY_INTERVALL_MAX;
+             logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds after cookie set failure.`);
+             setTimeout(pollXProfile, nextPollIn);
+             return; // Exit the function
         }
 
         // Calculate yesterday's date for the search query
@@ -1122,6 +1326,9 @@ async function initializeXMonitor() {
     pollXProfile(); // Start the first poll
 }
 
+// --- Constants ---
+const TWITTER_COOKIE_REFRESH_INTERVAL_MS = 23 * 60 * 60 * 1000; // 23 hours in milliseconds
+
 // --- Main Bot Events ---
 client.once('ready', async () => {
     logger.info(`Logged in as ${client.user.tag}!`);
@@ -1151,6 +1358,21 @@ client.once('ready', async () => {
 
     // Initialize X (Twitter) monitoring (still uses polling)
     initializeXMonitor();
+
+    // Perform initial cookie refresh and schedule periodic refresh for Twitter
+    if (TWITTER_USERNAME && TWITTER_PASSWORD) {
+        logger.info('[X Scraper] Initiating initial Twitter cookie refresh.');
+        await refreshTwitterCookies(); // Initial refresh
+
+        // Schedule periodic cookie refresh
+        setInterval(() => {
+            logger.info('[X Scraper] Initiating scheduled Twitter cookie refresh.');
+            refreshTwitterCookies();
+        }, TWITTER_COOKIE_REFRESH_INTERVAL_MS);
+        logger.info(`[X Scraper] Scheduled Twitter cookie refresh every ${TWITTER_COOKIE_REFRESH_INTERVAL_MS / (1000 * 60 * 60)} hours.`);
+    } else {
+         logger.warn('[X Scraper] TWITTER_USERNAME or TWITTER_PASSWORD not set. Skipping automatic cookie refresh.');
+    }
 
     // Start the Express server for PubSubHubbub
     app.listen(PSH_PORT, () => {
