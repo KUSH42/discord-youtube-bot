@@ -1,7 +1,7 @@
 {
   "name": "discord-youtube-x-bot",
   "type": "module",
-  "description": "A Discord bot that announces new content from a YouTube channel and an X/Twitter profile. It uses the Puppeteer library with its bundled Chromium browser for X scraping, with added support for logging into X via environment variables for enhanced reliability.",
+  "description": "A Discord bot that announces new content from a YouTube channel and an X/Twitter profile. It uses the Playwright library with its bundled Chromium browser for X scraping, with added support for logging into X via environment variables for enhanced reliability.",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -17,8 +17,7 @@
     "express": "^5.1.0",
     "googleapis": "^150.0.1",
     "node-fetch": "^3.3.2",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "playwright": "^1.44.1",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
     "xml2js": "^0.6.2"
