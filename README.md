@@ -13,77 +13,77 @@ This is a Node.js bot designed to automatically announce new video uploads and l
 * **Subscription Auto-Renewal:** Automatically renews the YouTube PubSubHubbub subscription.
 *   **Message Control Commands:** Allows control of the bot's posting behavior via prefix-based commands in a designated support channel.
 * **Comprehensive Logging:** Employs the winston logging library for detailed logging to both the console and daily rotating files.
--## **Prerequisites**
--
--Before running the bot, ensure you have the following:
--
--* **Node.js (v16.x or higher recommended):** Download from [nodejs.org](https://nodejs.org/).  
--* **npm (Node Package Manager):** Comes with Node.js.  
--* **A Discord Account:** To create and manage your bot.  
--* **A Google Cloud Project:** To enable the YouTube Data API v3 and get an API Key.  
--* **A Publicly Accessible URL:** Your bot's server needs to be reachable from the internet for YouTube's PubSubHubbub hub to send notifications. This typically requires hosting on a VPS, cloud platform (e.g., Heroku, Railway, Render), or using a tunneling service like ngrok for local development.
--
--## **Setup Instructions**
--
--### **1. Project Initialization**
--
--**1. Clone this repository:**  
--```
--git clone https://github.com/KUSH42/youtube-discord-bot.git
--```
--
--**2. Initialize Node.js project:**  
--```
--npm init -y
--```
--
--**3. Install dependencies:**  
--```
--npm install discord.js googleapis dotenv express body-parser xml2js node-fetch winston winston-daily-rotate-file
--```
--
--### **2. Obtain API Keys and IDs**
--
--#### **a) Discord Bot Token**
--
--1. Go to the [Discord Developer Portal](https://discord.com/developers/applications).  
--2. Click "New Application" and give it a name.  
--3. Navigate to the "Bot" tab on the left sidebar.  
--4. Click "Add Bot" and confirm.  
--5. Under "TOKEN," click "Reset Token" and copy the token. **Keep this token secret!**  
--6. Under "Privileged Gateway Intents," enable **MESSAGE CONTENT INTENT** (and PRESENCE INTENT if you want to add more features later).  
--7. Go to "OAuth2" -> "URL Generator."  
--8. Select the bot scope.  
--9. Under "Bot Permissions," grant at least Send Messages and View Channels.  
--10. Copy the generated URL and paste it into your browser to invite the bot to your Discord server.
--
--#### **b) YouTube Data API Key**
--
--1. Go to the [Google Cloud Console](https://console.cloud.google.com/).  
--2. Create a new project or select an existing one.  
--3. Navigate to "APIs & Services" > "Enabled APIs & Services."  
--4. Click "+ ENABLE APIS AND SERVICES" and search for "YouTube Data API v3." Enable it.  
--5. Go to "APIs & Services" > "Credentials."  
--6. Click "CREATE CREDENTIALS" > "API Key." Copy the generated key.
--
--#### **c) YouTube Channel ID**
--
--1. Go to the YouTube channel you want to monitor in your web browser.  
--2. Look at the URL. If it's youtube.com/channel/YOUR_CHANNEL_ID, the ID is directly in the URL.  
--3. If the URL is youtube.com/user/USERNAME or youtube.com/@CUSTOMNAME, view the page source (Ctrl+U or Cmd+U) and search for channelId. It will be in a <meta itemprop="channelId" content="UC..."> tag.
--
--#### **d) Discord Announcement Channel ID**
--
--1. Open your Discord client.  
--2. Go to "User Settings" > "App Settings" > "Advanced."  
--3. Enable "Developer Mode."  
--4. Right-click on the specific text channel in your server where you want the announcements to appear.  
--5. Click "Copy ID."
+## **Prerequisites**
 
--### **4. Run the bot**
--```
--node index.js
--```
+Before running the bot, ensure you have the following:
+
+* **Node.js (v16.x or higher recommended):** Download from [nodejs.org](https://nodejs.org/).  
+* **npm (Node Package Manager):** Comes with Node.js.  
+* **A Discord Account:** To create and manage your bot.  
+* **A Google Cloud Project:** To enable the YouTube Data API v3 and get an API Key.  
+* **A Publicly Accessible URL:** Your bot's server needs to be reachable from the internet for YouTube's PubSubHubbub hub to send notifications. This typically requires hosting on a VPS, cloud platform (e.g., Heroku, Railway, Render), or using a tunneling service like ngrok for local development.
+
+## **Setup Instructions**
+
+### **1. Project Initialization**
+
+**1. Clone this repository:**  
+```
+git clone https://github.com/KUSH42/youtube-discord-bot.git
+```
+
+**2. Initialize Node.js project:**  
+```
+npm init -y
+```
+
+**3. Install dependencies:**  
+```
+npm install discord.js googleapis dotenv express body-parser xml2js node-fetch winston winston-daily-rotate-file
+```
+
+### **2. Obtain API Keys and IDs**
+
+#### **a) Discord Bot Token**
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications).  
+2. Click "New Application" and give it a name.  
+3. Navigate to the "Bot" tab on the left sidebar.  
+4. Click "Add Bot" and confirm.  
+5. Under "TOKEN," click "Reset Token" and copy the token. **Keep this token secret!**  
+6. Under "Privileged Gateway Intents," enable **MESSAGE CONTENT INTENT** (and PRESENCE INTENT if you want to add more features later).  
+7. Go to "OAuth2" -> "URL Generator."  
+8. Select the bot scope.  
+9. Under "Bot Permissions," grant at least Send Messages and View Channels.  
+10. Copy the generated URL and paste it into your browser to invite the bot to your Discord server.
+
+#### **b) YouTube Data API Key**
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).  
+2. Create a new project or select an existing one.  
+3. Navigate to "APIs & Services" > "Enabled APIs & Services."  
+4. Click "+ ENABLE APIS AND SERVICES" and search for "YouTube Data API v3." Enable it.  
+5. Go to "APIs & Services" > "Credentials."  
+6. Click "CREATE CREDENTIALS" > "API Key." Copy the generated key.
+
+#### **c) YouTube Channel ID**
+
+1. Go to the YouTube channel you want to monitor in your web browser.  
+2. Look at the URL. If it's youtube.com/channel/YOUR_CHANNEL_ID, the ID is directly in the URL.  
+3. If the URL is youtube.com/user/USERNAME or youtube.com/@CUSTOMNAME, view the page source (Ctrl+U or Cmd+U) and search for channelId. It will be in a <meta itemprop="channelId" content="UC..."> tag.
+
+#### **d) Discord Announcement Channel ID**
+
+1. Open your Discord client.  
+2. Go to "User Settings" > "App Settings" > "Advanced."  
+3. Enable "Developer Mode."  
+4. Right-click on the specific text channel in your server where you want the announcements to appear.  
+5. Click "Copy ID."
+
+### **4. Run the bot**
+```
+node index.js
+```
 
 
 
