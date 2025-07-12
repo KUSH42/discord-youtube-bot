@@ -27,11 +27,13 @@ import 'winston-daily-rotate-file';    // For daily log rotation
 import Transport from 'winston-transport';
 import crypto from 'crypto';            // For cryptographic operations (HMAC verification)
 
+
 // Load environment variables from .env file
 dotenv.config();
 
 // --- Configuration Variables ---
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+const COMMAND_PREFIX = process.env.COMMAND_PREFIX || '!'; // Define a command prefix, default is '!'
 const DISCORD_BOT_SUPPORT_LOG_CHANNEL = process.env.DISCORD_BOT_SUPPORT_LOG_CHANNEL; // For logging and message mirroring
 
 // YouTube Monitoring Config
@@ -1185,92 +1187,74 @@ async function softRestart() {
     logger.info('Soft restart complete.');
 }
 
-// Interaction Create Listener for Slash Commands
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isCommand()) return;
+// --- Message Command Handling ---
+client.on('messageCreate', async message => {
+    // Ignore bot messages to prevent loops or responding to non-commands
+    if (message.author.bot) return;
 
-    const { commandName, channelId, user } = interaction;
-
-    // Check if the command is from the support channel if configured
-    if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && channelId !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
-        await interaction.reply({ content: 'This command can only be used in the designated support channel.', ephemeral: true });
-        return;
+    // Only process commands if a support channel is configured AND the message is in that channel
+    if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && message.channel.id !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
+        return; // Ignore messages from other channels
     }
 
-    if (commandName === 'kill') {
+    // Check if the message starts with the command prefix
+    if (!message.content.startsWith(COMMAND_PREFIX)) {
+        return; // Ignore messages that don't start with the prefix
+    }
+
+    // Extract command and arguments
+    const args = message.content.slice(COMMAND_PREFIX.length).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+    const user = message.author;
+
+    logger.info(`${user.tag} (${user.id}) attempted command: ${COMMAND_PREFIX}${command} ${args.join(' ')}`);
+
+    // --- Command Logic ---
+    if (command === 'kill') {
         isPostingEnabled = false;
-        logger.warn(`${user.tag} (${user.id}) executed /kill command. All Discord posting is now disabled.`);
-        await interaction.reply({ content: '🛑 All Discord posting has been stopped.', ephemeral: true });
-    } else if (commandName === 'restart') {
+        logger.warn(`${user.tag} (${user.id}) executed ${COMMAND_PREFIX}kill command. All Discord posting is now disabled.`);
+        await message.reply('🛑 All Discord posting has been stopped.');
+    } else if (command === 'restart') {
         // Check if the user is authorized
         if (allowedUserIds.includes(user.id)) {
-            logger.info(`${user.tag} (${user.id}) executed authorized /restart command. Initiating soft restart.`);
-            await interaction.reply({ content: '🔄 Initiating soft restart...' });
+            logger.info(`${user.tag} (${user.id}) executed authorized ${COMMAND_PREFIX}restart command. Initiating soft restart.`);
+            await message.reply('🔄 Initiating soft restart...');
             try {
                 await softRestart();
-                // A follow-up message might not be necessary as the restart logs will show initialization
+                await message.channel.send('✅ Soft restart complete.'); // Confirm restart in support channel
             } catch (error) {
                 logger.error('Error during soft restart:', error);
-                await interaction.followUp({ content: '❌ An error occurred during soft restart.', ephemeral: true });
+                await message.channel.send('❌ An error occurred during soft restart.');
             }
         } else {
-            logger.warn(`${user.tag} (${user.id}) attempted unauthorized /restart command.`);
-            await interaction.reply({ content: '🚫 You are not authorized to use this command.', ephemeral: true });
+            logger.warn(`${user.tag} (${user.id}) attempted unauthorized ${COMMAND_PREFIX}restart command.`);
+            await message.reply('🚫 You are not authorized to use this command.');
         }
-    } else if (commandName === 'announce') {
-        const enable = interaction.options.getBoolean('enable');
-        isAnnouncementEnabled = enable;
-        logger.info(`${user.tag} (${user.id}) executed /announce command. Announcement posting is now ${isAnnouncementEnabled ? 'enabled' : 'disabled'}.`);
-        await interaction.reply({ content: `📣 Announcement posting is now **${isAnnouncementEnabled ? 'enabled' : 'disabled'}**. (Support log is unaffected)`, ephemeral: true });
-    }
+    } else if (command === 'announce') {
+        if (args.length === 0) {
+            await message.reply(`Current announcement state: ${isAnnouncementEnabled ? 'enabled' : 'disabled'}. Usage: ${COMMAND_PREFIX}announce <true|false>`);
+            return;
+        }
+        const enableArg = args[0].toLowerCase();
+        if (enableArg === 'true' || enableArg === 'false') {
+            isAnnouncementEnabled = enableArg === 'true';
+            logger.info(`${user.tag} (${user.id}) executed ${COMMAND_PREFIX}announce command. Announcement posting is now ${isAnnouncementEnabled ? 'enabled' : 'disabled'}.`);
+            await message.reply(`📣 Announcement posting is now **${isAnnouncementEnabled ? 'enabled' : 'disabled'}**. (Support log is unaffected)`);
+        } else {
+            await message.reply(`Invalid argument for ${COMMAND_PREFIX}announce. Use \`${COMMAND_PREFIX}announce true\` or \`${COMMAND_PREFIX}announce false\`.`);
+        }
+    } else if (command === 'readme') {
+            const commandList = [
+            `**${COMMAND_PREFIX}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
+            `**${COMMAND_PREFIX}restart**: Performs a soft restart of the bot. Requires specific user authorization (\`ALLOWED_USER_IDS\`). Re-enables support log posting but retains the announcement toggle state.`,
+            `**${COMMAND_PREFIX}announce <true|false>**: Toggles announcement posting to non-support channels. Does *not* affect the support log output.`,
+            `**${COMMAND_PREFIX}readme**: Displays this command information.`,
+            `You can set the command prefix using the \`COMMAND_PREFIX\` environment variable. Default is \`!\`.`,
+        ];
+        const readmeMessage = `**Discord Bot Message Commands**\n\nThese commands can only be used in the configured support channel.\n\n${commandList.join('\n')}`;
+        await message.reply(readmeMessage);
+      }
 });
-
-// Logic to register slash commands
-async function registerSlashCommands(guildId) {
-    const commands = [
-        {
-            name: 'kill',
-            description: 'Stops all bot posting to Discord channels.',
-        },
-        {
-            name: 'restart',
-            description: 'Performs a soft restart of the bot (requires authorization).',
-        },
-        {
-            name: 'announce',
-            description: 'Toggles announcement posting to non-support channels.',
-            options: [
-                {
-                    name: 'enable',
-                    type: 5, // BOOLEAN
-                    description: 'True to enable announcements, false to disable.',
-                    required: true,
-                },
-            ],
-        },
-    ];
-
-    try {
-        // Use REST to register commands
-        const { REST } = require('@discordjs/rest');
-        const { Routes } = require('discord-api-types/v9');
-
-        const rest = new REST({ version: '9' }).setToken(DISCORD_BOT_TOKEN);
-
-        logger.info('Started refreshing application (/) commands.');
-
-        // Register commands for a specific guild for faster testing
-        // In production, you might want to register globally using Routes.applicationCommands(client.user.id)
-        const data = await rest.put(
-            Routes.applicationGuildCommands(client.user.id, guildId),
-            { body: commands },
-        );
-
-        logger.info('Successfully reloaded application (/) commands.');
-    } catch (error) {
-        logger.error('Error registering slash commands:', error);
-    }
-}
 
 client.once('ready', async () => {
     logger.info(`Logged in as ${client.user.tag}!`);
@@ -1291,20 +1275,6 @@ client.once('ready', async () => {
 
     if (DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
         logger.add(new DiscordTransport({ level: 'info', client: client, channelId: DISCORD_BOT_SUPPORT_LOG_CHANNEL }));
-
-        // Attempt to get the guild ID from the support channel to register guild commands
-        try {
-            const supportChannel = await client.channels.fetch(DISCORD_BOT_SUPPORT_LOG_CHANNEL);
-            if (supportChannel && supportChannel.guild) {
-                await registerSlashCommands(supportChannel.guild.id);
-            } else {
-                logger.warn('Could not fetch support channel or its guild to register slash commands. Commands might not be available.');
-            }
-        } catch (error) {
-             logger.error('Error fetching support channel for command registration:', error);
-        }
-
-
     } else {
         logger.warn('DISCORD_BOT_SUPPORT_LOG_CHANNEL not set. Discord logging and slash commands are disabled.');
     }
