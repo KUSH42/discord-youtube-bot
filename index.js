@@ -22,7 +22,8 @@ const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
 let botStartTime = null;
 let isPostingEnabled = true;
-let isAnnouncementEnabled = false;
+let isAnnouncementEnabled = (process.env.ANNOUNCEMENT_ENABLED || 'false').toLowerCase() === 'true';
+let isVxTwitterConversionEnabled = (process.env.X_VX_TWITTER_CONVERSION || 'false').toLowerCase() === 'true';
 let mirrorMessage = false;
 const allowedUserIds = process.env.ALLOWED_USER_IDS ? process.env.ALLOWED_USER_IDS.split(',').map(id => id.trim()) : [];
 
@@ -239,6 +240,7 @@ const xScraper = new XScraper({
     logger: logger,
     sendMirroredMessage: sendMirroredMessage,
     isAnnouncementEnabled: () => isAnnouncementEnabled,
+    isVxTwitterConversionEnabled: () => isVxTwitterConversionEnabled
 });
 const youTubeMonitor = new YouTubeMonitor({
     client: client,
@@ -322,13 +324,46 @@ client.on('messageCreate', async message => {
         } else {
             await message.reply(`Invalid argument for ${COMMAND_PREFIX}announce. Use \`${COMMAND_PREFIX}announce true\` or \`${COMMAND_PREFIX}announce false\`.`);
         }
+    } else if (command === 'vxtwitter') {
+        if (args.length === 0) {
+            await message.reply(`Current vxtwitter conversion state: ${isVxTwitterConversionEnabled ? 'enabled' : 'disabled'}. Usage: ${COMMAND_PREFIX}vxtwitter <true|false>`);
+            return;
+        }
+        const enableArg = args[0].toLowerCase();
+        if (enableArg === 'true' || enableArg === 'false') {
+            isVxTwitterConversionEnabled = enableArg === 'true';
+            logger.info(`${user.tag} (${user.id}) executed ${COMMAND_PREFIX}vxtwitter command. URL conversion is now ${isVxTwitterConversionEnabled ? 'enabled' : 'disabled'}.`);
+            await message.reply(`🐦 URL conversion to vxtwitter.com is now **${isVxTwitterConversionEnabled ? 'enabled' : 'disabled'}**.`);
+        } else {
+            await message.reply(`Invalid argument for ${COMMAND_PREFIX}vxtwitter. Use \`${COMMAND_PREFIX}vxtwitter true\` or \`${COMMAND_PREFIX}vxtwitter false\`.`);
+        }
+    } else if (command === 'loglevel') {
+        if (args.length === 0) {
+            await message.reply(`Current log level: ${logger.level}. Usage: ${COMMAND_PREFIX}loglevel <level>`);
+            return;
+        }
+        const newLevel = args[0].toLowerCase();
+        const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+        if (validLevels.includes(newLevel)) {
+            logger.level = newLevel;
+            // Also update the level on all transports
+            logger.transports.forEach(transport => {
+                transport.level = newLevel;
+            });
+            logger.warn(`${user.tag} (${user.id}) executed ${COMMAND_PREFIX}loglevel command. Log level changed to '${newLevel}'.`);
+            await message.reply(`🔧 Log level has been changed to **${newLevel}**.`);
+        } else {
+            await message.reply(`Invalid log level. Valid levels are: ${validLevels.join(', ')}.`);
+        }
     } else if (command === 'readme') {
         const commandList = [
-        `**${COMMAND_PREFIX}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
-        `**${COMMAND_PREFIX}restart**: Performs a soft restart of the bot. Requires specific user authorization (\`ALLOWED_USER_IDS\`). Re-enables support log posting but retains the announcement toggle state.`,
-        `**${COMMAND_PREFIX}announce <true|false>**: Toggles announcement posting to non-support channels. Does *not* affect the support log output.`,
-        `**${COMMAND_PREFIX}readme**: Displays this command information.`,
-    ];
+            `**${COMMAND_PREFIX}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
+            `**${COMMAND_PREFIX}restart**: Performs a soft restart of the bot. Requires specific user authorization (\`ALLOWED_USER_IDS\`). Re-enables support log posting but retains the announcement toggle state.`,
+            `**${COMMAND_PREFIX}announce <true|false>**: Toggles announcement posting to non-support channels.`,
+            `**${COMMAND_PREFIX}vxtwitter <true|false>**: Toggles the conversion of \`x.com\` URLs to \`vxtwitter.com\` in announcements.`,
+            `**${COMMAND_PREFIX}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
+            `**${COMMAND_PREFIX}readme**: Displays this command information.`,
+        ];
     const readmeMessage = `**Discord Bot Message Commands**\n\nThese commands can only be used in the configured support channel.\n\n${commandList.join('\n')}`;
     await message.reply(readmeMessage);
   }
