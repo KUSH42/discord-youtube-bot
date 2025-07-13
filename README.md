@@ -138,46 +138,31 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-   2.  Create a shell script (e.g., `~/discord-youtube-bot/start-bot.sh`) to start Xvfb and the bot:
+   2.  Make the script executable:
 
 ```bash
-#!/bin/bash
-
-# Start Xvfb in the background
-/usr/bin/Xvfb :99 -screen 0 1280x720x24 -nolisten tcp &
-
-# Wait a few seconds for Xvfb to initialize
-sleep 2
-
-# Start the Node.js bot
-/usr/bin/node index.js
+sudo chmod 755 ~/discord-youtube-bot/start-bot.sh
 ```
 
-   3.  Make the script executable:
-
-```bash
-chmod +x ~/discord-youtube-bot/start-bot.sh
-```
-
-   4.  Reload systemd:
+   3.  Reload systemd:
 
 ```bash
 sudo systemctl daemon-reload
 ```
 
-   5.  Enable the service:
+   4.  Enable the service:
 
 ```bash
 sudo systemctl enable discord-youtube-bot.service
 ```
 
-   6.  Start the service:
+   5.  Start the service:
 
 ```bash
 sudo systemctl start discord-youtube-bot.service
 ```
 
-   7.  Check the status:
+   6.  Check the status:
 
 ```bash
 sudo systemctl status discord-youtube-bot.service
@@ -185,7 +170,7 @@ sudo systemctl status discord-youtube-bot.service
 
 Alternatively, to run the bot directly from the command line:
 
-```
+```bash
 node index.js
 ```
 
