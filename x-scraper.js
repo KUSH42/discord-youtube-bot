@@ -2,6 +2,7 @@
 // © 2025 Marco Keller. All rights reserved. This software and its content are proprietary and confidential. Unauthorized reproduction or distribution is strictly prohibited.
 // This module contains the XScraper class, responsible for all X (Twitter) related monitoring and scraping.
 
+import puppeteer from 'puppeteer-extra';
 import { chromium } from 'playwright';
 import { ChannelType } from 'discord.js';
 
@@ -172,31 +173,28 @@ class XScraper {
 
     async pollXProfile() {
         let browser = null;
+        await this.populateInitialTweetIds();
         try {
             this.logger.info(`[X Scraper] Launching browser for scraping.`);
-            browser = await chromium.launch({
+            browser = await puppeteer.launch({
                 headless: this.logger.level !== 'debug',
                 args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
             });
 
-            const context = await browser.newContext({
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-                viewport: { width: 1280, height: 1080 }
-            });
-
-            const page = await context.newPage();
+            const page = await browser.newPage();
             page.on('console', (msg) => {
                 if (this.logger.level === 'debug') {
-                    for (const arg of msg.args()) {
-                        arg.jsonValue().then(value => this.logger.info(`[Browser Console]: ${JSON.stringify(value)}`));
-                    }
+                    msg.args().forEach(arg => arg.jsonValue().then(value => this.logger.info(`[Browser Console]: ${value}`)));
                 }
             });
+
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
+            await page.setViewport({ width: 1280, height: 1080 });
 
             if (!this.currentTwitterCookies) {
                 this.logger.info('[X Scraper] No current cookies. Refreshing...');
                 if (!(await this.refreshTwitterCookies())) {
-                    this.logger.error('[X Scraper] Failed to get cookies. Retrying poll later.');
+                    this.logger.error('[X Scraper] Failed to get cookies. Skipping poll.');
                     setTimeout(() => this.pollXProfile(), this.QUERY_INTERVALL_MAX);
                     if (browser) await browser.close();
                     return;
@@ -204,39 +202,36 @@ class XScraper {
             }
 
             const cookies = JSON.parse(this.currentTwitterCookies);
-            await context.addCookies(cookies);
+            await page.setCookie(...cookies);
 
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             const searchDateFrom = yesterday.toISOString().split('T')[0];
             const searchUrl = `https://x.com/search?q=(from%3A${this.X_USER_HANDLE})%20since%3A${searchDateFrom}&f=live&pf=on&src=typed_query`;
 
-            await page.goto(searchUrl, { waitUntil: 'networkidle' });
+            await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
             const uniqueTweetsMap = new Map();
             for (let i = 0; i < 3; i++) {
-                await page.waitForTimeout(2500); // Wait for content to load
-                const articles = await page.locator('article[data-testid="tweet"]').all();
+                await new Promise(resolve => setTimeout(resolve, 2500));
+                const scrapedTweets = await page.$$eval('article[data-testid="tweet"]', (articles, handle) => {
+                    return articles.map(article => {
+                        const link = article.querySelector('a[href*="/status/"]');
+                        if (!link) return null;
+                        const url = link.href;
+                        const idMatch = url.match(/\/status\/(\d+)/);
+                        if (!idMatch) return null;
+                        return {
+                            tweetID: idMatch[1],
+                            author: `@${handle}`,
+                            timestamp: article.querySelector('time[datetime]')?.getAttribute('datetime'),
+                            tweetCategory: 'Post', // Simplified for now
+                            url: url
+                        };
+                    }).filter(t => t);
+                }, this.X_USER_HANDLE);
 
-                for (const article of articles) {
-                    const link = await article.locator('a[href*="/status/"]').first().getAttribute('href');
-                    if (!link) continue;
-
-                    const idMatch = link.match(/\/status\/(\d+)/);
-                    if (!idMatch) continue;
-
-                    const tweetID = idMatch[1];
-                    const timestamp = await article.locator('time[datetime]').getAttribute('datetime');
-
-                    uniqueTweetsMap.set(tweetID, {
-                        tweetID: tweetID,
-                        author: `@${this.X_USER_HANDLE}`,
-                        timestamp: timestamp,
-                        tweetCategory: 'Post', // Simplified for now
-                        url: `https://x.com${link}`
-                    });
-                }
-
+                scrapedTweets.forEach(tweet => uniqueTweetsMap.set(tweet.tweetID, tweet));
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
             }
 
@@ -247,20 +242,19 @@ class XScraper {
             if (newTweets.length > 0) {
                 newTweets.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
                 for (const tweet of newTweets) {
-                    if (!this.knownTweetIds.has(tweet.tweetID)) {
-                        await this.announceXContent(tweet);
-                        this.knownTweetIds.add(tweet.tweetID);
-                    }
+                    await this.announceXContent(tweet);
+                    this.knownTweetIds.add(tweet.tweetID);
                 }
             }
 
+            const nextPollIn = Math.floor(Math.random() * (this.QUERY_INTERVALL_MAX - this.QUERY_INTERVALL_MIN + 1)) + this.QUERY_INTERVALL_MIN;
+            setTimeout(() => this.pollXProfile(), nextPollIn);
+
         } catch (error) {
             this.logger.error('[X Scraper] Error during polling:', error);
+            setTimeout(() => this.pollXProfile(), this.QUERY_INTERVALL_MAX);
         } finally {
             if (browser) await browser.close();
-            const nextPollIn = Math.floor(Math.random() * (this.QUERY_INTERVALL_MAX - this.QUERY_INTERVALL_MIN + 1)) + this.QUERY_INTERVALL_MIN;
-            this.logger.info(`[X Scraper] Next poll scheduled in ${nextPollIn / 1000} seconds.`);
-            setTimeout(() => this.pollXProfile(), nextPollIn);
         }
     }
 
@@ -270,22 +264,17 @@ class XScraper {
             return;
         }
         this.logger.info(`[X Scraper] Initializing monitor for X user: @${this.X_USER_HANDLE}`);
-        
+        await this.populateInitialTweetIds();
+        this.pollXProfile();
+
         // Schedule periodic cookie refresh
         if (this.TWITTER_USERNAME && this.TWITTER_PASSWORD) {
             this.logger.info('[X Scraper] Initiating initial Twitter cookie refresh.');
-            await this.refreshTwitterCookies(); // Initial refresh
+            await this.refreshTwitterCookies();
             setInterval(() => {
                 this.logger.info('[X Scraper] Initiating scheduled Twitter cookie refresh.');
                 this.refreshTwitterCookies();
             }, 23 * 60 * 60 * 1000); // 23 hours
-        }
-
-        try {
-            await this.populateInitialTweetIds();
-            this.pollXProfile();
-        } catch(error) {
-            this.logger.error('[X Scraper] Initialization failed:', error);
         }
     }
 
