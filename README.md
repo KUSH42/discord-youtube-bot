@@ -75,7 +75,7 @@ npm install
 4. Right-click on the specific text channel in your server where you want the announcements to appear.  
 5. Click "Copy ID."
 
-### **4. Run the bot**
+### **3. Run the bot**
 
 To run the bot as a systemd service, follow these steps:
 
