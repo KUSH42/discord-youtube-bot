@@ -472,22 +472,22 @@ class XScraper {
                      this.logger.debug('[X Scraper] Skipping tweet with missing ID during filtering.', tweet);
                      return false; // Skip tweets with missing IDs
                  }
-                 if (knownTweetIds.has(tweet.tweetID)) {
+                 if (this.knownTweetIds.has(tweet.tweetID)) {
                      this.logger.debug(`[X Scraper] Skipping already known tweet ${tweet.tweetID}.`);
                      return false; // Skip already announced tweets
                  }
                  // Check if the tweet timestamp is after the bot started
-                 if (botStartTime && tweet.timestamp) {
+                 if (this.botStartTime && tweet.timestamp) {
                      const tweetTime = new Date(tweet.timestamp);
-                     if (tweetTime.getTime() < botStartTime.getTime()) {
+                     if (tweetTime.getTime() < this.botStartTime.getTime()) {
                          // Log only if this old tweet hasn't been seen before in this session
-                         if (!knownTweetIds.has(tweet.tweetID)) {
+                         if (!this.knownTweetIds.has(tweet.tweetID)) {
                               this.logger.info(`[X Scraper] Skipping old tweet ${tweet.tweetID} published before bot startup: ${tweet.timestamp}`);
                          }
-                         knownTweetIds.add(tweet.tweetID); // Mark old tweets as known to prevent future checks
+                         this.knownTweetIds.add(tweet.tweetID); // Mark old tweets as known to prevent future checks
                          return false; // Skip tweets older than bot startup
                      }
-                 } else if (!botStartTime) {
+                 } else if (!this.botStartTime) {
                      // If botStartTime is not set yet, cannot determine if old, announce for now.
                      this.logger.warn(`[X Scraper] Bot startup time not yet set, cannot determine if tweet ${tweet.tweetID} is old. Announcing.`);
                  }
@@ -508,7 +508,7 @@ class XScraper {
                     await announceXContent(tweet);
                     // Ensure tweet.tweetID exists before adding to knownTweetIds
                     if (tweet && tweet.tweetID) {
-                        knownTweetIds.add(tweet.tweetID);
+                        this.knownTweetIds.add(tweet.tweetID);
                     }
                 }
             } else {
