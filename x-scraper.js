@@ -12,6 +12,7 @@ class XScraper {
         this.logger = options.logger;
         this.sendMirroredMessage = options.sendMirroredMessage; // Utility function from index.js
         this.isAnnouncementEnabled = () => options.isAnnouncementEnabled(); // Function to get the current state
+        this.isVxTwitterConversionEnabled = () => options.isVxTwitterConversionEnabled(); // Function to get conversion state
 
         // --- Configuration Variables ---
         this.X_USER_HANDLE = process.env.X_USER_HANDLE;
@@ -127,7 +128,7 @@ class XScraper {
 
     async announceXContent(tweet) {
         // Check if announcement posting is enabled before proceeding
-         if (!isAnnouncementEnabled) {
+         if (!this.isAnnouncementEnabled()) {
             this.logger.info(`Announcement posting is disabled. Skipping X announcement for tweet ${tweet.tweetID}.`);
             return;
         }
@@ -137,28 +138,28 @@ class XScraper {
         // Determine the target channel and message format based on tweet category
         switch (tweet.tweetCategory) {
             case 'Post':
-                channelId = DISCORD_X_POSTS_CHANNEL_ID;
+                channelId = this.DISCORD_X_POSTS_CHANNEL_ID;
                 message = `🐦 **New post by ${tweet.author}:**\n${tweet.url}`;
                 break;
             case 'Reply':
-                channelId = DISCORD_X_REPLIES_CHANNEL_ID;
+                channelId = this.DISCORD_X_REPLIES_CHANNEL_ID;
                 // Assuming 'text' contains the reply content. May need refinement based on actual scrape result.
-                message = `↩️ **${tweet.author} replied:**\n${tweet.url}`;
+                message = `↩�� **${tweet.author} replied:**\n${tweet.url}`;
                 break;
             case 'Quote':
-                channelId = DISCORD_X_QUOTES_CHANNEL_ID;
+                channelId = this.DISCORD_X_QUOTES_CHANNEL_ID;
                 // Assuming 'text' contains the quote content. May need refinement.
                 message = `💬 **${tweet.author} quoted:**\n${tweet.url}`;
                 break;
             case 'Retweet':
-                channelId = DISCORD_X_RETWEETS_CHANNEL_ID;
+                channelId = this.DISCORD_X_RETWEETS_CHANNEL_ID;
                 // Retweets from search results might not contain the original tweet's text easily.
                 // Announcing with just the link for now, similar to the old 'retweet' logic.
                 message = `🔄 **${tweet.author} retweeted:**\n${tweet.url}`;
                 break;
             default:
                 this.logger.warn(`Unknown tweet category: ${tweet.tweetCategory} for tweet ${tweet.tweetID}. Announcing as generic post.`);
-                channelId = DISCORD_X_POSTS_CHANNEL_ID; // Fallback to posts channel
+                channelId = this.DISCORD_X_POSTS_CHANNEL_ID; // Fallback to posts channel
                 message = `📄 **New activity by ${tweet.author}:**\n${tweet.url}`;
         }
     
@@ -168,13 +169,13 @@ class XScraper {
         }
     
         try {
-            const channel = await client.channels.fetch(channelId);
+            const channel = await this.client.channels.fetch(channelId);
             if (!channel || !channel.isTextBased()) {
                 this.logger.error(`Configured Discord channel ${channelId} for tweet category '${tweet.tweetCategory}' not found or is not a text channel. Skipping announcement for tweet ${tweet.tweetID}.`);
                 return;
             }
     
-            await sendMirroredMessage(channel, message);
+            await this.sendMirroredMessage(channel, message);
             this.logger.info(`Announced tweet ${tweet.tweetID} from ${tweet.author} in channel ${channelId}. Category: ${tweet.tweetCategory}.`);
         } catch (error) {
             this.logger.error(`Failed to announce tweet ${tweet.tweetID} in channel ${channelId}:`, error);
@@ -504,8 +505,15 @@ class XScraper {
     
                 for (const tweet of newTweets) { // Process in chronological order
                     this.logger.info(`[X Scraper] Processing new tweet ${tweet.tweetID} from ${tweet.timestamp}, Category: ${tweet.tweetCategory}.`);
+                    
+                    // Conditionally convert URL to vxtwitter.com
+                    if (this.isVxTwitterConversionEnabled() && tweet.url) {
+                        tweet.url = tweet.url.replace(/:\/\/([\w]+\.)?x\.com\//, '://vxtwitter.com/');
+                        this.logger.debug(`[X Scraper] Modified tweet URL for announcement: ${tweet.url}`);
+                    }
+
                     // Call announceXContent with the new tweet object structure
-                    await announceXContent(tweet);
+                    await this.announceXContent(tweet);
                     // Ensure tweet.tweetID exists before adding to knownTweetIds
                     if (tweet && tweet.tweetID) {
                         this.knownTweetIds.add(tweet.tweetID);
