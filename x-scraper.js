@@ -25,6 +25,10 @@ class XScraper {
         this.QUERY_INTERVALL_MIN = parseInt(process.env.X_QUERY_INTERVALL_MIN, 10) || 300000;
         this.QUERY_INTERVALL_MAX = parseInt(process.env.X_QUERY_INTERVALL_MAX, 10) || 600000;
 
+        // --- Configuration Variables ---
+        // Whether to announce tweets older than the bot startup time
+        this.announceOldTweets = process.env.ANNOUNCE_OLD_TWEETS === 'true';
+
         // --- Global State ---
         this.knownTweetIds = new Set();
         this.currentTwitterCookies = null;
@@ -144,7 +148,7 @@ class XScraper {
             case 'Reply':
                 channelId = this.DISCORD_X_REPLIES_CHANNEL_ID;
                 // Assuming 'text' contains the reply content. May need refinement based on actual scrape result.
-                message = `↩�� **${tweet.author} replied:**\n${tweet.url}`;
+                message = `↩️ **${tweet.author} replied:**\n${tweet.url}`;
                 break;
             case 'Quote':
                 channelId = this.DISCORD_X_QUOTES_CHANNEL_ID;
@@ -468,7 +472,7 @@ class XScraper {
         // Convert the map values to an array
         const allScrapedTweetsInSession = Array.from(uniqueTweetsMap.values());
     
-            // Filter for truly new tweets that haven't been announced before AND are newer than bot startup
+            // Filter for truly new tweets that haven't been announced before AND are newer than bot startup (unless announceOldTweets is true)
             let newTweets = allScrapedTweetsInSession.filter(tweet => {
                  if (!tweet || !tweet.tweetID) {
                      this.logger.debug('[X Scraper] Skipping tweet with missing ID during filtering.', tweet);
@@ -478,8 +482,8 @@ class XScraper {
                      this.logger.debug(`[X Scraper] Skipping already known tweet ${tweet.tweetID}.`);
                      return false; // Skip already announced tweets
                  }
-                 // Check if the tweet timestamp is after the bot started
-                 if (this.botStartTime && tweet.timestamp) {
+                 // Check if the tweet timestamp is after the bot started, or if we are configured to announce old tweets
+                 if (!this.announceOldTweets && this.botStartTime && tweet.timestamp) {
                      const tweetTime = new Date(tweet.timestamp);
                      if (tweetTime.getTime() < this.botStartTime.getTime()) {
                          // Log only if this old tweet hasn't been seen before in this session
@@ -487,13 +491,13 @@ class XScraper {
                               this.logger.info(`[X Scraper] Skipping old tweet ${tweet.tweetID} published before bot startup: ${tweet.timestamp}`);
                          }
                          this.knownTweetIds.add(tweet.tweetID); // Mark old tweets as known to prevent future checks
-                         return false; // Skip tweets older than bot startup
+                         return false; // Skip tweets older than bot startup if announceOldTweets is false
                      }
-                 } else if (!this.botStartTime) {
-                     // If botStartTime is not set yet, cannot determine if old, announce for now.
+                 } else if (!this.announceOldTweets && !this.botStartTime) {
+                     // If announceOldTweets is false and botStartTime is not set yet, cannot determine if old, announce for now.
                      this.logger.warn(`[X Scraper] Bot startup time not yet set, cannot determine if tweet ${tweet.tweetID} is old. Announcing.`);
                  }
-                 return true; // This is a new tweet, not old, and hasn't been announced
+                 return true; // This is a new tweet (or an old tweet if announceOldTweets is true) and hasn't been announced
             });
     
     
