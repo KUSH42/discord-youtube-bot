@@ -99,7 +99,7 @@ class XScraper {
     }
 
     async populateInitialTweetIds() {
-        const tweetUrlRegex = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/\w+\/status\/(\d+)/g;
+        const tweetUrlRegex = /https?:\/\/([\w]+\.)?x\.com\/\w+\/status\/(\d+)/g;
         const channelIds = [
             this.DISCORD_X_POSTS_CHANNEL_ID,
             this.DISCORD_X_REPLIES_CHANNEL_ID,
@@ -114,7 +114,7 @@ class XScraper {
                     const messages = await channel.messages.fetch({ limit: 50 });
                     messages.forEach(msg => {
                         const matches = [...msg.content.matchAll(tweetUrlRegex)];
-                        matches.forEach(match => this.knownTweetIds.add(match[1]));
+                        matches.forEach(match => this.knownTweetIds.add(match[2]));
                     });
                 }
             } catch (error) {
@@ -224,7 +224,7 @@ class XScraper {
                     // Schedule next poll even on failure to avoid getting stuck
                     const nextPollIn = this.QUERY_INTERVALL_MAX; // Use max interval on error
                     this.logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
-                    setTimeout(this.pollXProfile, nextPollIn);
+                    setTimeout(() => this.pollXProfile(), nextPollIn);
                     if (browser) { await browser.close(); }
                     return; // Exit the function if cookie refresh failed
                 }
@@ -275,7 +275,7 @@ class XScraper {
                  await browser.close();
                  const nextPollIn = this.QUERY_INTERVALL_MAX;
                  this.logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds after cookie set failure.`);
-                 setTimeout(this.pollXProfile, nextPollIn);
+                 setTimeout(() => this.pollXProfile(), nextPollIn);
                  return; // Exit the function
             }
     
@@ -315,7 +315,7 @@ class XScraper {
                 await browser.close();
                 const nextPollIn = Math.floor(Math.random() * (this.QUERY_INTERVALL_MAX - this.QUERY_INTERVALL_MIN + 1)) + this.QUERY_INTERVALL_MIN;
                 this.logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
-                setTimeout(this.pollXProfile, nextPollIn);
+                setTimeout(() => this.pollXProfile(), nextPollIn);
                 return; // Exit the function early
            }
     
@@ -498,8 +498,7 @@ class XScraper {
             if (newTweets.length > 0) {
                 this.logger.info(`[X Scraper] Found ${newTweets.length} new tweets from search results that are newer than bot startup.`);
     
-                // Sort by timestamp to ensure chronological order (oldest first)
-                newTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                // Sort by timestamp to ensure chronological order (oldest first)\n                newTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     
     
                 for (const tweet of newTweets) { // Process in chronological order
@@ -518,14 +517,14 @@ class XScraper {
             // Schedule next poll with random jitter
             const nextPollIn = Math.floor(Math.random() * (this.QUERY_INTERVALL_MAX - this.QUERY_INTERVALL_MIN + 1)) + this.QUERY_INTERVALL_MIN;
             this.logger.info(`[X Scraper] Next check in ${nextPollIn / 1000} seconds.`);
-            setTimeout(this.pollXProfile, nextPollIn);
+            setTimeout(() => this.pollXProfile(), nextPollIn);
     
         } catch (error) {
             this.logger.error('[X Scraper] Error during polling:', error);
             // On error, wait the maximum interval before retrying to avoid rapid failed attempts
             const nextPollIn = this.QUERY_INTERVALL_MAX; // Use max interval on error
             this.logger.info(`[X Scraper] Retrying in ${nextPollIn / 1000} seconds.`);
-            setTimeout(this.pollXProfile, nextPollIn);
+            setTimeout(() => this.pollXProfile(), nextPollIn);
         } finally {
             if (browser) {
                 await browser.close();
