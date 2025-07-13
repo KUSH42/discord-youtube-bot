@@ -150,7 +150,7 @@ class YouTubeMonitor {
                         if (!this.announcedVideos.has(videoId)) {
                             this.logger.info(`New content detected: ${title} (${videoId})`);
                             // Fetch additional details to see if it's a livestream or an upload and get published date
-                            const videoDetailsResponse = await youtube.videos.list({
+                            const videoDetailsResponse = await this.youtube.videos.list({
                                 part: 'liveStreamingDetails,snippet',
                                 id: videoId
                             });
