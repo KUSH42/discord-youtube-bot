@@ -306,7 +306,7 @@ class XScraper {
     
             // Verify the current URL before attempting to scrape
             const currentUrl = page.url();
-            this.logger.info(`[X Scraper] Current URL before scraping: ${currentUrl}`);
+            this.logger.verbose(`[X Scraper] Current URL before scraping: ${currentUrl}`);
     
             // Check if the URL is still the search URL or if it navigated away
             if (!currentUrl.startsWith(`https://x.com/search`)) {
@@ -446,7 +446,7 @@ class XScraper {
                 return tweets;
             }, this.X_USER_HANDLE);
     
-            this.logger.debug(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
+            this.logger.verbose(`[X Scraper] Found ${scrapedTweetsInStep.length} tweets in scroll step ${i + 1}.`);
     
             for (const tweet of scrapedTweetsInStep) {
                 // Ensure tweet and tweet.tweetID are not null/undefined before using has()
