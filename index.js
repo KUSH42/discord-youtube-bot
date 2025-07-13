@@ -255,7 +255,7 @@ client.once('ready', async () => {
     logger.info(`Bot started at: ${botStartTime.toISOString()}`);
 
     if (DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
-        logger.add(new DiscordTransport({ level: 'info', client: client, channelId: DISCORD_BOT_SUPPORT_LOG_CHANNEL }));
+        logger.add(new DiscordTransport({ level: LOG_LEVEL, client: client, channelId: DISCORD_BOT_SUPPORT_LOG_CHANNEL }));
     } else {
         logger.warn('DISCORD_BOT_SUPPORT_LOG_CHANNEL not set.');
     }
