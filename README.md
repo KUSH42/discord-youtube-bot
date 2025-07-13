@@ -109,9 +109,11 @@ X_QUERY_INTERVALL_MAX=600000 # Maximum polling interval for X (default 10 minute
 
 # Bot Control and Logging Configurations
 COMMAND_PREFIX=! # Prefix for message commands in the support channel (default is !)
-ALLOWED_USER_IDS=user_id_1,user_id_2 # Comma-separated list of Discord User IDs allowed to use the restart command (e.g., '123456789012345678,987654321098765432')
+ALLOWED_USER_IDS=user_id_1,user_id_2 # Comma-separated list of Discord User IDs allowed to use the restart command
+ANNOUNCEMENT_ENABLED=false # Controls if announcement posting is enabled on startup (true/false)
+X_VX_TWITTER_CONVERSION=false # If true, converts x.com URLs to vxtwitter.com for better embeds
 LOG_FILE_PATH=bot.log # Path to the log file (e.g., 'logs/bot.log')
-LOG_LEVEL=info # Log level: error, warn, info, verbose, debug, silly
+LOG_LEVEL=info # Default log level: error, warn, info, verbose, debug, silly
 ```
 
 ### **4. Run the bot**
@@ -208,7 +210,9 @@ These commands are used to manage the bot's operation and are only processed whe
 
 *   `!kill`: Stops *all* bot posting to Discord channels, including announcements and the support log.
 *   `!restart`: Performs a soft restart of the bot. This command requires the user's ID to be listed in the `ALLOWED_USER_IDS` environment variable. The soft restart includes unsubscribing/resubscribing to PubSubHubbub, resetting known content lists, and re-enabling support log posting (announcement state is preserved).
-*   `!announce <true|false>`: Toggles announcement posting to the YouTube and X announcement channels. `true` enables announcements, `false` disables them. This command does *not* affect the support log output.
+*   `!announce <true|false>`: Toggles announcement posting to the YouTube and X announcement channels. `true` enables announcements, `false` disables them. The initial state is set by `ANNOUNCEMENT_ENABLED` in the `.env` file.
+*   `!vxtwitter <true|false>`: Toggles the conversion of `x.com` URLs to `vxtwitter.com` for improved Discord embeds. The initial state is set by `X_VX_TWITTER_CONVERSION`.
+*   `!loglevel <level>`: Changes the bot's logging level at runtime. Valid levels are: `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`.
 *   `!readme`: Displays this command information within the support channel.
 
 ## **Troubleshooting**
