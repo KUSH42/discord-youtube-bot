@@ -7,6 +7,7 @@ import xml2js from 'xml2js';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
 import { ChannelType } from 'discord.js';
+import express from 'express'; // Import express
 
 class YouTubeMonitor {
     constructor(options) {
@@ -80,6 +81,9 @@ class YouTubeMonitor {
     }
 
     async handlePubSubNotification(req, res) {
+        this.logger.info('Received request to handlePubSubNotification.');
+        this.logger.verbose('Received request with Content-Type:', req.headers['content-type']);
+        this.logger.debug('req.rawBody is present:', !!req.rawBody);
         // PubSubHubbub notification (new video/livestream update)
         if (req.headers['content-type'] === 'application/atom+xml' && req.rawBody) {
             this.logger.info('Received PubSubHubbub notification.');
@@ -209,6 +213,7 @@ class YouTubeMonitor {
                 res.status(500).send('Error processing notification.');
             }
         } else {
+            this.logger.info('Bad request: ', req.rawBody);
             res.status(400).send('Bad Request');
         }
     }
@@ -227,6 +232,7 @@ class YouTubeMonitor {
             res.status(200).send(challenge);
             this.logger.info(`Successfully responded to PubSubHubbub challenge for topic: ${topic}`);
         } else {
+            this.logger.info('Bad request: ', req.rawBody);
             res.status(400).send('Bad Request');
         }
     }
@@ -339,6 +345,14 @@ class YouTubeMonitor {
                 this.logger.error(`Invalid PSH_CALLBACK_URL. Using default path.`, error);
             }
         }
+
+        // Middleware to get raw body for signature verification for the webhook path
+        this.app.use(webhookPath, express.text({
+            type: 'application/atom+xml',
+            verify: (req, res, buf) => {
+                req.rawBody = buf;
+            }
+        }));
 
         this.app.get(webhookPath, (req, res) => this.handlePubSubVerification(req, res));
         this.app.post(webhookPath, (req, res) => this.handlePubSubNotification(req, res));
