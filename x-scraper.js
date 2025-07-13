@@ -206,7 +206,7 @@ class XScraper {
                     for (let i = 0; i < msgArgs.length; ++i) {
                         msgArgs[i].jsonValue().then(value => {
                             // Log the browser console message with a prefix
-                            this.logger.info(`[Browser Console]: ${value}`);
+                            this.logger.debug(`[Browser Console]: ${value}`);
                         }).catch(e => this.logger.error(`[Browser Console] Error getting console message value: ${e}`));
                     }
                 }
@@ -537,9 +537,6 @@ class XScraper {
             this.logger.debug('[X Scraper] Not configured. Skipping.');
             return;
         }
-        this.logger.info(`[X Scraper] Initializing monitor for X user: @${this.X_USER_HANDLE}`);
-        await this.populateInitialTweetIds();
-        this.pollXProfile();
 
         // Schedule periodic cookie refresh
         if (this.TWITTER_USERNAME && this.TWITTER_PASSWORD) {
@@ -550,6 +547,9 @@ class XScraper {
                 this.refreshTwitterCookies();
             }, 23 * 60 * 60 * 1000); // 23 hours
         }
+
+        this.logger.info(`[X Scraper] Initializing monitor for X user: @${this.X_USER_HANDLE}`);
+        this.pollXProfile();
     }
 
     resetState() {
