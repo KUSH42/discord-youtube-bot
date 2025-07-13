@@ -49,6 +49,10 @@ class YouTubeMonitor {
         this.logger.info(`Populated ${this.announcedVideos.size} known YouTube video IDs from Discord history.`);
     }
 
+    /**
+    * Announces a new video or livestream in the Discord channel.
+    * @param {object} item - The video/livestream item object with id, title, url, type.
+    */
     async announceYouTubeContent(item) {
         const channel = this.client.channels.cache.get(this.DISCORD_YOUTUBE_CHANNEL_ID);
         if (!channel) {
@@ -57,15 +61,17 @@ class YouTubeMonitor {
         }
 
         const messageContent = item.type === 'upload'
-            ? `@everyone 🎬 New Video Upload!\n${item.title}\n${item.url}`
-            : `@everyone 🔴 Livestream Started!\n${item.title}\n${item.url}`;
+            ? `@everyone **🎬 New Video Upload!**\n${item.title}\n${item.url}`
+            : `@everyone **🔴 Livestream Started!**\n${item.title}\n${item.url}`;
 
+        // Check if announcement posting is enabled before proceeding
         if (!this.isAnnouncementEnabled()) {
             this.announcedVideos.add(item.id);
             this.logger.info(`Announcement posting is disabled. Skipping YouTube announcement for ${item.title}.`);
             return;
         }
         try {
+            // sendMirroredMessage already checks isPostingEnabled
             await this.sendMirroredMessage(channel, messageContent);
             this.logger.info(`Announced YT content: ${item.title}`);
         } catch (error) {
@@ -123,29 +129,29 @@ class YouTubeMonitor {
     async unsubscribeFromYouTubePubSubHubbub() {
         const hubUrl = 'https://pubsubhubbub.appspot.com/';
         const topicUrl = `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${this.YOUTUBE_CHANNEL_ID}`;
-    
+
         this.logger.info(`Attempting to unsubscribe from PubSubHubbub for channel: ${this.YOUTUBE_CHANNEL_ID}`);
-    
+
         if (this.subscriptionRenewalTimer) {
             clearTimeout(this.subscriptionRenewalTimer);
             this.subscriptionRenewalTimer = null;
             this.logger.info('Cleared PubSubHubbub subscription renewal timer during unsubscribe.');
         }
-    
+
         const params = new URLSearchParams({
             'hub.mode': 'unsubscribe',
             'hub.callback': this.PSH_CALLBACK_URL,
             'hub.topic': topicUrl,
             'hub.secret': this.PSH_SECRET
         });
-    
+
         try {
             const response = await fetch(hubUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString()
             });
-    
+
             if (!response.ok) {
                 const errorText = await response.text();
                 this.logger.error('Failed to unsubscribe from PubSubHubbub: Status=%d, StatusText=%s, ErrorResponse=%s', response.status, response.statusText, errorText);
@@ -156,21 +162,21 @@ class YouTubeMonitor {
             this.logger.error('Error during PubSubHubbub unsubscribe:', error);
         }
     }
-    
+
 
     async subscribeToYouTubePubSubHubbub() {
         const hubUrl = 'https://pubsubhubbub.appspot.com/';
         const topicUrl = `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${this.YOUTUBE_CHANNEL_ID}`;
-    
+
         if (this.subscriptionRenewalTimer) {
             clearTimeout(this.subscriptionRenewalTimer);
             this.subscriptionRenewalTimer = null;
             this.logger.info('Cleared existing PubSubHubbub subscription renewal timer.');
         }
-    
+
         const leaseSeconds = 864000;
         const renewalBufferSeconds = 3600;
-    
+
         const params = new URLSearchParams({
             'hub.mode': 'subscribe',
             'hub.callback': this.PSH_CALLBACK_URL,
@@ -179,11 +185,11 @@ class YouTubeMonitor {
             'hub.secret': this.PSH_SECRET,
             'hub.lease_seconds': leaseSeconds
         });
-    
+
         if (this.PSH_VERIFY_TOKEN) {
             params.append('hub.verify_token', this.PSH_VERIFY_TOKEN);
         }
-    
+
         try {
             this.logger.info(`Attempting to subscribe to PubSubHubbub for channel: ${this.YOUTUBE_CHANNEL_ID}`);
             const response = await fetch(hubUrl, {
@@ -191,7 +197,7 @@ class YouTubeMonitor {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString()
             });
-    
+
             if (response.ok) {
                 this.logger.info('PubSubHubbub subscription request sent successfully.');
                 const renewalTimeMs = (leaseSeconds - renewalBufferSeconds) * 1000;
@@ -210,7 +216,7 @@ class YouTubeMonitor {
             this.logger.error('Error during PubSubHubbub subscription:', error);
         }
     }
-    
+
     async initialize() {
         if (!this.YOUTUBE_API_KEY || !this.YOUTUBE_CHANNEL_ID || !this.DISCORD_YOUTUBE_CHANNEL_ID) {
             this.logger.warn('[YouTube Monitor] Not configured. Skipping.');
@@ -218,7 +224,7 @@ class YouTubeMonitor {
         }
         this.logger.info(`[YouTube Monitor] Initializing monitor for channel ID: ${this.YOUTUBE_CHANNEL_ID}`);
         await this.populateInitialYouTubeHistory();
-        
+
         let webhookPath = '/webhook/youtube';
         if (this.PSH_CALLBACK_URL) {
             try {
@@ -228,13 +234,13 @@ class YouTubeMonitor {
                 this.logger.error(`Invalid PSH_CALLBACK_URL. Using default path.`, error);
             }
         }
-        
+
         this.app.get(webhookPath, (req, res) => this.handlePubSubVerification(req, res));
         this.app.post(webhookPath, (req, res) => this.handlePubSubNotification(req, res));
 
         this.subscribeToYouTubePubSubHubbub();
     }
-    
+
     resetState() {
         this.announcedVideos.clear();
         this.logger.info('[YouTube Monitor] State reset.');

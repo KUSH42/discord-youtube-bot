@@ -16,15 +16,19 @@ dotenv.config();
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const COMMAND_PREFIX = process.env.COMMAND_PREFIX || '!';
 const DISCORD_BOT_SUPPORT_LOG_CHANNEL = process.env.DISCORD_BOT_SUPPORT_LOG_CHANNEL;
-const PSH_PORT = process.env.PORT || 3000;
+const PSH_PORT = process.env.PSH_PORT || 3000;
 const LOG_FILE_PATH = process.env.LOG_FILE_PATH || 'bot.log';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
 let botStartTime = null;
 let isPostingEnabled = true;
 let isAnnouncementEnabled = false;
+let mirrorMessage = false;
 const allowedUserIds = process.env.ALLOWED_USER_IDS ? process.env.ALLOWED_USER_IDS.split(',').map(id => id.trim()) : [];
 
+/**
+ * Splits a string into multiple chunks of a specified maximum length, respecting line breaks.
+ */
 function splitMessage(text, { maxLength = 2000 } = {}) {
     if (text.length <= maxLength) return [text];
     const char = '\n';
@@ -49,6 +53,9 @@ function splitMessage(text, { maxLength = 2000 } = {}) {
     return chunks;
 }
 
+/**
+ * Sends a message to a target channel and mirrors it to the support log channel.
+ */
 async function sendMirroredMessage(targetChannel, content) {
     if (!isPostingEnabled) {
         logger.info(`Posting is disabled. Skipping message to ${targetChannel.name}.`);
@@ -62,7 +69,9 @@ async function sendMirroredMessage(targetChannel, content) {
         return;
     }
     await targetChannel.send(content);
-    if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && targetChannel.id !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
+    
+    // Optionally send a notification to the support channel that posting is disabled
+    if (DISCORD_BOT_SUPPORT_LOG_CHANNEL && mirrorMessage && targetChannel.id !== DISCORD_BOT_SUPPORT_LOG_CHANNEL) {
         client.channels.fetch(DISCORD_BOT_SUPPORT_LOG_CHANNEL).then(supportChannel => {
             if (supportChannel && supportChannel.isTextBased()) {
                 const mirrorContent = `[Bot message from #${targetChannel.name}]:\n>>> ${content}`;
@@ -74,6 +83,7 @@ async function sendMirroredMessage(targetChannel, content) {
     }
 }
 
+// --- Discord Transport for Winston ---
 class DiscordTransport extends Transport {
     constructor(opts) {
         super(opts);
@@ -81,26 +91,33 @@ class DiscordTransport extends Transport {
         this.channelId = opts.channelId;
         this.channel = null;
         this.buffer = [];
-        this.flushInterval = opts.flushInterval || 2000;
-        this.maxBufferSize = opts.maxBufferSize || 20;
+
+        // Buffering options
+        this.flushInterval = opts.flushInterval || 2000;    // 2 seconds
+        this.maxBufferSize = opts.maxBufferSize || 20;      // 20 log entries
         this.flushTimer = null;
         this.startFlushing();
     }
+
     startFlushing() {
         if (this.flushTimer) clearInterval(this.flushTimer);
         this.flushTimer = setInterval(() => this.flush(), this.flushInterval);
     }
+
     async log(info, callback) {
         setImmediate(() => this.emit('logged', info));
+        // Channel initialization logic
         if (!this.client.isReady() || this.channel === 'errored') return callback();
         if (this.channel === null) {
             try {
                 const fetchedChannel = await this.client.channels.fetch(this.channelId);
                 if (fetchedChannel && fetchedChannel.isTextBased()) {
                     this.channel = fetchedChannel;
+                    // Send initialization message immediately, not buffered
                     this.channel.send('✅ **Winston logging transport initialized for this channel.**').catch(console.error);
                 } else {
                     this.channel = 'errored';
+                    console.error(`[DiscordTransport] Channel ${this.channelId} is not a valid text channel.`);
                 }
             } catch (error) {
                 this.channel = 'errored';
@@ -108,6 +125,8 @@ class DiscordTransport extends Transport {
             }
         }
         if (!this.channel || this.channel === 'errored') return callback();
+        
+        // Buffering logic
         const { level, message, stack } = info;
         let logMessage = `**[${level.toUpperCase()}]**: ${message}`;
         if (stack) logMessage += `\n\`\`\`\n${stack}\n\`\`\``;
@@ -115,6 +134,7 @@ class DiscordTransport extends Transport {
         if (this.buffer.length >= this.maxBufferSize) await this.flush();
         callback();
     }
+
     async flush() {
         if (this.buffer.length === 0 || !this.channel || this.channel === 'errored') return;
         const messagesToFlush = [...this.buffer];
@@ -130,37 +150,84 @@ class DiscordTransport extends Transport {
     }
 }
 
-const fileLogFormat = winston.format.printf((info) => {
-    let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
-    if (info.stack) logMessage += `\nStack: ${info.stack}`;
-    return logMessage;
-});
+// --- Logger Setup ---
+// Helper for file log formatting to fix syntax errors from duplication and improve maintainability.
+const fileLogFormat = winston.format.printf(
+    (info) => {
+        let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
+        if (info.stack) {
+            logMessage += `\nStack: ${info.stack}`;
+        }
+        // Add more specific error properties if they exist
+        if (info.error && typeof info.error === 'object') {
+            if (info.error.name) logMessage += `\nError Name: ${info.error.name}`;
+            if (info.error.code) logMessage += `\nError Code: ${info.error.code}`;
+            const otherErrorProps = { ...info.error };
+            delete otherErrorProps.message;
+            delete otherErrorProps.stack;
+            delete otherErrorProps.name;
+            delete otherErrorProps.code;
+            if (Object.keys(otherErrorProps).length > 0) {
+                logMessage += `\nError Details: ${JSON.stringify(otherErrorProps, null, 2)}`;
+            }
+        }
+        return logMessage;
+    }
+);
 
 const logger = winston.createLogger({
     level: LOG_LEVEL,
     format: winston.format.combine(
         winston.format.timestamp({ format: 'DD-MM-YYYY HH:mm:ss' }),
-        winston.format.errors({ stack: true }),
-        winston.format.splat(),
+        winston.format.errors({ stack: true }), // Include stack trace for errors
+        winston.format.splat(), // Allows string interpolation
         winston.format.json()
     ),
     transports: [
+        // Console transport (uses colorize and printf)
         new winston.transports.Console({
-            format: winston.format.combine(winston.format.colorize(), winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}` + (info.stack ? `\n${info.stack}` : '')))
+            format: winston.format.combine(
+                winston.format.colorize(), // Colorize output for console
+                winston.format.printf(
+                    info => `${info.timestamp} ${info.level}: ${info.message}` +
+                        (info.stack ? `\n${info.stack}` : '') // Explicitly add stack
+                )
+            )
         }),
+        // File transport with daily rotation
         new winston.transports.DailyRotateFile({
             filename: `${LOG_FILE_PATH}-%DATE%.log`,
             datePattern: 'DD-MM-YYYY',
             zippedArchive: true,
             maxSize: '20m',
             maxFiles: '14d',
-            format: winston.format.combine(fileLogFormat)
+            format: winston.format.combine(fileLogFormat) // Use the shared format
         })
     ],
-    exceptionHandlers: [ new winston.transports.DailyRotateFile({ filename: `${LOG_FILE_PATH}-exceptions-%DATE%.log`, datePattern: 'DD-MM-YYYY', zippedArchive: true, maxSize: '20m', maxFiles: '14d', format: winston.format.combine(fileLogFormat) }) ],
-    rejectionHandlers: [ new winston.transports.DailyRotateFile({ filename: `${LOG_FILE_PATH}-rejections-%DATE%.log`, datePattern: 'DD-MM-YYYY', zippedArchive: true, maxSize: '20m', maxFiles: '14d', format: winston.format.combine(fileLogFormat) }) ]
+    exceptionHandlers: [
+        new winston.transports.DailyRotateFile({
+            filename: `${LOG_FILE_PATH}-exceptions-%DATE%.log`,
+            datePattern: 'DD-MM-YYYY',
+            zippedArchive: true,
+            maxSize: '20m',
+            maxFiles: '14d',
+            format: winston.format.combine(fileLogFormat) // Use the shared format
+        })
+    ],
+    rejectionHandlers: [
+        new winston.transports.DailyRotateFile({
+            filename: `${LOG_FILE_PATH}-rejections-%DATE%.log`,
+            datePattern: 'DD-MM-YYYY',
+            zippedArchive: true,
+            maxSize: '20m',
+            maxFiles: '14d',
+            format: winston.format.combine(fileLogFormat) // Use the shared format
+        })
+    ]
 });
 
+
+// --- Discord Client Setup ---
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
     partials: [Partials.Channel]
