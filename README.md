@@ -86,19 +86,19 @@ npm install discord.js googleapis dotenv express body-parser xml2js node-fetch w
 
 To run the bot as a systemd service, follow these steps:
 
-   1.  Create a service file (e.g., `/etc/systemd/system/discord-x-bot.service`) with the following content (adjust paths and user accordingly):
+   1.  Create a service file (e.g., `/etc/systemd/system/discord-youtube-bot.service`) with the following content (adjust paths and user accordingly):
 
 ```
 [Unit]
-Description=Discord X Bot Service
+Description=Discord Announcement Bot Service
 After=network.target
 
 [Service]
 Type=simple
-User=xush  # Replace with your actual user
-WorkingDirectory=/home/xush/Documents/prog/discord-youtube-bot
+User=$USER  # Replace with your actual user
+WorkingDirectory=~/discord-youtube-bot
 Environment="DISPLAY=:99"  # Important for Xvfb
-ExecStart=/home/xush/Documents/prog/discord-youtube-bot/start-bot.sh
+ExecStart=~/discord-youtube-bot/start-bot.sh
 Restart=on-failure
 RestartSec=10
 
@@ -106,7 +106,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-   2.  Create a shell script (e.g., `/home/xush/Documents/prog/discord-youtube-bot/start-bot.sh`) to start Xvfb and the bot:
+   2.  Create a shell script (e.g., `~/discord-youtube-bot/start-bot.sh`) to start Xvfb and the bot:
 
 ```bash
 #!/bin/bash
@@ -124,7 +124,7 @@ sleep 2
    3.  Make the script executable:
 
 ```bash
-chmod +x /home/xush/Documents/prog/discord-youtube-bot/start-bot.sh
+chmod +x ~/discord-youtube-bot/start-bot.sh
 ```
 
    4.  Reload systemd:
@@ -136,19 +136,19 @@ sudo systemctl daemon-reload
    5.  Enable the service:
 
 ```bash
-sudo systemctl enable discord-x-bot.service
+sudo systemctl enable discord-youtube-bot.service
 ```
 
    6.  Start the service:
 
 ```bash
-sudo systemctl start discord-x-bot.service
+sudo systemctl start discord-youtube-bot.service
 ```
 
    7.  Check the status:
 
 ```bash
-sudo systemctl status discord-x-bot.service
+sudo systemctl status discord-youtube-bot.service
 ```
 
 Alternatively, to run the bot directly from the command line:
