@@ -75,7 +75,44 @@ npm install
 4. Right-click on the specific text channel in your server where you want the announcements to appear.  
 5. Click "Copy ID."
 
-### **3. Run the bot**
+### **3. Configure Environment**
+
+Create a new file named `.env` in your project's root directory and add the following variables, replacing the placeholder values with the actual keys and IDs you obtained:
+
+```env
+DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN_HERE
+DISCORD_BOT_SUPPORT_LOG_CHANNEL=YOUR_DISCORD_SUPPORT_CHANNEL_ID # ID of the channel for logs and control commands
+
+# YouTube Monitoring Config
+YOUTUBE_API_KEY=YOUR_GOOGLE_YOUTUBE_API_KEY_HERE # Still needed for initial channel info (for detail fetching)
+YOUTUBE_CHANNEL_ID=YOUR_YOUTUBE_CHANNEL_ID_HERE
+DISCORD_YOUTUBE_CHANNEL_ID=YOUR_DISCORD_YOUTUBE_CHANNEL_ID_HERE # Channel ID for YouTube announcements
+
+# PubSubHubbub specific configurations
+PSH_SECRET=a_very_long_and_random_secret_string_for_security_never_share # Use a strong, random string
+PSH_CALLBACK_URL=https://your-public-domain.com/webhook/youtube # IMPORTANT: This MUST be publicly accessible! This is the URL YouTube's PubSubHubbub hub will send notifications to.
+PSH_PORT=3000 # Port for the bot's web server (default is 3000) - Ensure your firewall and reverse proxy (if any) forward external traffic on your chosen webhook port to this internal port.
+PSH_VERIFY_TOKEN=your_optional_verify_token # An optional token sent with the subscription request and echoed back in the challenge for verification
+
+# X (Twitter) Monitoring Config
+X_USER_HANDLE=YOUR_X_USER_HANDLE # The @handle of the X user to monitor (e.g., 'ItsTheEnforcer')
+DISCORD_X_POSTS_CHANNEL_ID=YOUR_DISCORD_X_POSTS_CHANNEL_ID # Discord Channel ID for X original posts (optional)
+DISCORD_X_REPLIES_CHANNEL_ID=YOUR_DISCORD_X_REPLIES_CHANNEL_ID # Discord Channel ID for X replies (optional)
+DISCORD_X_QUOTES_CHANNEL_ID=YOUR_DISCORD_X_QUOTES_CHANNEL_ID # Discord Channel ID for X quote tweets (optional)
+DISCORD_X_RETWEETS_CHANNEL_ID=YOUR_DISCORD_X_RETWEETS_CHANNEL_ID # Discord Channel ID for X retweets (optional)
+
+# X (Twitter) Polling Interval (in milliseconds) - Only for X, YouTube uses PubSubHubbub
+X_QUERY_INTERVALL_MIN=300000 # Minimum polling interval for X (default 5 minutes)
+X_QUERY_INTERVALL_MAX=600000 # Maximum polling interval for X (default 10 minutes)
+
+# Bot Control and Logging Configurations
+COMMAND_PREFIX=! # Prefix for message commands in the support channel (default is !)
+ALLOWED_USER_IDS=user_id_1,user_id_2 # Comma-separated list of Discord User IDs allowed to use the restart command (e.g., '123456789012345678,987654321098765432')
+LOG_FILE_PATH=bot.log # Path to the log file (e.g., 'logs/bot.log')
+LOG_LEVEL=info # Log level: error, warn, info, verbose, debug, silly
+```
+
+### **4. Run the bot**
 
 To run the bot as a systemd service, follow these steps:
 
@@ -151,48 +188,12 @@ node index.js
 ```
 
 
-
-Create a new file named `.env` in your project's root directory and add the following variables, replacing the placeholder values with the actual keys and IDs you obtained:
-
-```env
-DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN_HERE
-DISCORD_BOT_SUPPORT_LOG_CHANNEL=YOUR_DISCORD_SUPPORT_CHANNEL_ID # ID of the channel for logs and control commands
-
-# YouTube Monitoring Config
-YOUTUBE_API_KEY=YOUR_GOOGLE_YOUTUBE_API_KEY_HERE # Still needed for initial channel info (for detail fetching)
-YOUTUBE_CHANNEL_ID=YOUR_YOUTUBE_CHANNEL_ID_HERE
-DISCORD_YOUTUBE_CHANNEL_ID=YOUR_DISCORD_YOUTUBE_CHANNEL_ID_HERE # Channel ID for YouTube announcements
-
-# PubSubHubbub specific configurations
-PSH_SECRET=a_very_long_and_random_secret_string_for_security_never_share # Use a strong, random string
-PSH_CALLBACK_URL=https://your-public-domain.com/webhook/youtube # IMPORTANT: This MUST be publicly accessible! This is the URL YouTube's PubSubHubbub hub will send notifications to.
-PSH_PORT=3000 # Port for the bot's web server (default is 3000) - Ensure your firewall and reverse proxy (if any) forward external traffic on your chosen webhook port to this internal port.
-PSH_VERIFY_TOKEN=your_optional_verify_token # An optional token sent with the subscription request and echoed back in the challenge for verification
-
-# X (Twitter) Monitoring Config
-X_USER_HANDLE=YOUR_X_USER_HANDLE # The @handle of the X user to monitor (e.g., 'ItsTheEnforcer')
-DISCORD_X_POSTS_CHANNEL_ID=YOUR_DISCORD_X_POSTS_CHANNEL_ID # Discord Channel ID for X original posts (optional)
-DISCORD_X_REPLIES_CHANNEL_ID=YOUR_DISCORD_X_REPLIES_CHANNEL_ID # Discord Channel ID for X replies (optional)
-DISCORD_X_QUOTES_CHANNEL_ID=YOUR_DISCORD_X_QUOTES_CHANNEL_ID # Discord Channel ID for X quote tweets (optional)
-DISCORD_X_RETWEETS_CHANNEL_ID=YOUR_DISCORD_X_RETWEETS_CHANNEL_ID # Discord Channel ID for X retweets (optional)
-
-# X (Twitter) Polling Interval (in milliseconds) - Only for X, YouTube uses PubSubHubbub
-X_QUERY_INTERVALL_MIN=300000 # Minimum polling interval for X (default 5 minutes)
-X_QUERY_INTERVALL_MAX=600000 # Maximum polling interval for X (default 10 minutes)
-
-# Bot Control and Logging Configurations
-COMMAND_PREFIX=! # Prefix for message commands in the support channel (default is !)
-ALLOWED_USER_IDS=user_id_1,user_id_2 # Comma-separated list of Discord User IDs allowed to use the restart command (e.g., '123456789012345678,987654321098765432')
-LOG_FILE_PATH=bot.log # Path to the log file (e.g., 'logs/bot.log')
-LOG_LEVEL=info # Log level: error, warn, info, verbose, debug, silly
-```
-
 **Important Notes:**
 
 *   Get your Discord Channel ID by enabling Developer Mode in Discord User Settings (Advanced) and right-clicking the channel.
 *   Get your Discord User ID similarly by right-clicking on your username.
 
-**Important Notes for PSH_CALLBACK_URL:**
+**Important Notes for PSH_CALLBACK_URL:** This **MUST** be publicly accessible! This is the URL YouTube's PubSubHubbub hub will send notifications to.
 
 ## **How it Works**
 
