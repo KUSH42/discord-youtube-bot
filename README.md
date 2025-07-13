@@ -100,6 +100,8 @@ DISCORD_X_POSTS_CHANNEL_ID=YOUR_DISCORD_X_POSTS_CHANNEL_ID # Discord Channel ID 
 DISCORD_X_REPLIES_CHANNEL_ID=YOUR_DISCORD_X_REPLIES_CHANNEL_ID # Discord Channel ID for X replies (optional)
 DISCORD_X_QUOTES_CHANNEL_ID=YOUR_DISCORD_X_QUOTES_CHANNEL_ID # Discord Channel ID for X quote tweets (optional)
 DISCORD_X_RETWEETS_CHANNEL_ID=YOUR_DISCORD_X_RETWEETS_CHANNEL_ID # Discord Channel ID for X retweets (optional)
+TWITTER_USERNAME=YOUR_TWITTER_USERNAME # Required for automatic login and cookie refresh
+TWITTER_PASSWORD=YOUR_TWITTER_PASSWORD # Required for automatic login and cookie refresh
 
 # X (Twitter) Polling Interval (in milliseconds) - Only for X, YouTube uses PubSubHubbub
 X_QUERY_INTERVALL_MIN=300000 # Minimum polling interval for X (default 5 minutes)
