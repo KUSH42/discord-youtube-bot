@@ -39,8 +39,6 @@ npm install
 
 ### **2. Obtain API Keys and IDs**
 
-*   **Playwright:** This bot now leverages Playwright for X scraping, offering more reliability than Puppeteer.
-
 #### **a) Discord Bot Token**
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications).  
