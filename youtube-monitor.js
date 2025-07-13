@@ -156,7 +156,7 @@ class YouTubeMonitor {
                                 const publishedAt = new Date(videoItem.snippet.publishedAt);
 
                                 // Only announce if the video was published after the bot started
-                                if (this.botStartTime && publishedAt.getTime() >= this.botStartTime.getTime()) {
+                                if (this.getBotStartTime() && publishedAt.getTime() >= this.getBotStartTime().getTime()) {
                                     let contentType = 'upload';
                                     // Check for livestream status based on YouTube Data API details
                                     if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
@@ -173,11 +173,11 @@ class YouTubeMonitor {
                                     };
                                     await this.announceYouTubeContent(content);
                                     this.announcedVideos.add(videoId); // Mark as announced
-                                } else if (this.botStartTime && publishedAt.getTime() < this.botStartTime.getTime()) {
+                                } else if (this.getBotStartTime() && publishedAt.getTime() < this.getBotStartTime().getTime()) {
                                     this.logger.info(`Skipping announcement for old YouTube content published before bot startup: ${title} (${videoId}) published on ${publishedAt.toISOString()}`);
                                     this.announcedVideos.add(videoId); // Still mark as known to prevent future checks
                                 } else {
-                                    // this.botStartTime might not be set yet if notification is received very early
+                                    // botStartTime might not be set yet if notification is received very early
                                     this.logger.warn(`Bot startup time not yet set, cannot determine if YouTube content is old. Announcing: ${title} (${videoId})`);
                                     let contentType = 'upload';
                                     if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
@@ -212,8 +212,7 @@ class YouTubeMonitor {
             res.status(400).send('Bad Request');
         }
     }
-
-    
+  
 
     handlePubSubVerification(req, res) {
         const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.topic': topic, 'hub.verify_token': verifyToken } = req.query;
