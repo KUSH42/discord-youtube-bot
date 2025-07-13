@@ -32,14 +32,9 @@ Before running the bot, ensure you have the following:
 git clone https://github.com/KUSH42/discord-youtube-bot.git
 ```
 
-**2. Initialize Node.js project:**  
+**2. Install dependencies:**  
 ```
-npm init -y
-```
-
-**3. Install dependencies:**  
-```
-npm install discord.js googleapis dotenv express body-parser xml2js node-fetch winston winston-daily-rotate-file playwright
+npm install
 ```
 
 ### **2. Obtain API Keys and IDs**
