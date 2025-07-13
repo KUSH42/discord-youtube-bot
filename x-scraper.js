@@ -99,7 +99,8 @@ class XScraper {
     }
 
     async populateInitialTweetIds() {
-        const tweetUrlRegex = /https?:\/\/([\w]+\.)?x\.com\/\w+\/status\/(\d+)/g;
+        // Should catch IDs from all the main X/Twitter frontends (and most of the popular mirrors), including mobile subdomains, the /i/web/status path, pluralized “statuses”, and any Nitter instance:
+        const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
         const channelIds = [
             this.DISCORD_X_POSTS_CHANNEL_ID,
             this.DISCORD_X_REPLIES_CHANNEL_ID,
