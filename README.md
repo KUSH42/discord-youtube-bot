@@ -114,6 +114,10 @@ ANNOUNCEMENT_ENABLED=false # Controls if announcement posting is enabled on star
 X_VX_TWITTER_CONVERSION=false # If true, converts x.com URLs to vxtwitter.com for better embeds
 LOG_FILE_PATH=bot.log # Path to the log file (e.g., 'logs/bot.log')
 LOG_LEVEL=info # Default log level: error, warn, info, verbose, debug, silly
+
+# X (Twitter) Monitoring Config
+# Whether to announce tweets older than the bot startup time (true/false). Defaults to false.
+ANNOUNCE_OLD_TWEETS=false
 ```
 
 ### **4. Run the bot**
@@ -201,8 +205,8 @@ The bot monitors YouTube and X for new content and announces it in Discord. It i
 ### **X (Twitter) Monitoring (Scraping)**
 
 1. **Polling:** The bot periodically scrapes the specified X user's profile (`X_USER_HANDLE`) for recent posts based on the configured intervals (`X_QUERY_INTERVALL_MIN`, `X_QUERY_INTERVALL_MAX`).
-2. **Filtering:** Scraped posts are checked against a list of already announced tweets (`knownTweetIds`) and are **only** considered new if they were created *after* the bot's current startup time.
-3. **Announcement:** If a post is new and announcement posting (`isAnnouncementEnabled`) is enabled, the bot sends a formatted message to the designated Discord X channel(s) (`DISCORD_X_*_CHANNEL_ID`) based on the post type (original post, reply, quote, retweet).
+2. **Filtering:** Scraped posts are checked against a list of already announced tweets (`knownTweetIds`). By default, only posts created *after* the bot's current startup time are considered new. This behavior can be changed with the `ANNOUNCE_OLD_TWEETS` environment variable.
+3. **Announcement:** If a post is new (based on the filtering logic and the `ANNOUNCE_OLD_TWEETS` setting) and announcement posting (`isAnnouncementEnabled`) is enabled, the bot sends a formatted message to the designated Discord X channel(s) (`DISCORD_X_*_CHANNEL_ID`) based on the post type (original post, reply, quote, retweet).
 
 ### **Bot Control Commands (Message Based)**
 
