@@ -1,6 +1,6 @@
 # **Discord Content Announcement Bot**
 
-This is a Node.js bot designed to automatically announce new video uploads and livestream starts from a specified YouTube channel and new posts from a specified X (formerly Twitter) profile to designated Discord text channels. It leverages YouTube's PubSubHubbub protocol for efficient, push-based notifications and a scraping mechanism for X.
+This is a Node.js bot designed to automatically announce new video uploads and livestream starts from a specified YouTube channel and new posts from a specified X (formerly Twitter) profile to designated Discord text channels. It leverages YouTube's PubSubHubbub protocol for efficient, push-based notifications and Playwright for X scraping.
 
 ## **Features**
 
@@ -29,17 +29,12 @@ Before running the bot, ensure you have the following:
 
 **1. Clone this repository:**  
 ```
-git clone https://github.com/KUSH42/youtube-discord-bot.git
+git clone https://github.com/KUSH42/discord-youtube-bot.git
 ```
 
-**2. Initialize Node.js project:**  
+**2. Install dependencies:**  
 ```
-npm init -y
-```
-
-**3. Install dependencies:**  
-```
-npm install discord.js googleapis dotenv express body-parser xml2js node-fetch winston winston-daily-rotate-file
+npm install
 ```
 
 ### **2. Obtain API Keys and IDs**
@@ -80,12 +75,7 @@ npm install discord.js googleapis dotenv express body-parser xml2js node-fetch w
 4. Right-click on the specific text channel in your server where you want the announcements to appear.  
 5. Click "Copy ID."
 
-### **4. Run the bot**
-```
-node index.js
-```
-
-
+### **3. Configure Environment**
 
 Create a new file named `.env` in your project's root directory and add the following variables, replacing the placeholder values with the actual keys and IDs you obtained:
 
@@ -110,6 +100,8 @@ DISCORD_X_POSTS_CHANNEL_ID=YOUR_DISCORD_X_POSTS_CHANNEL_ID # Discord Channel ID 
 DISCORD_X_REPLIES_CHANNEL_ID=YOUR_DISCORD_X_REPLIES_CHANNEL_ID # Discord Channel ID for X replies (optional)
 DISCORD_X_QUOTES_CHANNEL_ID=YOUR_DISCORD_X_QUOTES_CHANNEL_ID # Discord Channel ID for X quote tweets (optional)
 DISCORD_X_RETWEETS_CHANNEL_ID=YOUR_DISCORD_X_RETWEETS_CHANNEL_ID # Discord Channel ID for X retweets (optional)
+TWITTER_USERNAME=YOUR_TWITTER_USERNAME # Required for automatic login and cookie refresh
+TWITTER_PASSWORD=YOUR_TWITTER_PASSWORD # Required for automatic login and cookie refresh
 
 # X (Twitter) Polling Interval (in milliseconds) - Only for X, YouTube uses PubSubHubbub
 X_QUERY_INTERVALL_MIN=300000 # Minimum polling interval for X (default 5 minutes)
@@ -117,17 +109,83 @@ X_QUERY_INTERVALL_MAX=600000 # Maximum polling interval for X (default 10 minute
 
 # Bot Control and Logging Configurations
 COMMAND_PREFIX=! # Prefix for message commands in the support channel (default is !)
-ALLOWED_USER_IDS=user_id_1,user_id_2 # Comma-separated list of Discord User IDs allowed to use the restart command (e.g., '123456789012345678,987654321098765432')
+ALLOWED_USER_IDS=user_id_1,user_id_2 # Comma-separated list of Discord User IDs allowed to use the restart command
+ANNOUNCEMENT_ENABLED=false # Controls if announcement posting is enabled on startup (true/false)
+X_VX_TWITTER_CONVERSION=false # If true, converts x.com URLs to vxtwitter.com for better embeds
 LOG_FILE_PATH=bot.log # Path to the log file (e.g., 'logs/bot.log')
-LOG_LEVEL=info # Log level: error, warn, info, verbose, debug, silly
+LOG_LEVEL=info # Default log level: error, warn, info, verbose, debug, silly
+
+# X (Twitter) Monitoring Config
+# Whether to announce tweets older than the bot startup time (true/false). Defaults to false.
+ANNOUNCE_OLD_TWEETS=false
 ```
+
+### **4. Run the bot**
+
+To run the bot as a systemd service, follow these steps:
+
+   1.  Create a service file (e.g., `/etc/systemd/system/discord-youtube-bot.service`) with the following content (adjust paths and user accordingly):
+```
+[Unit]
+Description=Discord Announcement Bot Service
+After=network.target
+
+[Service]
+Type=simple
+User=$USER  # Replace with your actual user
+WorkingDirectory=~/discord-youtube-bot
+Environment="DISPLAY=:99"  # Important for Xvfb
+ExecStart=~/discord-youtube-bot/start-bot.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+   2.  Make the script executable:
+
+```bash
+sudo chmod 755 ~/discord-youtube-bot/start-bot.sh
+```
+
+   3.  Reload systemd:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+   4.  Enable the service:
+
+```bash
+sudo systemctl enable discord-youtube-bot.service
+```
+
+   5.  Start the service:
+
+```bash
+sudo systemctl start discord-youtube-bot.service
+```
+
+   6.  Check the status:
+
+```bash
+sudo systemctl status discord-youtube-bot.service
+```
+
+Alternatively, to run the bot directly from the command line:
+
+```bash
+node index.js
+```
+
 
 **Important Notes:**
 
 *   Get your Discord Channel ID by enabling Developer Mode in Discord User Settings (Advanced) and right-clicking the channel.
 *   Get your Discord User ID similarly by right-clicking on your username.
 
-**Important Notes for PSH_CALLBACK_URL:**
+**Important Notes for PSH_CALLBACK_URL:** This **MUST** be publicly accessible! This is the URL YouTube's PubSubHubbub hub will send notifications to.
 
 ## **How it Works**
 
@@ -146,8 +204,8 @@ The bot monitors YouTube and X for new content and announces it in Discord. It i
 ### **X (Twitter) Monitoring (Scraping)**
 
 1. **Polling:** The bot periodically scrapes the specified X user's profile (`X_USER_HANDLE`) for recent posts based on the configured intervals (`X_QUERY_INTERVALL_MIN`, `X_QUERY_INTERVALL_MAX`).
-2. **Filtering:** Scraped posts are checked against a list of already announced tweets (`knownTweetIds`) and are **only** considered new if they were created *after* the bot's current startup time.
-3. **Announcement:** If a post is new and announcement posting (`isAnnouncementEnabled`) is enabled, the bot sends a formatted message to the designated Discord X channel(s) (`DISCORD_X_*_CHANNEL_ID`) based on the post type (original post, reply, quote, retweet).
+2. **Filtering:** Scraped posts are checked against a list of already announced tweets (`knownTweetIds`). By default, only posts created *after* the bot's current startup time are considered new. This behavior can be changed with the `ANNOUNCE_OLD_TWEETS` environment variable.
+3. **Announcement:** If a post is new (based on the filtering logic and the `ANNOUNCE_OLD_TWEETS` setting) and announcement posting (`isAnnouncementEnabled`) is enabled, the bot sends a formatted message to the designated Discord X channel(s) (`DISCORD_X_*_CHANNEL_ID`) based on the post type (original post, reply, quote, retweet).
 
 ### **Bot Control Commands (Message Based)**
 
@@ -155,7 +213,9 @@ These commands are used to manage the bot's operation and are only processed whe
 
 *   `!kill`: Stops *all* bot posting to Discord channels, including announcements and the support log.
 *   `!restart`: Performs a soft restart of the bot. This command requires the user's ID to be listed in the `ALLOWED_USER_IDS` environment variable. The soft restart includes unsubscribing/resubscribing to PubSubHubbub, resetting known content lists, and re-enabling support log posting (announcement state is preserved).
-*   `!announce <true|false>`: Toggles announcement posting to the YouTube and X announcement channels. `true` enables announcements, `false` disables them. This command does *not* affect the support log output.
+*   `!announce <true|false>`: Toggles announcement posting to the YouTube and X announcement channels. `true` enables announcements, `false` disables them. The initial state is set by `ANNOUNCEMENT_ENABLED` in the `.env` file.
+*   `!vxtwitter <true|false>`: Toggles the conversion of `x.com` URLs to `vxtwitter.com` for improved Discord embeds. The initial state is set by `X_VX_TWITTER_CONVERSION`.
+*   `!loglevel <level>`: Changes the bot's logging level at runtime. Valid levels are: `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`.
 *   `!readme`: Displays this command information within the support channel.
 
 ## **Troubleshooting**

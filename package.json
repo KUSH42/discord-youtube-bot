@@ -1,15 +1,15 @@
 {
-  "name": "discord-youtube-x-bot",
+  "name": "discord-content-announcement-bot",
   "type": "module",
-  "description": "A Discord bot that announces new content from a YouTube channel and an X/Twitter profile. It uses the Puppeteer library with its bundled Chromium browser for X scraping, with added support for logging into X via environment variables for enhanced reliability.",
+  "description": "This is a Node.js bot designed to automatically announce new video uploads and livestream starts from a specified YouTube channel and new posts from a specified X (formerly Twitter) profile to designated Discord text channels.",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Marco Keller",
+  "license": "MIT",
   "dependencies": {
     "body-parser": "^2.2.0",
     "discord.js": "^14.21.0",
@@ -17,6 +17,8 @@
     "express": "^5.1.0",
     "googleapis": "^150.0.1",
     "node-fetch": "^3.3.2",
+    "playwright": "^1.44.1",
+    "puppeteer-extra": "^3.3.6",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
     "xml2js": "^0.6.2"
