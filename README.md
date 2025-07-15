@@ -57,8 +57,8 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/KUSH42/discord-youtube-bot.git
-cd discord-youtube-bot
+git clone https://github.com/KUSH42/discord-bot.git
+cd discord-bot
 npm install
 
 # 2. Set up encrypted credentials (recommended)
@@ -87,8 +87,8 @@ Before setting up the bot, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/KUSH42/discord-youtube-bot.git
-cd discord-youtube-bot
+git clone https://github.com/KUSH42/discord-bot.git
+cd discord-bot
 
 # Install dependencies
 npm install
@@ -236,7 +236,7 @@ npm run validate            # ✅ Validate configuration only
 
 ### Production (systemd)
 
-1. **Create service file** (`/etc/systemd/system/discord-youtube-bot.service`):
+1. **Create service file** (`/etc/systemd/system/discord-bot.service`):
 ```ini
 [Unit]
 Description=Discord Content Announcement Bot
@@ -246,7 +246,7 @@ After=network.target
 Type=simple
 User=%i
 Environment="DISPLAY=:99"
-ExecStart=%h/discord-youtube-bot/start-bot.sh
+ExecStart=%h/discord-bot/start-bot.sh
 Restart=on-failure
 RestartSec=10s
 StandardOutput=syslog
@@ -259,8 +259,8 @@ WantedBy=multi-user.target
 2. **Enable and start**:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable discord-youtube-bot.service
-sudo systemctl start discord-youtube-bot.service
+sudo systemctl enable discord-bot.service
+sudo systemctl start discord-bot.service
 ```
 
 ## 🔍 How It Works
