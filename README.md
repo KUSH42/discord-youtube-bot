@@ -13,11 +13,11 @@ This is a Node.js bot designed to automatically announce new video uploads and l
 * **Subscription Auto-Renewal:** Automatically renews the YouTube PubSubHubbub subscription.
 * **Message Control Commands:** Allows control of the bot's posting behavior via prefix-based commands in a designated support channel.
 * **Comprehensive Logging:** Employs the winston logging library for detailed logging to both the console and daily rotating files.
-* **🔐 Credential Encryption:** Supports encrypted storage of sensitive credentials using dotenvx for enhanced security.
-* **⚡ Rate Limiting:** Built-in rate limiting for both Discord commands and webhook endpoints to prevent abuse.
-* **✅ Configuration Validation:** Startup validation ensures all required environment variables are set before the bot starts.
-* **🏥 Health Monitoring:** HTTP health check endpoints and Discord-based health status commands for monitoring.
-* **🔧 Pre-commit Hooks:** Automated syntax checking and security validation before code commits.
+* **Credential Encryption:** Supports encrypted storage of sensitive credentials using dotenvx for enhanced security.
+* **Rate Limiting:** Built-in rate limiting for both Discord commands and webhook endpoints to prevent abuse.
+* **Configuration Validation:** Startup validation ensures all required environment variables are set before the bot starts.
+* **Health Monitoring:** HTTP health check endpoints and Discord-based health status commands for monitoring.
+* **Pre-commit Hooks:** Automated syntax checking and security validation before code commits.
 ## **Prerequisites**
 
 Before running the bot, ensure you have the following:
