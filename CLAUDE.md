@@ -126,21 +126,27 @@ The bot exposes health check endpoints for monitoring:
 - Environment variables validated on startup
 - Credentials can be encrypted with dotenvx
 
-## Commit Message Guidelines
+## Commit and PR Guidelines
 
-**IMPORTANT**: When creating commit messages, avoid references to AI assistance tools or automated code generation. Commit messages should:
+**IMPORTANT**: When creating commit messages and pull requests, avoid references to AI assistance tools or automated code generation. Follow these guidelines:
 
+### Commit Messages
 1. Be descriptive and focus on the actual changes made
 2. Use conventional commit format when appropriate (feat:, fix:, docs:, etc.)
 3. Not mention AI tools, Claude, or automated assistance
 4. Focus on the "what" and "why" of the changes
 
+### Pull Requests
+1. Apply the same guidelines as commit messages
+2. Never include AI tool references in PR titles or descriptions
+3. Focus on the technical changes and their benefits
+4. Use clear, professional language describing the improvements
+
 **Good examples:**
 - `feat: Add credential encryption support with dotenvx`
 - `fix: Implement rate limiting for Discord commands and webhooks`
 - `docs: Update README with new security features`
+- `docs: Comprehensive README improvements with strategic emoji usage`
 
 **Avoid:**
-- References to AI assistance
-- Mentions of code generation tools
-- Attribution to automated processes
+- "Generated with Claude Code" or similar phrases
