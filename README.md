@@ -7,12 +7,17 @@ This is a Node.js bot designed to automatically announce new video uploads and l
 * **YouTube Activity Monitoring:** Watches a designated YouTube channel for *new* video uploads and livestreams using PubSubHubbub.
 * **X (Twitter) Activity Monitoring:** Watches a designated X profile for *new* posts, replies, quotes, and retweets using scraping.
 * **Discord Announcements:** Sends formatted messages to specified Discord text channels when new content is detected.
-*   **New Content Filtering:** Only announces content (YouTube and X) created or published *after* the bot was started.
+* **New Content Filtering:** Only announces content (YouTube and X) created or published *after* the bot was started.
 * **PubSubHubbub Integration:** Utilizes YouTube's PubSubHubbub (Atom/RSS feeds) for real-time notifications.
 * **Webhook Signature Verification:** Verifies incoming PubSubHubbub notifications using X-Hub-Signature to ensure their authenticity and integrity.
 * **Subscription Auto-Renewal:** Automatically renews the YouTube PubSubHubbub subscription.
-*   **Message Control Commands:** Allows control of the bot's posting behavior via prefix-based commands in a designated support channel.
+* **Message Control Commands:** Allows control of the bot's posting behavior via prefix-based commands in a designated support channel.
 * **Comprehensive Logging:** Employs the winston logging library for detailed logging to both the console and daily rotating files.
+* **🔐 Credential Encryption:** Supports encrypted storage of sensitive credentials using dotenvx for enhanced security.
+* **⚡ Rate Limiting:** Built-in rate limiting for both Discord commands and webhook endpoints to prevent abuse.
+* **✅ Configuration Validation:** Startup validation ensures all required environment variables are set before the bot starts.
+* **🏥 Health Monitoring:** HTTP health check endpoints and Discord-based health status commands for monitoring.
+* **🔧 Pre-commit Hooks:** Automated syntax checking and security validation before code commits.
 ## **Prerequisites**
 
 Before running the bot, ensure you have the following:
@@ -37,7 +42,29 @@ git clone https://github.com/KUSH42/discord-youtube-bot.git
 npm install
 ```
 
-### **2. Obtain API Keys and IDs**
+### **2. Credential Encryption Setup (Recommended)**
+
+For enhanced security, the bot supports encrypted credential storage using dotenvx:
+
+**1. Set up encryption:**
+```bash
+npm run setup-encryption
+```
+
+This interactive script will guide you through:
+- Creating a `.env` file template
+- Encrypting sensitive credentials (Twitter credentials, Discord token, API keys)
+- Generating encryption keys in `.env.keys`
+
+**2. Important security notes:**
+- Keep `.env.keys` secure and separate from your codebase
+- Never commit `.env.keys` to version control
+- The bot automatically decrypts credentials at runtime
+
+**3. Alternative setup:**
+If you prefer not to use encryption, you can create a standard `.env` file manually (see section 3 below).
+
+### **3. Obtain API Keys and IDs**
 
 #### **a) Discord Bot Token**
 
@@ -75,9 +102,11 @@ npm install
 4. Right-click on the specific text channel in your server where you want the announcements to appear.  
 5. Click "Copy ID."
 
-### **3. Configure Environment**
+### **4. Configure Environment**
 
 Create a new file named `.env` in your project's root directory and add the following variables, replacing the placeholder values with the actual keys and IDs you obtained:
+
+**Note:** If you used the encryption setup in step 2, this file will be created automatically with encrypted values.
 
 ```env
 DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN_HERE
@@ -120,7 +149,17 @@ LOG_LEVEL=info # Default log level: error, warn, info, verbose, debug, silly
 ANNOUNCE_OLD_TWEETS=false
 ```
 
-### **4. Run the bot**
+### **5. Run the bot**
+
+**Available run commands:**
+```bash
+npm start                    # Start the bot normally
+npm run decrypt             # Start with explicit credential decryption  
+npm run validate            # Validate configuration without starting
+npm run setup-encryption    # Set up credential encryption
+```
+
+**Running as a systemd service:**
 
 To run the bot as a systemd service, follow these steps:
 
@@ -217,7 +256,44 @@ These commands are used to manage the bot's operation and are only processed whe
 *   `!announce <true|false>`: Toggles announcement posting to the YouTube and X announcement channels. `true` enables announcements, `false` disables them. The initial state is set by `ANNOUNCEMENT_ENABLED` in the `.env` file.
 *   `!vxtwitter <true|false>`: Toggles the conversion of `x.com` URLs to `vxtwitter.com` for improved Discord embeds. The initial state is set by `X_VX_TWITTER_CONVERSION`.
 *   `!loglevel <level>`: Changes the bot's logging level at runtime. Valid levels are: `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`.
+*   `!health`: Shows comprehensive bot health status including uptime, memory usage, connection status, and configuration.
 *   `!readme`: Displays this command information within the support channel.
+
+### **Health Monitoring**
+
+The bot provides multiple ways to monitor its health and status:
+
+**HTTP Health Endpoints:**
+- `GET /health` - Basic health status (JSON)
+- `GET /health/detailed` - Detailed component status (JSON)  
+- `GET /ready` - Kubernetes-style readiness probe
+
+**Discord Health Command:**
+- `!health` - Shows formatted health status in Discord with uptime, memory usage, and system status
+
+**Rate Limiting:**
+- Commands: 5 per minute per user
+- Webhooks: 100 requests per 15 minutes per IP
+
+## **Development & Security**
+
+**Pre-commit Hooks:**
+The bot includes automated pre-commit hooks that run:
+- Syntax checking for all JavaScript files
+- Security scanning for hardcoded credentials
+- Validation that encryption keys aren't committed
+
+**Environment Validation:**
+- Automatic validation of required environment variables on startup
+- Clear error messages for missing or invalid configuration
+- Security warnings for default values that should be customized
+
+**Security Features:**
+- Credential encryption with dotenvx
+- Webhook signature verification  
+- Input validation and sanitization
+- Rate limiting protection
+- Secure environment variable handling
 
 ## **Troubleshooting**
 
