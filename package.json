@@ -5,17 +5,25 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "setup-encryption": "node setup-encryption.js",
+    "decrypt": "npx dotenvx run -- node index.js",
+    "validate": "node test-validation.js",
+    "prestart": "npm run validate",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "Marco Keller",
   "license": "MIT",
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.47.6",
     "body-parser": "^2.2.0",
     "discord.js": "^14.21.0",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.2.0",
     "express": "^5.1.0",
-    "googleapis": "^150.0.1",
+    "express-rate-limit": "^8.0.0",
+    "googleapis": "^152.0.0",
     "node-fetch": "^3.3.2",
     "playwright": "^1.44.1",
     "puppeteer-extra": "^3.3.6",
@@ -30,5 +38,9 @@
   "bugs": {
     "url": "https://github.com/KUSH42/discord-youtube-bot/issues"
   },
-  "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme"
+  "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2"
+  }
 }

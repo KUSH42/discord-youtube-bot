@@ -33,6 +33,11 @@ class XScraper {
         this.knownTweetIds = new Set();
         this.currentTwitterCookies = null;
         this.botStartTime = new Date(); // Set its own start time
+        this.cleanupTimer = null;
+        
+        // Configure memory management
+        this.MAX_KNOWN_TWEETS = 10000; // Maximum number of tweet IDs to keep in memory
+        this.CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     }
 
     /**
@@ -91,7 +96,18 @@ class XScraper {
             } else {
                 this.logger.error(`[X Scraper] Login failed or redirected to unexpected URL: ${postLoginUrl}.`);
                 if (this.logger.level === 'debug') {
-                    await page.screenshot({ path: './screenshot_login_failure.png', fullPage: true });
+                    // Take screenshot but ensure it's stored securely and doesn't contain sensitive data
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const screenshotPath = `./debug/screenshot_login_failure_${timestamp}.png`;
+                    try {
+                        // Create debug directory if it doesn't exist
+                        const fs = await import('fs');
+                        await fs.promises.mkdir('./debug', { recursive: true });
+                        await page.screenshot({ path: screenshotPath, fullPage: false, clip: { x: 0, y: 0, width: 800, height: 600 } });
+                        this.logger.debug(`[X Scraper] Debug screenshot saved to ${screenshotPath} (credentials may be visible - secure this file)`);
+                    } catch (screenshotError) {
+                        this.logger.warn(`[X Scraper] Failed to save debug screenshot: ${screenshotError.message}`);
+                    }
                 }
                 await browser.close();
                 return false;
@@ -301,9 +317,16 @@ class XScraper {
     
             // Take a screenshot immediately after navigation to see the initial page state
             if (this.logger.level === 'debug') {
-                const screenshotPathInitial = './screenshot_after_goto.png';
-                await page.screenshot({ path: screenshotPathInitial, fullPage: true });
-                this.logger.debug(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const screenshotPathInitial = `./debug/screenshot_after_goto_${timestamp}.png`;
+                try {
+                    const fs = await import('fs');
+                    await fs.promises.mkdir('./debug', { recursive: true });
+                    await page.screenshot({ path: screenshotPathInitial, fullPage: false, clip: { x: 0, y: 0, width: 1200, height: 800 } });
+                    this.logger.debug(`[X Scraper] Initial screenshot after navigation saved to ${screenshotPathInitial}`);
+                } catch (screenshotError) {
+                    this.logger.warn(`[X Scraper] Failed to save debug screenshot: ${screenshotError.message}`);
+                }
             }
     
             // Capture and log the full HTML content of the page after navigation (first 1000 chars)
@@ -521,6 +544,8 @@ class XScraper {
                     // Ensure tweet.tweetID exists before adding to knownTweetIds
                     if (tweet && tweet.tweetID) {
                         this.knownTweetIds.add(tweet.tweetID);
+                        // Check if we need to cleanup memory periodically
+                        this.cleanupKnownTweetsIfNeeded();
                     }
                 }
             } else {
@@ -562,12 +587,48 @@ class XScraper {
         }
 
         this.logger.info(`[X Scraper] Initializing monitor for X user: @${this.X_USER_HANDLE}`);
+        this.startPeriodicCleanup();
         this.pollXProfile();
+    }
+
+    cleanupKnownTweetsIfNeeded() {
+        if (this.knownTweetIds.size > this.MAX_KNOWN_TWEETS) {
+            // Convert Set to Array, keep only the most recent 80% of entries
+            const tweetsArray = Array.from(this.knownTweetIds);
+            const keepCount = Math.floor(this.MAX_KNOWN_TWEETS * 0.8);
+            const tweetsToKeep = tweetsArray.slice(-keepCount);
+            
+            this.knownTweetIds.clear();
+            tweetsToKeep.forEach(tweetId => this.knownTweetIds.add(tweetId));
+            
+            this.logger.info(`[X Scraper] Cleaned up known tweets memory. Kept ${tweetsToKeep.length} of ${tweetsArray.length} entries.`);
+        }
+    }
+
+    startPeriodicCleanup() {
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+        }
+        
+        this.cleanupTimer = setInterval(() => {
+            this.cleanupKnownTweetsIfNeeded();
+        }, this.CLEANUP_INTERVAL);
+        
+        this.logger.info('[X Scraper] Started periodic memory cleanup timer.');
+    }
+
+    stopPeriodicCleanup() {
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+            this.cleanupTimer = null;
+            this.logger.info('[X Scraper] Stopped periodic memory cleanup timer.');
+        }
     }
 
     resetState() {
         this.knownTweetIds.clear();
         this.botStartTime = new Date();
+        this.stopPeriodicCleanup();
         this.logger.info('[X Scraper] State reset.');
     }
 }
