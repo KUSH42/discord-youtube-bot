@@ -10,14 +10,17 @@ import { promises as fs } from 'fs';
 import { existsSync } from 'fs';
 import readline from 'readline';
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
 function question(prompt) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    
     return new Promise((resolve) => {
-        rl.question(prompt, resolve);
+        rl.question(prompt, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
     });
 }
 
@@ -112,8 +115,7 @@ async function main() {
     const proceed = await question('Do you want to proceed? (y/N): ');
     if (proceed.toLowerCase() !== 'y') {
         console.log('Setup cancelled.');
-        rl.close();
-        return;
+        process.exit(0);
     }
 
     // Check if .env exists
@@ -121,8 +123,7 @@ async function main() {
         console.log('\n❌ .env file not found.');
         console.log('Please create a .env file based on .env.example first.');
         console.log('Copy .env.example to .env and fill in your actual values.');
-        rl.close();
-        return;
+        process.exit(1);
     }
 
     console.log('\n🔑 Encrypting sensitive credentials...');
@@ -157,8 +158,6 @@ async function main() {
         console.error('\n❌ Encryption failed:', error.message);
         console.log('\nPlease check that your .env file has valid values for the sensitive variables.');
     }
-
-    rl.close();
 }
 
 main().catch(console.error);
