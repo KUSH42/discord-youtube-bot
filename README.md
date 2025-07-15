@@ -125,7 +125,6 @@ ANNOUNCE_OLD_TWEETS=false
 To run the bot as a systemd service, follow these steps:
 
    1.  Create a service file (e.g., `/etc/systemd/system/discord-youtube-bot.service`) with the following content (adjust paths and user accordingly):
-
 ```
 [Unit]
 Description=Discord Announcement Bot Service
