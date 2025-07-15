@@ -1,0 +1,27 @@
+# Run syntax checks on JavaScript files
+echo "🔍 Running syntax checks..."
+node --check index.js
+if [ $? -ne 0 ]; then
+    echo "❌ Syntax check failed for index.js"
+    exit 1
+fi
+
+node --check x-scraper.js
+if [ $? -ne 0 ]; then
+    echo "❌ Syntax check failed for x-scraper.js"  
+    exit 1
+fi
+
+node --check youtube-monitor.js
+if [ $? -ne 0 ]; then
+    echo "❌ Syntax check failed for youtube-monitor.js"
+    exit 1
+fi
+
+node --check setup-encryption.js
+if [ $? -ne 0 ]; then
+    echo "❌ Syntax check failed for setup-encryption.js"
+    exit 1
+fi
+
+echo "✅ Pre-commit checks passed\!"

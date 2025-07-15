@@ -143,6 +143,14 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/node
 
-# Sekret
+# Secrets and credentials
 xush.env
 enforcer.env
+
+# dotenvx encryption keys (NEVER commit these!)
+.env.keys
+.env.vault
+
+# Playwright/Puppeteer browser data
+.playwright/
+.chrome/

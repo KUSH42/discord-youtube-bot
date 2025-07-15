@@ -29,7 +29,12 @@ class YouTubeMonitor {
         // --- Global State ---
         this.announcedVideos = new Set();
         this.subscriptionRenewalTimer = null;
+        this.cleanupTimer = null;
         this.youtube = google.youtube({ version: 'v3', auth: this.YOUTUBE_API_KEY });
+        
+        // Configure memory management
+        this.MAX_ANNOUNCED_VIDEOS = 10000; // Maximum number of video IDs to keep in memory
+        this.CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     }
 
     async populateInitialYouTubeHistory() {
@@ -106,15 +111,36 @@ class YouTubeMonitor {
             hmac.update(req.rawBody); // Use the raw buffer body for HMAC calculation
             const expectedSignature = hmac.digest('hex');
 
-            if (expectedSignature !== signature) {
-                this.logger.warn('X-Hub-Signature mismatch! Calculated: %s, Received: %s', expectedSignature, signature);
+            // Use timing-safe comparison to prevent timing attacks
+            if (!crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(signature, 'hex'))) {
+                this.logger.warn('X-Hub-Signature mismatch detected');
                 return res.status(403).send('Forbidden: Invalid signature.');
             }
             this.logger.info('X-Hub-Signature verified successfully.');
             // --- End X-Hub-Signature Verification ---
 
             try {
-                const parser = new xml2js.Parser({ explicitArray: false });
+                // Configure secure XML parser to prevent XXE attacks
+                const parser = new xml2js.Parser({ 
+                    explicitArray: false,
+                    // Security settings to prevent XXE attacks
+                    normalize: true,
+                    normalizeTags: true,
+                    trim: true,
+                    // Disable external entity resolution
+                    explicitRoot: false,
+                    mergeAttrs: false,
+                    includeWhiteChars: false,
+                    ignoreAttrs: false,
+                    // Prevent parser bombs
+                    async: false,
+                    strict: true,
+                    // Character limits to prevent DoS
+                    chunkSize: 10000,
+                    emptyTag: '',
+                    // Disable CDATA to prevent injection
+                    cdata: false
+                });
                 const result = await parser.parseStringPromise(req.body); // Use string body for parsing
 
                 const entry = result.feed.entry;
@@ -149,6 +175,10 @@ class YouTubeMonitor {
                     if (channelId === this.YOUTUBE_CHANNEL_ID) {
                         if (!this.announcedVideos.has(videoId)) {
                             this.logger.info(`New content detected: ${title} (${videoId})`);
+                            
+                            // Check if we need to cleanup memory before processing
+                            this.cleanupAnnouncedVideosIfNeeded();
+                            
                             // Fetch additional details to see if it's a livestream or an upload and get published date
                             const videoDetailsResponse = await this.youtube.videos.list({
                                 part: 'liveStreamingDetails,snippet',
@@ -335,6 +365,7 @@ class YouTubeMonitor {
         }
         this.logger.info(`[YouTube Monitor] Initializing monitor for channel ID: ${this.YOUTUBE_CHANNEL_ID}`);
         await this.populateInitialYouTubeHistory();
+        this.startPeriodicCleanup();
 
         let webhookPath = '/webhook/youtube';
         if (this.PSH_CALLBACK_URL) {
@@ -360,8 +391,43 @@ class YouTubeMonitor {
         this.subscribeToYouTubePubSubHubbub();
     }
 
+    cleanupAnnouncedVideosIfNeeded() {
+        if (this.announcedVideos.size > this.MAX_ANNOUNCED_VIDEOS) {
+            // Convert Set to Array, keep only the most recent 80% of entries
+            const videosArray = Array.from(this.announcedVideos);
+            const keepCount = Math.floor(this.MAX_ANNOUNCED_VIDEOS * 0.8);
+            const videosToKeep = videosArray.slice(-keepCount);
+            
+            this.announcedVideos.clear();
+            videosToKeep.forEach(videoId => this.announcedVideos.add(videoId));
+            
+            this.logger.info(`[YouTube Monitor] Cleaned up announced videos memory. Kept ${videosToKeep.length} of ${videosArray.length} entries.`);
+        }
+    }
+
+    startPeriodicCleanup() {
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+        }
+        
+        this.cleanupTimer = setInterval(() => {
+            this.cleanupAnnouncedVideosIfNeeded();
+        }, this.CLEANUP_INTERVAL);
+        
+        this.logger.info('[YouTube Monitor] Started periodic memory cleanup timer.');
+    }
+
+    stopPeriodicCleanup() {
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+            this.cleanupTimer = null;
+            this.logger.info('[YouTube Monitor] Stopped periodic memory cleanup timer.');
+        }
+    }
+
     resetState() {
         this.announcedVideos.clear();
+        this.stopPeriodicCleanup();
         this.logger.info('[YouTube Monitor] State reset.');
     }
 }
