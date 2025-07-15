@@ -147,11 +147,7 @@ npm run setup-encryption
 Create `.env` file with your configuration:
 
 ```env
-<<<<<<< HEAD
 # Discord Configuration
-=======
-# 🎮 Discord Configuration
->>>>>>> fd61d1a (docs: Comprehensive README.md improvements)
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
 DISCORD_BOT_SUPPORT_LOG_CHANNEL=support_channel_id_here
 DISCORD_YOUTUBE_CHANNEL_ID=youtube_announcements_channel_id
@@ -160,29 +156,17 @@ DISCORD_X_REPLIES_CHANNEL_ID=x_replies_channel_id
 DISCORD_X_QUOTES_CHANNEL_ID=x_quotes_channel_id
 DISCORD_X_RETWEETS_CHANNEL_ID=x_retweets_channel_id
 
-<<<<<<< HEAD
 # YouTube Configuration
 YOUTUBE_API_KEY=your_youtube_api_key_here
 YOUTUBE_CHANNEL_ID=your_youtube_channel_id_here
 
 # PubSubHubbub Configuration
-=======
-# 📺 YouTube Configuration
-YOUTUBE_API_KEY=your_youtube_api_key_here
-YOUTUBE_CHANNEL_ID=your_youtube_channel_id_here
-
-# 🔗 PubSubHubbub Configuration
->>>>>>> fd61d1a (docs: Comprehensive README.md improvements)
 PSH_SECRET=your_super_secret_string_for_webhook_verification
 PSH_CALLBACK_URL=https://your-domain.com/webhook/youtube
 PSH_PORT=3000
 PSH_VERIFY_TOKEN=your_optional_verify_token
 
-<<<<<<< HEAD
 # X (Twitter) Configuration
-=======
-# 🐦 X (Twitter) Configuration
->>>>>>> fd61d1a (docs: Comprehensive README.md improvements)
 X_USER_HANDLE=target_x_username
 TWITTER_USERNAME=your_twitter_username
 TWITTER_PASSWORD=your_twitter_password
@@ -190,11 +174,7 @@ X_QUERY_INTERVALL_MIN=300000
 X_QUERY_INTERVALL_MAX=600000
 ANNOUNCE_OLD_TWEETS=false
 
-<<<<<<< HEAD
 # Bot Control
-=======
-# 🎛️ Bot Control
->>>>>>> fd61d1a (docs: Comprehensive README.md improvements)
 COMMAND_PREFIX=!
 ALLOWED_USER_IDS=user_id_1,user_id_2
 ANNOUNCEMENT_ENABLED=false
@@ -249,11 +229,7 @@ All commands work in the configured support channel with your chosen prefix (def
 
 ### Development
 ```bash
-<<<<<<< HEAD
 npm start                   # 🟢 Normal start with validation
-=======
-npm start                    # 🟢 Normal start with validation
->>>>>>> fd61d1a (docs: Comprehensive README.md improvements)
 npm run decrypt             # 🔓 Start with explicit decryption
 npm run validate            # ✅ Validate configuration only
 ```
@@ -364,8 +340,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-<<<<<<< HEAD
 ⭐ **Star this repo if it helped you!** | 🐛 **Report issues** | 💡 **Suggest improvements**
-=======
-⭐ **Star this repo if it helped you!** | 🐛 **Report issues** | 💡 **Suggest improvements**
->>>>>>> fd61d1a (docs: Comprehensive README.md improvements)
