@@ -83,7 +83,7 @@ describe('External API Integration Tests', () => {
           return response.data.items[0];
         } catch (error) {
           if (error.code === 403 && retries > 0) {
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 1));
             return fetchWithRetry(videoId, retries - 1);
           }
           throw error;
