@@ -74,7 +74,7 @@ describe('Duplicate Detection Logic Tests', () => {
     });
 
     it('should handle multiple unique IDs correctly', () => {
-      const videoIds = ['video001', 'video002', 'video003'];
+      const videoIds = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'oHg5SJYRHA0'];
       const urls = videoIds.map(id => `https://youtu.be/${id}`);
 
       urls.forEach(url => {
