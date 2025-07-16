@@ -63,7 +63,7 @@ class XScraper {
             page.on('console', (msg) => {
                 if (this.logger.level === 'debug') {
                     for (const arg of msg.args()) {
-                        arg.jsonValue().then(value => this.logger.info(`[Browser Console]: ${JSON.stringify(value)}`));
+                        arg.jsonValue().then(value => this.logger.verbose(`[Browser Console]: ${JSON.stringify(value)}`));
                     }
                 }
             });
