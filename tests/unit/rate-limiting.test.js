@@ -597,4 +597,150 @@ describe('Rate Limiting Tests', () => {
       message: { error: 'Command rate limit exceeded. Please wait before trying again.' }
     });
   }
+
+  // Tests for actual imported CommandRateLimit class
+  describe('CommandRateLimit Class Tests', () => {
+    it('should allow commands under the limit', () => {
+      const rateLimiter = new CommandRateLimit(5, 60000); // 5 commands per minute
+      const userId = 'user123';
+      
+      // User makes 5 commands (should all pass)
+      for (let i = 0; i < 5; i++) {
+        expect(rateLimiter.isAllowed(userId)).toBe(true);
+      }
+    });
+
+    it('should block commands over the limit', () => {
+      const rateLimiter = new CommandRateLimit(3, 60000); // 3 commands per minute
+      const userId = 'user123';
+      
+      // User makes 3 commands (should all pass)
+      for (let i = 0; i < 3; i++) {
+        expect(rateLimiter.isAllowed(userId)).toBe(true);
+      }
+      
+      // 4th command should be blocked
+      expect(rateLimiter.isAllowed(userId)).toBe(false);
+      
+      // Additional commands should also be blocked
+      expect(rateLimiter.isAllowed(userId)).toBe(false);
+    });
+
+    it('should track different users separately', () => {
+      const rateLimiter = new CommandRateLimit(2, 60000); // 2 commands per minute
+      const user1 = 'user1';
+      const user2 = 'user2';
+      
+      // User1 makes 2 commands
+      expect(rateLimiter.isAllowed(user1)).toBe(true);
+      expect(rateLimiter.isAllowed(user1)).toBe(true);
+      
+      // User2 should still be able to make commands
+      expect(rateLimiter.isAllowed(user2)).toBe(true);
+      expect(rateLimiter.isAllowed(user2)).toBe(true);
+      
+      // User1's 3rd command should be blocked
+      expect(rateLimiter.isAllowed(user1)).toBe(false);
+      
+      // User2's 3rd command should also be blocked
+      expect(rateLimiter.isAllowed(user2)).toBe(false);
+    });
+
+    it('should reset limits after time window expires', () => {
+      const rateLimiter = new CommandRateLimit(1, 1000); // 1 command per second
+      const userId = 'user123';
+      
+      // First command should pass
+      expect(rateLimiter.isAllowed(userId)).toBe(true);
+      
+      // Second command should be blocked
+      expect(rateLimiter.isAllowed(userId)).toBe(false);
+      
+      // Advance time past window
+      jest.advanceTimersByTime(1100);
+      
+      // Command should pass again (window reset)
+      expect(rateLimiter.isAllowed(userId)).toBe(true);
+    });
+
+    it('should handle cleanup of expired entries', () => {
+      const rateLimiter = new CommandRateLimit(1, 1000); // 1 command per second
+      rateLimiter.cleanupThreshold = 2; // Set low threshold for testing
+      
+      // Add some users
+      expect(rateLimiter.isAllowed('user1')).toBe(true);
+      expect(rateLimiter.isAllowed('user2')).toBe(true);
+      expect(rateLimiter.isAllowed('user3')).toBe(true);
+      
+      // Should have 3 users in the map
+      expect(rateLimiter.users.size).toBe(3);
+      
+      // Advance time to expire entries
+      jest.advanceTimersByTime(1100);
+      
+      // Add another user to trigger cleanup
+      expect(rateLimiter.isAllowed('user4')).toBe(true);
+      
+      // Should have fewer users after cleanup
+      expect(rateLimiter.users.size).toBeLessThan(3);
+    });
+
+    it('should handle manual cleanup', () => {
+      const rateLimiter = new CommandRateLimit(1, 1000); // 1 command per second
+      
+      // Add some users
+      rateLimiter.isAllowed('user1');
+      rateLimiter.isAllowed('user2');
+      rateLimiter.isAllowed('user3');
+      
+      // Should have 3 users in the map
+      expect(rateLimiter.users.size).toBe(3);
+      
+      // Advance time to expire entries
+      jest.advanceTimersByTime(1100);
+      
+      // Manual cleanup
+      rateLimiter.cleanup();
+      
+      // Should have no users after cleanup
+      expect(rateLimiter.users.size).toBe(0);
+    });
+
+    it('should handle different constructor parameters', () => {
+      const rateLimiter = new CommandRateLimit(10, 30000); // 10 commands per 30 seconds
+      const userId = 'user123';
+      
+      // User makes 10 commands (should all pass)
+      for (let i = 0; i < 10; i++) {
+        expect(rateLimiter.isAllowed(userId)).toBe(true);
+      }
+      
+      // 11th command should be blocked
+      expect(rateLimiter.isAllowed(userId)).toBe(false);
+    });
+  });
+
+  // Tests for actual imported functions
+  describe('Rate Limiter Functions Tests', () => {
+    it('should create webhook rate limiter', () => {
+      const webhookLimiter = createWebhookLimiter();
+      expect(typeof webhookLimiter).toBe('function');
+    });
+
+    it('should create general rate limiter', () => {
+      const generalLimiter = createGeneralLimiter();
+      expect(typeof generalLimiter).toBe('function');
+    });
+
+    it('should create strict rate limiter', () => {
+      const strictLimiter = createStrictLimiter();
+      expect(typeof strictLimiter).toBe('function');
+    });
+
+    it('should create command rate limiter', () => {
+      const commandLimiter = createCommandRateLimiter();
+      expect(commandLimiter).toBeInstanceOf(CommandRateLimit);
+      expect(typeof commandLimiter.isAllowed).toBe('function');
+    });
+  });
 });

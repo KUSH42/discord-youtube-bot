@@ -104,9 +104,9 @@ describe('Duplicate Detection Logic Tests', () => {
       const correctKnownIds = new Set();
       
       const testUrls = [
-        'First: https://x.com/user/status/111',
-        'Second: https://x.com/user/status/222',
-        'Third: https://x.com/user/status/333'
+        'First: https://x.com/user/status/1111111111',
+        'Second: https://x.com/user/status/2222222222',
+        'Third: https://x.com/user/status/3333333333'
       ];
 
       testUrls.forEach(url => {
@@ -128,9 +128,9 @@ describe('Duplicate Detection Logic Tests', () => {
       
       // Correct behavior: 3 unique tweet IDs
       expect(correctKnownIds.size).toBe(3);
-      expect(correctKnownIds.has('111')).toBe(true);
-      expect(correctKnownIds.has('222')).toBe(true);
-      expect(correctKnownIds.has('333')).toBe(true);
+      expect(correctKnownIds.has('1111111111')).toBe(true);
+      expect(correctKnownIds.has('2222222222')).toBe(true);
+      expect(correctKnownIds.has('3333333333')).toBe(true);
     });
 
     it('should show how undefined values break duplicate detection', () => {

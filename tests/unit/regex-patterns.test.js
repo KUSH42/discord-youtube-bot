@@ -164,11 +164,11 @@ describe('URL Regex Pattern Tests', () => {
     });
 
     it('should extract multiple tweet IDs from text with multiple URLs', () => {
-      const text = 'Check these tweets: https://x.com/user1/status/111 and https://twitter.com/user2/status/222';
+      const text = 'Check these tweets: https://x.com/user1/status/1111111111 and https://twitter.com/user2/status/2222222222';
       const matches = [...text.matchAll(tweetUrlRegex)];
       expect(matches).toHaveLength(2);
-      expect(matches[0][1]).toBe('111');
-      expect(matches[1][1]).toBe('222');
+      expect(matches[0][1]).toBe('1111111111');
+      expect(matches[1][1]).toBe('2222222222');
     });
 
     it('should not match invalid Twitter URLs', () => {
@@ -188,8 +188,8 @@ describe('URL Regex Pattern Tests', () => {
     });
 
     it('should validate tweet ID format (numeric only)', () => {
-      const validIds = ['1234567890123456789', '1', '999999999999999999'];
-      const invalidIds = ['abc123', '123abc', '123-456'];
+      const validIds = ['1234567890123456789', '1234567890', '999999999999999999'];
+      const invalidIds = ['abc123', '123abc', '123-456', '123', '1']; // Short IDs are invalid
 
       validIds.forEach(id => {
         const url = `https://x.com/user/status/${id}`;
@@ -201,7 +201,7 @@ describe('URL Regex Pattern Tests', () => {
       invalidIds.forEach(id => {
         const url = `https://x.com/user/status/${id}`;
         const matches = [...url.matchAll(tweetUrlRegex)];
-        // Invalid IDs should not match (non-numeric IDs won't match)
+        // Invalid IDs should not match (non-numeric or too short IDs won't match)
         expect(matches).toHaveLength(0);
       });
     });
@@ -232,7 +232,7 @@ describe('URL Regex Pattern Tests', () => {
     });
 
     it('should handle mixed YouTube and Twitter URLs in same text', () => {
-      const mixedText = 'Check this video https://youtu.be/dQw4w9WgXcQ and this tweet https://x.com/user/status/123456789';
+      const mixedText = 'Check this video https://youtu.be/dQw4w9WgXcQ and this tweet https://x.com/user/status/1234567890';
       
       const videoMatches = [...mixedText.matchAll(videoUrlRegex)];
       const tweetMatches = [...mixedText.matchAll(tweetUrlRegex)];
@@ -241,7 +241,7 @@ describe('URL Regex Pattern Tests', () => {
       expect(videoMatches[0][1]).toBe('dQw4w9WgXcQ');
       
       expect(tweetMatches).toHaveLength(1);
-      expect(tweetMatches[0][1]).toBe('123456789');
+      expect(tweetMatches[0][1]).toBe('1234567890');
     });
 
     it('should handle URLs with special characters and encoding', () => {
