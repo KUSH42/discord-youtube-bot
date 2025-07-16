@@ -484,7 +484,7 @@ describe('End-to-End Announcement Workflows', () => {
         .mockRejectedValueOnce(retryError)
         .mockResolvedValue({ id: 'success-message' });
 
-      const sendWithRetry = async (channel, content, maxRetries = 3, delay = 10) => {
+      const sendWithRetry = async (channel, content, maxRetries = 3, delay = 1) => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             return await channel.send(content);

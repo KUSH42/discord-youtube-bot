@@ -509,6 +509,14 @@ describe('Security and Input Validation Tests', () => {
               return { valid: false, error: 'Invalid argument for vxtwitter command' };
             }
             break;
+            
+          case 'restart':
+          case 'kill':
+          case 'health':
+            if (sanitizedArgs.length !== 0) {
+              return { valid: false, error: 'This command does not accept arguments' };
+            }
+            break;
         }
 
         return { valid: true, command, args: sanitizedArgs };
@@ -526,6 +534,9 @@ describe('Security and Input Validation Tests', () => {
 
       maliciousCommands.forEach(({ command, args }) => {
         const result = validateCommand(command, args);
+        if (result.valid) {
+          console.log('Unexpected valid result:', { command, args, result });
+        }
         expect(result.valid).toBe(false);
       });
 
@@ -618,7 +629,7 @@ describe('Security and Input Validation Tests', () => {
           return data
             .replace(/(?:password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi, 
                      (match, value) => match.replace(value, '*'.repeat(Math.min(value.length, 8))))
-            .replace(/(?:api[_-]?key|access[_-]?token|bearer\s+)['"]?([a-zA-Z0-9+/=]{20,})/gi,
+            .replace(/(?:api[_-]?key|access[_-]?token|bearer\s+)['"]?([a-zA-Z0-9+/=]{8,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/(?:discord[_-]?token|bot[_-]?token)['"]?([a-zA-Z0-9._-]{50,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
@@ -697,7 +708,9 @@ describe('Security and Input Validation Tests', () => {
         const systemPaths = [
           /[C-Z]:\\[^"\s]*/g, // Windows paths
           /\/[^"\s]*\/[^"\s]*/g, // Unix paths
-          /node_modules\/[^"\s]*/g // Node modules paths
+          /node_modules\/[^"\s]*/g, // Node modules paths
+          /\/home\/[^"\s]*/g, // Home directories
+          /\/app\/[^"\s]*/g // App directories
         ];
 
         let sanitizedMessage = error.message || 'An error occurred';
