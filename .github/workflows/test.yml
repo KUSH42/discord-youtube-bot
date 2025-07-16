@@ -1,5 +1,13 @@
 name: Comprehensive Test Suite
 
+# Add permissions for GitHub Actions
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+  actions: read
+
 on:
   push:
     branches: [ main, master, dev, develop ]
@@ -137,7 +145,7 @@ jobs:
           npm run test:unit -- \
             --coverage \
             --coverageDirectory=coverage/unit \
-            --coverageReporters=text,lcov,clover \
+            --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles
@@ -219,7 +227,7 @@ jobs:
           npm run test:integration -- \
             --coverage \
             --coverageDirectory=coverage/integration \
-            --coverageReporters=text,lcov \
+            --coverageReporters=text --coverageReporters=lcov \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
@@ -296,7 +304,7 @@ jobs:
           npm run test:e2e -- \
             --coverage \
             --coverageDirectory=coverage/e2e \
-            --coverageReporters=text,lcov \
+            --coverageReporters=text --coverageReporters=lcov \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
@@ -504,20 +512,28 @@ jobs:
       - name: Comment PR with test results
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const fs = require('fs');
             const path = 'reports/test-summary.md';
             
             if (fs.existsSync(path)) {
-              const body = fs.readFileSync(path, 'utf8');
-              
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: body
-              });
+              try {
+                const body = fs.readFileSync(path, 'utf8');
+                
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: body
+                });
+                console.log('PR comment created successfully');
+              } catch (error) {
+                console.log('Failed to create PR comment:', error.message);
+              }
+            } else {
+              console.log('Test summary file not found');
             }
 
       - name: Store final test report

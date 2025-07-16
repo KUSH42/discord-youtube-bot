@@ -35,6 +35,9 @@ export const mockMessage = {
   react: jest.fn().mockResolvedValue(true)
 };
 
+// Event emitter for Discord client
+const eventHandlers = new Map();
+
 export const mockClient = {
   user: { id: 'bot-user-id', username: 'TestBot' },
   guilds: {
@@ -46,9 +49,23 @@ export const mockClient = {
   },
   login: jest.fn().mockResolvedValue('token'),
   destroy: jest.fn().mockResolvedValue(),
-  on: jest.fn(),
-  once: jest.fn(),
-  emit: jest.fn(),
+  on: jest.fn((event, handler) => {
+    if (!eventHandlers.has(event)) {
+      eventHandlers.set(event, []);
+    }
+    eventHandlers.get(event).push(handler);
+  }),
+  once: jest.fn((event, handler) => {
+    if (!eventHandlers.has(event)) {
+      eventHandlers.set(event, []);
+    }
+    eventHandlers.get(event).push(handler);
+  }),
+  emit: jest.fn((event, ...args) => {
+    if (eventHandlers.has(event)) {
+      eventHandlers.get(event).forEach(handler => handler(...args));
+    }
+  }),
   isReady: () => true
 };
 
@@ -70,18 +87,36 @@ export const discordMock = {
 };
 
 // Helper to create fresh mock instances
-export const createMockClient = () => ({
-  ...mockClient,
-  channels: {
-    cache: new Map([['test-channel-id', { ...mockChannel }]]),
-    fetch: jest.fn().mockResolvedValue({ ...mockChannel })
-  },
-  login: jest.fn().mockResolvedValue('token'),
-  destroy: jest.fn().mockResolvedValue(),
-  on: jest.fn(),
-  once: jest.fn(),
-  emit: jest.fn()
-});
+export const createMockClient = () => {
+  const freshEventHandlers = new Map();
+  
+  return {
+    ...mockClient,
+    channels: {
+      cache: new Map([['test-channel-id', { ...mockChannel }]]),
+      fetch: jest.fn().mockResolvedValue({ ...mockChannel })
+    },
+    login: jest.fn().mockResolvedValue('token'),
+    destroy: jest.fn().mockResolvedValue(),
+    on: jest.fn((event, handler) => {
+      if (!freshEventHandlers.has(event)) {
+        freshEventHandlers.set(event, []);
+      }
+      freshEventHandlers.get(event).push(handler);
+    }),
+    once: jest.fn((event, handler) => {
+      if (!freshEventHandlers.has(event)) {
+        freshEventHandlers.set(event, []);
+      }
+      freshEventHandlers.get(event).push(handler);
+    }),
+    emit: jest.fn((event, ...args) => {
+      if (freshEventHandlers.has(event)) {
+        freshEventHandlers.get(event).forEach(handler => handler(...args));
+      }
+    })
+  };
+};
 
 export const createMockChannel = (overrides = {}) => ({
   ...mockChannel,

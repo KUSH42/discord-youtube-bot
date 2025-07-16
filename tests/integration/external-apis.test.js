@@ -83,7 +83,7 @@ describe('External API Integration Tests', () => {
           return response.data.items[0];
         } catch (error) {
           if (error.code === 403 && retries > 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 10));
             return fetchWithRetry(videoId, retries - 1);
           }
           throw error;
@@ -200,10 +200,12 @@ describe('External API Integration Tests', () => {
 
     it('should parse PubSubHubbub notifications', () => {
       const parseNotification = (xmlData) => {
-        // Simplified XML parsing for testing
+        // Simplified XML parsing for testing - get entry-specific data
         const videoIdMatch = xmlData.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
         const channelIdMatch = xmlData.match(/<yt:channelId>([^<]+)<\/yt:channelId>/);
-        const titleMatch = xmlData.match(/<title>([^<]+)<\/title>/);
+        // Extract title from within the entry tag, not the feed title
+        const entrySection = xmlData.match(/<entry[^>]*>([\s\S]*?)<\/entry>/);
+        const titleMatch = entrySection ? entrySection[1].match(/<title>([^<]+)<\/title>/) : null;
         const publishedMatch = xmlData.match(/<published>([^<]+)<\/published>/);
 
         if (!videoIdMatch || !channelIdMatch || !titleMatch) {
