@@ -1,4 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { 
+  validateEnvironmentVariables, 
+  validateDiscordChannelId, 
+  validateYouTubeChannelId, 
+  validateUrl, 
+  validatePort, 
+  validateLogLevel, 
+  validateBooleanEnvVar,
+  parseBooleanEnvVar 
+} from '../../src/config-validator.js';
 
 describe('Configuration Validation Tests', () => {
   let originalEnv;
@@ -56,46 +66,7 @@ describe('Configuration Validation Tests', () => {
       'DISCORD_BOT_SUPPORT_LOG_CHANNEL'
     ];
 
-    // Mock the validation function since we can't import it directly
-    const validateEnvironmentVariables = () => {
-      const missing = [];
-      const warnings = [];
-
-      // Check required variables
-      for (const varName of requiredVars) {
-        if (!process.env[varName]) {
-          missing.push(varName);
-        }
-      }
-
-      const optionalVars = [
-        { name: 'COMMAND_PREFIX', defaultValue: '!' },
-        { name: 'PSH_PORT', defaultValue: '3000' },
-        { name: 'LOG_FILE_PATH', defaultValue: 'bot.log' },
-        { name: 'LOG_LEVEL', defaultValue: 'info' },
-        { name: 'PSH_SECRET', defaultValue: 'your_super_secret_string_here' },
-        { name: 'PSH_VERIFY_TOKEN', defaultValue: 'your_optional_verify_token' },
-        { name: 'ANNOUNCEMENT_ENABLED', defaultValue: 'false' },
-        { name: 'X_VX_TWITTER_CONVERSION', defaultValue: 'false' },
-        { name: 'X_QUERY_INTERVALL_MIN', defaultValue: '300000' },
-        { name: 'X_QUERY_INTERVALL_MAX', defaultValue: '600000' },
-        { name: 'ALLOWED_USER_IDS', defaultValue: null },
-        { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' }
-      ];
-
-      // Check optional variables and warn about security defaults
-      for (const { name, defaultValue } of optionalVars) {
-        if (!process.env[name]) {
-          if (name === 'PSH_SECRET' || name === 'PSH_VERIFY_TOKEN') {
-            warnings.push(`${name} not set - using default value (consider setting for security)`);
-          } else if (name === 'ALLOWED_USER_IDS') {
-            warnings.push(`${name} not set - restart command will be unavailable`);
-          }
-        }
-      }
-
-      return { missing, warnings };
-    };
+    // Using imported validateEnvironmentVariables function
 
     it('should pass validation when all required variables are set', () => {
       // Set all required variables
@@ -108,10 +79,11 @@ describe('Configuration Validation Tests', () => {
       process.env.PSH_VERIFY_TOKEN = 'test-verify-token';
       process.env.ALLOWED_USER_IDS = '123456789012345678';
 
-      const { missing, warnings } = validateEnvironmentVariables();
+      const result = validateEnvironmentVariables();
 
-      expect(missing).toHaveLength(0);
-      expect(warnings).toHaveLength(0);
+      expect(result.success).toBe(true);
+      expect(result.missing).toHaveLength(0);
+      expect(result.warnings).toHaveLength(0);
     });
 
     it('should detect missing required variables', () => {

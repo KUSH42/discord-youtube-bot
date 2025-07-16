@@ -1,13 +1,20 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { DuplicateDetector, videoUrlRegex, tweetUrlRegex, createDuplicateDetector } from '../../src/duplicate-detector.js';
 
 describe('Duplicate Detection Logic Tests', () => {
   let knownVideoIds, knownTweetIds;
-  const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
-  const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
+  let duplicateDetector;
 
   beforeEach(() => {
     knownVideoIds = new Set();
     knownTweetIds = new Set();
+    duplicateDetector = new DuplicateDetector();
+  });
+
+  afterEach(() => {
+    if (duplicateDetector) {
+      duplicateDetector.destroy();
+    }
   });
 
   describe('Set-based Duplicate Detection', () => {
