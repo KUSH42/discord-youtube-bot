@@ -492,33 +492,41 @@ jobs:
           |-----------|--------|----------|
           EOF
           
-          # Check each test type result
+          # List available artifacts for debugging
+          echo "Available test artifacts:"
+          find test-results -type f -name "*.xml" -o -name "*.json" -o -name "*.info" | head -20
+          
+          # Check each test type result by looking for artifacts with merged structure
           for test_type in unit integration e2e performance security; do
-            # Check for test artifacts (different naming patterns for different test types)
             found=false
             case $test_type in
               "unit")
-                if ls test-results/unit-test-results-node* >/dev/null 2>&1; then
+                # Look for unit test coverage files
+                if find test-results -name "*unit*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
               "integration")
-                if [ -d "test-results/integration-test-results" ]; then
+                # Look for integration test coverage files  
+                if find test-results -name "*integration*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
               "e2e")
-                if [ -d "test-results/e2e-test-results" ]; then
+                # Look for e2e test coverage files
+                if find test-results -name "*e2e*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
               "performance")
-                if [ -d "test-results/performance-test-results" ]; then
+                # Look for performance test artifacts
+                if find test-results -name "*performance*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
               "security")
-                if [ -d "test-results/security-test-results" ]; then
+                # Look for security test artifacts
+                if find test-results -name "*security*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
