@@ -29,6 +29,7 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 
 ### 📺 Content Monitoring
 - **YouTube Activity Monitoring:** Real-time notifications via PubSubHubbub for uploads and livestreams
+- **YouTube Notification Fallback:** Intelligent retry system with API polling backup when PubSubHubbub fails
 - **X (Twitter) Activity Monitoring:** Automated scraping for posts, replies, quotes, and retweets
 - **Smart Content Filtering:** Only announces content created *after* bot startup
 - **Multi-Channel Support:** Different Discord channels for different content types
@@ -48,7 +49,8 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 - **Auto-Recovery:** Handles failures with graceful degradation
 
 ### 🚀 Production Features
-- **PubSubHubbub Integration:** Efficient real-time YouTube notifications
+- **PubSubHubbub Integration:** Efficient real-time YouTube notifications with fallback protection
+- **Intelligent Error Recovery:** Automatic retry with exponential backoff and API polling backup
 - **Subscription Auto-Renewal:** Automated maintenance of YouTube subscriptions
 - **Systemd Support:** Production deployment with service management
 - **Generic Deployment:** No hardcoded usernames or paths
@@ -174,6 +176,13 @@ X_QUERY_INTERVALL_MIN=300000
 X_QUERY_INTERVALL_MAX=600000
 ANNOUNCE_OLD_TWEETS=false
 
+# YouTube Fallback System
+YOUTUBE_FALLBACK_ENABLED=true
+YOUTUBE_FALLBACK_DELAY_MS=15000
+YOUTUBE_FALLBACK_MAX_RETRIES=3
+YOUTUBE_API_POLL_INTERVAL_MS=300000
+YOUTUBE_FALLBACK_BACKFILL_HOURS=2
+
 # Bot Control
 COMMAND_PREFIX=!
 ALLOWED_USER_IDS=user_id_1,user_id_2
@@ -210,6 +219,7 @@ All commands work in the configured support channel with your chosen prefix (def
   - ⏱️ System uptime
   - 💾 Memory usage
   - 📡 Bot configuration status
+  - 🛡️ YouTube fallback system status and metrics
 
 ### Rate Limiting Protection
 - 👤 **Commands:** 5 per minute per user
@@ -265,13 +275,20 @@ sudo systemctl start discord-youtube-bot.service
 
 ## 🔍 How It Works
 
-### 📺 YouTube Monitoring (PubSubHubbub)
+### 📺 YouTube Monitoring (PubSubHubbub + Fallback)
 1. **🔗 Subscription:** Bot subscribes to YouTube's PubSubHubbub hub
 2. **✅ Verification:** Hub sends verification challenge to bot's webhook
 3. **📡 Notifications:** Real-time POST requests for new videos/streams
 4. **🔐 Verification:** HMAC-SHA1 signature validation
 5. **📊 Processing:** Extract video details and check publish time
-6. **📢 Announcement:** Post to Discord if content is new
+6. **🛡️ Fallback Protection:** If notifications fail, automatic retry with API polling backup
+7. **📢 Announcement:** Post to Discord if content is new
+
+**Fallback System Features:**
+- **Retry Queue:** Failed notifications queued with exponential backoff (5s, 15s, 45s)
+- **API Polling:** Falls back to YouTube Data API when PubSubHubbub fails repeatedly
+- **Gap Detection:** Identifies and recovers missed content during outages
+- **Deduplication:** Prevents duplicate announcements across notification methods
 
 ### 🐦 X (Twitter) Monitoring (Scraping)
 1. **🔄 Polling:** Periodic scraping of user's profile
@@ -306,6 +323,8 @@ Automated validation includes:
 - 🔑 Verify YouTube API key and channel ID
 - 📊 Check logs for subscription status
 - 🔐 Ensure `PSH_SECRET` matches configuration
+- 🛡️ Verify fallback system is enabled (`YOUTUBE_FALLBACK_ENABLED=true`)
+- 📊 Check `!health` command for fallback system metrics
 
 **🐦 No X announcements**
 - 🔑 Verify Twitter credentials are valid
