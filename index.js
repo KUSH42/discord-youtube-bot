@@ -401,6 +401,9 @@ const client = new Client({
 
 const app = express();
 
+// Trust proxy headers (required for accurate rate limiting with X-Forwarded-For)
+app.set('trust proxy', true);
+
 // Apply rate limiting to all routes
 app.use(webhookLimiter);
 

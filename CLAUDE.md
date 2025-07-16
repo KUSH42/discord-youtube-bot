@@ -126,6 +126,52 @@ The bot exposes health check endpoints for monitoring:
 - Environment variables validated on startup
 - Credentials can be encrypted with dotenvx
 
+## Testing Infrastructure
+
+This project includes a comprehensive testing framework that should be used and maintained:
+
+### Test Execution Commands
+```bash
+# Run all tests
+npm test                    # Full test suite
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests only
+npm run test:e2e           # End-to-end tests only
+npm run test:performance   # Performance benchmarks
+npm run test:security      # Security auditing
+
+# Development testing
+npm run test:coverage      # Generate coverage reports
+npm run test:watch         # Watch mode for development
+```
+
+### Test Structure
+- **Unit Tests**: Located in `tests/unit/` - Test individual functions and modules with mocking
+- **Integration Tests**: Located in `tests/integration/` - Test service interactions and API endpoints
+- **E2E Tests**: Located in `tests/e2e/` - Test complete user workflows
+- **Performance Tests**: Located in `tests/performance/` - Load testing and benchmarking
+- **Security Tests**: Automated security scans and dependency audits
+
+### CI/CD Testing
+- Tests run automatically on GitHub Actions for all pushes and PRs
+- Multi-Node.js version testing (16, 18, 20)
+- Comprehensive test result reporting in `test-summary.md`
+- Coverage artifacts preserved for analysis
+- Quality gates prevent merging failing tests
+
+### When Modifying Tests
+- Always maintain or improve test coverage
+- Update tests when changing functionality
+- Add new tests for new features
+- Ensure tests pass locally before committing
+- Check GitHub Actions for full CI validation
+
+### Test Result Analysis
+- Review `test-summary.md` for overall test health
+- Check individual test artifacts in GitHub Actions
+- Monitor coverage reports for code quality
+- Address failing tests immediately
+
 ## Commit and PR Guidelines
 
 **IMPORTANT**: When creating commit messages and pull requests, avoid references to AI assistance tools or automated code generation. Follow these guidelines:
