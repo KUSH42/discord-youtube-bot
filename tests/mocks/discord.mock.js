@@ -95,3 +95,13 @@ export const createMockMessage = (overrides = {}) => ({
   react: jest.fn().mockResolvedValue(true),
   ...overrides
 });
+
+export const createMockUser = (overrides = {}) => ({
+  ...mockUser,
+  ...overrides
+});
+
+export const createMockGuild = (overrides = {}) => ({
+  ...mockGuild,
+  ...overrides
+});
