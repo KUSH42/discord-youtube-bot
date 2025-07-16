@@ -533,19 +533,21 @@ jobs:
             esac
             
             if [ "$found" = true ]; then
-              echo "| ${test_type^} | ✅ Passed | TBD |" >> reports/test-summary.md
+              printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "✅ Passed" "TBD" >> reports/test-summary.md
             else
-              echo "| ${test_type^} | ⏭️ Skipped | - |" >> reports/test-summary.md
+              printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "⏭️ Skipped" "-" >> reports/test-summary.md
             fi
           done
           
           echo "" >> reports/test-summary.md
           echo "## Detailed Results" >> reports/test-summary.md
-          
-          # Add links to detailed results if available
-          find test-results -name "*.xml" -o -name "*.json" -o -name "coverage" | while read file; do
-            echo "- [$(basename $file)]($file)" >> reports/test-summary.md
-          done
+          echo "" >> reports/test-summary.md
+          echo "Detailed test results and coverage reports are available in the individual test artifacts:" >> reports/test-summary.md
+          echo "- \`unit-test-results-node16\`, \`unit-test-results-node18\`, \`unit-test-results-node20\`" >> reports/test-summary.md
+          echo "- \`integration-test-results\`" >> reports/test-summary.md
+          echo "- \`e2e-test-results\`" >> reports/test-summary.md
+          echo "- \`performance-test-results\`" >> reports/test-summary.md
+          echo "- \`security-test-results\`" >> reports/test-summary.md
 
       - name: Comment PR with test results
         if: github.event_name == 'pull_request'
