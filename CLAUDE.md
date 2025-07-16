@@ -16,21 +16,21 @@ node index.js
 
 **Start as systemd service:**
 ```bash
-sudo systemctl start discord-youtube-bot.service
-sudo systemctl status discord-youtube-bot.service
+sudo systemctl start discord-bot.service
+sudo systemctl status discord-bot.service
 ```
 
 **Development with systemd:**
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable discord-youtube-bot.service
-sudo systemctl stop discord-youtube-bot.service
+sudo systemctl enable discord-bot.service
+sudo systemctl stop discord-bot.service
 ```
 
 **Check logs:**
 ```bash
 # View service logs
-sudo journalctl -u discord-youtube-bot.service -f
+sudo journalctl -u discord-bot.service -f
 
 # View bot logs (configured via LOG_FILE_PATH)
 tail -f bot.log
