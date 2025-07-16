@@ -5,7 +5,7 @@
 ![Discord.js](https://img.shields.io/badge/discord.js-v14-7289da)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-lightgrey)
 
-![Tests](https://github.com/KUSH42/discord-bot/workflows/Comprehensive%20Test%20Suite/badge.svg?branch=master)
+[![Test Suites](https://github.com/KUSH42/discord-bot/actions/workflows/test.yml/badge.svg)](https://github.com/KUSH42/discord-bot/actions/workflows/test.yml)
 ![Security](https://img.shields.io/badge/security-scanned-green)
 ![Performance](https://img.shields.io/badge/performance-monitored-blue)
 
