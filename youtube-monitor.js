@@ -120,6 +120,9 @@ class YouTubeMonitor {
             // --- End X-Hub-Signature Verification ---
 
             try {
+                // Debug log the received XML body (only in debug mode to avoid spam)
+                this.logger.debug('Received XML notification body:', req.body);
+                
                 // Configure secure XML parser to prevent XXE attacks
                 const parser = new xml2js.Parser({ 
                     explicitArray: false,
@@ -142,6 +145,16 @@ class YouTubeMonitor {
                     cdata: false
                 });
                 const result = await parser.parseStringPromise(req.body); // Use string body for parsing
+
+                // Add defensive checks for XML structure
+                if (!result || !result.feed) {
+                    this.logger.error('Invalid XML structure: missing feed element');
+                    this.logger.error('Raw XML body received:', req.body);
+                    this.logger.error('Parsed XML result:', JSON.stringify(result, null, 2));
+                    this.logger.error('Request headers:', JSON.stringify(req.headers, null, 2));
+                    res.status(400).send('Invalid XML format');
+                    return;
+                }
 
                 const entry = result.feed.entry;
 
@@ -238,8 +251,12 @@ class YouTubeMonitor {
                 }
                 res.status(200).send('Notification received and processed.');
             } catch (error) {
-                // Corrected: Pass the Error object directly to this.logger.error
+                // Log full context for debugging
                 this.logger.error('Error parsing or processing PubSubHubbub notification:', error);
+                this.logger.error('Raw XML body that caused error:', req.body);
+                this.logger.error('Request headers:', JSON.stringify(req.headers, null, 2));
+                this.logger.error('Request URL:', req.url);
+                this.logger.error('Request method:', req.method);
                 res.status(500).send('Error processing notification.');
             }
         } else {
