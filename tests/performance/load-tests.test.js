@@ -531,7 +531,7 @@ describe('Performance and Load Tests', () => {
       for (let i = 0; i < 10000; i++) {
         const videoId = `video${String(i % 1000).padStart(5, '0')}0`; // 11 characters
         urls.push(`https://www.youtube.com/watch?v=${videoId}`); // Intentional duplicates
-        urls.push(`https://x.com/user/status/${1000000000000000000 + (i % 500)}`); // Intentional duplicates
+        urls.push(`https://x.com/user/status/${1000000000000000 + (i % 500)}`); // Intentional duplicates
       }
 
       const cpuStart = performance.now();

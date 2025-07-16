@@ -627,11 +627,11 @@ describe('Security and Input Validation Tests', () => {
       const redactSensitiveData = (data) => {
         if (typeof data === 'string') {
           return data
+            .replace(/bearer\s+([a-zA-Z0-9+/=]{8,})/gi,
+                     (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/(?:password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi, 
                      (match, value) => match.replace(value, '*'.repeat(Math.min(value.length, 8))))
-            .replace(/(?:api[_-]?key|access[_-]?token|bearer)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
-                     (match, token) => match.replace(token, '*'.repeat(8)))
-            .replace(/bearer\s+([a-zA-Z0-9+/=]{8,})/gi,
+            .replace(/(?:api[_-]?key|access[_-]?token)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/(?:key|token)\s*[:=]\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
