@@ -507,6 +507,23 @@ jobs:
         run: |
           mkdir -p reports
           
+          # Function to extract coverage percentage from lcov.info files
+          extract_coverage() {
+            local coverage_file=$1
+            if [ -f "$coverage_file" ]; then
+              # Extract line coverage percentage from lcov.info
+              local lines_found=$(grep -o 'LF:[0-9]*' "$coverage_file" | cut -d: -f2 | paste -sd+ | bc)
+              local lines_hit=$(grep -o 'LH:[0-9]*' "$coverage_file" | cut -d: -f2 | paste -sd+ | bc)
+              if [ "$lines_found" -gt 0 ]; then
+                echo "scale=1; $lines_hit * 100 / $lines_found" | bc -l | xargs printf "%.1f%%"
+              else
+                echo "N/A"
+              fi
+            else
+              echo "N/A"
+            fi
+          }
+          
           cat > reports/test-summary.md << EOF
           # Test Summary Report
           
@@ -528,41 +545,57 @@ jobs:
           # Check each test type result by looking for artifacts with merged structure
           for test_type in unit integration e2e performance security; do
             found=false
+            coverage="N/A"
+            
             case $test_type in
               "unit")
                 # Look for unit test coverage files in coverage/unit/ directory
                 if find test-results -path "*/coverage/unit/*" -type f | grep -q .; then
                   found=true
+                  coverage_file=$(find test-results -path "*/coverage/unit/lcov.info" | head -1)
+                  if [ -n "$coverage_file" ]; then
+                    coverage=$(extract_coverage "$coverage_file")
+                  fi
                 fi
                 ;;
               "integration")
                 # Look for integration test coverage files in coverage/integration/ directory
                 if find test-results -path "*/coverage/integration/*" -type f | grep -q .; then
                   found=true
+                  coverage_file=$(find test-results -path "*/coverage/integration/lcov.info" | head -1)
+                  if [ -n "$coverage_file" ]; then
+                    coverage=$(extract_coverage "$coverage_file")
+                  fi
                 fi
                 ;;
               "e2e")
                 # Look for e2e test coverage files in coverage/e2e/ directory
                 if find test-results -path "*/coverage/e2e/*" -type f | grep -q .; then
                   found=true
+                  coverage_file=$(find test-results -path "*/coverage/e2e/lcov.info" | head -1)
+                  if [ -n "$coverage_file" ]; then
+                    coverage=$(extract_coverage "$coverage_file")
+                  fi
                 fi
                 ;;
               "performance")
                 # Look for performance test artifacts
                 if find test-results -name "*performance*" -type f | grep -q .; then
                   found=true
+                  coverage="-"
                 fi
                 ;;
               "security")
                 # Look for security test artifacts
                 if find test-results -name "*security*" -type f | grep -q .; then
                   found=true
+                  coverage="-"
                 fi
                 ;;
             esac
             
             if [ "$found" = true ]; then
-              printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "✅ Passed" "TBD" >> reports/test-summary.md
+              printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "✅ Passed" "$coverage" >> reports/test-summary.md
             else
               printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "⏭️ Skipped" "-" >> reports/test-summary.md
             fi
