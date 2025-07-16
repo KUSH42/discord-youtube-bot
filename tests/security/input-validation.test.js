@@ -631,6 +631,8 @@ describe('Security and Input Validation Tests', () => {
                      (match, value) => match.replace(value, '*'.repeat(Math.min(value.length, 8))))
             .replace(/(?:api[_-]?key|access[_-]?token|bearer)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
+            .replace(/bearer\s+([a-zA-Z0-9+/=]{8,})/gi,
+                     (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/(?:key|token)\s*[:=]\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/['"]([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})['"](?:\s+is\s+invalid)?/gi,
