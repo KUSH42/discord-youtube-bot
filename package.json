@@ -10,7 +10,12 @@
     "decrypt": "npx dotenvx run -- node index.js",
     "validate": "node test-validation.js",
     "prestart": "npm run validate",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:e2e": "jest tests/e2e",
     "prepare": "husky"
   },
   "keywords": [],
@@ -40,7 +45,9 @@
   },
   "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme",
   "devDependencies": {
+    "@jest/globals": "^30.0.4",
     "husky": "^9.1.7",
+    "jest": "^30.0.4",
     "lint-staged": "^16.1.2"
   }
 }

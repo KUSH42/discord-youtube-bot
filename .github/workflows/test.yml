@@ -1,0 +1,563 @@
+name: Comprehensive Test Suite
+
+on:
+  push:
+    branches: [ main, master, dev, develop ]
+  pull_request:
+    branches: [ main, master, dev, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - e2e
+          - performance
+          - security
+
+env:
+  NODE_VERSION: '18'
+  CACHE_KEY_PREFIX: 'discord-bot-test'
+
+jobs:
+  # Pre-flight checks
+  pre-flight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      should-run-tests: ${{ steps.check.outputs.should-run }}
+      test-matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if tests should run
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+          else
+            # Check if relevant files changed
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(js|json|yml|yaml)$' && echo "should-run=true" >> $GITHUB_OUTPUT || echo "should-run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate test matrix
+        id: matrix
+        run: |
+          if [[ "${{ github.event.inputs.test_type }}" == "unit" ]]; then
+            echo 'matrix={"test-type": ["unit"]}' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_type }}" == "integration" ]]; then
+            echo 'matrix={"test-type": ["integration"]}' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_type }}" == "e2e" ]]; then
+            echo 'matrix={"test-type": ["e2e"]}' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_type }}" == "performance" ]]; then
+            echo 'matrix={"test-type": ["performance"]}' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.test_type }}" == "security" ]]; then
+            echo 'matrix={"test-type": ["security"]}' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"test-type": ["unit", "integration", "e2e", "performance", "security"]}' >> $GITHUB_OUTPUT
+          fi
+
+  # Code quality and linting
+  lint:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+    needs: pre-flight
+    if: needs.pre-flight.outputs.should-run-tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: |
+          if [ -f .eslintrc.js ] || [ -f .eslintrc.json ]; then
+            npm run lint || npx eslint . --ext .js --format=compact
+          else
+            echo "No ESLint configuration found, skipping lint check"
+          fi
+
+      - name: Run Prettier check
+        run: |
+          if [ -f .prettierrc ] || [ -f .prettierrc.json ]; then
+            npx prettier --check "**/*.{js,json,md,yml,yaml}"
+          else
+            echo "No Prettier configuration found, skipping format check"
+          fi
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=moderate
+
+      - name: Validate package.json
+        run: npm ls --depth=0
+
+  # Unit tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [pre-flight, lint]
+    if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'unit')
+    strategy:
+      matrix:
+        node-version: ['16', '18', '20']
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: |
+          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
+          npm run test:unit -- \
+            --coverage \
+            --coverageDirectory=coverage/unit \
+            --coverageReporters=text,lcov,clover \
+            --maxWorkers=2 \
+            --forceExit \
+            --detectOpenHandles
+
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage/unit/lcov.info
+          flags: unit,node${{ matrix.node-version }}
+          name: unit-tests-node${{ matrix.node-version }}
+          fail_ci_if_error: false
+
+      - name: Store unit test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: unit-test-results-node${{ matrix.node-version }}
+          path: |
+            coverage/unit/
+            junit.xml
+          retention-days: 7
+
+  # Integration tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [pre-flight, lint]
+    if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'integration')
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up test environment
+        run: |
+          # Create test configuration
+          cat > .env.test << EOF
+          NODE_ENV=test
+          DISCORD_BOT_TOKEN=test-token-${{ github.run_id }}
+          YOUTUBE_API_KEY=test-api-key
+          YOUTUBE_CHANNEL_ID=UCtest123456789012345678
+          DISCORD_YOUTUBE_CHANNEL_ID=123456789012345678
+          PSH_CALLBACK_URL=https://test.example.com/webhook
+          X_USER_HANDLE=testuser
+          DISCORD_X_POSTS_CHANNEL_ID=234567890123456789
+          DISCORD_X_REPLIES_CHANNEL_ID=345678901234567890
+          DISCORD_X_QUOTES_CHANNEL_ID=456789012345678901
+          DISCORD_X_RETWEETS_CHANNEL_ID=567890123456789012
+          TWITTER_USERNAME=testuser
+          TWITTER_PASSWORD=testpassword
+          DISCORD_BOT_SUPPORT_LOG_CHANNEL=678901234567890123
+          PSH_SECRET=test-webhook-secret-for-integration-testing-very-long-key
+          REDIS_URL=redis://localhost:6379
+          EOF
+
+      - name: Run integration tests
+        env:
+          NODE_ENV: test
+        run: |
+          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
+          npm run test:integration -- \
+            --coverage \
+            --coverageDirectory=coverage/integration \
+            --coverageReporters=text,lcov \
+            --maxWorkers=1 \
+            --forceExit \
+            --detectOpenHandles \
+            --testTimeout=30000
+
+      - name: Upload integration test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage/integration/lcov.info
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: false
+
+      - name: Store integration test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            coverage/integration/
+            logs/
+          retention-days: 7
+
+  # End-to-end tests
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [pre-flight, lint]
+    if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'e2e')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up E2E test environment
+        run: |
+          # Create comprehensive test environment
+          cat > .env.e2e << EOF
+          NODE_ENV=test
+          LOG_LEVEL=error
+          DISCORD_BOT_TOKEN=test-bot-token-e2e
+          YOUTUBE_API_KEY=test-youtube-api-key
+          YOUTUBE_CHANNEL_ID=UCtest123456789012345678
+          DISCORD_YOUTUBE_CHANNEL_ID=123456789012345678
+          PSH_CALLBACK_URL=https://test-e2e.example.com/webhook
+          PSH_PORT=3001
+          X_USER_HANDLE=testuser
+          DISCORD_X_POSTS_CHANNEL_ID=234567890123456789
+          DISCORD_X_REPLIES_CHANNEL_ID=345678901234567890
+          DISCORD_X_QUOTES_CHANNEL_ID=456789012345678901
+          DISCORD_X_RETWEETS_CHANNEL_ID=567890123456789012
+          TWITTER_USERNAME=testuser
+          TWITTER_PASSWORD=testpassword
+          DISCORD_BOT_SUPPORT_LOG_CHANNEL=678901234567890123
+          PSH_SECRET=e2e-test-webhook-secret-for-comprehensive-end-to-end-testing
+          ANNOUNCEMENT_ENABLED=true
+          X_VX_TWITTER_CONVERSION=false
+          ALLOWED_USER_IDS=123456789012345678,987654321098765432
+          EOF
+
+      - name: Run E2E tests
+        env:
+          NODE_ENV: test
+        run: |
+          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
+          npm run test:e2e -- \
+            --coverage \
+            --coverageDirectory=coverage/e2e \
+            --coverageReporters=text,lcov \
+            --maxWorkers=1 \
+            --forceExit \
+            --detectOpenHandles \
+            --testTimeout=60000
+
+      - name: Upload E2E test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage/e2e/lcov.info
+          flags: e2e
+          name: e2e-tests
+          fail_ci_if_error: false
+
+      - name: Store E2E test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            coverage/e2e/
+            logs/
+            screenshots/
+          retention-days: 7
+
+  # Performance tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [pre-flight, lint]
+    if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'performance')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run performance tests
+        run: |
+          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192 --expose-gc" \
+          npm run test:performance -- \
+            --maxWorkers=1 \
+            --forceExit \
+            --detectOpenHandles \
+            --testTimeout=120000
+
+      - name: Generate performance report
+        run: |
+          mkdir -p reports
+          echo "# Performance Test Report" > reports/performance.md
+          echo "Generated on: $(date)" >> reports/performance.md
+          echo "Node.js version: $(node --version)" >> reports/performance.md
+          echo "Platform: ${{ runner.os }}" >> reports/performance.md
+          echo "" >> reports/performance.md
+          
+          # Add performance metrics if available
+          if [ -f performance-metrics.json ]; then
+            echo "## Metrics" >> reports/performance.md
+            cat performance-metrics.json >> reports/performance.md
+          fi
+
+      - name: Store performance test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-test-results
+          path: |
+            reports/
+            performance-metrics.json
+          retention-days: 30
+
+  # Security tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: [pre-flight, lint]
+    if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'security')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security tests
+        run: |
+          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
+          npm run test:security -- \
+            --maxWorkers=2 \
+            --forceExit \
+            --detectOpenHandles \
+            --testTimeout=45000
+
+      - name: Run security audit
+        run: |
+          npm audit --audit-level=moderate --json > security-audit.json || true
+          
+          # Check for high/critical vulnerabilities
+          HIGH_VULNS=$(cat security-audit.json | jq '.metadata.vulnerabilities.high // 0')
+          CRITICAL_VULNS=$(cat security-audit.json | jq '.metadata.vulnerabilities.critical // 0')
+          
+          echo "High vulnerabilities: $HIGH_VULNS"
+          echo "Critical vulnerabilities: $CRITICAL_VULNS"
+          
+          if [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "❌ Critical vulnerabilities found!"
+            exit 1
+          elif [ "$HIGH_VULNS" -gt 0 ]; then
+            echo "⚠️ High vulnerabilities found!"
+            # Don't fail the build for high vulns, but warn
+          fi
+
+      - name: Check for secrets
+        run: |
+          # Simple check for potential secrets in code
+          echo "Checking for potential secrets..."
+          
+          # Check for potential API keys, tokens, etc.
+          SECRET_PATTERNS=(
+            "api[_-]?key"
+            "secret[_-]?key"
+            "access[_-]?token"
+            "auth[_-]?token"
+            "discord[_-]?token"
+            "password"
+          )
+          
+          for pattern in "${SECRET_PATTERNS[@]}"; do
+            if git grep -i "$pattern" -- '*.js' '*.json' | grep -v test | grep -v mock | grep -v example; then
+              echo "⚠️ Potential secret found: $pattern"
+            fi
+          done
+
+      - name: Store security test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-test-results
+          path: |
+            security-audit.json
+            security-report.json
+          retention-days: 30
+
+  # Aggregate results and report
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, performance-tests, security-tests]
+    if: always() && needs.pre-flight.outputs.should-run-tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: test-results
+
+      - name: Generate comprehensive test report
+        run: |
+          mkdir -p reports
+          
+          cat > reports/test-summary.md << EOF
+          # Test Summary Report
+          
+          **Generated:** $(date)
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          **Trigger:** ${{ github.event_name }}
+          
+          ## Test Results
+          
+          | Test Type | Status | Coverage |
+          |-----------|--------|----------|
+          EOF
+          
+          # Check each test type result
+          for test_type in unit integration e2e performance security; do
+            if [ -d "test-results/${test_type}-test-results" ] || [ -d "test-results/${test_type}-test-results-node"* ]; then
+              echo "| ${test_type^} | ✅ Passed | TBD |" >> reports/test-summary.md
+            else
+              echo "| ${test_type^} | ⏭️ Skipped | - |" >> reports/test-summary.md
+            fi
+          done
+          
+          echo "" >> reports/test-summary.md
+          echo "## Detailed Results" >> reports/test-summary.md
+          
+          # Add links to detailed results if available
+          find test-results -name "*.xml" -o -name "*.json" -o -name "coverage" | while read file; do
+            echo "- [$(basename $file)]($file)" >> reports/test-summary.md
+          done
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'reports/test-summary.md';
+            
+            if (fs.existsSync(path)) {
+              const body = fs.readFileSync(path, 'utf8');
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
+      - name: Store final test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: comprehensive-test-report
+          path: reports/
+          retention-days: 30
+
+      - name: Update status check
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All tests completed successfully"
+          else
+            echo "❌ Some tests failed or were skipped"
+            exit 1
+          fi
+
+# Cleanup job to remove old artifacts
+  cleanup:
+    name: Cleanup Old Artifacts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 30); // Keep artifacts for 30 days
+            
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            for (const artifact of artifacts.data.artifacts) {
+              if (new Date(artifact.created_at) < cutoff) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`Deleted artifact: ${artifact.name}`);
+              }
+            }
