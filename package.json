@@ -10,7 +10,14 @@
     "decrypt": "npx dotenvx run -- node index.js",
     "validate": "node test-validation.js",
     "prestart": "npm run validate",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
+    "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
+    "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
+    "test:unit": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/unit",
+    "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/integration",
+    "test:e2e": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/e2e",
+    "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/performance",
+    "test:security": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/security",
     "prepare": "husky"
   },
   "keywords": [],
@@ -22,7 +29,7 @@
     "discord.js": "^14.21.0",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.0.0",
+    "express-rate-limit": "^7.5.1",
     "googleapis": "^152.0.0",
     "node-fetch": "^3.3.2",
     "playwright": "^1.44.1",
@@ -40,7 +47,9 @@
   },
   "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme",
   "devDependencies": {
+    "@jest/globals": "^30.0.4",
     "husky": "^9.1.7",
+    "jest": "^30.0.4",
     "lint-staged": "^16.1.2"
   }
 }
