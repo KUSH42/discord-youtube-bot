@@ -139,12 +139,9 @@ class XScraper {
                         // Check ALL messages (including from other bots and users) for tweet IDs
                         const matches = [...msg.content.matchAll(tweetUrlRegex)];
                         matches.forEach(match => {
-                            // FIXME: Original code used match[2] but regex only has 1 capture group. 
-                            // Tweet ID should be in match[1]. Keeping original for compatibility.
-                            const tweetId = match[2]; // This will be undefined due to regex bug
-                            const actualTweetId = match[1]; // This is the correct tweet ID
+                            const tweetId = match[1]; // Extract tweet ID from first capture group
                             this.knownTweetIds.add(tweetId);
-                            this.logger.debug(`Added tweet ID from Discord history: original_index=${tweetId}, correct_index=${actualTweetId} (from ${msg.author.tag})`);
+                            this.logger.debug(`Added tweet ID from Discord history: ${tweetId} (from ${msg.author.tag})`);
                         });
                     });
                 }
@@ -173,13 +170,10 @@ class XScraper {
                 const matches = [...message.content.matchAll(tweetUrlRegex)];
                 if (matches.length > 0) {
                     matches.forEach(match => {
-                        // FIXME: Original code used match[2] but regex only has 1 capture group. 
-                        // Tweet ID should be in match[1]. Keeping original for compatibility.
-                        const tweetId = match[2]; // This will be undefined due to regex bug
-                        const actualTweetId = match[1]; // This is the correct tweet ID
+                        const tweetId = match[1]; // Extract tweet ID from first capture group
                         this.knownTweetIds.add(tweetId);
                         const sourceType = message.author.bot ? 'bot' : 'user';
-                        this.logger.info(`Added X/Twitter content to known list: original_index=${tweetId}, correct_index=${actualTweetId} (posted by ${sourceType}: ${message.author.tag})`);
+                        this.logger.info(`Added X/Twitter content to known list: ${tweetId} (posted by ${sourceType}: ${message.author.tag})`);
                     });
                 }
             }
@@ -569,7 +563,8 @@ class XScraper {
             if (newTweets.length > 0) {
                 this.logger.info(`[X Scraper] Found ${newTweets.length} new tweets from search results that are newer than bot startup.`);
     
-                // Sort by timestamp to ensure chronological order (oldest first)\n                newTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                // Sort by timestamp to ensure chronological order (oldest first)
+                newTweets.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     
     
                 for (const tweet of newTweets) { // Process in chronological order
