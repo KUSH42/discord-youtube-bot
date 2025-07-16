@@ -350,7 +350,7 @@ jobs:
 
       - name: Run performance tests
         run: |
-          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192 --expose-gc" \
+          NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" \
           npm run test:performance -- \
             --maxWorkers=1 \
             --forceExit \
