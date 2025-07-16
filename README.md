@@ -21,6 +21,7 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 - [🔒 Security Features](#-security-features)
 - [🚀 Deployment](#-deployment)
 - [🔍 How It Works](#-how-it-works)
+- [🧪 Testing Infrastructure](#-testing-infrastructure)
 - [🛡️ Development & Security](#️-development--security)
 - [❓ Troubleshooting](#-troubleshooting)
 - [🤝 Contributing](#-contributing)
@@ -296,6 +297,53 @@ sudo systemctl start discord-youtube-bot.service
 3. **📝 Filtering:** Check against known tweet IDs and timestamps
 4. **📢 Categorization:** Sort by post type (original, reply, quote, retweet)
 5. **📡 Announcement:** Post to appropriate Discord channels
+
+## 🧪 Testing Infrastructure
+
+The bot includes a comprehensive testing infrastructure designed for reliability and confidence in deployments:
+
+### 🧪 Testing Framework
+- **Comprehensive Test Suite:** Multi-tier testing with Unit, Integration, E2E, Performance, and Security tests
+- **Cross-Platform Coverage:** Tests run on Node.js 16, 18, and 20 across different environments
+- **Real-time CI/CD:** GitHub Actions with automated testing on every push and pull request
+- **Coverage Reporting:** Detailed code coverage metrics for all test types
+
+### 🎯 Test Types
+
+| Test Type | Purpose | Coverage |
+|-----------|---------|----------|
+| **Unit** | Component testing with mocking | Individual functions and modules |
+| **Integration** | Service interaction testing | API endpoints, database operations |
+| **E2E** | Full workflow testing | Complete user scenarios |
+| **Performance** | Load and response testing | Resource usage, timing metrics |
+| **Security** | Vulnerability scanning | Dependency audits, static analysis |
+
+### 🚀 CI/CD Features
+- **Parallel Execution:** Tests run concurrently for faster feedback
+- **Artifact Collection:** Test results, coverage reports, and logs preserved
+- **Smart Detection:** Automatically identifies test failures and provides detailed reporting
+- **PR Integration:** Real-time test status in pull requests with comprehensive summaries
+
+### 📊 Test Commands
+```bash
+# Run all tests locally
+npm test                    # Execute full test suite
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests only
+npm run test:e2e           # End-to-end tests only
+npm run test:performance   # Performance benchmarks
+npm run test:security      # Security auditing
+
+# Coverage reporting
+npm run test:coverage      # Generate coverage reports
+npm run test:watch         # Watch mode for development
+```
+
+### 🛡️ Quality Gates
+- **Minimum Coverage:** Tests must maintain coverage thresholds
+- **Zero Failures:** All tests must pass before merging
+- **Security Scanning:** No high/critical vulnerabilities allowed
+- **Performance Benchmarks:** Response times within acceptable limits
 
 ## 🛡️ Development & Security
 

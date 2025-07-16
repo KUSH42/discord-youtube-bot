@@ -501,20 +501,20 @@ jobs:
             found=false
             case $test_type in
               "unit")
-                # Look for unit test coverage files
-                if find test-results -name "*unit*" -type f | grep -q .; then
+                # Look for unit test coverage files in coverage/unit/ directory
+                if find test-results -path "*/coverage/unit/*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
               "integration")
-                # Look for integration test coverage files  
-                if find test-results -name "*integration*" -type f | grep -q .; then
+                # Look for integration test coverage files in coverage/integration/ directory
+                if find test-results -path "*/coverage/integration/*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
               "e2e")
-                # Look for e2e test coverage files
-                if find test-results -name "*e2e*" -type f | grep -q .; then
+                # Look for e2e test coverage files in coverage/e2e/ directory
+                if find test-results -path "*/coverage/e2e/*" -type f | grep -q .; then
                   found=true
                 fi
                 ;;
