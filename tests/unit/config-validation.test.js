@@ -443,4 +443,158 @@ describe('Configuration Validation Tests', () => {
       expect(process.env.TEST_LONG_VAR).toHaveLength(10000);
     });
   });
+
+  describe('Individual Validation Functions', () => {
+    describe('validateDiscordChannelId', () => {
+      it('should validate correct Discord channel IDs', () => {
+        expect(validateDiscordChannelId('123456789012345678')).toBe(true);  // 18 digits
+        expect(validateDiscordChannelId('12345678901234567')).toBe(true);   // 17 digits
+        expect(validateDiscordChannelId('1234567890123456789')).toBe(true); // 19 digits
+      });
+
+      it('should reject invalid Discord channel IDs', () => {
+        expect(validateDiscordChannelId('123456789012345')).toBe(false);     // Too short
+        expect(validateDiscordChannelId('12345678901234567890')).toBe(false); // Too long
+        expect(validateDiscordChannelId('1234567890123456a8')).toBe(false);   // Contains letter
+        expect(validateDiscordChannelId('')).toBe(false);                     // Empty
+        expect(validateDiscordChannelId(null)).toBe(false);                   // Null
+        expect(validateDiscordChannelId(undefined)).toBe(false);              // Undefined
+        expect(validateDiscordChannelId(123456789012345678)).toBe(false);     // Number instead of string
+      });
+    });
+
+    describe('validateYouTubeChannelId', () => {
+      it('should validate correct YouTube channel IDs', () => {
+        expect(validateYouTubeChannelId('UCrAOyUwjSM5zzPz_FqsUhuQ')).toBe(true);
+        expect(validateYouTubeChannelId('UC1234567890123456789012')).toBe(true);
+        expect(validateYouTubeChannelId('UC-_AbcDef12345678901234')).toBe(true);
+      });
+
+      it('should reject invalid YouTube channel IDs', () => {
+        expect(validateYouTubeChannelId('UCrAOyUwjSM5zzPz_FqsUhu')).toBe(false);   // Too short
+        expect(validateYouTubeChannelId('UCrAOyUwjSM5zzPz_FqsUhuQQ')).toBe(false); // Too long
+        expect(validateYouTubeChannelId('ACrAOyUwjSM5zzPz_FqsUhuQ')).toBe(false);  // Doesn't start with UC
+        expect(validateYouTubeChannelId('UC')).toBe(false);                         // Too short
+        expect(validateYouTubeChannelId('')).toBe(false);                          // Empty
+        expect(validateYouTubeChannelId(null)).toBe(false);                        // Null
+        expect(validateYouTubeChannelId(undefined)).toBe(false);                   // Undefined
+      });
+    });
+
+    describe('validateUrl', () => {
+      it('should validate correct URLs', () => {
+        expect(validateUrl('https://example.com')).toBe(true);
+        expect(validateUrl('http://example.com')).toBe(true);
+        expect(validateUrl('https://example.com/path')).toBe(true);
+        expect(validateUrl('https://example.com:8080')).toBe(true);
+        expect(validateUrl('https://subdomain.example.com')).toBe(true);
+      });
+
+      it('should reject invalid URLs', () => {
+        expect(validateUrl('not-a-url')).toBe(false);
+        expect(validateUrl('ftp://example.com')).toBe(true);  // URL constructor accepts ftp URLs
+        expect(validateUrl('')).toBe(false);
+        expect(validateUrl(null)).toBe(false);
+        expect(validateUrl(undefined)).toBe(false);
+        expect(validateUrl('https://')).toBe(false);
+      });
+    });
+
+    describe('validatePort', () => {
+      it('should validate correct ports', () => {
+        expect(validatePort('80')).toBe(true);
+        expect(validatePort('443')).toBe(true);
+        expect(validatePort('3000')).toBe(true);
+        expect(validatePort('8080')).toBe(true);
+        expect(validatePort('65535')).toBe(true);
+      });
+
+      it('should reject invalid ports', () => {
+        expect(validatePort('0')).toBe(false);       // Port 0 is invalid
+        expect(validatePort('65536')).toBe(false);   // Above max port
+        expect(validatePort('-1')).toBe(false);      // Negative
+        expect(validatePort('abc')).toBe(false);     // Not a number
+        expect(validatePort('')).toBe(false);        // Empty
+        expect(validatePort(null)).toBe(false);      // Null
+        expect(validatePort(undefined)).toBe(false); // Undefined
+      });
+    });
+
+    describe('validateLogLevel', () => {
+      it('should validate correct log levels', () => {
+        expect(validateLogLevel('error')).toBe(true);
+        expect(validateLogLevel('warn')).toBe(true);
+        expect(validateLogLevel('info')).toBe(true);
+        expect(validateLogLevel('debug')).toBe(true);
+        expect(validateLogLevel('verbose')).toBe(true);
+      });
+
+      it('should reject invalid log levels', () => {
+        expect(validateLogLevel('invalid')).toBe(false);
+        expect(validateLogLevel('INFO')).toBe(false);     // Case sensitive
+        expect(validateLogLevel('Warning')).toBe(false);  // Case sensitive
+        expect(validateLogLevel('')).toBe(false);         // Empty
+        expect(validateLogLevel(null)).toBe(false);       // Null
+        expect(validateLogLevel(undefined)).toBe(false);  // Undefined
+      });
+    });
+
+    describe('validateBooleanEnvVar', () => {
+      it('should validate truthy values', () => {
+        expect(validateBooleanEnvVar('true')).toBe(true);
+        expect(validateBooleanEnvVar('True')).toBe(true);
+        expect(validateBooleanEnvVar('TRUE')).toBe(true);
+        expect(validateBooleanEnvVar('yes')).toBe(true);
+        expect(validateBooleanEnvVar('1')).toBe(true);
+        // 'on' is not in the valid boolean list
+      });
+
+      it('should validate falsy values', () => {
+        expect(validateBooleanEnvVar('false')).toBe(true);
+        expect(validateBooleanEnvVar('False')).toBe(true);
+        expect(validateBooleanEnvVar('FALSE')).toBe(true);
+        expect(validateBooleanEnvVar('no')).toBe(true);
+        expect(validateBooleanEnvVar('0')).toBe(true);
+        // 'off' is not in the valid boolean list
+      });
+
+      it('should reject invalid boolean values', () => {
+        expect(validateBooleanEnvVar('invalid')).toBe(false);
+        expect(validateBooleanEnvVar('2')).toBe(false);
+        expect(validateBooleanEnvVar('maybe')).toBe(false);
+        expect(validateBooleanEnvVar('')).toBe(false);
+        expect(validateBooleanEnvVar(null)).toBe(false);
+        expect(validateBooleanEnvVar(undefined)).toBe(false);
+      });
+    });
+
+    describe('parseBooleanEnvVar', () => {
+      it('should parse truthy values correctly', () => {
+        expect(parseBooleanEnvVar('true')).toBe(true);
+        expect(parseBooleanEnvVar('True')).toBe(true);
+        expect(parseBooleanEnvVar('TRUE')).toBe(true);
+        expect(parseBooleanEnvVar('yes')).toBe(true);
+        expect(parseBooleanEnvVar('1')).toBe(true);
+        // 'on' is not in the truthy list
+      });
+
+      it('should parse falsy values correctly', () => {
+        expect(parseBooleanEnvVar('false')).toBe(false);
+        expect(parseBooleanEnvVar('False')).toBe(false);
+        expect(parseBooleanEnvVar('FALSE')).toBe(false);
+        expect(parseBooleanEnvVar('no')).toBe(false);
+        expect(parseBooleanEnvVar('0')).toBe(false);
+        // 'off' is not in the truthy list
+      });
+
+      it('should return false for invalid values', () => {
+        expect(parseBooleanEnvVar('invalid')).toBe(false);
+        expect(parseBooleanEnvVar('2')).toBe(false);
+        expect(parseBooleanEnvVar('maybe')).toBe(false);
+        expect(parseBooleanEnvVar('')).toBe(false);
+        expect(parseBooleanEnvVar(null)).toBe(false);
+        expect(parseBooleanEnvVar(undefined)).toBe(false);
+      });
+    });
+  });
 });
