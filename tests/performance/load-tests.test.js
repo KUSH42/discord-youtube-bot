@@ -495,7 +495,7 @@ describe('Performance and Load Tests', () => {
         const tweetIds = new Set();
         const duplicates = [];
 
-        const videoRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+        const videoRegex = /(?:(?:www\.)?youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
         const tweetRegex = /(?:x\.com|twitter\.com)\/[^\/]+\/status\/(\d+)/;
 
         for (const url of urls) {
@@ -529,7 +529,8 @@ describe('Performance and Load Tests', () => {
       // Generate large set of URLs with duplicates
       const urls = [];
       for (let i = 0; i < 10000; i++) {
-        urls.push(`https://www.youtube.com/watch?v=video${i % 1000}`); // Intentional duplicates
+        const videoId = `video${String(i % 1000).padStart(6, '0')}0`; // 11 characters
+        urls.push(`https://www.youtube.com/watch?v=${videoId}`); // Intentional duplicates
         urls.push(`https://x.com/user/status/${1000000000000000000 + (i % 500)}`); // Intentional duplicates
       }
 

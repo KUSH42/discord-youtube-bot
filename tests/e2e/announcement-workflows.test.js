@@ -493,9 +493,9 @@ describe('End-to-End Announcement Workflows', () => {
               throw error;
             }
             
-            console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2; // Exponential backoff
+            console.log(`Attempt ${attempt} failed, retrying...`);
+            // No timeout in test - immediate retry
+            delay *= 2; // Exponential backoff for tracking
           }
         }
       };
