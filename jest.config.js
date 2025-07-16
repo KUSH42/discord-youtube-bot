@@ -3,11 +3,13 @@ export default {
   transform: {},
   collectCoverage: true,
   collectCoverageFrom: [
+    'src/**/*.js',
     '*.js',
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',
-    '!setup-encryption.js'
+    '!setup-encryption.js',
+    '!tests/**'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],

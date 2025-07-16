@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createMockRequest, createMockResponse, mockNext } from '../mocks/express.mock.js';
+import { 
+  CommandRateLimit, 
+  createWebhookLimiter, 
+  createGeneralLimiter, 
+  createStrictLimiter, 
+  createCommandRateLimiter 
+} from '../../src/rate-limiter.js';
 
 describe('Rate Limiting Tests', () => {
   let mockReq, mockRes, mockNextFn;
