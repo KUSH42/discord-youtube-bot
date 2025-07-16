@@ -629,7 +629,11 @@ describe('Security and Input Validation Tests', () => {
           return data
             .replace(/(?:password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi, 
                      (match, value) => match.replace(value, '*'.repeat(Math.min(value.length, 8))))
-            .replace(/(?:api[_-]?key|access[_-]?token|bearer\s+)['"]?([a-zA-Z0-9+/=]{8,})/gi,
+            .replace(/(?:api[_-]?key|access[_-]?token|bearer)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
+                     (match, token) => match.replace(token, '*'.repeat(8)))
+            .replace(/(?:key|token)\s*[:=]\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
+                     (match, token) => match.replace(token, '*'.repeat(8)))
+            .replace(/['"]([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})['"](?:\s+is\s+invalid)?/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/(?:discord[_-]?token|bot[_-]?token)['"]?([a-zA-Z0-9._-]{50,})/gi,
                      (match, token) => match.replace(token, '*'.repeat(8)))
