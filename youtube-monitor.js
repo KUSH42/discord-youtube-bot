@@ -26,6 +26,13 @@ class YouTubeMonitor {
         this.PSH_CALLBACK_URL = process.env.PSH_CALLBACK_URL;
         this.PSH_VERIFY_TOKEN = process.env.PSH_VERIFY_TOKEN || 'your_optional_verify_token';
 
+        // Fallback configuration
+        this.YOUTUBE_FALLBACK_ENABLED = process.env.YOUTUBE_FALLBACK_ENABLED === 'true';
+        this.YOUTUBE_FALLBACK_DELAY_MS = parseInt(process.env.YOUTUBE_FALLBACK_DELAY_MS) || 15000;
+        this.YOUTUBE_FALLBACK_MAX_RETRIES = parseInt(process.env.YOUTUBE_FALLBACK_MAX_RETRIES) || 3;
+        this.YOUTUBE_API_POLL_INTERVAL_MS = parseInt(process.env.YOUTUBE_API_POLL_INTERVAL_MS) || 300000;
+        this.YOUTUBE_FALLBACK_BACKFILL_HOURS = parseInt(process.env.YOUTUBE_FALLBACK_BACKFILL_HOURS) || 2;
+
         // --- Global State ---
         this.announcedVideos = new Set();
         this.subscriptionRenewalTimer = null;
@@ -35,6 +42,379 @@ class YouTubeMonitor {
         // Configure memory management
         this.MAX_ANNOUNCED_VIDEOS = 10000; // Maximum number of video IDs to keep in memory
         this.CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+        // Fallback system state
+        this.failedNotifications = new Map();
+        this.lastSuccessfulCheck = new Date();
+        this.apiPollTimer = null;
+        this.recentFailures = [];
+        this.fallbackInProgress = false;
+
+        // Fallback metrics for monitoring
+        this.fallbackMetrics = {
+            totalNotificationFailures: 0,
+            totalRetryAttempts: 0,
+            totalSuccessfulRetries: 0,
+            totalApiFallbacks: 0,
+            totalVideosRecoveredByFallback: 0,
+            lastFallbackTime: null,
+            lastSuccessfulFallbackTime: null
+        };
+    }
+
+    /**
+     * Handle failed notification by queuing for retry and scheduling API fallback
+     */
+    async handleFailedNotification(rawXML, error) {
+        if (!this.YOUTUBE_FALLBACK_ENABLED) {
+            this.logger.warn('YouTube fallback system is disabled. Notification lost.');
+            return;
+        }
+
+        // Update metrics
+        this.fallbackMetrics.totalNotificationFailures++;
+
+        const failureId = crypto.randomUUID();
+        const now = new Date();
+        
+        // Add to failed notifications queue
+        this.failedNotifications.set(failureId, {
+            rawXML,
+            error: error.message,
+            timestamp: now,
+            retryCount: 0
+        });
+
+        // Track recent failures for multiple failure detection
+        this.recentFailures.push(now);
+        // Clean up failures older than 30 seconds
+        this.recentFailures = this.recentFailures.filter(timestamp => 
+            now.getTime() - timestamp.getTime() < 30000
+        );
+
+        this.logger.warn(`Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`);
+
+        // Schedule retry with exponential backoff
+        this.scheduleRetry(failureId);
+
+        // Schedule API fallback if multiple failures detected
+        if (this.recentFailures.length >= 2) {
+            this.logger.warn('Multiple recent failures detected, scheduling API fallback');
+            this.scheduleApiFallback();
+        }
+    }
+
+    /**
+     * Schedule retry for a failed notification with exponential backoff
+     */
+    scheduleRetry(failureId) {
+        const failure = this.failedNotifications.get(failureId);
+        if (!failure || failure.retryCount >= this.YOUTUBE_FALLBACK_MAX_RETRIES) {
+            if (failure && failure.retryCount >= this.YOUTUBE_FALLBACK_MAX_RETRIES) {
+                this.logger.error(`Max retries reached for notification ${failureId}, giving up`);
+                this.failedNotifications.delete(failureId);
+            }
+            return;
+        }
+
+        // Exponential backoff: 5s, 15s, 45s
+        const delays = [5000, 15000, 45000];
+        const delay = delays[failure.retryCount] || 45000;
+
+        setTimeout(async () => {
+            try {
+                this.logger.info(`Retrying failed notification ${failureId}, attempt ${failure.retryCount + 1}`);
+                failure.retryCount++;
+                this.fallbackMetrics.totalRetryAttempts++;
+                
+                // Try to reprocess the notification
+                await this.reprocessFailedNotification(failure.rawXML);
+                
+                // If successful, remove from queue
+                this.failedNotifications.delete(failureId);
+                this.fallbackMetrics.totalSuccessfulRetries++;
+                this.logger.info(`Successfully reprocessed notification ${failureId} (Successful retries: ${this.fallbackMetrics.totalSuccessfulRetries})`);
+                
+                // Update last successful check time
+                this.lastSuccessfulCheck = new Date();
+                
+            } catch (error) {
+                this.logger.warn(`Retry ${failure.retryCount} failed for notification ${failureId}: ${error.message}`);
+                
+                // Schedule next retry if we haven't hit max retries
+                if (failure.retryCount < this.YOUTUBE_FALLBACK_MAX_RETRIES) {
+                    this.scheduleRetry(failureId);
+                } else {
+                    this.logger.error(`Max retries reached for notification ${failureId}, removing from queue`);
+                    this.failedNotifications.delete(failureId);
+                }
+            }
+        }, delay);
+    }
+
+    /**
+     * Reprocess a failed notification XML
+     */
+    async reprocessFailedNotification(rawXML) {
+        // Configure secure XML parser
+        const parser = new xml2js.Parser({ 
+            explicitArray: false,
+            normalize: true,
+            normalizeTags: true,
+            trim: true,
+            explicitRoot: false,
+            mergeAttrs: false,
+            includeWhiteChars: false,
+            ignoreAttrs: false,
+            async: false,
+            strict: true,
+            chunkSize: 10000,
+            emptyTag: '',
+            cdata: false
+        });
+
+        const result = await parser.parseStringPromise(rawXML);
+
+        if (!result || !result.feed) {
+            throw new Error('Invalid XML structure: missing feed element');
+        }
+
+        const entry = result.feed.entry;
+        if (!entry) {
+            throw new Error('No entry found in notification');
+        }
+
+        // Process the entry similar to normal flow
+        await this.processNotificationEntry(entry);
+    }
+
+    /**
+     * Schedule API fallback polling
+     */
+    scheduleApiFallback() {
+        if (this.apiPollTimer || this.fallbackInProgress) {
+            this.logger.debug('API fallback already scheduled or in progress');
+            return;
+        }
+
+        this.apiPollTimer = setTimeout(async () => {
+            try {
+                this.fallbackInProgress = true;
+                await this.performApiFallback();
+            } catch (error) {
+                this.logger.error('API fallback failed:', error);
+            } finally {
+                this.fallbackInProgress = false;
+                this.apiPollTimer = null;
+            }
+        }, this.YOUTUBE_FALLBACK_DELAY_MS);
+
+        this.logger.info(`API fallback scheduled in ${this.YOUTUBE_FALLBACK_DELAY_MS}ms`);
+    }
+
+    /**
+     * Perform API fallback by polling YouTube Data API
+     */
+    async performApiFallback() {
+        this.logger.info('Performing YouTube API fallback check');
+        this.fallbackMetrics.totalApiFallbacks++;
+        this.fallbackMetrics.lastFallbackTime = new Date();
+
+        try {
+            // Calculate time window for backfill
+            const backfillStart = new Date(Date.now() - (this.YOUTUBE_FALLBACK_BACKFILL_HOURS * 60 * 60 * 1000));
+            const publishedAfter = this.lastSuccessfulCheck > backfillStart ? this.lastSuccessfulCheck : backfillStart;
+
+            this.logger.info(`Checking for videos published after: ${publishedAfter.toISOString()}`);
+
+            // Search for recent videos from the monitored channel
+            const searchResponse = await this.youtube.search.list({
+                part: 'id,snippet',
+                channelId: this.YOUTUBE_CHANNEL_ID,
+                type: 'video',
+                order: 'date',
+                publishedAfter: publishedAfter.toISOString(),
+                maxResults: 10
+            });
+
+            const videos = searchResponse.data.items || [];
+            this.logger.info(`Found ${videos.length} videos from API fallback`);
+
+            // Process each video that we haven't already announced
+            for (const video of videos) {
+                const videoId = video.id.videoId;
+                
+                if (!this.announcedVideos.has(videoId)) {
+                    this.logger.info(`Processing missed video from API fallback: ${video.snippet.title} (${videoId})`);
+                    
+                    // Get full video details
+                    const videoDetailsResponse = await this.youtube.videos.list({
+                        part: 'liveStreamingDetails,snippet',
+                        id: videoId
+                    });
+
+                    const videoItem = videoDetailsResponse.data.items[0];
+                    if (videoItem) {
+                        const publishedAt = new Date(videoItem.snippet.publishedAt);
+
+                        // Only announce if the video was published after the bot started
+                        if (this.getBotStartTime() && publishedAt.getTime() >= this.getBotStartTime().getTime()) {
+                            let contentType = 'upload';
+                            if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
+                                contentType = 'livestream';
+                            } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
+                                contentType = 'livestream';
+                            }
+
+                            const content = {
+                                id: videoId,
+                                title: videoItem.snippet.title,
+                                url: `https://www.youtube.com/watch?v=${videoId}`,
+                                type: contentType
+                            };
+
+                            await this.announceYouTubeContent(content);
+                            this.fallbackMetrics.totalVideosRecoveredByFallback++;
+                            this.logger.info(`Announced missed content via API fallback: ${content.title} (Total recovered: ${this.fallbackMetrics.totalVideosRecoveredByFallback})`);
+                        } else {
+                            // Mark as known even if we don't announce
+                            this.announcedVideos.add(videoId);
+                        }
+                    }
+                }
+            }
+
+            // Update last successful check time
+            this.lastSuccessfulCheck = new Date();
+            this.fallbackMetrics.lastSuccessfulFallbackTime = new Date();
+            this.logger.info('API fallback completed successfully');
+
+        } catch (error) {
+            this.logger.error('Error during API fallback:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get count of recent failures (within last 30 seconds)
+     */
+    getRecentFailureCount() {
+        const now = new Date();
+        this.recentFailures = this.recentFailures.filter(timestamp => 
+            now.getTime() - timestamp.getTime() < 30000
+        );
+        return this.recentFailures.length;
+    }
+
+    /**
+     * Get fallback system status for monitoring
+     */
+    getFallbackStatus() {
+        return {
+            enabled: this.YOUTUBE_FALLBACK_ENABLED,
+            currentlyInProgress: this.fallbackInProgress,
+            queuedNotifications: this.failedNotifications.size,
+            recentFailures: this.getRecentFailureCount(),
+            lastSuccessfulCheck: this.lastSuccessfulCheck,
+            nextApiFallback: this.apiPollTimer ? 'scheduled' : 'none',
+            metrics: { ...this.fallbackMetrics },
+            configuration: {
+                delayMs: this.YOUTUBE_FALLBACK_DELAY_MS,
+                maxRetries: this.YOUTUBE_FALLBACK_MAX_RETRIES,
+                pollIntervalMs: this.YOUTUBE_API_POLL_INTERVAL_MS,
+                backfillHours: this.YOUTUBE_FALLBACK_BACKFILL_HOURS
+            }
+        };
+    }
+
+    /**
+     * Process a notification entry from PubSubHubbub
+     */
+    async processNotificationEntry(entry) {
+        const videoId = entry['yt:videoId'];
+        const channelId = entry['yt:channelId'];
+        const title = entry.title;
+        let link = 'No Link Available';
+
+        if (entry.link) {
+            if (typeof entry.link === 'string') {
+                link = entry.link;
+            } else if (Array.isArray(entry.link)) {
+                const alternateLink = entry.link.find(l => l.rel === 'alternate' || l.type === 'text/html');
+                if (alternateLink && alternateLink.href) {
+                    link = alternateLink.href;
+                } else if (entry.link[0] && entry.link[0].href) {
+                    link = entry.link[0].href;
+                } else if (entry.link[0] && entry.link[0].$ && entry.link[0].$.href) {
+                    link = entry.link[0].$.href;
+                }
+            } else if (entry.link.href) { // Try this first if it's not an array and has href directly
+                link = entry.link.href;
+            } else if (entry.link.$ && entry.link.$.href) { // original approach
+                link = entry.link.$.href;
+            }
+        }
+        this.logger.info(`Extracted link: ${link}`);
+
+        // Check if the notification is for the channel we are monitoring
+        if (channelId === this.YOUTUBE_CHANNEL_ID) {
+            if (!this.announcedVideos.has(videoId)) {
+                this.logger.info(`New content detected: ${title} (${videoId})`);
+                
+                // Check if we need to cleanup memory before processing
+                this.cleanupAnnouncedVideosIfNeeded();
+                
+                // Fetch additional details to see if it's a livestream or an upload and get published date
+                const videoDetailsResponse = await this.youtube.videos.list({
+                    part: 'liveStreamingDetails,snippet',
+                    id: videoId
+                });
+
+                const videoItem = videoDetailsResponse.data.items[0];
+                if (videoItem) {
+                    const publishedAt = new Date(videoItem.snippet.publishedAt);
+
+                    // Only announce if the video was published after the bot started
+                    if (this.getBotStartTime() && publishedAt.getTime() >= this.getBotStartTime().getTime()) {
+                        let contentType = 'upload';
+                        // Check for livestream status based on YouTube Data API details
+                        if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
+                            contentType = 'livestream'; // Is or was live
+                        } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
+                            contentType = 'livestream'; // Currently live or scheduled
+                        }
+
+                        const content = {
+                            id: videoId,
+                            title: title,
+                            url: link,
+                            type: contentType
+                        };
+                        await this.announceYouTubeContent(content);
+                    } else if (this.getBotStartTime() && publishedAt.getTime() < this.getBotStartTime().getTime()) {
+                        this.logger.info(`Skipping announcement for old YouTube content published before bot startup: ${title} (${videoId}) published on ${publishedAt.toISOString()}`);
+                        this.announcedVideos.add(videoId); // Still mark as known to prevent future checks
+                    } else {
+                        // botStartTime might not be set yet if notification is received very early
+                        this.logger.warn(`Bot startup time not yet set, cannot determine if YouTube content is old. Announcing: ${title} (${videoId})`);
+                        let contentType = 'upload';
+                        if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
+                            contentType = 'livestream';
+                        } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
+                            contentType = 'livestream';
+                        }
+                        await this.announceYouTubeContent({ id: videoId, title: title, url: link, type: contentType });
+                    }
+                } else {
+                    this.logger.warn(`Could not fetch details for video ID: ${videoId}. Cannot determine if old. Announcing as generic content.`);
+                    await this.announceYouTubeContent({ id: videoId, title: title, url: link, type: 'unknown' });
+                }
+            } else {
+                this.logger.info(`Content already announced: ${title} (${videoId})`);
+            }
+        } else {
+            this.logger.info(`Notification for unknown channel ID: ${channelId}`);
+        }
     }
 
     async populateInitialYouTubeHistory() {
@@ -56,6 +436,31 @@ class YouTubeMonitor {
     }
 
     /**
+     * Set up real-time Discord message monitoring to catch manually posted YouTube links
+     */
+    setupDiscordMessageMonitoring() {
+        const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+        
+        this.client.on('messageCreate', (message) => {
+            // Only monitor the YouTube announcement channel
+            if (message.channel.id === this.DISCORD_YOUTUBE_CHANNEL_ID && !message.author.bot) {
+                const matches = [...message.content.matchAll(videoUrlRegex)];
+                if (matches.length > 0) {
+                    matches.forEach(match => {
+                        const videoId = match[1];
+                        if (!this.announcedVideos.has(videoId)) {
+                            this.announcedVideos.add(videoId);
+                            this.logger.info(`Added manually posted YouTube video to known list: ${videoId}`);
+                        }
+                    });
+                }
+            }
+        });
+        
+        this.logger.info('[YouTube Monitor] Set up real-time Discord message monitoring for manually posted links.');
+    }
+
+    /**
     * Announces a new video or livestream in the Discord channel.
     * @param {object} item - The video/livestream item object with id, title, url, type.
     */
@@ -70,6 +475,12 @@ class YouTubeMonitor {
             ? `@everyone **🎬 New Video Upload!**\n${item.title}\n${item.url}`
             : `@everyone **🔴 Livestream Started!**\n${item.title}\n${item.url}`;
 
+        // Final race condition check - ensure we haven't already announced this
+        if (this.announcedVideos.has(item.id)) {
+            this.logger.info(`Race condition avoided: Video ${item.id} already announced, skipping duplicate.`);
+            return;
+        }
+
         // Check if announcement posting is enabled before proceeding
         if (!this.isAnnouncementEnabled()) {
             this.announcedVideos.add(item.id);
@@ -77,11 +488,22 @@ class YouTubeMonitor {
             return;
         }
         try {
+            // Final check right before announcing to prevent race conditions
+            if (this.announcedVideos.has(item.id)) {
+                this.logger.info(`Race condition avoided: Video ${item.id} already announced during announcement process.`);
+                return;
+            }
+
+            // Add to announced list immediately to prevent duplicate announcements
+            this.announcedVideos.add(item.id);
+            
             // sendMirroredMessage already checks isPostingEnabled
             await this.sendMirroredMessage(channel, messageContent);
             this.logger.info(`Announced YT content: ${item.title}`);
         } catch (error) {
             this.logger.error(`Error sending YT announcement for ${item.id}:`, error);
+            // Remove from announced list if sending failed
+            this.announcedVideos.delete(item.id);
         }
     }
 
@@ -159,96 +581,13 @@ class YouTubeMonitor {
                 const entry = result.feed.entry;
 
                 if (entry) {
-                    const videoId = entry['yt:videoId'];
-                    const channelId = entry['yt:channelId'];
-                    const title = entry.title;
-                    let link = 'No Link Available';
-
-                    if (entry.link) {
-                        if (typeof entry.link === 'string') {
-                            link = entry.link;
-                        } else if (Array.isArray(entry.link)) {
-                            const alternateLink = entry.link.find(l => l.rel === 'alternate' || l.type === 'text/html');
-                            if (alternateLink && alternateLink.href) {
-                                link = alternateLink.href;
-                            } else if (entry.link[0] && entry.link[0].href) {
-                                link = entry.link[0].href;
-                            } else if (entry.link[0] && entry.link[0].$ && entry.link[0].$.href) {
-                                link = entry.link[0].$.href;
-                            }
-                        } else if (entry.link.href) { // Try this first if it's not an array and has href directly
-                            link = entry.link.href;
-                        } else if (entry.link.$ && entry.link.$.href) { // original approach
-                            link = entry.link.$.href;
-                        }
-                    }
-                    this.logger.info(`Extracted link: ${link}`);
-
-                    // Check if the notification is for the channel we are monitoring
-                    if (channelId === this.YOUTUBE_CHANNEL_ID) {
-                        if (!this.announcedVideos.has(videoId)) {
-                            this.logger.info(`New content detected: ${title} (${videoId})`);
-                            
-                            // Check if we need to cleanup memory before processing
-                            this.cleanupAnnouncedVideosIfNeeded();
-                            
-                            // Fetch additional details to see if it's a livestream or an upload and get published date
-                            const videoDetailsResponse = await this.youtube.videos.list({
-                                part: 'liveStreamingDetails,snippet',
-                                id: videoId
-                            });
-
-                            const videoItem = videoDetailsResponse.data.items[0];
-                            if (videoItem) {
-                                const publishedAt = new Date(videoItem.snippet.publishedAt);
-
-                                // Only announce if the video was published after the bot started
-                                if (this.getBotStartTime() && publishedAt.getTime() >= this.getBotStartTime().getTime()) {
-                                    let contentType = 'upload';
-                                    // Check for livestream status based on YouTube Data API details
-                                    if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
-                                        contentType = 'livestream'; // Is or was live
-                                    } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
-                                        contentType = 'livestream'; // Currently live or scheduled
-                                    }
-
-                                    const content = {
-                                        id: videoId,
-                                        title: title,
-                                        url: link,
-                                        type: contentType
-                                    };
-                                    await this.announceYouTubeContent(content);
-                                    this.announcedVideos.add(videoId); // Mark as announced
-                                } else if (this.getBotStartTime() && publishedAt.getTime() < this.getBotStartTime().getTime()) {
-                                    this.logger.info(`Skipping announcement for old YouTube content published before bot startup: ${title} (${videoId}) published on ${publishedAt.toISOString()}`);
-                                    this.announcedVideos.add(videoId); // Still mark as known to prevent future checks
-                                } else {
-                                    // botStartTime might not be set yet if notification is received very early
-                                    this.logger.warn(`Bot startup time not yet set, cannot determine if YouTube content is old. Announcing: ${title} (${videoId})`);
-                                    let contentType = 'upload';
-                                    if (videoItem.liveStreamingDetails && videoItem.liveStreamingDetails.actualStartTime) {
-                                        contentType = 'livestream';
-                                    } else if (videoItem.snippet.liveBroadcastContent === 'live' || videoItem.snippet.liveBroadcastContent === 'upcoming') {
-                                        contentType = 'livestream';
-                                    }
-                                    await this.announceYouTubeContent({ id: videoId, title: title, url: link, type: contentType });
-                                    this.announcedVideos.add(videoId);
-                                }
-                            } else {
-                                this.logger.warn(`Could not fetch details for video ID: ${videoId}. Cannot determine if old. Announcing as generic content.`);
-                                await this.announceYouTubeContent({ id: videoId, title: title, url: link, type: 'unknown' });
-                                this.announcedVideos.add(videoId); // Mark as announced
-                            }
-                        } else {
-                            this.logger.info(`Content already announced: ${title} (${videoId})`);
-                        }
-                    } else {
-                        this.logger.info(`Notification for unknown channel ID: ${channelId}`);
-                    }
+                    await this.processNotificationEntry(entry);
                 } else {
                     this.logger.info('No new entry in PubSubHubbub notification.');
                 }
+
+                // Update last successful check time on successful processing
+                this.lastSuccessfulCheck = new Date();
                 res.status(200).send('Notification received and processed.');
             } catch (error) {
                 // Log full context for debugging
@@ -257,6 +596,10 @@ class YouTubeMonitor {
                 this.logger.error('Request headers:', JSON.stringify(req.headers, null, 2));
                 this.logger.error('Request URL:', req.url);
                 this.logger.error('Request method:', req.method);
+                
+                // Trigger fallback system for failed notifications
+                await this.handleFailedNotification(req.body, error);
+                
                 res.status(500).send('Error processing notification.');
             }
         } else {
@@ -382,6 +725,7 @@ class YouTubeMonitor {
         }
         this.logger.info(`[YouTube Monitor] Initializing monitor for channel ID: ${this.YOUTUBE_CHANNEL_ID}`);
         await this.populateInitialYouTubeHistory();
+        this.setupDiscordMessageMonitoring();
         this.startPeriodicCleanup();
 
         let webhookPath = '/webhook/youtube';
@@ -445,7 +789,31 @@ class YouTubeMonitor {
     resetState() {
         this.announcedVideos.clear();
         this.stopPeriodicCleanup();
-        this.logger.info('[YouTube Monitor] State reset.');
+        
+        // Clear fallback system state
+        this.failedNotifications.clear();
+        this.recentFailures = [];
+        this.lastSuccessfulCheck = new Date();
+        
+        if (this.apiPollTimer) {
+            clearTimeout(this.apiPollTimer);
+            this.apiPollTimer = null;
+        }
+        
+        this.fallbackInProgress = false;
+
+        // Reset fallback metrics
+        this.fallbackMetrics = {
+            totalNotificationFailures: 0,
+            totalRetryAttempts: 0,
+            totalSuccessfulRetries: 0,
+            totalApiFallbacks: 0,
+            totalVideosRecoveredByFallback: 0,
+            lastFallbackTime: null,
+            lastSuccessfulFallbackTime: null
+        };
+        
+        this.logger.info('[YouTube Monitor] State reset including fallback system.');
     }
 }
 
