@@ -740,6 +740,18 @@ describe('Security and Input Validation Tests', () => {
             sanitizedMessage = sanitizedMessage.replace(pattern, '[SENSITIVE]');
           });
 
+          // Remove specific sensitive values (API keys, tokens, etc.)
+          sanitizedMessage = sanitizedMessage
+            .replace(/"([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})"/g, '"[REDACTED]"') // API keys like "sk-12345"
+            .replace(/"([a-zA-Z0-9._-]{20,})"/g, '"[REDACTED]"') // Long tokens
+            .replace(/([a-zA-Z0-9]{6,})/g, (match) => {
+              // Redact if it looks like a secret value (alphanumeric mix of 6+ chars)
+              if (/[0-9]/.test(match) && /[a-zA-Z]/.test(match)) {
+                return '[REDACTED]';
+              }
+              return match;
+            });
+
           systemPaths.forEach(pattern => {
             sanitizedMessage = sanitizedMessage.replace(pattern, '[PATH_REDACTED]');
           });
