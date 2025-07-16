@@ -450,7 +450,7 @@ describe('Discord Integration Tests', () => {
           return await channel.send(content);
         } catch (error) {
           if (error.code === 50004 && retries > 0) {
-            await new Promise(resolve => setTimeout(resolve, error.retry_after));
+            await new Promise(resolve => setTimeout(resolve, 1)); // Minimal delay for test
             return sendWithRetry(channel, content, retries - 1);
           }
           throw error;

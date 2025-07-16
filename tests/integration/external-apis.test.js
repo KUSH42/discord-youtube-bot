@@ -83,7 +83,7 @@ describe('External API Integration Tests', () => {
           return response.data.items[0];
         } catch (error) {
           if (error.code === 403 && retries > 0) {
-            await new Promise(resolve => setTimeout(resolve, 1));
+            // Immediate retry in test environment
             return fetchWithRetry(videoId, retries - 1);
           }
           throw error;
@@ -561,7 +561,7 @@ describe('External API Integration Tests', () => {
 
       mockYouTubeAPI.videos.list.mockRejectedValue(timeoutError);
 
-      const fetchWithTimeout = async (videoId, timeout = 5000) => {
+      const fetchWithTimeout = async (videoId, timeout = 10) => {
         return new Promise((resolve, reject) => {
           const timer = setTimeout(() => {
             reject(new Error('Request timeout'));
@@ -579,7 +579,7 @@ describe('External API Integration Tests', () => {
         });
       };
 
-      await expect(fetchWithTimeout('test', 100)).rejects.toThrow('Request timeout');
+      await expect(fetchWithTimeout('test', 1)).rejects.toThrow('Request timeout');
     });
 
     it('should handle API authentication failures', async () => {
