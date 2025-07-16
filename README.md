@@ -5,6 +5,10 @@
 ![Discord.js](https://img.shields.io/badge/discord.js-v14-7289da)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-lightgrey)
 
+![Tests](https://github.com/KUSH42/discord-bot/workflows/Comprehensive%20Test%20Suite/badge.svg)
+![Security](https://img.shields.io/badge/security-scanned-green)
+![Performance](https://img.shields.io/badge/performance-monitored-blue)
+
 > 🚀 **A production-ready Discord bot that automatically announces new content from YouTube channels and X (Twitter) profiles to your Discord server.**
 
 This Node.js bot monitors designated YouTube channels and X profiles, delivering real-time content announcements to your Discord channels. Built with enterprise-grade security, monitoring, and reliability features.
