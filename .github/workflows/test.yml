@@ -605,6 +605,33 @@ jobs:
               console.log('Test summary file not found');
             }
 
+      - name: Comment commit with test results
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'reports/test-summary.md';
+            
+            if (fs.existsSync(path)) {
+              try {
+                const body = fs.readFileSync(path, 'utf8');
+                
+                await github.rest.repos.createCommitComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  commit_sha: context.sha,
+                  body: body
+                });
+                console.log('Commit comment created successfully');
+              } catch (error) {
+                console.log('Failed to create commit comment:', error.message);
+              }
+            } else {
+              console.log('Test summary file not found');
+            }
+
       - name: Store final test report
         uses: actions/upload-artifact@v4
         with:
