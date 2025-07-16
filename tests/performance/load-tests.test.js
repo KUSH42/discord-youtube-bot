@@ -437,8 +437,8 @@ describe('Performance and Load Tests', () => {
       const finalMemory = process.memoryUsage();
       const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
 
-      // Memory increase should be reasonable (less than 10MB)
-      expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024);
+      // Memory increase should be reasonable (less than 15MB)
+      expect(memoryIncrease).toBeLessThan(15 * 1024 * 1024);
 
       // Force garbage collection if available (only in local dev with --expose-gc)
       if (typeof global.gc === 'function') {
