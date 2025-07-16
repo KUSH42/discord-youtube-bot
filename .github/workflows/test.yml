@@ -494,7 +494,37 @@ jobs:
           
           # Check each test type result
           for test_type in unit integration e2e performance security; do
-            if [ -d "test-results/${test_type}-test-results" ] || [ -d "test-results/${test_type}-test-results-node"* ]; then
+            # Check for test artifacts (different naming patterns for different test types)
+            found=false
+            case $test_type in
+              "unit")
+                if ls test-results/unit-test-results-node* >/dev/null 2>&1; then
+                  found=true
+                fi
+                ;;
+              "integration")
+                if [ -d "test-results/integration-test-results" ]; then
+                  found=true
+                fi
+                ;;
+              "e2e")
+                if [ -d "test-results/e2e-test-results" ]; then
+                  found=true
+                fi
+                ;;
+              "performance")
+                if [ -d "test-results/performance-test-results" ]; then
+                  found=true
+                fi
+                ;;
+              "security")
+                if [ -d "test-results/security-test-results" ]; then
+                  found=true
+                fi
+                ;;
+            esac
+            
+            if [ "$found" = true ]; then
               echo "| ${test_type^} | ✅ Passed | TBD |" >> reports/test-summary.md
             else
               echo "| ${test_type^} | ⏭️ Skipped | - |" >> reports/test-summary.md
