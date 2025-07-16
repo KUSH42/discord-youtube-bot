@@ -440,14 +440,17 @@ describe('Performance and Load Tests', () => {
       // Memory increase should be reasonable (less than 10MB)
       expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024);
 
-      // Force garbage collection if available
-      if (global.gc) {
+      // Force garbage collection if available (only in local dev with --expose-gc)
+      if (typeof global.gc === 'function') {
         global.gc();
         const afterGCMemory = process.memoryUsage();
         const afterGCIncrease = afterGCMemory.heapUsed - initialMemory.heapUsed;
         
         // After GC, memory increase should be minimal
         expect(afterGCIncrease).toBeLessThan(5 * 1024 * 1024);
+      } else {
+        // In CI environments without --expose-gc, just check that memory didn't grow excessively
+        console.log('GC not available, skipping post-GC memory check');
       }
     });
 
@@ -476,7 +479,7 @@ describe('Performance and Load Tests', () => {
       structures.length = 0;
 
       // Force garbage collection if available
-      if (global.gc) {
+      if (typeof global.gc === 'function') {
         global.gc();
       }
 
