@@ -570,10 +570,15 @@ class YouTubeMonitor {
 
                 // Add defensive checks for XML structure
                 if (!result || !result.feed) {
+                    const error = new Error('Invalid XML structure: missing feed element');
                     this.logger.error('Invalid XML structure: missing feed element');
                     this.logger.error('Raw XML body received:', req.body);
                     this.logger.error('Parsed XML result:', JSON.stringify(result, null, 2));
                     this.logger.error('Request headers:', JSON.stringify(req.headers, null, 2));
+                    
+                    // CRITICAL FIX: Trigger fallback system for malformed notifications
+                    await this.handleFailedNotification(req.body, error);
+                    
                     res.status(400).send('Invalid XML format');
                     return;
                 }
