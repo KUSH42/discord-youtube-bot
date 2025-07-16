@@ -187,3 +187,64 @@ export const mockDetailedHealthResponse = {
     }
   }
 };
+
+// Helper function to create a mock rate limiter implementation
+export const createMockRateLimit = (options = {}) => {
+  const store = new Map();
+  
+  return (req, res, next) => {
+    const key = options.keyGenerator ? options.keyGenerator(req) : req.ip || 'unknown';
+    const now = Date.now();
+    const windowStart = now - (options.windowMs || 900000);
+    
+    // Handle skip function
+    if (options.skip && options.skip(req)) {
+      return next();
+    }
+    
+    // Clean expired entries
+    for (const [k, data] of store.entries()) {
+      if (data.resetTime <= now) {
+        store.delete(k);
+      }
+    }
+    
+    const existing = store.get(key);
+    if (!existing) {
+      store.set(key, {
+        count: 1,
+        resetTime: now + (options.windowMs || 900000)
+      });
+      
+      res.set({
+        'X-RateLimit-Limit': options.max || 100,
+        'X-RateLimit-Remaining': (options.max || 100) - 1,
+        'X-RateLimit-Reset': new Date(now + (options.windowMs || 900000)).toISOString()
+      });
+      
+      return next();
+    }
+    
+    if (existing.count >= (options.max || 100)) {
+      return res.status(429).json(options.message || { error: 'Too Many Requests' });
+    }
+    
+    existing.count++;
+    
+    res.set({
+      'X-RateLimit-Limit': options.max || 100,
+      'X-RateLimit-Remaining': (options.max || 100) - existing.count,
+      'X-RateLimit-Reset': new Date(existing.resetTime).toISOString()
+    });
+    
+    next();
+  };
+};
+
+// Helper function to create command-specific rate limiter
+export const createCommandRateLimit = (options = {}) => {
+  return createMockRateLimit({
+    ...options,
+    message: { error: 'Command rate limit exceeded. Please wait before trying again.' }
+  });
+};

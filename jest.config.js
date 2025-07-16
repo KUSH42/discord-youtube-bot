@@ -10,7 +10,7 @@ export default {
     '!setup-encryption.js'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: ['text', 'lcov', 'html', 'clover'],
   testMatch: [
     '**/tests/**/*.test.js',
     '**/tests/**/*.spec.js',
@@ -18,6 +18,9 @@ export default {
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,
+  verbose: true,
+  forceExit: true,
+  detectOpenHandles: true,
   moduleFileExtensions: ['js', 'json'],
   transformIgnorePatterns: [
     'node_modules/(?!(.*\\.mjs$))'

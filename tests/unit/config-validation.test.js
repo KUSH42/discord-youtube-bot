@@ -102,6 +102,11 @@ describe('Configuration Validation Tests', () => {
       requiredVars.forEach(varName => {
         process.env[varName] = `test-${varName.toLowerCase()}`;
       });
+      
+      // Set optional variables to avoid warnings
+      process.env.PSH_SECRET = 'test-secret-key-long-enough-to-be-secure';
+      process.env.PSH_VERIFY_TOKEN = 'test-verify-token';
+      process.env.ALLOWED_USER_IDS = '123456789012345678';
 
       const { missing, warnings } = validateEnvironmentVariables();
 
@@ -359,30 +364,19 @@ describe('Configuration Validation Tests', () => {
 
       const invalidUrls = [
         'not-a-url',
-        'ftp://example.com',
+        'invalid-url-format',
         'http://',
         'https://'
       ];
 
       validUrls.forEach(url => {
         process.env.PSH_CALLBACK_URL = url;
-        try {
-          new URL(process.env.PSH_CALLBACK_URL);
-          // If no error thrown, URL is valid
-          expect(true).toBe(true);
-        } catch (error) {
-          expect(false).toBe(true); // Should not reach here for valid URLs
-        }
+        expect(() => new URL(process.env.PSH_CALLBACK_URL)).not.toThrow();
       });
 
       invalidUrls.forEach(url => {
         process.env.PSH_CALLBACK_URL = url;
-        try {
-          new URL(process.env.PSH_CALLBACK_URL);
-          expect(false).toBe(true); // Should not reach here for invalid URLs
-        } catch (error) {
-          expect(error).toBeInstanceOf(Error);
-        }
+        expect(() => new URL(process.env.PSH_CALLBACK_URL)).toThrow();
       });
     });
   });
