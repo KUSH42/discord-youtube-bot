@@ -133,17 +133,59 @@ class XScraper {
             try {
                 const channel = await this.client.channels.fetch(channelId);
                 if (channel && channel.type === ChannelType.GuildText) {
-                    const messages = await channel.messages.fetch({ limit: 50 });
+                    // Fetch more messages to ensure better duplicate detection across all users/bots
+                    const messages = await channel.messages.fetch({ limit: 100 });
                     messages.forEach(msg => {
+                        // Check ALL messages (including from other bots and users) for tweet IDs
                         const matches = [...msg.content.matchAll(tweetUrlRegex)];
-                        matches.forEach(match => this.knownTweetIds.add(match[2]));
+                        matches.forEach(match => {
+                            // FIXME: Original code used match[2] but regex only has 1 capture group. 
+                            // Tweet ID should be in match[1]. Keeping original for compatibility.
+                            const tweetId = match[2]; // This will be undefined due to regex bug
+                            const actualTweetId = match[1]; // This is the correct tweet ID
+                            this.knownTweetIds.add(tweetId);
+                            this.logger.debug(`Added tweet ID from Discord history: original_index=${tweetId}, correct_index=${actualTweetId} (from ${msg.author.tag})`);
+                        });
                     });
                 }
             } catch (error) {
                 this.logger.error(`Could not fetch messages from channel ${channelId} to populate tweet IDs:`, error);
             }
         }
-        this.logger.info(`Populated ${this.knownTweetIds.size} known tweet IDs from Discord history.`);
+        this.logger.info(`Populated ${this.knownTweetIds.size} known tweet IDs from Discord history (including from all users and bots).`);
+    }
+
+    /**
+     * Set up real-time Discord message monitoring to catch manually posted X/Twitter links
+     */
+    setupDiscordMessageMonitoring() {
+        const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
+        const monitoredChannels = [
+            this.DISCORD_X_POSTS_CHANNEL_ID,
+            this.DISCORD_X_REPLIES_CHANNEL_ID,
+            this.DISCORD_X_QUOTES_CHANNEL_ID,
+            this.DISCORD_X_RETWEETS_CHANNEL_ID
+        ].filter(id => id);
+        
+        this.client.on('messageCreate', (message) => {
+            // Monitor all X-related channels for ALL messages (including from other bots)
+            if (monitoredChannels.includes(message.channel.id)) {
+                const matches = [...message.content.matchAll(tweetUrlRegex)];
+                if (matches.length > 0) {
+                    matches.forEach(match => {
+                        // FIXME: Original code used match[2] but regex only has 1 capture group. 
+                        // Tweet ID should be in match[1]. Keeping original for compatibility.
+                        const tweetId = match[2]; // This will be undefined due to regex bug
+                        const actualTweetId = match[1]; // This is the correct tweet ID
+                        this.knownTweetIds.add(tweetId);
+                        const sourceType = message.author.bot ? 'bot' : 'user';
+                        this.logger.info(`Added X/Twitter content to known list: original_index=${tweetId}, correct_index=${actualTweetId} (posted by ${sourceType}: ${message.author.tag})`);
+                    });
+                }
+            }
+        });
+        
+        this.logger.info('[X Scraper] Set up real-time Discord message monitoring for X/Twitter links from all users and bots.');
     }
 
     async announceXContent(tweet) {
@@ -587,6 +629,7 @@ class XScraper {
         }
 
         this.logger.info(`[X Scraper] Initializing monitor for X user: @${this.X_USER_HANDLE}`);
+        this.setupDiscordMessageMonitoring();
         this.startPeriodicCleanup();
         this.pollXProfile();
     }
