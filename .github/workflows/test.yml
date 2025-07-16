@@ -355,7 +355,8 @@ jobs:
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
-            --testTimeout=120000
+            --testTimeout=120000 \
+            --verbose 2>&1 | tee test-output.log
 
       - name: Generate performance report
         run: |
@@ -366,11 +367,39 @@ jobs:
           echo "Platform: ${{ runner.os }}" >> reports/performance.md
           echo "" >> reports/performance.md
           
-          # Add performance metrics if available
-          if [ -f performance-metrics.json ]; then
-            echo "## Metrics" >> reports/performance.md
-            cat performance-metrics.json >> reports/performance.md
+          # Extract performance metrics from test output
+          echo "## Performance Metrics" >> reports/performance.md
+          echo "" >> reports/performance.md
+          
+          # Parse Jest output for timing information
+          if [ -f test-output.log ]; then
+            echo "### Test Execution Times" >> reports/performance.md
+            grep -E "Test completed in [0-9]+\.[0-9]+ms" test-output.log | head -10 >> reports/performance.md || echo "No timing data found" >> reports/performance.md
+            echo "" >> reports/performance.md
+            
+            echo "### Throughput Metrics" >> reports/performance.md
+            grep -E "(messages per second|URLs per second|webhooks per second)" test-output.log | head -10 >> reports/performance.md || echo "No throughput data found" >> reports/performance.md
+            echo "" >> reports/performance.md
           fi
+          
+          # Add system performance info
+          echo "### System Performance" >> reports/performance.md
+          echo "- **CPU Info**: $(nproc) cores" >> reports/performance.md
+          echo "- **Memory**: $(free -h | grep '^Mem:' | awk '{print $2}')" >> reports/performance.md
+          echo "- **Test Duration**: $(date -d @$SECONDS -u '+%M:%S')" >> reports/performance.md
+          echo "" >> reports/performance.md
+          
+          # Create metrics summary JSON
+          cat > performance-metrics.json << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "node_version": "$(node --version)",
+            "platform": "${{ runner.os }}",
+            "cpu_cores": $(nproc),
+            "memory_total": "$(free -h | grep '^Mem:' | awk '{print $2}')",
+            "test_duration_seconds": $SECONDS
+          }
+          EOF
 
       - name: Store performance test results
         uses: actions/upload-artifact@v4
@@ -488,8 +517,8 @@ jobs:
           
           ## Test Results
           
-          | Test Type | Status | Coverage |
-          |-----------|--------|----------|
+          | Test Type   | Status  | Coverage |
+          |-------------|---------|----------|
           EOF
           
           # List available artifacts for debugging
