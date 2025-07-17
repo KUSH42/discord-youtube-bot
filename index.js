@@ -23,34 +23,41 @@ config();
 /**
  * Main application entry point
  */
-async function main() {
-  let container, logger;
-  
+async function startBot() {
+  let container;
   try {
-    // Initialize configuration
     const configuration = new Configuration();
-    
-    // Create dependency container
     container = new DependencyContainer();
-    
-    // Set up all services
     await setupProductionServices(container, configuration);
-    
-    // Get logger early for error reporting
-    logger = container.resolve('logger');
+    const logger = container.resolve('logger');
     logger.info('🚀 Starting Discord YouTube Bot...');
-    
-    // Start core applications
     await startApplications(container, configuration);
-    
-    // Set up web server for webhooks
     await startWebServer(container, configuration);
-    
-    // Set up graceful shutdown
     setupGracefulShutdown(container);
-    
     logger.info('✅ Discord YouTube Bot started successfully');
-    
+    return container;
+  } catch (error) {
+    if (container && container.resolve('logger')) {
+      container.resolve('logger').error('❌ Failed to start bot:', error);
+    } else {
+      console.error('❌ Failed to start bot:', error);
+    }
+    if (container) await container.dispose();
+    throw error;
+  }
+}
+
+async function main() {
+  let container;
+  try {
+    container = await startBot();
+    const eventBus = container.resolve('eventBus');
+    eventBus.on('bot.request_restart', async () => {
+      const logger = container.resolve('logger');
+      logger.info('Restarting bot...');
+      await container.dispose();
+      container = await startBot();
+    });
   } catch (error) {
     if (logger) {
       logger.error('❌ Failed to start bot:', error);

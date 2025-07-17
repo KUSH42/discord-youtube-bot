@@ -253,7 +253,7 @@ All commands work in the configured support channel with your chosen prefix (def
 | Command | Description | Authorization |
 |---------|-------------|--------------|
 | `!kill` | 🛑 Stop all Discord posting | Authorized users only |
-| `!restart` | 🔄 Soft restart the bot | Authorized users only |
+| `!restart` | 🔄 Fully restarts the bot, reloading all environment variables and configurations. | Authorized users only |
 | `!announce <true\|false>` | 📢 Toggle announcement posting | Anyone |
 | `!vxtwitter <true\|false>` | 🐦 Toggle URL conversion | Anyone |
 | `!loglevel <level>` | 📝 Change logging level | Anyone |

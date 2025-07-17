@@ -126,26 +126,8 @@ export class BotApplication {
    * @returns {Promise<void>}
    */
   async softRestart() {
-    this.logger.info('Performing soft restart...');
-    
-    try {
-      // Re-enable posting but preserve announcement settings
-      this.state.set('postingEnabled', true);
-      
-      // Reset bot start time
-      this.state.set('botStartTime', new Date());
-      
-      // Emit restart event
-      this.eventBus.emit('bot.restarted', {
-        restartTime: this.state.get('botStartTime')
-      });
-      
-      this.logger.info('Soft restart completed');
-      
-    } catch (error) {
-      this.logger.error('Soft restart failed:', error);
-      throw error;
-    }
+    this.logger.info('Requesting full bot restart...');
+    this.eventBus.emit('bot.request_restart');
   }
   
   /**

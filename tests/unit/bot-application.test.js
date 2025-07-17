@@ -4,16 +4,21 @@ import { BotApplication } from '../../src/application/bot-application.js';
 describe('BotApplication', () => {
   let botApp;
   let mockDiscordService;
+  let mockEventBus;
 
   beforeEach(() => {
     mockDiscordService = {
       isReady: jest.fn().mockReturnValue(true),
     };
 
+    mockEventBus = {
+      emit: jest.fn(),
+    };
+
     const dependencies = {
       discordService: mockDiscordService,
       commandProcessor: {},
-      eventBus: {},
+      eventBus: mockEventBus,
       config: {
         get: jest.fn(),
         getBoolean: jest.fn(),
@@ -32,7 +37,13 @@ describe('BotApplication', () => {
     };
 
     botApp = new BotApplication(dependencies);
+  describe('softRestart', () => {
+    it('should emit a bot.request_restart event', async () => {
+      await botApp.softRestart();
+      expect(mockEventBus.emit).toHaveBeenCalledWith('bot.request_restart');
+    });
   });
+});
 
   describe('createDetailedHealthEmbed', () => {
     it('should create a detailed health embed correctly', () => {

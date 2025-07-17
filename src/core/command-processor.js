@@ -182,7 +182,7 @@ export class CommandProcessor {
     // Note: The actual restart logic is handled by the application layer
     return {
       success: true,
-      message: '🔄 Initiating soft restart...',
+      message: '🔄 Initiating full restart... The bot will reload all configurations.',
       requiresRestart: true,
       userId
     };
