@@ -139,7 +139,6 @@ jobs:
 
       - name: Run unit tests
         run: |
-          mkdir -p test-results/unit
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
             --coverage \
@@ -147,7 +146,7 @@ jobs:
             --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover \
             --maxWorkers=2 \
             --forceExit \
-            --detectOpenHandles 2>&1 | tee test-results/unit/test-output-node${{ matrix.node-version }}.log
+            --detectOpenHandles 2>&1 | tee coverage/unit/test-output-node${{ matrix.node-version }}.log
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -166,7 +165,6 @@ jobs:
           path: |
             coverage/unit/
             junit.xml
-            test-results/unit/test-output-node${{ matrix.node-version }}.log
           retention-days: 7
 
   # Integration tests
@@ -223,7 +221,6 @@ jobs:
         env:
           NODE_ENV: test
         run: |
-          mkdir -p test-results/integration
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
             --coverage \
@@ -232,7 +229,7 @@ jobs:
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
-            --testTimeout=30000 2>&1 | tee test-results/integration/test-output.log
+            --testTimeout=30000 2>&1 | tee coverage/integration/test-output.log
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -251,7 +248,6 @@ jobs:
           path: |
             coverage/integration/
             logs/
-            test-results/integration/test-output.log
           retention-days: 7
 
   # End-to-end tests
@@ -321,7 +317,7 @@ jobs:
             logs/
             screenshots/
             .env.e2e
-            test-results/e2e/test-output.log
+            test-results/e2e/
           retention-days: 7
           if-no-files-found: warn
 
@@ -345,7 +341,6 @@ jobs:
 
       - name: Run performance tests
         run: |
-          mkdir -p test-results/performance
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" \
           npm run test:performance -- \
             --coverage \
@@ -355,7 +350,7 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --testTimeout=120000 \
-            --verbose 2>&1 | tee test-results/performance/test-output.log
+            --verbose 2>&1 | tee coverage/performance/test-output.log
 
       - name: Generate performance report
         run: |
@@ -371,13 +366,13 @@ jobs:
           echo "" >> reports/performance.md
           
           # Parse Jest output for timing information
-          if [ -f test-results/performance/test-output.log ]; then
+          if [ -f coverage/performance/test-output.log ]; then
             echo "### Test Execution Times" >> reports/performance.md
-            grep -E "Test completed in [0-9]+\.[0-9]+ms" test-results/performance/test-output.log | head -10 >> reports/performance.md || echo "No timing data found" >> reports/performance.md
+            grep -E "Test completed in [0-9]+\.[0-9]+ms" coverage/performance/test-output.log | head -10 >> reports/performance.md || echo "No timing data found" >> reports/performance.md
             echo "" >> reports/performance.md
             
             echo "### Throughput Metrics" >> reports/performance.md
-            grep -E "(messages per second|URLs per second|webhooks per second)" test-results/performance/test-output.log | head -10 >> reports/performance.md || echo "No throughput data found" >> reports/performance.md
+            grep -E "(messages per second|URLs per second|webhooks per second)" coverage/performance/test-output.log | head -10 >> reports/performance.md || echo "No throughput data found" >> reports/performance.md
             echo "" >> reports/performance.md
           fi
           
@@ -418,7 +413,6 @@ jobs:
             coverage/performance/
             reports/
             performance-metrics.json
-            test-results/performance/test-output.log
           retention-days: 30
 
   # Security tests
@@ -499,7 +493,7 @@ jobs:
           path: |
             security-audit.json
             security-report.json
-            test-results/security/test-output.log
+            test-results/security/
           retention-days: 30
 
   # Aggregate results and report
@@ -581,20 +575,20 @@ jobs:
           COVERAGE_FILES=()
           
           # Add Node 18 unit coverage (primary)
-          if [ -f "test-results/unit/node18/coverage/unit/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/unit/node18/coverage/unit/lcov.info")
+          if [ -f "test-results/unit/node18/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/unit/node18/lcov.info")
             echo "Found Node 18 unit coverage"
           fi
           
           # Add integration coverage if available
-          if [ -f "test-results/integration/coverage/integration/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/integration/coverage/integration/lcov.info")
+          if [ -f "test-results/integration/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/integration/lcov.info")
             echo "Found integration coverage"
           fi
           
           # Add performance coverage if available
-          if [ -f "test-results/performance/coverage/performance/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/performance/coverage/performance/lcov.info")
+          if [ -f "test-results/performance/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/performance/lcov.info")
             echo "Found performance coverage"
           fi
           
