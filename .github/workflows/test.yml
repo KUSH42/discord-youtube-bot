@@ -139,6 +139,7 @@ jobs:
 
       - name: Run unit tests
         run: |
+          mkdir -p test-results/unit
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
             --coverage \
@@ -146,7 +147,7 @@ jobs:
             --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover \
             --maxWorkers=2 \
             --forceExit \
-            --detectOpenHandles
+            --detectOpenHandles 2>&1 | tee test-results/unit/test-output-node${{ matrix.node-version }}.log
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -165,6 +166,7 @@ jobs:
           path: |
             coverage/unit/
             junit.xml
+            test-results/unit/test-output-node${{ matrix.node-version }}.log
           retention-days: 7
 
   # Integration tests
@@ -221,6 +223,7 @@ jobs:
         env:
           NODE_ENV: test
         run: |
+          mkdir -p test-results/integration
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
             --coverage \
@@ -229,7 +232,7 @@ jobs:
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
-            --testTimeout=30000
+            --testTimeout=30000 2>&1 | tee test-results/integration/test-output.log
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -248,6 +251,7 @@ jobs:
           path: |
             coverage/integration/
             logs/
+            test-results/integration/test-output.log
           retention-days: 7
 
   # End-to-end tests
@@ -298,12 +302,13 @@ jobs:
         env:
           NODE_ENV: test
         run: |
+          mkdir -p test-results/e2e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config jest.e2e.config.js \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
-            --testTimeout=60000
+            --testTimeout=60000 2>&1 | tee test-results/e2e/test-output.log
 
       # E2E tests don't generate source code coverage since they focus on behavior testing
 
@@ -316,6 +321,7 @@ jobs:
             logs/
             screenshots/
             .env.e2e
+            test-results/e2e/test-output.log
           retention-days: 7
           if-no-files-found: warn
 
@@ -339,6 +345,7 @@ jobs:
 
       - name: Run performance tests
         run: |
+          mkdir -p test-results/performance
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" \
           npm run test:performance -- \
             --coverage \
@@ -348,7 +355,7 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --testTimeout=120000 \
-            --verbose 2>&1 | tee test-output.log
+            --verbose 2>&1 | tee test-results/performance/test-output.log
 
       - name: Generate performance report
         run: |
@@ -364,13 +371,13 @@ jobs:
           echo "" >> reports/performance.md
           
           # Parse Jest output for timing information
-          if [ -f test-output.log ]; then
+          if [ -f test-results/performance/test-output.log ]; then
             echo "### Test Execution Times" >> reports/performance.md
-            grep -E "Test completed in [0-9]+\.[0-9]+ms" test-output.log | head -10 >> reports/performance.md || echo "No timing data found" >> reports/performance.md
+            grep -E "Test completed in [0-9]+\.[0-9]+ms" test-results/performance/test-output.log | head -10 >> reports/performance.md || echo "No timing data found" >> reports/performance.md
             echo "" >> reports/performance.md
             
             echo "### Throughput Metrics" >> reports/performance.md
-            grep -E "(messages per second|URLs per second|webhooks per second)" test-output.log | head -10 >> reports/performance.md || echo "No throughput data found" >> reports/performance.md
+            grep -E "(messages per second|URLs per second|webhooks per second)" test-results/performance/test-output.log | head -10 >> reports/performance.md || echo "No throughput data found" >> reports/performance.md
             echo "" >> reports/performance.md
           fi
           
@@ -411,6 +418,7 @@ jobs:
             coverage/performance/
             reports/
             performance-metrics.json
+            test-results/performance/test-output.log
           retention-days: 30
 
   # Security tests
@@ -433,12 +441,13 @@ jobs:
 
       - name: Run security tests
         run: |
+          mkdir -p test-results/security
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config jest.security.config.js \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles \
-            --testTimeout=45000
+            --testTimeout=45000 2>&1 | tee test-results/security/test-output.log
 
       - name: Run security audit
         run: |
@@ -490,6 +499,7 @@ jobs:
           path: |
             security-audit.json
             security-report.json
+            test-results/security/test-output.log
           retention-days: 30
 
   # Aggregate results and report
@@ -521,7 +531,13 @@ jobs:
           name: unit-test-results-node18
           path: test-results/unit/
 
-      - name: Download integration test coverage
+      - name: Download Node 20 unit test coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-results-node20
+          path: test-results/unit/
+
+      - name: Download integration test results
         uses: actions/download-artifact@v4
         with:
           name: integration-test-results
@@ -629,6 +645,36 @@ jobs:
           
           echo "" >> reports/test-summary.md
           echo "## Detailed Results" >> reports/test-summary.md
+          
+          for test_type in unit integration e2e performance security; do
+            echo "" >> reports/test-summary.md
+            echo "### ${test_type^} Tests" >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+            echo "\`\`\`" >> reports/test-summary.md
+            if [ "$test_type" == "unit" ]; then
+              if [ -f test-results/unit/test-output-node18.log ]; then
+                cat test-results/unit/test-output-node18.log >> reports/test-summary.md
+              else
+                echo "No output for Node 18" >> reports/test-summary.md
+              fi
+              echo "" >> reports/test-summary.md
+              echo "---" >> reports/test-summary.md
+              echo "" >> reports/test-summary.md
+              if [ -f test-results/unit/test-output-node20.log ]; then
+                cat test-results/unit/test-output-node20.log >> reports/test-summary.md
+              else
+                echo "No output for Node 20" >> reports/test-summary.md
+              fi
+            else
+              if [ -f test-results/$test_type/test-output.log ]; then
+                cat test-results/$test_type/test-output.log >> reports/test-summary.md
+              else
+                echo "No output for $test_type tests" >> reports/test-summary.md
+              fi
+            fi
+            echo "\`\`\`" >> reports/test-summary.md
+          done
+          
           echo "" >> reports/test-summary.md
           echo "Detailed test results and coverage reports are available in the individual test artifacts:" >> reports/test-summary.md
           echo "- \`unit-test-results-node18\`, \`unit-test-results-node20\`" >> reports/test-summary.md
