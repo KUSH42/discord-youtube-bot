@@ -125,19 +125,19 @@ export class ContentAnnouncer {
    * @returns {boolean} True if should announce
    */
   shouldAnnounce(content, options) {
+    // Check force override first
+    if (options.force === true) {
+      return true;
+    }
+
     // Check global posting status
     if (!this.state.get('postingEnabled', true)) {
       return false;
     }
     
     // Check announcement-specific status
-    if (!this.state.get('announcementEnabled', false)) {
+    if (!this.state.get('announcementEnabled', true)) {
       return false;
-    }
-    
-    // Check force override
-    if (options.force === true) {
-      return true;
     }
     
     // Platform-specific checks
@@ -338,15 +338,7 @@ export class ContentAnnouncer {
       finalUrl = this.convertToVxTwitter(url);
     }
     
-    let message = `${emoji} **${author}** ${actionText}:`;
-    
-    // Add preview text if available (truncated)
-    if (text && text.trim() && type !== 'retweet') {
-      const previewText = text.length > 100 ? text.substring(0, 100) + '...' : text;
-      message += `\n> ${previewText}`;
-    }
-    
-    message += `\n${finalUrl}`;
+    const message = `${emoji} **${author}** ${actionText}:\n${finalUrl}`;
     
     return message;
   }
