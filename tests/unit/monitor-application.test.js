@@ -60,10 +60,11 @@ describe('MonitorApplication', () => {
 
   describe('handleNotification', () => {
     it('should increment xmlParseFailures when XML is malformed', async () => {
+      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue(null);
       const requestBody = '<xml>malformed</xml>';
-      
-      await monitorApp.handleNotification(requestBody);
+
+      await monitorApp.handleNotification({ body: requestBody, headers: {}, method: 'POST' });
       
       expect(monitorApp.stats.xmlParseFailures).toBe(1);
     });
