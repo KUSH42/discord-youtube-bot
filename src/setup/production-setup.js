@@ -14,6 +14,7 @@ import { StateManager } from '../infrastructure/state-manager.js';
 import { DiscordClientService } from '../services/implementations/discord-client-service.js';
 import { YouTubeApiService } from '../services/implementations/youtube-api-service.js';
 import { FetchHttpService } from '../services/implementations/fetch-http-service.js';
+import { PlaywrightBrowserService } from '../services/implementations/playwright-browser-service.js';
 
 // Core Logic
 import { CommandProcessor } from '../core/command-processor.js';
@@ -126,6 +127,11 @@ async function setupExternalServices(container, config) {
     
     return app;
   });
+  
+  // Browser Service
+  container.registerSingleton('browserService', () => {
+    return new PlaywrightBrowserService();
+  });
 }
 
 /**
@@ -174,7 +180,7 @@ async function setupApplicationServices(container, config) {
   // Scraper Application (X/Twitter monitoring)
   container.registerSingleton('scraperApplication', (c) => {
     return new ScraperApplication({
-      browserService: null, // Will be set up when needed
+      browserService: c.resolve('browserService'),
       contentClassifier: c.resolve('contentClassifier'),
       contentAnnouncer: c.resolve('contentAnnouncer'),
       config: c.resolve('config'),
