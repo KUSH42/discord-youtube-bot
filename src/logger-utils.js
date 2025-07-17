@@ -95,8 +95,8 @@ export class DiscordTransport extends Transport {
         const messagesToFlush = [...this.buffer];
         this.buffer = [];
         
-        // Don't actually send if transport is destroyed
-        if (this.isDestroyed) {
+        // Don't actually send if transport is destroyed or client is not ready
+        if (this.isDestroyed || !this.client.isReady()) {
             return;
         }
         
@@ -106,9 +106,12 @@ export class DiscordTransport extends Transport {
                 if (part) await this.channel.send(part);
             }
         } catch (error) {
-            console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
+            // Only log the error if it's not related to Discord being unavailable during shutdown
+            if (error.message && !error.message.includes('token to be set') && !error.message.includes('client destroyed')) {
+                console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
+            }
             // Re-add messages to buffer if sending failed and transport is still active
-            if (!this.isDestroyed && messagesToFlush.length > 0) {
+            if (!this.isDestroyed && messagesToFlush.length > 0 && this.client.isReady()) {
                 this.buffer.unshift(...messagesToFlush);
             }
         }

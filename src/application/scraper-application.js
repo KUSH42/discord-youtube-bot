@@ -165,26 +165,114 @@ export class ScraperApplication {
       await this.browser.goto('https://x.com/i/flow/login');
       
       // Wait for login form
-      await this.browser.waitForSelector('input[name="text"]', { timeout: 10000 });
+      await this.browser.waitForSelector('input[name="text"]', { timeout: 15000 });
       
       // Enter username
       await this.browser.type('input[name="text"]', this.twitterUsername);
-      await this.browser.click('div[role="button"]:has-text("Next")');
+      
+      // Try multiple selectors for the Next button
+      const nextButtonSelectors = [
+        'div[role="button"]:has-text("Next")',
+        'button:has-text("Next")',
+        '[data-testid="LoginForm_Login_Button"]',
+        'div[role="button"]',
+        'button[type="submit"]'
+      ];
+      
+      let nextClicked = false;
+      for (const selector of nextButtonSelectors) {
+        try {
+          await this.browser.waitForSelector(selector, { timeout: 5000 });
+          await this.browser.click(selector);
+          this.logger.info(`Clicked Next button using selector: ${selector}`);
+          nextClicked = true;
+          break;
+        } catch (err) {
+          this.logger.debug(`Next button selector failed: ${selector}`);
+          continue;
+        }
+      }
+      
+      if (!nextClicked) {
+        throw new Error('Could not find Next button with any known selector');
+      }
       
       // Wait for password field
-      await this.browser.waitForSelector('input[name="password"]', { timeout: 10000 });
+      await this.browser.waitForSelector('input[name="password"]', { timeout: 15000 });
       
       // Enter password
       await this.browser.type('input[name="password"]', this.twitterPassword);
-      await this.browser.click('div[role="button"]:has-text("Log in")');
       
-      // Wait for successful login
-      await this.browser.waitForNavigation({ timeout: 15000 });
+      // Try multiple selectors for the Login button
+      const loginButtonSelectors = [
+        'div[role="button"]:has-text("Log in")',
+        'button:has-text("Log in")',
+        '[data-testid="LoginForm_Login_Button"]',
+        'button[type="submit"]'
+      ];
       
-      this.logger.info('Successfully logged into X');
+      let loginClicked = false;
+      for (const selector of loginButtonSelectors) {
+        try {
+          await this.browser.waitForSelector(selector, { timeout: 5000 });
+          await this.browser.click(selector);
+          this.logger.info(`Clicked Login button using selector: ${selector}`);
+          loginClicked = true;
+          break;
+        } catch (err) {
+          this.logger.debug(`Login button selector failed: ${selector}`);
+          continue;
+        }
+      }
+      
+      if (!loginClicked) {
+        throw new Error('Could not find Login button with any known selector');
+      }
+      
+      // Wait for successful login - check for home page or dashboard
+      try {
+        await this.browser.waitForNavigation({ timeout: 20000 });
+        
+        // Verify we're logged in by checking for user-specific elements
+        const isLoggedIn = await this.browser.waitForSelector('[data-testid="AppTabBar_Home_Link"], [aria-label="Home timeline"]', { timeout: 10000 })
+          .then(() => true)
+          .catch(() => false);
+          
+        if (!isLoggedIn) {
+          throw new Error('Login appeared to succeed but user elements not found');
+        }
+        
+        this.logger.info('Successfully logged into X');
+        
+      } catch (navError) {
+        this.logger.warn('Navigation timeout after login attempt, checking current page...');
+        
+        // Check if we're actually logged in despite navigation timeout
+        const currentUrl = await this.browser.page.url();
+        if (currentUrl.includes('home') || currentUrl.includes('x.com') && !currentUrl.includes('login')) {
+          this.logger.info('Login appears successful based on URL');
+        } else {
+          throw new Error('Login failed - still on login page or error page');
+        }
+      }
       
     } catch (error) {
       this.logger.error('Failed to login to X:', error);
+      
+      // Take a screenshot for debugging if possible
+      try {
+        const currentUrl = await this.browser.page.url();
+        this.logger.info(`Current page URL: ${currentUrl}`);
+        
+        // Don't take screenshot in production/CI to avoid issues
+        if (process.env.NODE_ENV === 'development') {
+          await this.browser.page.screenshot({ path: 'x-login-error.png' });
+          this.logger.info('Screenshot saved as x-login-error.png');
+        }
+      } catch (debugError) {
+        this.logger.debug('Could not capture debug info:', debugError.message);
+      }
+      
       throw new Error(`X login failed: ${error.message}`);
     }
   }

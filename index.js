@@ -88,8 +88,13 @@ async function startApplications(container, config) {
   // Start X Scraper (if enabled)
   const xUser = config.get('X_USER_HANDLE');
   if (xUser) {
-    const scraperApp = container.resolve('scraperApplication');
-    await scraperApp.start();
+    try {
+      const scraperApp = container.resolve('scraperApplication');
+      await scraperApp.start();
+    } catch (error) {
+      logger.error('Failed to start X Scraper application:', error.message);
+      logger.warn('X Scraper will be disabled - YouTube monitoring will continue normally');
+    }
   } else {
     logger.info('X Scraper disabled (no X_USER_HANDLE configured)');
   }
