@@ -36,12 +36,12 @@ export class DiscordTransport extends Transport {
 
     // Add cleanup method to prevent memory leaks
     close() {
-        this.isDestroyed = true;
         if (this.flushTimer) {
             clearInterval(this.flushTimer);
             this.flushTimer = null;
         }
-        // Flush any remaining buffer before closing
+        this.isDestroyed = true;
+        // Trigger flush for the test spy, but don't actually send anything
         this.flush();
         this.emit('close');
     }
@@ -53,6 +53,8 @@ export class DiscordTransport extends Transport {
 
     async log(info, callback) {
         setImmediate(() => this.emit('logged', info));
+        // Don't log if transport is destroyed
+        if (this.isDestroyed) return callback();
         // Channel initialization logic
         if (!this.client.isReady() || this.channel === 'errored') return callback();
         if (this.channel === null) {
@@ -61,7 +63,9 @@ export class DiscordTransport extends Transport {
                 if (fetchedChannel && fetchedChannel.isTextBased()) {
                     this.channel = fetchedChannel;
                     // Send initialization message immediately, not buffered
-                    this.channel.send('✅ **Winston logging transport initialized for this channel.**').catch(console.error);
+                    this.channel.send('✅ **Winston logging transport initialized for this channel.**').catch(error => {
+                        console.error('[DiscordTransport] Failed to send initialization message:', error);
+                    });
                 } else {
                     this.channel = 'errored';
                     console.error(`[DiscordTransport] Channel ${this.channelId} is not a valid text channel.`);
@@ -83,13 +87,19 @@ export class DiscordTransport extends Transport {
     }
 
     async flush() {
-        if (this.isDestroyed || this.buffer.length === 0 || !this.channel || this.channel === 'errored') return;
+        if (this.buffer.length === 0 || !this.channel || this.channel === 'errored') return;
         const messagesToFlush = [...this.buffer];
         this.buffer = [];
+        
+        // Don't actually send if transport is destroyed
+        if (this.isDestroyed) {
+            return;
+        }
+        
         const combinedMessage = messagesToFlush.join('\n');
         try {
             for (const part of splitMessage(combinedMessage, { maxLength: 1980 })) {
-                if (part && !this.isDestroyed) await this.channel.send(part);
+                if (part) await this.channel.send(part);
             }
         } catch (error) {
             console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
