@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec as defaultExec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
@@ -9,6 +9,7 @@ import { CommandRateLimit } from '../rate-limiter.js';
  */
 export class BotApplication {
   constructor(dependencies) {
+    this.exec = dependencies.exec || defaultExec;
     this.scraperApplication = dependencies.scraperApplication;
     this.monitorApplication = dependencies.monitorApplication;
     this.discord = dependencies.discordService;
@@ -147,13 +148,13 @@ export class BotApplication {
         return;
     }
 
-    exec('git pull', (error, stdout, stderr) => {
+    this.exec('git pull', (error, stdout, stderr) => {
         if (error) {
             this.logger.error(`git pull failed: ${error}`);
             return;
         }
         this.logger.info(`git pull successful: ${stdout}`);
-        exec(`sudo systemctl restart ${serviceName}`, (restartError, restartStdout, restartStderr) => {
+        this.exec(`sudo systemctl restart ${serviceName}`, (restartError, restartStdout, restartStderr) => {
             if (restartError) {
                 this.logger.error(`systemctl restart failed: ${restartError}`);
                 return;

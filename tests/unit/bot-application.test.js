@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { BotApplication } from '../../src/application/bot-application.js';
-import { exec } from 'child_process';
-
-// Mock the child_process module
-jest.mock('child_process');
 
 describe('BotApplication', () => {
   let botApp;
   let mockDiscordService;
   let mockEventBus;
   let mockConfig;
+  let mockExec;
 
   beforeEach(() => {
     // Clear mock history before each test
@@ -28,8 +25,11 @@ describe('BotApplication', () => {
       get: jest.fn(),
       getBoolean: jest.fn(),
     };
+    
+    mockExec = jest.fn((command, callback) => callback(null, 'OK', ''));
 
     const dependencies = {
+      exec: mockExec,
       discordService: mockDiscordService,
       commandProcessor: {},
       eventBus: mockEventBus,
@@ -59,17 +59,12 @@ describe('BotApplication', () => {
 
   describe('handleUpdate', () => {
     it('should execute git pull and restart the service', () => {
-      // Since 'exec' is mocked, we can provide a new implementation for this test
-      exec.mockImplementation((command, callback) => {
-        callback(null, 'OK', '');
-      });
-
       mockConfig.get.mockReturnValue('discord-bot.service');
       
       botApp.handleUpdate();
 
-      expect(exec).toHaveBeenCalledWith('git pull', expect.any(Function));
-      expect(exec).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
+      expect(mockExec).toHaveBeenCalledWith('git pull', expect.any(Function));
+      expect(mockExec).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
     });
   });
 
