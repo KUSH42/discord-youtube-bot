@@ -7,7 +7,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
   let mockYouTubeAPI;
   let mockDiscordClient;
 
-  beforeEach(() => {
+  beforeEach(function() {
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
@@ -30,6 +30,9 @@ describe('End-to-End Fallback Recovery Tests', () => {
         fetch: jest.fn()
       }
     };
+    
+    // Timers array to keep track of created timers
+    this.timers = [];
 
     // Mock complete YouTube monitor with fallback system
     mockYouTubeMonitor = {
@@ -75,11 +78,18 @@ describe('End-to-End Fallback Recovery Tests', () => {
     mockYouTubeMonitor.sendMirroredMessage = jest.fn();
   });
 
-  afterEach(() => {
+  afterEach(function() {
     // Clean up any timers
     if (mockYouTubeMonitor.apiFallbackTimer) {
       clearTimeout(mockYouTubeMonitor.apiFallbackTimer);
     }
+    
+    // Clear all scheduled timers to prevent open handles
+    if (this.timers) {
+        this.timers.forEach(timer => clearTimeout(timer));
+        this.timers = [];
+    }
+    
     jest.clearAllMocks();
   });
 
@@ -445,7 +455,7 @@ function scheduleRetryImpl(failureId) {
   const delays = [1000, 3000, 9000]; // Shorter for testing
   const delay = delays[failure.retryCount] || 9000;
 
-  setTimeout(async () => {
+  const timer = setTimeout(async () => {
     try {
       this.logger.info(`Retrying failed notification ${failureId}, attempt ${failure.retryCount + 1}`);
       failure.retryCount++;
@@ -469,6 +479,11 @@ function scheduleRetryImpl(failureId) {
       }
     }
   }, delay);
+  
+  // Store the timer to be cleared in afterEach
+  if (this.timers) {
+      this.timers.push(timer);
+  }
 }
 
 function scheduleApiFallbackImpl() {
