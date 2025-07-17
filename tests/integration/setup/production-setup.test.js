@@ -96,4 +96,18 @@ describe('Production Setup', () => {
 
     await expect(setupProductionServices(newContainer, newConfig)).resolves.not.toThrow();
   });
+
+  it('should successfully import and execute logger setup without mocking', async () => {
+    // This test specifically validates the logger import path works in production
+    await setupProductionServices(container, config);
+    const logger = container.resolve('logger');
+    
+    // Test that logger has the expected methods
+    expect(typeof logger.info).toBe('function');
+    expect(typeof logger.error).toBe('function');
+    expect(typeof logger.warn).toBe('function');
+    
+    // Test that the logger can actually log without throwing
+    expect(() => logger.info('Test log message')).not.toThrow();
+  });
 });
