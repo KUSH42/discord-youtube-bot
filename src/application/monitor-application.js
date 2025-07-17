@@ -44,7 +44,8 @@ export class MonitorApplication {
       fallbackPolls: 0,
       lastSubscriptionTime: null,
       lastWebhookTime: null,
-      lastError: null
+      lastError: null,
+      xmlParseFailures: 0
     };
   }
   
@@ -396,6 +397,7 @@ export class MonitorApplication {
       
       if (!videoInfo) {
         this.logger.warn('Failed to parse notification XML');
+        this.stats.xmlParseFailures++;
         return { status: 400, message: 'Invalid XML' };
       }
       

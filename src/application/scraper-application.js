@@ -40,6 +40,7 @@ export class ScraperApplication {
       lastRunTime: null,
       lastError: null
     };
+    this.nextPollTimestamp = null;
   }
   
   /**
@@ -318,6 +319,7 @@ export class ScraperApplication {
     if (this.timerId) {
       clearTimeout(this.timerId);
       this.timerId = null;
+      this.nextPollTimestamp = null;
     }
   }
   
@@ -326,6 +328,7 @@ export class ScraperApplication {
    */
   scheduleNextPoll() {
     const interval = this.getNextInterval();
+    this.nextPollTimestamp = Date.now() + interval;
     this.timerId = setTimeout(async () => {
       if (this.isRunning) {
         await this.pollXProfile();
@@ -341,6 +344,7 @@ export class ScraperApplication {
    */
   scheduleRetry() {
     const retryInterval = Math.min(this.maxInterval, this.minInterval * 2);
+    this.nextPollTimestamp = Date.now() + retryInterval;
     this.timerId = setTimeout(async () => {
       if (this.isRunning) {
         try {
@@ -370,6 +374,7 @@ export class ScraperApplication {
    * @returns {Promise<void>}
    */
   async pollXProfile() {
+    this.nextPollTimestamp = null;
     this.stats.totalRuns++;
     this.stats.lastRunTime = new Date();
     
@@ -764,19 +769,11 @@ export class ScraperApplication {
       pollingInterval: {
         min: this.minInterval,
         max: this.maxInterval,
-        next: this.timerId ? this.getNextPollTime() : 'not-scheduled'
+        next: this.nextPollTimestamp,
       },
       ...this.stats,
       duplicateDetectorStats: this.duplicateDetector.getStats()
     };
-  }
-
-  getNextPollTime() {
-    if (!this.timerId) {
-      return null;
-    }
-    // This is a bit of a hack to get the remaining time from a timeout in Node.js
-    return this.timerId._idleStart + this.timerId._idleTimeout;
   }
   
   /**
