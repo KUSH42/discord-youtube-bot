@@ -360,19 +360,29 @@ export class BotApplication {
    */
   createDetailedHealthEmbed(healthData) {
     const { bot, scraper, monitor, system } = healthData;
-
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8)
     const formatMemory = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
     return {
-      title: '📊 Detailed Bot Health Status',
-      color: this.discord.isReady() ? 0x00ff00 : 0xff0000,
-      fields: [
-        { name: '🤖 Bot Application', value: `Status: ${bot.isRunning ? 'Running' : 'Stopped'}\nDiscord Ready: ${bot.isDiscordReady ? 'Yes' : 'No'}`, inline: false },
-        { name: ' scrapes Scraper Application', value: `Status: ${scraper.isRunning ? 'Running' : 'Stopped'}\nTotal Runs: ${scraper.totalRuns}\nSuccessful Runs: ${scraper.successfulRuns}`, inline: false },
-        { name: '▶️ Monitor Application', value: `Status: ${monitor.isRunning ? 'Running' : 'Stopped'}\nSubscriptions: ${monitor.activeSubscriptions}`, inline: false },
-        { name: '⚙️ System', value: `Uptime: ${new Date(system.uptime * 1000).toISOString().substr(11, 8)}\nMemory: ${formatMemory(system.memory.heapUsed)}`, inline: false },
-      ],
-      timestamp: system.timestamp,
+        title: '📊 Detailed Bot Health Status',
+        color: this.discord.isReady() ? 0x00ff00 : 0xff0000,
+        fields: [
+            { name: '🤖 Bot', value: `Status: ${bot.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
+            { name: '▶️ YouTube Monitor', value: `Status: ${monitor.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
+            { name: '🐦 X Scraper', value: `Status: ${scraper.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
+            
+            { name: '⏱️ System Uptime', value: uptimeStr, inline: true },
+            { name: '💾 Memory Usage', value: formatMemory(system.memory.heapUsed), inline: true },
+            { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
+
+            { name: 'YouTube Stats', value: `Subs: ${monitor.subscriptions}\nWebhooks: ${monitor.webhooksReceived}\nProcessed: ${monitor.videosProcessed}\nAnnounced: ${monitor.videosAnnounced}`, inline: true },
+            { name: 'X Stats', value: `Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFound: ${scraper.totalTweetsFound}\nAnnounced: ${scraper.totalTweetsAnnounced}`, inline: true },
+            { name: 'Error Info', value: `Scraper Fails: ${scraper.failedRuns}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`, inline: true }
+        ],
+        timestamp: system.timestamp,
+        footer: {
+            text: `Bot started: ${new Date(bot.botStartTime).toLocaleString()}`
+        }
     };
   }
   
