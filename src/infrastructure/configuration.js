@@ -119,9 +119,9 @@ export class Configuration {
    * Validate X (Twitter) configuration
    */
   validateXConfig() {
-    const xUser = this.get('X_USER');
+    const xUser = this.get('X_USER_HANDLE');
     if (xUser && (xUser.startsWith('@') || xUser.includes(' '))) {
-      throw new Error('X_USER should be username without @ symbol and no spaces');
+      throw new Error('X_USER_HANDLE should be username without @ symbol and no spaces');
     }
     
     const interval = this.getNumber('X_QUERY_INTERVALL_MIN');

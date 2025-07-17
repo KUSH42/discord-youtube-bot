@@ -88,13 +88,13 @@ async function startApplications(container, config) {
   await monitorApp.start();
   
   // Start X Scraper (if enabled)
-  const xUser = config.get('X_USER');
+  const xUser = config.get('X_USER_HANDLE');
   if (xUser) {
     logger.info('Starting X Scraper Application...');
     const scraperApp = container.resolve('scraperApplication');
     await scraperApp.start();
   } else {
-    logger.info('X Scraper disabled (no X_USER configured)');
+    logger.info('X Scraper disabled (no X_USER_HANDLE configured)');
   }
 }
 
