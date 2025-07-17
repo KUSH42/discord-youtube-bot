@@ -51,15 +51,15 @@ describe('BotApplication', () => {
 
       expect(embed.title).toBe('📊 Detailed Bot Health Status');
       expect(embed.color).toBe(0x00ff00);
-      expect(embed.fields).toHaveLength(4);
-      expect(embed.fields[0].name).toBe('🤖 Bot Application');
-      expect(embed.fields[0].value).toContain('Status: Running');
-      expect(embed.fields[1].name).toBe(' scrapes Scraper Application');
-      expect(embed.fields[1].value).toContain('Total Runs: 10');
-      expect(embed.fields[2].name).toBe('▶️ Monitor Application');
-      expect(embed.fields[2].value).toContain('Subscriptions: 1');
-      expect(embed.fields[3].name).toBe('⚙️ System');
-      expect(embed.fields[3].value).toContain('Memory: 50 MB');
+      expect(embed.fields).toHaveLength(9);
+      expect(embed.fields[0].name).toBe('🤖 Bot');
+      expect(embed.fields[1].name).toBe('▶️ YouTube Monitor');
+      expect(embed.fields[2].name).toBe('🐦 X Scraper');
+      expect(embed.fields[6].name).toBe('YouTube Stats');
+      expect(embed.fields[6].value).toContain('Subs: 1');
+      expect(embed.fields[7].name).toBe('X Stats');
+      expect(embed.fields[7].value).toContain('Runs: 10');
+      expect(embed.fields[8].name).toBe('Error Info');
     });
   });
 });
