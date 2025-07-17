@@ -56,7 +56,7 @@ describe('Production Setup', () => {
       NODE_ENV: 'test',
       DISCORD_BOT_TOKEN: 'test-token',
       YOUTUBE_API_KEY: 'test-api-key',
-      YOUTUBE_CHANNEL_ID: 'UC-test-channel',
+      YOUTUBE_CHANNEL_ID: 'UCtest-channel1234567890',
       DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345678',
       DISCORD_X_POSTS_CHANNEL_ID: '123456789012345678',
       DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345678',
