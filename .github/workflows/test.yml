@@ -527,15 +527,17 @@ jobs:
 
       - name: Download Node 18 unit test coverage
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: unit-test-results-node18
-          path: test-results/unit/
+          path: test-results/unit-node18/
 
       - name: Download Node 20 unit test coverage
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: unit-test-results-node20
-          path: test-results/unit/
+          path: test-results/unit-node20/
 
       - name: Download integration test results
         uses: actions/download-artifact@v4
@@ -571,23 +573,54 @@ jobs:
           
           # Find coverage files from test types that generate coverage (unit, integration, performance)
           echo "Collecting coverage from test types that generate source code coverage..."
-          find test-results/unit test-results/integration test-results/performance -name "lcov.info" -type f 2>/dev/null > coverage-files.txt || true
           
-          if [ -s coverage-files.txt ]; then
+          # First, ensure we have proper directory structure
+          ls -la test-results/ || echo "No test-results directory found"
+          
+          # Find all lcov.info files but prioritize Node 18 over Node 20 to avoid duplicates
+          COVERAGE_FILES=()
+          
+          # Add Node 18 unit coverage (primary)
+          if [ -f "test-results/unit-node18/coverage/unit/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/unit-node18/coverage/unit/lcov.info")
+            echo "Found Node 18 unit coverage"
+          fi
+          
+          # Add integration coverage if available
+          if [ -f "test-results/integration/coverage/integration/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/integration/coverage/integration/lcov.info")
+            echo "Found integration coverage"
+          fi
+          
+          # Add performance coverage if available
+          if [ -f "test-results/performance/coverage/performance/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/performance/coverage/performance/lcov.info")
+            echo "Found performance coverage"
+          fi
+          
+          if [ ${#COVERAGE_FILES[@]} -gt 0 ]; then
             echo "Merging the following coverage files:"
-            cat coverage-files.txt
+            printf '%s\n' "${COVERAGE_FILES[@]}"
             
-            # CRITICAL: Only merge ONE unit test coverage (Node 18) + integration + performance
-            # This prevents triple-counting the same source files from Node 18/20
-            lcov-result-merger --prepend-source-files "$(cat coverage-files.txt | tr '\n' ' ')" coverage/merged/lcov.info
+            # Use correct lcov-result-merger syntax with --output parameter
+            lcov-result-merger "${COVERAGE_FILES[@]}" --output coverage/merged/lcov.info
             
-            # Generate a single, authoritative summary from the MERGED report
-            npx nyc report --temp-dir=coverage/merged --reporter=json-summary > coverage-summary.json
-            
-            # Set outputs for subsequent steps
-            LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
-            echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
-            echo "status=available" >> $GITHUB_OUTPUT
+            if [ -f coverage/merged/lcov.info ]; then
+              echo "Successfully merged coverage reports"
+              
+              # Generate summary from merged coverage
+              npx nyc report --reporter=json-summary --report-dir=coverage/merged --temp-dir=coverage/merged > coverage-summary.json
+              
+              # Set outputs for subsequent steps
+              LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
+              echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
+              echo "status=available" >> $GITHUB_OUTPUT
+            else
+              echo "Failed to merge coverage reports"
+              echo '{"total":{"lines":{"pct":0},"statements":{"pct":0},"functions":{"pct":0},"branches":{"pct":0}}}' > coverage-summary.json
+              echo "coverage_pct=0" >> $GITHUB_OUTPUT
+              echo "status=missing" >> $GITHUB_OUTPUT
+            fi
           else
             echo "No coverage files found to merge."
             echo '{"total":{"lines":{"pct":0},"statements":{"pct":0},"functions":{"pct":0},"branches":{"pct":0}}}' > coverage-summary.json
@@ -652,16 +685,16 @@ jobs:
             echo "" >> reports/test-summary.md
             echo "\`\`\`" >> reports/test-summary.md
             if [ "$test_type" == "unit" ]; then
-              if [ -f test-results/unit/test-output-node18.log ]; then
-                cat test-results/unit/test-output-node18.log >> reports/test-summary.md
+              if [ -f test-results/unit-node18/test-output-node18.log ]; then
+                cat test-results/unit-node18/test-output-node18.log >> reports/test-summary.md
               else
                 echo "No output for Node 18" >> reports/test-summary.md
               fi
               echo "" >> reports/test-summary.md
               echo "---" >> reports/test-summary.md
               echo "" >> reports/test-summary.md
-              if [ -f test-results/unit/test-output-node20.log ]; then
-                cat test-results/unit/test-output-node20.log >> reports/test-summary.md
+              if [ -f test-results/unit-node20/test-output-node20.log ]; then
+                cat test-results/unit-node20/test-output-node20.log >> reports/test-summary.md
               else
                 echo "No output for Node 20" >> reports/test-summary.md
               fi
@@ -798,6 +831,7 @@ jobs:
             coverage/merged/
             coverage-summary.json
             coverage-metrics.json
+            test-results/
           retention-days: 30
 
       - name: Update status check
