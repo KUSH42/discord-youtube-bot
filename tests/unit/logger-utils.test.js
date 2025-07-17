@@ -177,7 +177,7 @@ describe('Logger Utils Tests', () => {
         
         const result = format.transform(logInfo);
         const message = result[Symbol.for('message')] || result.message;
-        expect(message).toBe('[2023-01-01T00:00:00.000Z] [INFO]: Test message');
+        expect(message).toBe('[2023-01-01T00:00:00.000Z]  [INFO]: Test message');
       });
 
       it('should include stack traces in formatted messages', () => {

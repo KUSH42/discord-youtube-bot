@@ -595,10 +595,12 @@ export class ScraperApplication {
     
     for (const tweet of tweets) {
       if (!this.duplicateDetector.isDuplicate(tweet.url)) {
+        // Mark as seen immediately to prevent future duplicates
+        this.duplicateDetector.markAsSeen(tweet.url);
+        
         // Check if tweet is new enough based on bot start time
         if (this.isNewContent(tweet)) {
           newTweets.push(tweet);
-          this.duplicateDetector.markAsSeen(tweet.url);
           this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
         } else {
           oldContentCount++;

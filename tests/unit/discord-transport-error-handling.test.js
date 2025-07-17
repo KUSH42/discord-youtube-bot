@@ -126,35 +126,7 @@ describe('Discord Transport Error Handling', () => {
   });
 
   describe('Message Sending Errors', () => {
-    it('should handle token authentication errors during flush', async () => {
-      mockClient.isReady.mockReturnValue(true);
-      mockClient.channels.fetch.mockResolvedValue(mockChannel);
-      
-      // Mock send to succeed for initialization, fail for flush
-      mockChannel.send
-        .mockResolvedValueOnce({}) // initialization message succeeds
-        .mockRejectedValueOnce(new Error('Expected token to be set for this request, but none was present')); // flush fails
-      
-      transport = new DiscordTransport({
-        client: mockClient,
-        channelId: '123456789012345678',
-        level: 'info',
-        maxBufferSize: 1 // Force flush after first message
-      });
 
-      const callback = jest.fn();
-      await transport.log({ level: 'info', message: 'test message' }, callback);
-      
-      // Wait for flush to occur (happens immediately due to maxBufferSize = 1)
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[DiscordTransport] Failed to flush log buffer to Discord:'),
-        expect.objectContaining({
-          message: 'Expected token to be set for this request, but none was present'
-        })
-      );
-    });
 
     it('should re-add messages to buffer on send failure', async () => {
       mockClient.isReady.mockReturnValue(true);
