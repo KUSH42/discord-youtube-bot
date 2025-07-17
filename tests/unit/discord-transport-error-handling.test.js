@@ -158,8 +158,9 @@ describe('Discord Transport Error Handling', () => {
       mockClient.isReady.mockReturnValue(true);
       mockClient.channels.fetch.mockResolvedValue(mockChannel);
       
-      // Mock send to fail first time, succeed second time
+      // Mock send to fail first two times (init + flush), succeed after
       mockChannel.send
+        .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValue({});
       
@@ -206,14 +207,17 @@ describe('Discord Transport Error Handling', () => {
         flushInterval: 100
       });
 
-      // Add a log message
+      // Add a log message (this will trigger initialization)
       const callback = jest.fn();
       await transport.log({ level: 'info', message: 'test message' }, callback);
+      
+      // Reset the mock to track only calls after close
+      mockChannel.send.mockClear();
       
       // Close transport
       transport.close();
       
-      // Wait a bit
+      // Wait a bit to ensure any timers would have fired
       await new Promise(resolve => setTimeout(resolve, 150));
       
       // Should not send messages after close
