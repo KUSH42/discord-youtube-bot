@@ -352,6 +352,24 @@ describe('ScraperApplication', () => {
     });
   });
 
+  describe('Polling Logic', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should set and clear nextPollTimestamp correctly', () => {
+      scraperApp.scheduleNextPoll();
+      expect(scraperApp.nextPollTimestamp).not.toBeNull();
+
+      scraperApp.stopPolling();
+      expect(scraperApp.nextPollTimestamp).toBeNull();
+    });
+  });
+
   describe('Duplicate Detector Integration', () => {
     it('should initialize with a DuplicateDetector instance', () => {
       expect(scraperApp.duplicateDetector).toBeInstanceOf(DuplicateDetector);

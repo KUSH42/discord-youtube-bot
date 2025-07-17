@@ -73,7 +73,7 @@ describe('BotApplication', () => {
       const healthData = {
         bot: { isRunning: true, isDiscordReady: true },
         scraper: { isRunning: true, totalRuns: 10, successfulRuns: 9 },
-        monitor: { isRunning: true, activeSubscriptions: 1 },
+        monitor: { isRunning: true, activeSubscriptions: 1, xmlParseFailures: 2 },
         system: {
           uptime: 3600,
           memory: { heapUsed: 1024 * 1024 * 50 },
@@ -97,6 +97,23 @@ describe('BotApplication', () => {
       expect(embed.fields[10].name).toBe('X Stats');
       expect(embed.fields[10].value).toContain('Runs: 10');
       expect(embed.fields[11].name).toBe('Error Info');
+      expect(embed.fields[11].value).toContain('XML Fails: 2');
+    });
+
+    it('should display "In progress..." for next X poll when scraper is running but no next poll time is set', () => {
+        const healthData = {
+            bot: { isRunning: true, isDiscordReady: true },
+            scraper: { isRunning: true, pollingInterval: { next: null } },
+            monitor: { isRunning: true, activeSubscriptions: 1 },
+            system: {
+                uptime: 3600,
+                memory: { heapUsed: 1024 * 1024 * 50 },
+                timestamp: new Date().toISOString(),
+            },
+        };
+        const embed = botApp.createDetailedHealthEmbed(healthData);
+        const nextPollField = embed.fields.find(f => f.name === '⏳ Next X Poll');
+        expect(nextPollField.value).toBe('In progress...');
     });
   });
 });

@@ -387,7 +387,14 @@ export class BotApplication {
     const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8);
     const formatMemory = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
     const nextPoll = scraper.pollingInterval.next;
-    const nextPollStr = typeof nextPoll === 'number' ? `<t:${Math.round(nextPoll / 1000)}:R>` : nextPoll;
+    let nextPollStr = 'Not scheduled';
+    if (scraper.isRunning) {
+      if (nextPoll) {
+        nextPollStr = `<t:${Math.round(nextPoll / 1000)}:R>`;
+      } else {
+        nextPollStr = 'In progress...';
+      }
+    }
 
     return {
         title: '📊 Detailed Bot Health Status',
@@ -407,7 +414,7 @@ export class BotApplication {
 
             { name: 'YouTube Stats', value: `Subs: ${monitor.subscriptions}\nWebhooks: ${monitor.webhooksReceived}\nProcessed: ${monitor.videosProcessed}\nAnnounced: ${monitor.videosAnnounced}`, inline: true },
             { name: 'X Stats', value: `Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFound: ${scraper.totalTweetsFound}\nAnnounced: ${scraper.totalTweetsAnnounced}`, inline: true },
-            { name: 'Error Info', value: `Scraper Fails: ${scraper.failedRuns}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`, inline: true }
+            { name: 'Error Info', value: `Scraper Fails: ${scraper.failedRuns}\nXML Fails: ${monitor.xmlParseFailures}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`, inline: true }
         ],
         timestamp: system.timestamp,
         footer: {

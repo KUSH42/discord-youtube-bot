@@ -333,7 +333,7 @@ const restrictedCommands = ['restart', 'kill', 'update'];
   async handleReadme() {
     const commandList = [
       `**${this.commandPrefix}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
-      `**${this.commandPrefix}restart**: Performs a soft restart of the bot. Requires specific user authorization (\`ALLOWED_USER_IDS\`). Re-enables support log posting but retains the announcement toggle state.`,
+      `**${this.commandPrefix}restart**: Performs a full restart of the bot, reloading the .env file and all configurations. Requires specific user authorization (\`ALLOWED_USER_IDS\`).`,
       `**${this.commandPrefix}announce <true|false>**: Toggles announcement posting to non-support channels.`,
       `**${this.commandPrefix}vxtwitter <true|false>**: Toggles the conversion of \`x.com\` URLs to \`vxtwitter.com\` in announcements.`,
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
