@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { Configuration } from '../../src/infrastructure/configuration.js';
 
-// Mock the config-validator module
-jest.mock('../../src/config-validator.js', () => ({
-  validateEnvironmentVariables: jest.fn(() => true),
-  validateDiscordChannelId: jest.fn(() => true),
-  validateYouTubeChannelId: jest.fn(() => true)
-}));
+// Configuration module tests - tests the infrastructure Configuration class
 
 describe('Configuration', () => {
   let mockEnv;
@@ -15,11 +10,17 @@ describe('Configuration', () => {
     mockEnv = {
       'DISCORD_BOT_TOKEN': 'test-token',
       'YOUTUBE_API_KEY': 'test-youtube-key',
-      'YOUTUBE_CHANNEL_ID': 'UC123456789012345678901',
-      'DISCORD_SUPPORT_CHANNEL_ID': '123456789012345678',
+      'YOUTUBE_CHANNEL_ID': 'UCrAOyUwjSM5zzPz_FqsUhuQ', // Valid UC + 22 chars format
+      'DISCORD_BOT_SUPPORT_LOG_CHANNEL': '123456789012345678',
       'DISCORD_YOUTUBE_CHANNEL_ID': '123456789012345679',
-      'DISCORD_X_CHANNEL_ID': '123456789012345680',
-      'X_USER': 'testuser',
+      'DISCORD_X_POSTS_CHANNEL_ID': '123456789012345680',
+      'DISCORD_X_REPLIES_CHANNEL_ID': '123456789012345681',
+      'DISCORD_X_QUOTES_CHANNEL_ID': '123456789012345682',
+      'DISCORD_X_RETWEETS_CHANNEL_ID': '123456789012345683',
+      'X_USER_HANDLE': 'testuser',
+      'TWITTER_USERNAME': 'testuser',
+      'TWITTER_PASSWORD': 'testpass',
+      'PSH_CALLBACK_URL': 'https://example.com/webhook',
       'X_QUERY_INTERVALL_MIN': '300000',
       'ANNOUNCEMENT_ENABLED': 'true',
       'X_VX_TWITTER_CONVERSION': 'false'
