@@ -26,7 +26,7 @@ import { ScraperApplication } from '../application/scraper-application.js';
 import { MonitorApplication } from '../application/monitor-application.js';
 
 // Utils
-import { DiscordTransport, createFileLogFormat, createConsoleLogFormat } from '../logger-utils.js';
+import { DiscordTransport, LoggerUtils } from '../logger-utils.js';
 
 /**
  * Set up all production services and dependencies
@@ -212,7 +212,7 @@ async function setupLogging(container, config) {
       // Console transport
       new winston.transports.Console({
         level: logLevel,
-        format: createConsoleLogFormat()
+        format: LoggerUtils.createConsoleLogFormat()
       }),
       
       // File transport with rotation
@@ -222,7 +222,7 @@ async function setupLogging(container, config) {
         datePattern: 'YYYY-MM-DD',
         maxSize: '20m',
         maxFiles: '14d',
-        format: createFileLogFormat()
+        format: LoggerUtils.createFileLogFormat()
       })
     ];
     
