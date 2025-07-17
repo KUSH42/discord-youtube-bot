@@ -156,4 +156,4 @@ enforcer.env
 .chrome/
 
 # npm audit files
-*-audit.json
+#*-audit.json
