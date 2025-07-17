@@ -416,6 +416,8 @@ export class ScraperApplication {
       // Process new tweets
       const newTweets = this.filterNewTweets(tweets);
       
+      this.logger.info(`After filtering: ${newTweets.length} new tweets out of ${tweets.length} total tweets`);
+      
       for (const tweet of newTweets) {
         try {
           await this.processNewTweet(tweet);
@@ -586,6 +588,10 @@ export class ScraperApplication {
    */
   filterNewTweets(tweets) {
     const newTweets = [];
+    let duplicateCount = 0;
+    let oldContentCount = 0;
+    
+    this.logger.debug(`Starting to filter ${tweets.length} tweets`);
     
     for (const tweet of tweets) {
       if (!this.duplicateDetector.isDuplicate(tweet.url)) {
@@ -593,9 +599,18 @@ export class ScraperApplication {
         if (this.isNewContent(tweet)) {
           newTweets.push(tweet);
           this.duplicateDetector.markAsSeen(tweet.url);
+          this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
+        } else {
+          oldContentCount++;
+          this.logger.debug(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
         }
+      } else {
+        duplicateCount++;
+        this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
       }
     }
+    
+    this.logger.info(`Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`);
     
     return newTweets;
   }
@@ -606,17 +621,31 @@ export class ScraperApplication {
    * @returns {boolean} True if content is new
    */
   isNewContent(tweet) {
+    const announceOldTweets = this.config.getBoolean('ANNOUNCE_OLD_TWEETS', false);
+    
+    // If configured to announce old tweets, consider all tweets as new
+    if (announceOldTweets) {
+      this.logger.debug(`ANNOUNCE_OLD_TWEETS=true, considering tweet ${tweet.tweetID} as new`);
+      return true;
+    }
+    
     const botStartTime = this.state.get('botStartTime');
     if (!botStartTime) {
+      this.logger.debug(`No bot start time set, considering tweet ${tweet.tweetID} as new`);
       return true; // If no start time set, consider all content new
     }
     
     if (!tweet.timestamp) {
+      this.logger.debug(`No timestamp for tweet ${tweet.tweetID}, considering as new`);
       return true; // If no timestamp available, assume it's new
     }
     
     const tweetTime = new Date(tweet.timestamp);
-    return tweetTime >= botStartTime;
+    const isNew = tweetTime >= botStartTime;
+    
+    this.logger.debug(`Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`);
+    
+    return isNew;
   }
   
   /**
