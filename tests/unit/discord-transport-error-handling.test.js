@@ -130,8 +130,10 @@ describe('Discord Transport Error Handling', () => {
       mockClient.isReady.mockReturnValue(true);
       mockClient.channels.fetch.mockResolvedValue(mockChannel);
       
-      // Mock send to fail with token error
-      mockChannel.send.mockRejectedValue(new Error('Expected token to be set for this request, but none was present'));
+      // Mock send to succeed for initialization, fail for flush
+      mockChannel.send
+        .mockResolvedValueOnce({}) // initialization message succeeds
+        .mockRejectedValueOnce(new Error('Expected token to be set for this request, but none was present')); // flush fails
       
       transport = new DiscordTransport({
         client: mockClient,

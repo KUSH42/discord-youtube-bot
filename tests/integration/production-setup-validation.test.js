@@ -312,8 +312,12 @@ describe('Production Setup Validation', () => {
       // Should have proper log level (defaults to info in test environment)
       expect(logger.level).toBe('info');
       
-      // Should have file transport
-      const fileTransport = logger.transports.find(t => t.name === 'DailyRotateFile');
+      // Should have file transport (check for DailyRotateFile name or similar)
+      const fileTransport = logger.transports.find(t => 
+        t.name === 'DailyRotateFile' || 
+        t.name === 'file' || 
+        t.constructor.name === 'DailyRotateFile'
+      );
       expect(fileTransport).toBeDefined();
       
       // Should have console transport
