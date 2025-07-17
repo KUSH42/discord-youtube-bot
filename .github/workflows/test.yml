@@ -686,20 +686,25 @@ jobs:
             fi
             
             # Create coverage metrics for tracking
+            BRANCHES_PCT=$(jq -r '.total.branches.pct // 0' coverage-summary.json)
+            FUNCTIONS_PCT=$(jq -r '.total.functions.pct // 0' coverage-summary.json)
+            STATEMENTS_PCT=$(jq -r '.total.statements.pct // 0' coverage-summary.json)
+            QUALITY_SCORE=$(echo "$COVERAGE * 0.4 + $BRANCHES_PCT * 0.3 + $FUNCTIONS_PCT * 0.3" | bc -l)
+            
             cat > coverage-metrics.json << EOF
-            {
-              "timestamp": "$(date -Iseconds)",
-              "commit": "${{ github.sha }}",
-              "branch": "${{ github.ref_name }}",
-              "coverage": {
-                "lines": $COVERAGE,
-                "branches": $(jq -r '.total.branches.pct // 0' coverage-summary.json),
-                "functions": $(jq -r '.total.functions.pct // 0' coverage-summary.json),
-                "statements": $(jq -r '.total.statements.pct // 0' coverage-summary.json)
-              },
-              "quality_score": $(echo "$COVERAGE * 0.4 + $(jq -r '.total.branches.pct // 0' coverage-summary.json) * 0.3 + $(jq -r '.total.functions.pct // 0' coverage-summary.json) * 0.3" | bc -l)
-            }
-            EOF
+{
+  "timestamp": "$(date -Iseconds)",
+  "commit": "${{ github.sha }}",
+  "branch": "${{ github.ref_name }}",
+  "coverage": {
+    "lines": $COVERAGE,
+    "branches": $BRANCHES_PCT,
+    "functions": $FUNCTIONS_PCT,
+    "statements": $STATEMENTS_PCT
+  },
+  "quality_score": $QUALITY_SCORE
+}
+EOF
           else
             echo "No coverage data available"
             echo "coverage_status=missing" >> $GITHUB_ENV

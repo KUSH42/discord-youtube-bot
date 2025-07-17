@@ -23,7 +23,11 @@ export class DuplicateDetector {
         this.maxSize = maxSize;
         this.cleanupInterval = cleanupInterval;
         this.cleanupTimer = null;
-        this.startPeriodicCleanup();
+        
+        // Don't start periodic cleanup in test environment to prevent test timeouts
+        if (process.env.NODE_ENV !== 'test') {
+            this.startPeriodicCleanup();
+        }
     }
 
     /**

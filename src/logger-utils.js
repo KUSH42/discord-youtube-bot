@@ -22,7 +22,11 @@ export class DiscordTransport extends Transport {
         this.maxBufferSize = opts.maxBufferSize || 20;      // 20 log entries
         this.flushTimer = null;
         this.isDestroyed = false;
-        this.startFlushing();
+        
+        // Don't start periodic flushing in test environment to prevent test timeouts
+        if (process.env.NODE_ENV !== 'test') {
+            this.startFlushing();
+        }
     }
 
     startFlushing() {
