@@ -764,11 +764,19 @@ export class ScraperApplication {
       pollingInterval: {
         min: this.minInterval,
         max: this.maxInterval,
-        next: this.timerId ? 'scheduled' : 'not-scheduled'
+        next: this.timerId ? this.getNextPollTime() : 'not-scheduled'
       },
       ...this.stats,
       duplicateDetectorStats: this.duplicateDetector.getStats()
     };
+  }
+
+  getNextPollTime() {
+    if (!this.timerId) {
+      return null;
+    }
+    // This is a bit of a hack to get the remaining time from a timeout in Node.js
+    return this.timerId._idleStart + this.timerId._idleTimeout;
   }
   
   /**
