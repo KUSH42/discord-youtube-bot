@@ -141,26 +141,43 @@ export class BotApplication {
    * Perform a soft restart of the bot
    * @returns {Promise<void>}
    */
-  async handleUpdate() {
+  async handleUpdate(message) {
     const serviceName = this.config.get('SYSTEMD_SERVICE_NAME');
     if (!serviceName) {
-        this.logger.error('SYSTEMD_SERVICE_NAME is not configured.');
-        return;
+      this.logger.error('SYSTEMD_SERVICE_NAME is not configured.');
+      if (message) {
+        await message.reply('❌ Update functionality is not configured on the server.');
+      }
+      return;
     }
-
-    this.exec('git pull', (error, stdout, stderr) => {
-        if (error) {
-            this.logger.error(`git pull failed: ${error}`);
-            return;
+  
+    this.exec('git pull', async (error, stdout, stderr) => {
+      if (error) {
+        this.logger.error(`git pull failed: ${error}`);
+        if (message) {
+          await message.reply(`❌ **Git pull failed:**\n\`\`\`${error.message}\`\`\``);
         }
-        this.logger.info(`git pull successful: ${stdout}`);
-        this.exec(`sudo systemctl restart ${serviceName}`, (restartError, restartStdout, restartStderr) => {
-            if (restartError) {
-                this.logger.error(`systemctl restart failed: ${restartError}`);
-                return;
-            }
-            this.logger.info(`systemctl restart successful: ${restartStdout}`);
+        return;
+      }
+      
+      this.logger.info(`git pull successful: ${stdout}`);
+      
+      if (message) {
+        const output = `**✅ Git pull successful:**\n\`\`\`${stdout || 'No new changes.'}\`\`\``;
+        await message.reply(output);
+      }
+      
+      // Delay restart to ensure the message is sent
+      setTimeout(() => {
+        this.exec(`sudo systemctl restart ${serviceName}`, (restartError) => {
+          if (restartError) {
+            this.logger.error(`systemctl restart failed: ${restartError}`);
+            // We cannot reply here as the bot might be down
+          } else {
+            this.logger.info('Systemd restart command issued successfully.');
+          }
         });
+      }, 5000); // 5-second delay
     });
   }
 
@@ -308,8 +325,8 @@ export class BotApplication {
       // Handle restart request
       if (result.requiresRestart) {
         try {
+          await message.channel.send('✅ Full restart initiated. See you in a moment!');
           await this.softRestart();
-          await message.channel.send('✅ Soft restart complete.');
         } catch (error) {
           this.logger.error('Soft restart failed:', error);
           await message.channel.send('❌ Soft restart failed. Check logs for details.');
@@ -317,7 +334,7 @@ export class BotApplication {
       }
 
       if (result.requiresUpdate) {
-        await this.handleUpdate();
+        await this.handleUpdate(message);
       }
       
       // Handle log level change

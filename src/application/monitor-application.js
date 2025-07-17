@@ -71,7 +71,7 @@ export class MonitorApplication {
       this.startFallbackPolling();
       
       this.isRunning = true;
-      this.logger.info('YouTube monitor application started successfully');
+      this.logger.info('✅ YouTube monitor application started successfully');
       
       // Emit start event
       this.eventBus.emit('monitor.started', {

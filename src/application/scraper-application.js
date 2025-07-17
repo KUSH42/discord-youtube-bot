@@ -65,7 +65,7 @@ export class ScraperApplication {
       this.startPolling();
       
       this.isRunning = true;
-      this.logger.info('X scraper application started successfully');
+      this.logger.info('✅ X scraper application started successfully');
       
       // Emit start event
       this.eventBus.emit('scraper.started', {
