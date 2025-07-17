@@ -28,6 +28,7 @@ import { MonitorApplication } from '../application/monitor-application.js';
 
 // Utils
 import { DiscordTransport, LoggerUtils } from '../logger-utils.js';
+const { createConsoleLogFormat, createFileLogFormat } = LoggerUtils;
 
 /**
  * Set up all production services and dependencies
@@ -223,9 +224,10 @@ async function setupLogging(container, config) {
     // Create transports
     const transports = [
       // Console transport
+      // Console transport
       new winston.transports.Console({
         level: logLevel,
-        format: LoggerUtils.createConsoleLogFormat()
+        format: createConsoleLogFormat()
       }),
       
       // File transport with rotation
@@ -235,7 +237,7 @@ async function setupLogging(container, config) {
         datePattern: 'YYYY-MM-DD',
         maxSize: '20m',
         maxFiles: '14d',
-        format: LoggerUtils.createFileLogFormat()
+        format: createFileLogFormat()
       })
     ];
     
