@@ -35,9 +35,9 @@ async function main() {
     logger.info('🐦 Starting X Scraper...');
     
     // Verify X configuration
-    const xUser = configuration.get('X_USER');
+    const xUser = configuration.get('X_USER_HANDLE');
     if (!xUser) {
-      throw new Error('X_USER not configured. X Scraper cannot start without a target user.');
+      throw new Error('X_USER_HANDLE not configured. X Scraper cannot start without a target user.');
     }
     
     // Start only the X Scraper application
