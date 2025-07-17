@@ -125,7 +125,7 @@ jobs:
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'unit')
     strategy:
       matrix:
-        node-version: ['16', '18', '20']
+        node-version: ['18', '20']
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -650,7 +650,7 @@ jobs:
           echo "## Detailed Results" >> reports/test-summary.md
           echo "" >> reports/test-summary.md
           echo "Detailed test results and coverage reports are available in the individual test artifacts:" >> reports/test-summary.md
-          echo "- \`unit-test-results-node16\`, \`unit-test-results-node18\`, \`unit-test-results-node20\`" >> reports/test-summary.md
+          echo "- \`unit-test-results-node18\`, \`unit-test-results-node20\`" >> reports/test-summary.md
           echo "- \`integration-test-results\`" >> reports/test-summary.md
           echo "- \`e2e-test-results\`" >> reports/test-summary.md
           echo "- \`performance-test-results\`" >> reports/test-summary.md

@@ -11,8 +11,8 @@ export default {
       lines: 0
     }
   },
-  // Only collect coverage if specifically requested
-  collectCoverage: process.env.COLLECT_COVERAGE === 'true',
+  // Disable coverage for E2E tests by default since they don't exercise source code directly
+  collectCoverage: false,
   testMatch: [
     '**/tests/e2e/**/*.test.js',
     '**/tests/e2e/**/*.spec.js'
