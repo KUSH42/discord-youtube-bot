@@ -207,18 +207,32 @@ The codebase has been successfully transformed into a modern, testable architect
    ```
 
 ### Current Coverage Thresholds
-- **Statements**: 25% (CI-compatible)
-- **Branches**: 20% (CI-compatible)  
-- **Functions**: 25% (CI-compatible)
-- **Lines**: 25% (CI-compatible)
+- **Global Standards** (CI-compatible):
+  - Statements: 25% minimum
+  - Branches: 20% minimum  
+  - Functions: 25% minimum
+  - Lines: 25% minimum
+- **Core Module Standards** (High-quality code):
+  - Statements: 85% minimum (`src/core/`)
+  - Branches: 80% minimum (`src/core/`)
+  - Functions: 85% minimum (`src/core/`)
+  - Lines: 85% minimum (`src/core/`)
 - **Target Goal**: 90%+ for all metrics
+
+### Coverage Infrastructure (Phase 5 Improvements)
+✅ **Fixed Coverage Reporting**: Eliminated broken shell math with industry-standard tools
+- **Coverage Tools**: `lcov-result-merger` + `nyc` for accurate calculation
+- **Entry Points Included**: `index.js`, `x-scraper.js`, `youtube-monitor.js` now properly covered
+- **Proper Merging**: Coverage aggregated correctly across all test types
+- **Quality Gates**: Automated coverage validation with trend tracking
+- **Codecov Integration**: Accurate merged coverage reports uploaded
 
 ### Coverage Exclusions
 - Mock files (`tests/mocks/`)
 - Test utilities (`tests/fixtures/`)
-- Configuration files
+- Configuration files (`jest.config.js`, `setup-encryption.js`)
 - Third-party integrations (covered by integration tests)
-- Main entry point boilerplate (`index.js` initialization code)
+- Development utilities (`test-duplicate-prevention.js`)
 
 ## 🔧 Configuration
 

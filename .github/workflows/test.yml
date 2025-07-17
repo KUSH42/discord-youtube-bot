@@ -523,28 +523,74 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install coverage tools
+        run: |
+          npm install -g lcov-result-merger
+          npm install -g nyc
+
       - name: Download all test artifacts
         uses: actions/download-artifact@v4
         with:
           path: test-results
-          merge-multiple: true
+
+      - name: Merge coverage reports
+        run: |
+          mkdir -p coverage/merged
+          
+          # Find all lcov.info files from different test types
+          find test-results -name "lcov.info" -type f > coverage-files.txt
+          
+          if [ -s coverage-files.txt ]; then
+            echo "Found coverage files:"
+            cat coverage-files.txt
+            
+            # Merge all coverage files into one
+            lcov-result-merger "$(cat coverage-files.txt | tr '\n' ' ')" coverage/merged/lcov.info
+            
+            # Generate coverage summary
+            npx nyc report --temp-dir=coverage/merged --reporter=text-summary > coverage-summary.txt
+            npx nyc report --temp-dir=coverage/merged --reporter=json-summary > coverage-summary.json
+          else
+            echo "No coverage files found"
+            echo '{"total":{"lines":{"pct":0},"statements":{"pct":0},"functions":{"pct":0},"branches":{"pct":0}}}' > coverage-summary.json
+          fi
 
       - name: Generate comprehensive test report
         run: |
           mkdir -p reports
           
-          # Function to extract coverage percentage from lcov.info files
+          # Function to extract coverage percentage using proper tools
           extract_coverage() {
-            local coverage_file=$1
+            local test_type=$1
+            if [ -f coverage-summary.json ]; then
+              # Use jq to extract line coverage percentage from the merged report
+              jq -r '.total.lines.pct // 0' coverage-summary.json | xargs printf "%.1f%%"
+            else
+              echo "N/A"
+            fi
+          }
+          
+          # Function to get coverage for specific test type
+          get_test_type_coverage() {
+            local test_type=$1
+            local coverage_file=$(find test-results -path "*/coverage/$test_type/lcov.info" | head -1)
             if [ -f "$coverage_file" ]; then
-              # Extract line coverage percentage from lcov.info
-              local lines_found=$(grep -o 'LF:[0-9]*' "$coverage_file" | cut -d: -f2 | paste -sd+ | bc)
-              local lines_hit=$(grep -o 'LH:[0-9]*' "$coverage_file" | cut -d: -f2 | paste -sd+ | bc)
-              if [ "$lines_found" -gt 0 ]; then
-                echo "scale=1; $lines_hit * 100 / $lines_found" | bc -l | xargs printf "%.1f%%"
-              else
-                echo "N/A"
-              fi
+              # Create temporary directory for this test type
+              mkdir -p "coverage/temp/$test_type"
+              cp "$coverage_file" "coverage/temp/$test_type/"
+              
+              # Generate coverage report for this specific test type
+              npx nyc report --temp-dir="coverage/temp/$test_type" --reporter=json-summary > "coverage/$test_type-summary.json"
+              jq -r '.total.lines.pct // 0' "coverage/$test_type-summary.json" | xargs printf "%.1f%%"
             else
               echo "N/A"
             fi
@@ -583,68 +629,14 @@ jobs:
               "security") job_status="${{ needs.security-tests.result }}" ;;
             esac
             
-            case $test_type in
-              "unit")
-                # Look for unit test coverage files in coverage/unit/ directory
-                if find test-results -path "*/coverage/unit/*" -type f | grep -q .; then
-                  found=true
-                  coverage_file=$(find test-results -path "*/coverage/unit/lcov.info" | head -1)
-                  if [ -n "$coverage_file" ]; then
-                    coverage=$(extract_coverage "$coverage_file")
-                  fi
-                fi
-                ;;
-              "integration")
-                # Look for integration test coverage files in coverage/integration/ directory
-                if find test-results -path "*/coverage/integration/*" -type f | grep -q .; then
-                  found=true
-                  coverage_file=$(find test-results -path "*/coverage/integration/lcov.info" | head -1)
-                  if [ -n "$coverage_file" ]; then
-                    coverage=$(extract_coverage "$coverage_file")
-                  fi
-                fi
-                ;;
-              "e2e")
-                # Look for e2e test coverage files in coverage/e2e/ directory
-                if find test-results -path "*/coverage/e2e/*" -type f | grep -q .; then
-                  found=true
-                  coverage_file=$(find test-results -path "*/coverage/e2e/lcov.info" | head -1)
-                  if [ -n "$coverage_file" ]; then
-                    coverage=$(extract_coverage "$coverage_file")
-                  fi
-                fi
-                ;;
-              "performance")
-                # Look for performance test coverage files in coverage/performance/ directory
-                if find test-results -path "*/coverage/performance/*" -type f | grep -q .; then
-                  found=true
-                  coverage_file=$(find test-results -path "*/coverage/performance/lcov.info" | head -1)
-                  if [ -n "$coverage_file" ]; then
-                    coverage=$(extract_coverage "$coverage_file")
-                  else
-                    coverage="N/A"
-                  fi
-                elif find test-results -name "*performance*" -type f | grep -q .; then
-                  found=true
-                  coverage="N/A"
-                fi
-                ;;
-              "security")
-                # Look for security test coverage files in coverage/security/ directory
-                if find test-results -path "*/coverage/security/*" -type f | grep -q .; then
-                  found=true
-                  coverage_file=$(find test-results -path "*/coverage/security/lcov.info" | head -1)
-                  if [ -n "$coverage_file" ]; then
-                    coverage=$(extract_coverage "$coverage_file")
-                  else
-                    coverage="N/A"
-                  fi
-                elif find test-results -name "*security*" -type f | grep -q .; then
-                  found=true
-                  coverage="N/A"
-                fi
-                ;;
-            esac
+            # Use the new coverage function for each test type
+            if find test-results -path "*/coverage/$test_type/*" -type f | grep -q .; then
+              found=true
+              coverage=$(get_test_type_coverage "$test_type")
+            elif find test-results -name "*$test_type*" -type f | grep -q .; then
+              found=true
+              coverage="N/A"
+            fi
             
             # Determine test status based on job result and artifacts
             case "$job_status" in
@@ -686,6 +678,83 @@ jobs:
           echo "- \`e2e-test-results\`" >> reports/test-summary.md
           echo "- \`performance-test-results\`" >> reports/test-summary.md
           echo "- \`security-test-results\`" >> reports/test-summary.md
+          
+          # Add overall coverage summary
+          if [ -f coverage-summary.json ]; then
+            echo "" >> reports/test-summary.md
+            echo "## Overall Coverage Summary" >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+            
+            OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
+            BRANCH_COVERAGE=$(jq -r '.total.branches.pct // 0' coverage-summary.json)
+            FUNCTION_COVERAGE=$(jq -r '.total.functions.pct // 0' coverage-summary.json)
+            
+            echo "- **Lines:** ${OVERALL_COVERAGE}%" >> reports/test-summary.md
+            echo "- **Branches:** ${BRANCH_COVERAGE}%" >> reports/test-summary.md  
+            echo "- **Functions:** ${FUNCTION_COVERAGE}%" >> reports/test-summary.md
+            echo "" >> reports/test-summary.md
+            
+            # Coverage quality assessment
+            if (( $(echo "$OVERALL_COVERAGE >= 25" | bc -l) )); then
+              echo "✅ **Coverage Quality:** Meets minimum standards (≥25%)" >> reports/test-summary.md
+            elif (( $(echo "$OVERALL_COVERAGE >= 15" | bc -l) )); then
+              echo "⚠️ **Coverage Quality:** Below target but acceptable (≥15%)" >> reports/test-summary.md
+            else
+              echo "❌ **Coverage Quality:** Below minimum standards (<15%)" >> reports/test-summary.md
+            fi
+          fi
+
+      - name: Validate coverage quality
+        run: |
+          if [ -f coverage-summary.json ]; then
+            COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
+            
+            echo "Current coverage: ${COVERAGE}%"
+            
+            # Set coverage quality gates
+            if (( $(echo "$COVERAGE < 10" | bc -l) )); then
+              echo "❌ Coverage critically low: $COVERAGE%"
+              echo "coverage_status=critical" >> $GITHUB_ENV
+            elif (( $(echo "$COVERAGE < 15" | bc -l) )); then
+              echo "⚠️ Coverage below minimum: $COVERAGE%"
+              echo "coverage_status=warning" >> $GITHUB_ENV
+            elif (( $(echo "$COVERAGE >= 25" | bc -l) )); then
+              echo "✅ Coverage meets target: $COVERAGE%"
+              echo "coverage_status=good" >> $GITHUB_ENV
+            else
+              echo "📈 Coverage progressing: $COVERAGE%"
+              echo "coverage_status=progress" >> $GITHUB_ENV
+            fi
+            
+            # Create coverage metrics for tracking
+            cat > coverage-metrics.json << EOF
+            {
+              "timestamp": "$(date -Iseconds)",
+              "commit": "${{ github.sha }}",
+              "branch": "${{ github.ref_name }}",
+              "coverage": {
+                "lines": $COVERAGE,
+                "branches": $(jq -r '.total.branches.pct // 0' coverage-summary.json),
+                "functions": $(jq -r '.total.functions.pct // 0' coverage-summary.json),
+                "statements": $(jq -r '.total.statements.pct // 0' coverage-summary.json)
+              },
+              "quality_score": $(echo "$COVERAGE * 0.4 + $(jq -r '.total.branches.pct // 0' coverage-summary.json) * 0.3 + $(jq -r '.total.functions.pct // 0' coverage-summary.json) * 0.3" | bc -l)
+            }
+            EOF
+          else
+            echo "No coverage data available"
+            echo "coverage_status=missing" >> $GITHUB_ENV
+          fi
+
+      - name: Upload merged coverage to Codecov
+        if: env.coverage_status != 'missing'
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/merged/lcov.info
+          flags: merged,overall
+          name: merged-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Comment PR with test results
         if: github.event_name == 'pull_request'
@@ -745,7 +814,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: comprehensive-test-report
-          path: reports/
+          path: |
+            reports/
+            coverage/merged/
+            coverage-summary.json
+            coverage-metrics.json
           retention-days: 30
 
       - name: Update status check

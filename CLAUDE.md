@@ -133,7 +133,7 @@ This project includes a comprehensive testing framework that should be used and 
 ### Test Execution Commands
 ```bash
 # Run all tests
-npm test                    # Full test suite
+npm test                    # Full test suite with coverage
 npm run test:unit          # Unit tests only
 npm run test:integration   # Integration tests only
 npm run test:e2e           # End-to-end tests only
@@ -141,7 +141,7 @@ npm run test:performance   # Performance benchmarks
 npm run test:security      # Security auditing
 
 # Development testing
-npm run test:coverage      # Generate coverage reports
+npm run test:coverage      # Generate detailed coverage reports
 npm run test:watch         # Watch mode for development
 ```
 
@@ -155,9 +155,10 @@ npm run test:watch         # Watch mode for development
 ### CI/CD Testing
 - Tests run automatically on GitHub Actions for all pushes and PRs
 - Multi-Node.js version testing (16, 18, 20)
-- Comprehensive test result reporting in `test-summary.md`
-- Coverage artifacts preserved for analysis
-- Quality gates prevent merging failing tests
+- **Fixed Coverage Reporting**: Industry-standard tools (`lcov-result-merger` + `nyc`)
+- **Accurate Coverage Calculation**: Entry points now properly included in coverage
+- **Quality Gates**: Automated coverage validation with realistic thresholds (25% global, 85% core)
+- **Comprehensive Artifacts**: Merged coverage reports and detailed test summaries
 
 ### When Modifying Tests
 - Always maintain or improve test coverage
