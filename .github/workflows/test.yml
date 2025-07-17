@@ -302,22 +302,12 @@ jobs:
         run: |
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:e2e -- \
-            --coverage \
-            --coverageDirectory=coverage/e2e \
-            --coverageReporters=text --coverageReporters=lcov \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
             --testTimeout=60000
 
-      - name: Upload E2E test coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: coverage/e2e/lcov.info
-          flags: e2e
-          name: e2e-tests
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+      # E2E tests don't generate source code coverage since they focus on behavior testing
 
       - name: Store E2E test results
         uses: actions/upload-artifact@v4
@@ -325,7 +315,6 @@ jobs:
         with:
           name: e2e-test-results
           path: |
-            coverage/e2e/
             logs/
             screenshots/
           retention-days: 7
@@ -446,9 +435,6 @@ jobs:
         run: |
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:security -- \
-            --coverage \
-            --coverageDirectory=coverage/security \
-            --coverageReporters=text --coverageReporters=lcov \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles \
@@ -494,14 +480,7 @@ jobs:
             fi
           done
 
-      - name: Upload security test coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: coverage/security/lcov.info
-          flags: security
-          name: security-tests
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+      # Security tests don't generate source code coverage since they focus on input validation
 
       - name: Store security test results
         uses: actions/upload-artifact@v4
@@ -509,7 +488,6 @@ jobs:
         with:
           name: security-test-results
           path: |
-            coverage/security/
             security-audit.json
             security-report.json
           retention-days: 30
@@ -549,7 +527,7 @@ jobs:
           name: integration-test-results
           path: test-results/integration/
 
-      - name: Download e2e test coverage
+      - name: Download e2e test results
         uses: actions/download-artifact@v4
         with:
           name: e2e-test-results
@@ -561,7 +539,7 @@ jobs:
           name: performance-test-results
           path: test-results/performance/
 
-      - name: Download security test coverage
+      - name: Download security test results
         uses: actions/download-artifact@v4
         with:
           name: security-test-results
@@ -572,16 +550,16 @@ jobs:
         run: |
           mkdir -p coverage/merged
           
-          # Find coverage files from DIFFERENT test types only (no Node version duplication)
-          echo "Collecting coverage from different test types..."
-          find test-results -name "lcov.info" -type f > coverage-files.txt
+          # Find coverage files from test types that generate coverage (unit, integration, performance)
+          echo "Collecting coverage from test types that generate source code coverage..."
+          find test-results/unit test-results/integration test-results/performance -name "lcov.info" -type f 2>/dev/null > coverage-files.txt || true
           
           if [ -s coverage-files.txt ]; then
             echo "Merging the following coverage files:"
             cat coverage-files.txt
             
-            # CRITICAL: Only merge ONE unit test coverage (Node 18) + other test types
-            # This prevents triple-counting the same source files from Node 16/18/20
+            # CRITICAL: Only merge ONE unit test coverage (Node 18) + integration + performance
+            # This prevents triple-counting the same source files from Node 18/20
             lcov-result-merger --prepend-source-files "$(cat coverage-files.txt | tr '\n' ' ')" coverage/merged/lcov.info
             
             # Generate a single, authoritative summary from the MERGED report
