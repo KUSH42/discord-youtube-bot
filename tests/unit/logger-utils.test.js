@@ -163,8 +163,8 @@ describe('Logger Utils Tests', () => {
     describe('createFileLogFormat', () => {
       it('should create file log format', () => {
         const format = LoggerUtils.createFileLogFormat();
-        expect(format).toHaveProperty('printf');
-        expect(typeof format.printf).toBe('function');
+        expect(format).toBeDefined();
+        expect(typeof format.transform).toBe('function');
       });
 
       it('should format log messages correctly', () => {
@@ -175,8 +175,9 @@ describe('Logger Utils Tests', () => {
           timestamp: '2023-01-01T00:00:00.000Z'
         };
         
-        const result = format.printf(logInfo);
-        expect(result).toBe('[2023-01-01T00:00:00.000Z] [INFO]: Test message');
+        const result = format.transform(logInfo);
+        const message = result[Symbol.for('message')] || result.message;
+        expect(message).toBe('[2023-01-01T00:00:00.000Z] [INFO]: Test message');
       });
 
       it('should include stack traces in formatted messages', () => {
@@ -188,17 +189,18 @@ describe('Logger Utils Tests', () => {
           stack: 'Error stack trace'
         };
         
-        const result = format.printf(logInfo);
-        expect(result).toContain('Test error');
-        expect(result).toContain('Error stack trace');
+        const result = format.transform(logInfo);
+        const message = result[Symbol.for('message')] || result.message;
+        expect(message).toContain('Test error');
+        expect(message).toContain('Error stack trace');
       });
     });
 
     describe('createConsoleLogFormat', () => {
       it('should create console log format', () => {
         const format = LoggerUtils.createConsoleLogFormat();
-        expect(format).toHaveProperty('printf');
-        expect(typeof format.printf).toBe('function');
+        expect(format).toBeDefined();
+        expect(typeof format.transform).toBe('function');
       });
     });
 
