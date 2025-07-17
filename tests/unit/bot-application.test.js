@@ -1,15 +1,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-
-// 1. Create a stable mock function at the top level
-const mockExec = jest.fn();
-
-// 2. Tell Jest to use our mock function when 'child_process' is imported
-jest.mock('child_process', () => ({
-  exec: mockExec,
-}));
-
-// 3. Now import the module to be tested. It will get our mock.
+import * as child_process from 'child_process';
 import { BotApplication } from '../../src/application/bot-application.js';
+
+// Use Jest's built-in mocking for native modules
+jest.mock('child_process');
 
 describe('BotApplication', () => {
   let botApp;
@@ -19,7 +13,7 @@ describe('BotApplication', () => {
 
   beforeEach(() => {
     // Clear mock history before each test
-    mockExec.mockClear();
+    jest.clearAllMocks();
     
     mockDiscordService = {
       isReady: jest.fn().mockReturnValue(true),
@@ -65,16 +59,19 @@ describe('BotApplication', () => {
 
   describe('handleUpdate', () => {
     it('should execute git pull and restart the service', () => {
-      mockConfig.get.mockReturnValue('discord-bot.service');
-      // Provide a one-time implementation for the mock
-      mockExec.mockImplementation((command, callback) => {
+      // Spy on the exec method of the mocked child_process module
+      const execSpy = jest.spyOn(child_process, 'exec');
+      execSpy.mockImplementation((command, callback) => {
+        // Simulate success for both commands
         callback(null, 'OK', '');
       });
 
+      mockConfig.get.mockReturnValue('discord-bot.service');
+      
       botApp.handleUpdate();
 
-      expect(mockExec).toHaveBeenCalledWith('git pull', expect.any(Function));
-      expect(mockExec).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
+      expect(execSpy).toHaveBeenCalledWith('git pull', expect.any(Function));
+      expect(execSpy).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
     });
   });
 
