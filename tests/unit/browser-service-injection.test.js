@@ -18,7 +18,7 @@ describe('Browser Service Dependency Injection', () => {
       ...originalEnv,
       DISCORD_BOT_TOKEN: 'test-token',
       YOUTUBE_API_KEY: 'test-key',
-      YOUTUBE_CHANNEL_ID: 'UCabcdefghijklmnopqrstuvwx',
+      YOUTUBE_CHANNEL_ID: 'UCabcdefghijklmnopqrstuv',
       DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345678',
       DISCORD_X_POSTS_CHANNEL_ID: '123456789012345678',
       DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345678',

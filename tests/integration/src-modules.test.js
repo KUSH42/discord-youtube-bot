@@ -253,10 +253,15 @@ describe('Source Module Integration Tests', () => {
         stack: 'Error stack trace'
       };
 
-      const formatted = fileFormat.printf(logInfo);
-      expect(formatted).toContain('Test error message');
-      expect(formatted).toContain('Error stack trace');
-      expect(formatted).toContain('[ERROR]');
+      // The fileFormat is now a Winston format object, not a plain object
+      expect(fileFormat).toBeDefined();
+      expect(typeof fileFormat.transform).toBe('function');
+      
+      // Test that it transforms log info correctly
+      const transformed = fileFormat.transform(logInfo);
+      expect(transformed).toContain('Test error message');
+      expect(transformed).toContain('Error stack trace');
+      expect(transformed).toContain('[ERROR]');
     });
   });
 
