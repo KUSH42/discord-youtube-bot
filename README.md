@@ -244,6 +244,7 @@ ANNOUNCEMENT_ENABLED=false
 X_VX_TWITTER_CONVERSION=false
 LOG_FILE_PATH=bot.log
 LOG_LEVEL=info
+SYSTEMD_SERVICE_NAME=discord-bot.service
 ```
 
 ## 🎮 Bot Commands
@@ -253,7 +254,7 @@ All commands work in the configured support channel with your chosen prefix (def
 | Command | Description | Authorization |
 |---------|-------------|--------------|
 | `!kill` | 🛑 Stop all Discord posting | Authorized users only |
-| `!restart` | 🔄 Fully restarts the bot, reloading all environment variables and configurations. | Authorized users only |
+| `!restart` | 🔄 Performs a full restart of the bot, reloading the .env file and all configurations. | Authorized users only |
 | `!announce <true\|false>` | 📢 Toggle announcement posting | Anyone |
 | `!vxtwitter <true\|false>` | 🐦 Toggle URL conversion | Anyone |
 | `!loglevel <level>` | 📝 Change logging level | Anyone |

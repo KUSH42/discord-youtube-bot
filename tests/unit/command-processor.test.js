@@ -208,7 +208,7 @@ describe('CommandProcessor', () => {
       expect(result.success).toBe(true);
       expect(result.message).toContain('Discord Bot Message Commands');
       expect(result.message).toContain('!kill');
-      expect(result.message).toContain('!restart');
+      expect(result.message).toContain('reloading the .env file');
     });
     
     it('should process restart command', async () => {
