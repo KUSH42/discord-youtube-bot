@@ -224,11 +224,8 @@ The codebase has been successfully transformed into a modern, testable architect
    ```
 
 ### Current Coverage Thresholds
-- **Global Standards** (CI-compatible):
-  - Statements: 25% minimum
-  - Branches: 20% minimum  
-  - Functions: 25% minimum
-  - Lines: 25% minimum
+- **Global Standards** (CI-enforced):
+  - **Lines**: 25% (Good), 15% (Warning), <10% (Critical)
 - **Core Module Standards** (High-quality code):
   - Statements: 85% minimum (`src/core/`)
   - Branches: 80% minimum (`src/core/`)
@@ -247,7 +244,7 @@ The codebase has been successfully transformed into a modern, testable architect
 ✅ **Strategic Coverage Focus**: "Quality over Quantity" approach implemented
 - **Interface Exclusion**: Abstract contract definitions excluded from measurement
 - **Implementation Focus**: Only testable implementation code measured
-- **Realistic Thresholds**: 35% global, 85% core module standards
+- **Realistic Thresholds**: 25% global, 85% core module standards
 - **Infrastructure Priority**: Critical system components have excellent coverage
 
 ### Coverage Exclusions
@@ -326,15 +323,17 @@ npm test -- --testNamePattern="should extract video ID"
 ## 📋 CI/CD Integration
 
 ### GitHub Actions Workflow (`.github/workflows/test.yml`)
-- **Multi-Node Testing**: Tests run on Node.js 16, 18, and 20
+- **Multi-Node Testing**: Tests run on Node.js 18 and 20
 - **Parallel Execution**: Different test categories run concurrently
 - **Coverage Reporting**: Automatic coverage upload to Codecov
+- **Test Summary**: A detailed `test-summary.md` report is generated with the full output of each test suite and posted as a commit comment.
+- **Artifacts**: Detailed logs and coverage reports for each test suite are stored as downloadable artifacts.
 - **Performance Monitoring**: Historical performance tracking
 - **Security Scanning**: Automated vulnerability detection
 
 ### Quality Gates
 - **All Tests Pass**: No failing tests allowed in main branch
-- **Coverage Threshold**: Minimum 90% coverage required
+- **Coverage Threshold**: Minimum 25% line coverage required to pass quality gate.
 - **Security Scan**: No critical vulnerabilities allowed
 - **Performance Regression**: Alerts on performance degradation
 
@@ -346,7 +345,7 @@ npm test -- --testNamePattern="should extract video ID"
 - [Node.js Testing Best Practices](https://github.com/goldbergyoni/nodebestpractices#-6-testing-and-overall-quality-practices)
 
 ### Tools
-- **Coverage Visualization**: Open `coverage/lcov-report/index.html`
+- **Coverage Visualization**: For local development, an HTML report is available at `coverage/lcov-report/index.html` after running `npm run test:coverage`. In CI, merged coverage reports are uploaded to Codecov and available in the run summary.
 - **Performance Profiling**: Use `--expose-gc` flag for memory analysis
 - **Mock Debugging**: Enable verbose logging in test setup
 
