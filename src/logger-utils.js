@@ -2,6 +2,7 @@
 // Logger utilities including Discord transport for Winston
 
 import Transport from 'winston-transport';
+import * as winston from 'winston';
 import { splitMessage } from './discord-utils.js';
 
 /**
@@ -109,12 +110,10 @@ export const LoggerUtils = {
      * @returns {winston.Logform.Format} Winston log format
      */
     createFileLogFormat() {
-        return {
-            printf: ({ level, message, timestamp, stack }) => {
-                const baseMessage = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
-                return stack ? `${baseMessage}\n${stack}` : baseMessage;
-            }
-        };
+        return winston.format.printf(({ level, message, timestamp, stack }) => {
+            const baseMessage = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
+            return stack ? `${baseMessage}\n${stack}` : baseMessage;
+        });
     },
 
     /**
@@ -122,12 +121,10 @@ export const LoggerUtils = {
      * @returns {winston.Logform.Format} Winston log format
      */
     createConsoleLogFormat() {
-        return {
-            printf: ({ level, message, timestamp, stack }) => {
-                const baseMessage = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
-                return stack ? `${baseMessage}\n${stack}` : baseMessage;
-            }
-        };
+        return winston.format.printf(({ level, message, timestamp, stack }) => {
+            const baseMessage = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
+            return stack ? `${baseMessage}\n${stack}` : baseMessage;
+        });
     },
 
     /**
