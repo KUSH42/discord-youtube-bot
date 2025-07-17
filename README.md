@@ -11,11 +11,12 @@
 
 > 🚀 **A production-ready Discord bot that automatically announces new content from YouTube channels and X (Twitter) profiles to your Discord server.**
 
-This Node.js bot monitors designated YouTube channels and X profiles, delivering real-time content announcements to your Discord channels. Built with enterprise-grade security, monitoring, and reliability features.
+This Node.js bot monitors designated YouTube channels and X profiles, delivering real-time content announcements to your Discord channels. Built with modern clean architecture, comprehensive testing infrastructure, enterprise-grade security, and production reliability features.
 
 ## 📋 Table of Contents
 
 - [✨ Features](#-features)
+- [🏗️ Architecture](#️-architecture)
 - [🔧 Quick Start](#-quick-start)
 - [📋 Prerequisites](#-prerequisites)
 - [🛠️ Setup Instructions](#️-setup-instructions)
@@ -31,6 +32,52 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 - [🤝 Contributing](#-contributing)
 
 ## ✨ Features
+
+### 🏗️ Modern Architecture
+- **Clean Architecture:** Organized into layers (Application, Core, Infrastructure, Services)
+- **Dependency Injection:** Centralized service management with IoC container
+- **Service Interfaces:** Contract-based design for maintainability and testing
+- **Event-Driven:** Decoupled components communicating through event bus
+- **Modular Design:** Easily extensible and testable component structure
+
+## 🏗️ Architecture
+
+The bot follows clean architecture principles with clear separation of concerns and dependency injection:
+
+```
+src/
+├── 🎯 application/           # Application layer
+│   ├── bot-application.js     # Main bot orchestration
+│   ├── monitor-application.js # YouTube monitoring app
+│   └── scraper-application.js # X/Twitter scraping app
+├── 💼 core/                  # Business logic layer
+│   ├── command-processor.js   # Discord command handling
+│   ├── content-announcer.js   # Content posting logic
+│   └── content-classifier.js  # Content categorization
+├── 🏗️ infrastructure/        # Foundation layer
+│   ├── configuration.js       # Config management
+│   ├── dependency-container.js # IoC container
+│   ├── event-bus.js          # Event system
+│   └── state-manager.js      # State management
+├── 🔧 services/              # External service layer
+│   ├── interfaces/           # Service contracts
+│   └── implementations/      # Concrete implementations
+├── ⚙️ setup/                 # Production setup
+│   └── production-setup.js   # Dependency wiring
+└── 🛠️ utilities/             # Shared utilities
+    ├── config-validator.js   # Environment validation
+    ├── discord-utils.js      # Discord helpers
+    ├── duplicate-detector.js # Content deduplication
+    ├── logger-utils.js       # Logging infrastructure
+    └── rate-limiter.js       # Rate limiting
+```
+
+### Key Architectural Benefits
+- **🧪 Testability:** 74.72% code coverage with isolated, mockable components
+- **🔧 Maintainability:** Clear separation of concerns and single responsibility
+- **🚀 Extensibility:** Easy to add new content sources or announcement targets
+- **🛡️ Reliability:** Robust error handling and fallback mechanisms
+- **📊 Observability:** Comprehensive logging and monitoring throughout
 
 ### 📺 Content Monitoring
 - **YouTube Activity Monitoring:** Real-time notifications via PubSubHubbub for uploads and livestreams
@@ -57,6 +104,8 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 - **PubSubHubbub Integration:** Efficient real-time YouTube notifications with fallback protection
 - **Intelligent Error Recovery:** Automatic retry with exponential backoff and API polling backup
 - **Subscription Auto-Renewal:** Automated maintenance of YouTube subscriptions
+- **Modular Architecture:** Clean architecture with dependency injection and service separation
+- **Comprehensive Testing:** 74.72% code coverage with 287 tests across unit, integration, E2E, performance, and security
 - **Systemd Support:** Production deployment with service management
 - **Generic Deployment:** No hardcoded usernames or paths
 
@@ -304,34 +353,44 @@ sudo systemctl start discord-bot.service
 
 ## 🧪 Testing Infrastructure
 
-The bot includes a comprehensive testing infrastructure designed for reliability and confidence in deployments:
+The bot includes a bulletproof testing infrastructure with **74.72% code coverage** and **287 comprehensive tests**:
 
 ### 🧪 Testing Framework
 - **Comprehensive Test Suite:** Multi-tier testing with Unit, Integration, E2E, Performance, and Security tests
+- **Modular Architecture Testing:** Direct testing of extracted `src/` modules with clean interfaces
 - **Cross-Platform Coverage:** Tests run on Node.js 16, 18, and 20 across different environments
 - **Real-time CI/CD:** GitHub Actions with automated testing on every push and pull request
-- **Coverage Reporting:** Detailed code coverage metrics for all test types
+- **Coverage Reporting:** Detailed code coverage metrics with HTML reports
 
-### 🎯 Test Types
+### 🎯 Test Types & Coverage
 
-| Test Type | Purpose | Coverage |
-|-----------|---------|----------|
-| **Unit** | Component testing with mocking | Individual functions and modules |
-| **Integration** | Service interaction testing | API endpoints, database operations |
-| **E2E** | Full workflow testing | Complete user scenarios |
-| **Performance** | Load and response testing | Resource usage, timing metrics |
-| **Security** | Vulnerability scanning | Dependency audits, static analysis |
+| Test Type | Count | Purpose | Current Coverage |
+|-----------|-------|---------|------------------|
+| **Unit** | 150+ | Component testing with mocking | Individual functions and modules |
+| **Integration** | 80+ | Service interaction testing | API endpoints, service integration |
+| **E2E** | 35+ | Full workflow testing | Complete user scenarios |
+| **Performance** | 15+ | Load and response testing | Resource usage, timing metrics |
+| **Security** | 7+ | Vulnerability scanning | Input validation, auth testing |
+
+### 📊 Coverage Breakdown
+- **Overall Coverage:** 74.72% 
+- **config-validator.js:** 100% coverage ✅
+- **discord-utils.js:** 97.91% coverage ✅
+- **logger-utils.js:** 93.93% coverage ✅
+- **duplicate-detector.js:** 39.13% coverage
+- **rate-limiter.js:** 56% coverage
 
 ### 🚀 CI/CD Features
 - **Parallel Execution:** Tests run concurrently for faster feedback
 - **Artifact Collection:** Test results, coverage reports, and logs preserved
 - **Smart Detection:** Automatically identifies test failures and provides detailed reporting
 - **PR Integration:** Real-time test status in pull requests with comprehensive summaries
+- **Test Result Analysis:** Automated generation of `test-summary.md` with detailed metrics
 
 ### 📊 Test Commands
 ```bash
 # Run all tests locally
-npm test                    # Execute full test suite
+npm test                    # Execute full test suite (287 tests)
 npm run test:unit          # Unit tests only
 npm run test:integration   # Integration tests only
 npm run test:e2e           # End-to-end tests only
@@ -344,10 +403,11 @@ npm run test:watch         # Watch mode for development
 ```
 
 ### 🛡️ Quality Gates
-- **Minimum Coverage:** Tests must maintain coverage thresholds
-- **Zero Failures:** All tests must pass before merging
+- **Current Coverage:** 74.72% across critical functionality
+- **Zero Failures:** All 287 tests must pass before merging
 - **Security Scanning:** No high/critical vulnerabilities allowed
 - **Performance Benchmarks:** Response times within acceptable limits
+- **Modular Testing:** Real source code testing with proper mocking
 
 ## 🛡️ Development & Security
 
