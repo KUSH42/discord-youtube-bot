@@ -37,7 +37,7 @@ async function startBot() {
     logger.info('✅ Bot startup completed successfully');
     return container;
   } catch (error) {
-    if (container && container.resolve('logger')) {
+    if (container && container.isRegistered('logger')) {
       container.resolve('logger').error('❌ Failed to start bot:', error);
     } else {
       console.error('❌ Failed to start bot:', error);
@@ -59,11 +59,9 @@ async function main() {
       container = await startBot();
     });
   } catch (error) {
-    if (logger) {
-      logger.error('❌ Failed to start bot:', error);
-    } else {
-      console.error('❌ Failed to start bot:', error);
-    }
+    // Logger is not available here if startBot fails, so we log to console.
+    // The error is already logged inside startBot's catch block.
+    console.error('❌ Bot startup failed in main:', error.message);
     
     // Clean up on error
     if (container) {
