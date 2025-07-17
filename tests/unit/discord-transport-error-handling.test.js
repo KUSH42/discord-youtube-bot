@@ -139,14 +139,14 @@ describe('Discord Transport Error Handling', () => {
         client: mockClient,
         channelId: '123456789012345678',
         level: 'info',
-        flushInterval: 100
+        maxBufferSize: 1 // Force flush after first message
       });
 
       const callback = jest.fn();
       await transport.log({ level: 'info', message: 'test message' }, callback);
       
-      // Wait for flush to occur
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait for flush to occur (happens immediately due to maxBufferSize = 1)
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('[DiscordTransport] Failed to flush log buffer to Discord:'),

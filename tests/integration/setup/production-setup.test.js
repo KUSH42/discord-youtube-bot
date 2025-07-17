@@ -52,27 +52,27 @@ describe('Production Setup', () => {
 
   beforeEach(() => {
     // Create a mock configuration with all required variables
-    const configMap = new Map([
-      ['NODE_ENV', 'test'],
-      ['DISCORD_BOT_TOKEN', 'test-token'],
-      ['YOUTUBE_API_KEY', 'test-api-key'],
-      ['YOUTUBE_CHANNEL_ID', 'UC-test-channel'],
-      ['DISCORD_YOUTUBE_CHANNEL_ID', '1234567890'],
-      ['DISCORD_X_POSTS_CHANNEL_ID', '1234567890'],
-      ['DISCORD_X_REPLIES_CHANNEL_ID', '1234567890'],
-      ['DISCORD_X_QUOTES_CHANNEL_ID', '1234567890'],
-      ['DISCORD_X_RETWEETS_CHANNEL_ID', '1234567890'],
-      ['DISCORD_BOT_SUPPORT_LOG_CHANNEL', '1234567890'],
-      ['PSH_CALLBACK_URL', 'http://localhost:3000/youtube-webhook'],
-      ['PSH_SECRET', 'test-secret'],
-      ['X_USER_HANDLE', 'testuser'],
-      ['TWITTER_USERNAME', 'testuser'],
-      ['TWITTER_PASSWORD', 'testpass'],
-      ['ALLOWED_USER_IDS', '1234567890'],
-      ['LOG_LEVEL', 'info'],
-    ]);
+    const configObject = {
+      NODE_ENV: 'test',
+      DISCORD_BOT_TOKEN: 'test-token',
+      YOUTUBE_API_KEY: 'test-api-key',
+      YOUTUBE_CHANNEL_ID: 'UC-test-channel',
+      DISCORD_YOUTUBE_CHANNEL_ID: '1234567890',
+      DISCORD_X_POSTS_CHANNEL_ID: '1234567890',
+      DISCORD_X_REPLIES_CHANNEL_ID: '1234567890',
+      DISCORD_X_QUOTES_CHANNEL_ID: '1234567890',
+      DISCORD_X_RETWEETS_CHANNEL_ID: '1234567890',
+      DISCORD_BOT_SUPPORT_LOG_CHANNEL: '1234567890',
+      PSH_CALLBACK_URL: 'http://localhost:3000/youtube-webhook',
+      PSH_SECRET: 'test-secret',
+      X_USER_HANDLE: 'testuser',
+      TWITTER_USERNAME: 'testuser',
+      TWITTER_PASSWORD: 'testpass',
+      ALLOWED_USER_IDS: '1234567890',
+      LOG_LEVEL: 'info',
+    };
     
-    config = new Configuration(configMap);
+    config = new Configuration(configObject);
     container = new DependencyContainer();
   });
 
