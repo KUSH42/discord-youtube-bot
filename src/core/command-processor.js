@@ -120,7 +120,7 @@ export class CommandProcessor {
    * @param {string} userId - User ID who issued the command
    * @returns {Promise<Object>} Command result object
    */
-  async processCommand(command, args = [], userId) {
+  async processCommand(command, args = [], userId, appStats = null) {
     // Validate command
     const validation = this.validateCommand(command, args, userId);
     if (!validation.success) {
@@ -159,6 +159,9 @@ export class CommandProcessor {
         
       case 'health':
         return await this.handleHealth();
+      
+      case 'health-detailed':
+        return await this.handleHealthDetailed(appStats);
         
       case 'readme':
         return await this.handleReadme();
@@ -323,6 +326,7 @@ export class CommandProcessor {
       `**${this.commandPrefix}vxtwitter <true|false>**: Toggles the conversion of \`x.com\` URLs to \`vxtwitter.com\` in announcements.`,
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
+      `**${this.commandPrefix}health-detailed**: Shows detailed health status for all components.`,
       `**${this.commandPrefix}readme**: Displays this command information.`
     ];
     
@@ -339,9 +343,29 @@ export class CommandProcessor {
    * Get command statistics
    * @returns {Object} Command usage statistics
    */
+  /**
+   * Handle detailed health command
+   */
+  async handleHealthDetailed(appStats) {
+    if (!appStats) {
+      return {
+        success: false,
+        message: 'Detailed health information is not available at the moment.',
+        requiresRestart: false
+      };
+    }
+    
+    return {
+      success: true,
+      message: 'Detailed health check completed',
+      requiresRestart: false,
+      healthData: appStats
+    };
+  }
+
   getStats() {
     return {
-      availableCommands: ['restart', 'kill', 'announce', 'vxtwitter', 'loglevel', 'health', 'readme'],
+      availableCommands: ['restart', 'kill', 'announce', 'vxtwitter', 'loglevel', 'health', 'health-detailed', 'readme'],
       restrictedCommands: ['restart', 'kill'],
       allowedUsers: this.getAllowedUserIds().length,
       commandPrefix: this.commandPrefix
