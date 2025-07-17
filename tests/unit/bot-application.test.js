@@ -71,9 +71,9 @@ describe('BotApplication', () => {
   describe('createDetailedHealthEmbed', () => {
     it('should create a detailed health embed correctly', () => {
       const healthData = {
-        bot: { isRunning: true, isDiscordReady: true },
-        scraper: { isRunning: true, totalRuns: 10, successfulRuns: 9 },
-        monitor: { isRunning: true, activeSubscriptions: 1, xmlParseFailures: 2 },
+        bot: { isRunning: true, isDiscordReady: true, announcementEnabled: true, vxTwitterEnabled: false, botStartTime: new Date().toISOString() },
+        scraper: { isRunning: true, totalRuns: 10, successfulRuns: 9, failedRuns: 1, totalTweetsFound: 20, totalTweetsAnnounced: 18, lastError: null, pollingInterval: { next: Date.now() + 300000 } },
+        monitor: { isRunning: true, activeSubscriptions: 1, xmlParseFailures: 2, subscriptions: 1, webhooksReceived: 5, videosProcessed: 4, videosAnnounced: 3, lastError: null },
         system: {
           uptime: 3600,
           memory: { heapUsed: 1024 * 1024 * 50 },
@@ -101,10 +101,10 @@ describe('BotApplication', () => {
     });
 
     it('should display "In progress..." for next X poll when scraper is running but no next poll time is set', () => {
-        const healthData = {
-            bot: { isRunning: true, isDiscordReady: true },
-            scraper: { isRunning: true, pollingInterval: { next: null } },
-            monitor: { isRunning: true, activeSubscriptions: 1 },
+      const healthData = {
+            bot: { isRunning: true, isDiscordReady: true, announcementEnabled: true, vxTwitterEnabled: false, botStartTime: new Date().toISOString() },
+            scraper: { isRunning: true, totalRuns: 10, successfulRuns: 9, failedRuns: 1, totalTweetsFound: 20, totalTweetsAnnounced: 18, lastError: null, pollingInterval: { next: null } },
+            monitor: { isRunning: true, activeSubscriptions: 1, xmlParseFailures: 2, subscriptions: 1, webhooksReceived: 5, videosProcessed: 4, videosAnnounced: 3, lastError: null },
             system: {
                 uptime: 3600,
                 memory: { heapUsed: 1024 * 1024 * 50 },
