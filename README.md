@@ -371,7 +371,7 @@ The bot includes a bulletproof testing infrastructure with **~70% source code co
 ### 🧪 Testing Framework
 - **Comprehensive Test Suite:** Multi-tier testing with Unit, Integration, E2E, Performance, and Security tests
 - **Modular Architecture Testing:** Direct testing of extracted `src/` modules with clean interfaces
-- **Cross-Platform Coverage:** Tests run on Node.js 16, 18, and 20 across different environments
+- **Cross-Platform Coverage:** Tests run on Node.js 18 and 20 across different environments
 - **Real-time CI/CD:** GitHub Actions with automated testing on every push and pull request
 - **Coverage Reporting:** Detailed code coverage metrics with HTML reports
 
@@ -379,11 +379,13 @@ The bot includes a bulletproof testing infrastructure with **~70% source code co
 
 | Test Type | Count | Purpose | Current Coverage |
 |-----------|-------|---------|------------------|
+| Test Type | Count | Purpose | Current Coverage |
+|-----------|-------|---------|------------------|
 | **Unit** | 220+ | Component testing with mocking | Individual functions and modules |
 | **Integration** | 80+ | Service interaction testing | API endpoints, service integration |
 | **E2E** | 35+ | Full workflow testing | Complete user scenarios |
 | **Performance** | 15+ | Load and response testing | Resource usage, timing metrics |
-| **Security** | 7+ | Vulnerability scanning | Input validation, auth testing |
+| **Security** | 10+ | Vulnerability scanning | Input validation, auth testing |
 
 ### 📊 Coverage Breakdown
 - **Source Code Coverage:** ~70% (excellent implementation coverage) ✅
@@ -393,18 +395,20 @@ The bot includes a bulletproof testing infrastructure with **~70% source code co
 - **Critical Components:** Excellent coverage where it matters most ✅
 
 ### 🚀 CI/CD Features
-- **Parallel Execution:** Tests run concurrently for faster feedback
-- **Fixed Coverage Reporting:** Industry-standard tools eliminate calculation errors and triple-counting
-- **Smart Coverage Merging:** CI properly accumulates coverage from different test types (no Node version duplication)
-- **Quality Gates:** Automated coverage validation with realistic thresholds focusing on implementation code
-- **Smart Detection:** Automatically identifies test failures and provides detailed reporting
-- **PR Integration:** Real-time test status in pull requests with accurate coverage summaries
-- **Comprehensive Artifacts:** Merged coverage reports and detailed test metrics preserved
+- **Parallel Execution:** Tests run concurrently for faster feedback.
+- **Fixed Coverage Reporting:** Industry-standard tools eliminate calculation errors and triple-counting.
+- **Smart Coverage Merging:** CI properly accumulates coverage from different test types.
+- **Test Summary Generation**: A `test-summary.md` file with the full output of all test suites is generated and uploaded as an artifact.
+- **Commit Commenting**: The test summary is automatically posted as a comment on the corresponding commit.
+- **Quality Gates:** Automated coverage validation with realistic thresholds focusing on implementation code.
+- **Smart Detection:** Automatically identifies test failures and provides detailed reporting.
+- **PR Integration:** Real-time test status in pull requests with accurate coverage summaries.
+- **Comprehensive Artifacts:** Merged coverage reports and detailed test metrics are preserved and available for download.
 
 ### 📊 Test Commands
 ```bash
 # Run all tests locally
-npm test                    # Execute full test suite (287 tests)
+npm test                    # Execute full test suite (350+ tests)
 npm run test:unit          # Unit tests only
 npm run test:integration   # Integration tests only
 npm run test:e2e           # End-to-end tests only
@@ -417,8 +421,8 @@ npm run test:watch         # Watch mode for development
 ```
 
 ### 🛡️ Quality Gates
-- **Current Coverage:** 74.72% across critical functionality
-- **Zero Failures:** All 287 tests must pass before merging
+- **Current Coverage:** ~30% overall, with 75%+ on critical modules
+- **Zero Failures:** All 350+ tests must pass before merging
 - **Security Scanning:** No high/critical vulnerabilities allowed
 - **Performance Benchmarks:** Response times within acceptable limits
 - **Modular Testing:** Real source code testing with proper mocking
