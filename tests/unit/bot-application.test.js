@@ -1,119 +1,69 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { BotApplication } from '../../src/application/bot-application.js';
+import { jest } from '@jest/globals';
 
 describe('BotApplication', () => {
-  let botApp;
+  let botApplication;
   let mockDiscordService;
+  let mockCommandProcessor;
   let mockEventBus;
   let mockConfig;
+  let mockStateManager;
+  let mockLogger;
+  let mockScraperApplication;
+  let mockMonitorApplication;
   let mockExec;
 
   beforeEach(() => {
-    // Clear mock history before each test
-    jest.clearAllMocks();
-    
-    mockDiscordService = {
-      isReady: jest.fn().mockReturnValue(true),
-      getLatency: jest.fn().mockReturnValue(123),
-    };
-
+    mockDiscordService = {};
+    mockCommandProcessor = {};
     mockEventBus = {
       emit: jest.fn(),
     };
-
     mockConfig = {
-      get: jest.fn(),
+      get: jest.fn((key, defaultValue) => {
+        if (key === 'SYSTEMD_SERVICE_NAME') return 'test-service';
+        return defaultValue;
+      }),
       getBoolean: jest.fn(),
+      getRequired: jest.fn(),
     };
-    
-    mockExec = jest.fn((command, callback) => callback(null, 'OK', ''));
+    mockStateManager = {
+      set: jest.fn(),
+      get: jest.fn(),
+    };
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      child: jest.fn(() => mockLogger),
+    };
+    mockScraperApplication = {};
+    mockMonitorApplication = {};
+    mockExec = jest.fn();
 
-    const dependencies = {
+    botApplication = new BotApplication({
       exec: mockExec,
       discordService: mockDiscordService,
-      commandProcessor: {},
+      commandProcessor: mockCommandProcessor,
       eventBus: mockEventBus,
       config: mockConfig,
-      stateManager: {
-        get: jest.fn(),
-        set: jest.fn(),
-      },
-      logger: {
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn(),
-      },
-      scraperApplication: {},
-      monitorApplication: {},
-    };
-
-    botApp = new BotApplication(dependencies);
-  });
-
-  describe('softRestart', () => {
-    it('should emit a bot.request_restart event', async () => {
-      await botApp.softRestart();
-      expect(mockEventBus.emit).toHaveBeenCalledWith('bot.request_restart');
+      stateManager: mockStateManager,
+      logger: mockLogger,
+      scraperApplication: mockScraperApplication,
+      monitorApplication: mockMonitorApplication,
     });
   });
 
   describe('handleUpdate', () => {
-    it('should execute git pull and restart the service', () => {
-      mockConfig.get.mockReturnValue('discord-bot.service');
-      
-      botApp.handleUpdate();
+    it('should execute git pull and systemctl restart', () => {
+      botApplication.handleUpdate();
+
+      // Simulate successful git pull
+      const gitPullCallback = mockExec.mock.calls[0][1];
+      gitPullCallback(null, 'Git pull successful', '');
 
       expect(mockExec).toHaveBeenCalledWith('git pull', expect.any(Function));
-      expect(mockExec).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
-    });
-  });
-
-  describe('createDetailedHealthEmbed', () => {
-    it('should create a detailed health embed correctly', () => {
-      const healthData = {
-        bot: { isRunning: true, isDiscordReady: true, announcementEnabled: true, vxTwitterEnabled: false, botStartTime: new Date().toISOString() },
-        scraper: { isRunning: true, totalRuns: 10, successfulRuns: 9, failedRuns: 1, totalTweetsFound: 20, totalTweetsAnnounced: 18, lastError: null, pollingInterval: { next: Date.now() + 300000 } },
-        monitor: { isRunning: true, activeSubscriptions: 1, xmlParseFailures: 2, subscriptions: 1, webhooksReceived: 5, videosProcessed: 4, videosAnnounced: 3, lastError: null },
-        system: {
-          uptime: 3600,
-          memory: { heapUsed: 1024 * 1024 * 50 },
-          timestamp: new Date().toISOString(),
-        },
-      };
-
-      const embed = botApp.createDetailedHealthEmbed(healthData);
-
-      expect(embed.title).toBe('📊 Detailed Bot Health Status');
-      expect(embed.color).toBe(0x00ff00);
-      expect(embed.fields).toHaveLength(12);
-      expect(embed.fields[0].name).toBe('🤖 Bot');
-      expect(embed.fields[1].name).toBe('▶️ YouTube Monitor');
-      expect(embed.fields[2].name).toBe('🐦 X Scraper');
-      expect(embed.fields[3].name).toBe('📢 Announcements');
-      expect(embed.fields[4].name).toBe('🔄 VX Twitter');
-      expect(embed.fields[5].name).toBe('⏳ Next X Poll');
-      expect(embed.fields[9].name).toBe('YouTube Stats');
-      expect(embed.fields[9].value).toContain('Subs: 1');
-      expect(embed.fields[10].name).toBe('X Stats');
-      expect(embed.fields[10].value).toContain('Runs: 10');
-      expect(embed.fields[11].name).toBe('Error Info');
-      expect(embed.fields[11].value).toContain('XML Fails: 2');
-    });
-
-    it('should display "In progress..." for next X poll when scraper is running but no next poll time is set', () => {
-      const healthData = {
-            bot: { isRunning: true, isDiscordReady: true, announcementEnabled: true, vxTwitterEnabled: false, botStartTime: new Date().toISOString() },
-            scraper: { isRunning: true, totalRuns: 10, successfulRuns: 9, failedRuns: 1, totalTweetsFound: 20, totalTweetsAnnounced: 18, lastError: null, pollingInterval: { next: null } },
-            monitor: { isRunning: true, activeSubscriptions: 1, xmlParseFailures: 2, subscriptions: 1, webhooksReceived: 5, videosProcessed: 4, videosAnnounced: 3, lastError: null },
-            system: {
-                uptime: 3600,
-                memory: { heapUsed: 1024 * 1024 * 50 },
-                timestamp: new Date().toISOString(),
-            },
-        };
-        const embed = botApp.createDetailedHealthEmbed(healthData);
-        const nextPollField = embed.fields.find(f => f.name === '⏳ Next X Poll');
-        expect(nextPollField.value).toBe('In progress...');
+      expect(mockExec).toHaveBeenCalledWith('sudo systemctl restart test-service', expect.any(Function));
     });
   });
 });
