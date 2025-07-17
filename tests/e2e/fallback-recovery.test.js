@@ -65,7 +65,10 @@ describe('End-to-End Fallback Recovery Tests', () => {
         totalFallbackTriggers: 0,
         totalVideosRecoveredByFallback: 0,
         totalApiFallbackExecutions: 0
-      }
+      },
+      
+      // Timer tracking for cleanup
+      timers: []
     };
 
     // Mock implementations
@@ -85,9 +88,9 @@ describe('End-to-End Fallback Recovery Tests', () => {
     }
     
     // Clear all scheduled timers to prevent open handles
-    if (this.timers) {
-        this.timers.forEach(timer => clearTimeout(timer));
-        this.timers = [];
+    if (mockYouTubeMonitor.timers) {
+        mockYouTubeMonitor.timers.forEach(timer => clearTimeout(timer));
+        mockYouTubeMonitor.timers = [];
     }
     
     jest.clearAllMocks();
