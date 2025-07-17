@@ -1,4 +1,6 @@
 import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
 
 /**
@@ -30,6 +32,18 @@ export class BotApplication {
     // Event handler cleanup functions
     this.eventCleanup = [];
     this.isRunning = false;
+    this.buildInfo = this.loadBuildInfo();
+  }
+
+  loadBuildInfo() {
+    try {
+      const buildInfoPath = path.join(process.cwd(), 'build-version.json');
+      const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, 'utf8'));
+      return buildInfo;
+    } catch (error) {
+      this.logger.error('Could not load build information:', error);
+      return { version: 'N/A', build: 'N/A' };
+    }
   }
   
   /**
@@ -358,7 +372,7 @@ export class BotApplication {
       ],
       timestamp: healthData.timestamp,
       footer: {
-        text: `Bot started: ${healthData.botStartTime}`
+        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | Started: ${healthData.botStartTime}`
       }
     };
   }
@@ -370,8 +384,10 @@ export class BotApplication {
    */
   createDetailedHealthEmbed(healthData) {
     const { bot, scraper, monitor, system } = healthData;
-    const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8)
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8);
     const formatMemory = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
+    const nextPoll = scraper.pollingInterval.next;
+    const nextPollStr = typeof nextPoll === 'number' ? `<t:${Math.round(nextPoll / 1000)}:R>` : nextPoll;
 
     return {
         title: '📊 Detailed Bot Health Status',
@@ -380,7 +396,11 @@ export class BotApplication {
             { name: '🤖 Bot', value: `Status: ${bot.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
             { name: '▶️ YouTube Monitor', value: `Status: ${monitor.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
             { name: '🐦 X Scraper', value: `Status: ${scraper.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
-            
+
+            { name: '📢 Announcements', value: bot.announcementEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+            { name: '🔄 VX Twitter', value: bot.vxTwitterEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+            { name: '⏳ Next X Poll', value: nextPollStr, inline: true },
+
             { name: '⏱️ System Uptime', value: uptimeStr, inline: true },
             { name: '💾 Memory Usage', value: formatMemory(system.memory.heapUsed), inline: true },
             { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
@@ -391,7 +411,7 @@ export class BotApplication {
         ],
         timestamp: system.timestamp,
         footer: {
-            text: `Bot started: ${new Date(bot.botStartTime).toLocaleString()}`
+            text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | Started: ${new Date(bot.botStartTime).toLocaleString()}`
         }
     };
   }

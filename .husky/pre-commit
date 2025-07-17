@@ -24,4 +24,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Increment build number
+echo "🚀 Incrementing build number..."
+node scripts/increment-build.js
+git add build-version.json
+
 echo "✅ Pre-commit checks passed\!"
