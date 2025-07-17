@@ -152,6 +152,7 @@ jobs:
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: coverage/unit/lcov.info
           flags: unit,node${{ matrix.node-version }}
           name: unit-tests-node${{ matrix.node-version }}
@@ -237,6 +238,7 @@ jobs:
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: coverage/integration/lcov.info
           flags: integration
           name: integration-tests
@@ -403,6 +405,7 @@ jobs:
       - name: Upload performance test coverage
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: coverage/performance/lcov.info
           flags: performance
           name: performance-tests
@@ -789,6 +792,7 @@ jobs:
         if: steps.coverage.outputs.status == 'available'
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: coverage/merged/lcov.info
           flags: merged,overall
           name: merged-coverage
