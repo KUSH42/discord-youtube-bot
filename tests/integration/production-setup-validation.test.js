@@ -273,18 +273,16 @@ describe('Production Setup Validation', () => {
       
       const browserService = container.resolve('browserService');
       
-      // Mock browser launch failure
-      const originalLaunch = browserService.launch;
-      browserService.launch = async () => {
-        throw new Error('Browser launch failed');
-      };
+      // Mock browser launch failure - this should throw as expected
+      const mockFailingLaunch = jest.fn().mockRejectedValue(new Error('Browser launch failed'));
+      browserService.launch = mockFailingLaunch;
       
       const scraperApp = container.resolve('scraperApplication');
       
       await expect(scraperApp.start()).rejects.toThrow('Browser launch failed');
       
-      // Restore original method
-      browserService.launch = originalLaunch;
+      // Verify the launch method was called
+      expect(mockFailingLaunch).toHaveBeenCalled();
     });
   });
 
