@@ -382,10 +382,12 @@ The bot includes a bulletproof testing infrastructure with **74.72% code coverag
 
 ### 🚀 CI/CD Features
 - **Parallel Execution:** Tests run concurrently for faster feedback
-- **Artifact Collection:** Test results, coverage reports, and logs preserved
+- **Fixed Coverage Reporting:** Industry-standard tools (`lcov-result-merger` + `nyc`) eliminate calculation errors
+- **Accurate Coverage Calculation:** Entry points (`index.js`, `x-scraper.js`, `youtube-monitor.js`) now properly included
+- **Quality Gates:** Automated coverage validation with realistic thresholds (25% global, 85% core modules)
 - **Smart Detection:** Automatically identifies test failures and provides detailed reporting
-- **PR Integration:** Real-time test status in pull requests with comprehensive summaries
-- **Test Result Analysis:** Automated generation of `test-summary.md` with detailed metrics
+- **PR Integration:** Real-time test status in pull requests with accurate coverage summaries
+- **Comprehensive Artifacts:** Merged coverage reports and detailed test metrics preserved
 
 ### 📊 Test Commands
 ```bash
@@ -398,7 +400,7 @@ npm run test:performance   # Performance benchmarks
 npm run test:security      # Security auditing
 
 # Coverage reporting
-npm run test:coverage      # Generate coverage reports
+npm run test:coverage      # Generate detailed coverage reports
 npm run test:watch         # Watch mode for development
 ```
 
