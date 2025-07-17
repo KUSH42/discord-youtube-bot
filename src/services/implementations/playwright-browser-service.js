@@ -44,11 +44,21 @@ export class PlaywrightBrowserService extends BrowserService {
    * @param {Object} options - Navigation options
    * @returns {Promise<Object>} Response object
    */
-  async goto(url, options = {}) {
+  async goto(url, options = {}, retries = 3) {
     if (!this.page) {
       throw new Error('No page available');
     }
-    return await this.page.goto(url, options);
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await this.page.goto(url, options);
+      } catch (error) {
+        if (i < retries - 1) {
+          await this.page.waitForTimeout(2000 * (i + 1));
+        } else {
+          throw error;
+        }
+      }
+    }
   }
 
   /**

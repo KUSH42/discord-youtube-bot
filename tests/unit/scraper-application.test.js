@@ -382,4 +382,22 @@ describe('ScraperApplication', () => {
       expect(stats.duplicateDetectorStats).toHaveProperty('totalKnownIds');
     });
   });
+
+  describe('Browser Initialization', () => {
+    it('should initialize the browser with the correct settings', async () => {
+      mockBrowserService.setUserAgent = jest.fn();
+      await scraperApp.initializeBrowser();
+
+      expect(mockBrowserService.launch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headless: false,
+          args: expect.any(Array),
+        })
+      );
+
+      expect(mockBrowserService.setUserAgent).toHaveBeenCalledWith(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      );
+    });
+  });
 });
