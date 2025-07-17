@@ -1,3 +1,4 @@
+import { exec } from 'child_process';
 import { CommandRateLimit } from '../rate-limiter.js';
 
 /**
@@ -125,6 +126,29 @@ export class BotApplication {
    * Perform a soft restart of the bot
    * @returns {Promise<void>}
    */
+  async handleUpdate() {
+    const serviceName = this.config.get('SYSTEMD_SERVICE_NAME');
+    if (!serviceName) {
+        this.logger.error('SYSTEMD_SERVICE_NAME is not configured.');
+        return;
+    }
+
+    exec('git pull', (error, stdout, stderr) => {
+        if (error) {
+            this.logger.error(`git pull failed: ${error}`);
+            return;
+        }
+        this.logger.info(`git pull successful: ${stdout}`);
+        exec(`sudo systemctl restart ${serviceName}`, (restartError, restartStdout, restartStderr) => {
+            if (restartError) {
+                this.logger.error(`systemctl restart failed: ${restartError}`);
+                return;
+            }
+            this.logger.info(`systemctl restart successful: ${restartStdout}`);
+        });
+    });
+  }
+
   async softRestart() {
     this.logger.info('Requesting full bot restart...');
     this.eventBus.emit('bot.request_restart');
@@ -275,6 +299,10 @@ export class BotApplication {
           this.logger.error('Soft restart failed:', error);
           await message.channel.send('❌ Soft restart failed. Check logs for details.');
         }
+      }
+
+      if (result.requiresUpdate) {
+        await this.handleUpdate();
       }
       
       // Handle log level change

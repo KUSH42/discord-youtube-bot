@@ -259,6 +259,7 @@ All commands work in the configured support channel with your chosen prefix (def
 | `!loglevel <level>` | 📝 Change logging level | Anyone |
 | `!health` | 🏥 Show bot health status | Anyone |
 | `!health-detailed` | 📊 Show detailed component health | Anyone |
+| `!update` | 🚀 Pulls latest changes and restarts the bot | Authorized users only |
 | `!readme` | 📖 Display command help | Anyone |
 
 ## 📊 Monitoring & Health
@@ -298,6 +299,16 @@ npm start                   # 🟢 Normal start with validation
 npm run decrypt             # 🔓 Start with explicit decryption
 npm run validate            # ✅ Validate configuration only
 ```
+
+### Sudo Permissions for !update
+
+The `!update` command requires the bot's user to have passwordless `sudo` access to restart the systemd service. To set this up, run `sudo visudo` and add the following line, replacing `your_bot_user` with the actual username the bot runs under:
+
+```
+your_bot_user ALL=(ALL) NOPASSWD: /bin/systemctl restart your_service_name.service
+```
+
+Replace `your_service_name.service` with the name of your bot's systemd service, which should also be configured in your `.env` file as `SYSTEMD_SERVICE_NAME`.
 
 ### Production (systemd)
 
