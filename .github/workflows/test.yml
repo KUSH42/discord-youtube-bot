@@ -352,6 +352,9 @@ jobs:
         run: |
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" \
           npm run test:performance -- \
+            --coverage \
+            --coverageDirectory=coverage/performance \
+            --coverageReporters=text --coverageReporters=lcov \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
@@ -401,12 +404,22 @@ jobs:
           }
           EOF
 
+      - name: Upload performance test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/performance/lcov.info
+          flags: performance
+          name: performance-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Store performance test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: performance-test-results
           path: |
+            coverage/performance/
             reports/
             performance-metrics.json
           retention-days: 30
@@ -433,6 +446,9 @@ jobs:
         run: |
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:security -- \
+            --coverage \
+            --coverageDirectory=coverage/security \
+            --coverageReporters=text --coverageReporters=lcov \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles \
@@ -478,12 +494,22 @@ jobs:
             fi
           done
 
+      - name: Upload security test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/security/lcov.info
+          flags: security
+          name: security-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Store security test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-test-results
           path: |
+            coverage/security/
             security-audit.json
             security-report.json
           retention-days: 30
@@ -546,6 +572,16 @@ jobs:
           for test_type in unit integration e2e performance security; do
             found=false
             coverage="N/A"
+            job_status=""
+            
+            # Check job status from needs context
+            case $test_type in
+              "unit") job_status="${{ needs.unit-tests.result }}" ;;
+              "integration") job_status="${{ needs.integration-tests.result }}" ;;
+              "e2e") job_status="${{ needs.e2e-tests.result }}" ;;
+              "performance") job_status="${{ needs.performance-tests.result }}" ;;
+              "security") job_status="${{ needs.security-tests.result }}" ;;
+            esac
             
             case $test_type in
               "unit")
@@ -579,26 +615,66 @@ jobs:
                 fi
                 ;;
               "performance")
-                # Look for performance test artifacts
-                if find test-results -name "*performance*" -type f | grep -q .; then
+                # Look for performance test coverage files in coverage/performance/ directory
+                if find test-results -path "*/coverage/performance/*" -type f | grep -q .; then
                   found=true
-                  coverage="-"
+                  coverage_file=$(find test-results -path "*/coverage/performance/lcov.info" | head -1)
+                  if [ -n "$coverage_file" ]; then
+                    coverage=$(extract_coverage "$coverage_file")
+                  else
+                    coverage="N/A"
+                  fi
+                elif find test-results -name "*performance*" -type f | grep -q .; then
+                  found=true
+                  coverage="N/A"
                 fi
                 ;;
               "security")
-                # Look for security test artifacts
-                if find test-results -name "*security*" -type f | grep -q .; then
+                # Look for security test coverage files in coverage/security/ directory
+                if find test-results -path "*/coverage/security/*" -type f | grep -q .; then
                   found=true
-                  coverage="-"
+                  coverage_file=$(find test-results -path "*/coverage/security/lcov.info" | head -1)
+                  if [ -n "$coverage_file" ]; then
+                    coverage=$(extract_coverage "$coverage_file")
+                  else
+                    coverage="N/A"
+                  fi
+                elif find test-results -name "*security*" -type f | grep -q .; then
+                  found=true
+                  coverage="N/A"
                 fi
                 ;;
             esac
             
-            if [ "$found" = true ]; then
-              printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "✅ Passed" "$coverage" >> reports/test-summary.md
-            else
-              printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "⏭️ Skipped" "-" >> reports/test-summary.md
-            fi
+            # Determine test status based on job result and artifacts
+            case "$job_status" in
+              "success")
+                test_status="✅ Pass"
+                ;;
+              "failure")
+                test_status="❌ Fail"
+                ;;
+              "cancelled")
+                test_status="🛑 Cancel"
+                ;;
+              "skipped"|"")
+                if [ "$found" = true ]; then
+                  # Artifacts exist but job was skipped/unknown - try to determine from artifacts
+                  if [ -n "$coverage_file" ] && [ -f "$coverage_file" ]; then
+                    test_status="✅ Pass"
+                  else
+                    test_status="⚠️ Unknown"
+                  fi
+                else
+                  test_status="⏭️ Skip"
+                fi
+                ;;
+              *)
+                test_status="⚠️ Unknown"
+                ;;
+            esac
+            
+            printf "| %-11s | %-7s | %-8s |\n" "${test_type^}" "$test_status" "$coverage" >> reports/test-summary.md
           done
           
           echo "" >> reports/test-summary.md
