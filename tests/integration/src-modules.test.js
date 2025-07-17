@@ -237,8 +237,8 @@ describe('Source Module Integration Tests', () => {
         message: longLogMessage 
       }, callback);
 
-      // Wait for flush
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Manually trigger flush since periodic flushing is disabled in test mode
+      await transport.flush();
 
       // Should have called send multiple times due to message splitting
       expect(mockChannel.send).toHaveBeenCalledTimes(3); // Init message + 2 chunks
