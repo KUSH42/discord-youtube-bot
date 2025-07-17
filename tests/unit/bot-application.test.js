@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import * as child_process from 'child_process';
 import { BotApplication } from '../../src/application/bot-application.js';
+import { exec } from 'child_process';
 
-// Use Jest's built-in mocking for native modules
+// Mock the child_process module
 jest.mock('child_process');
 
 describe('BotApplication', () => {
@@ -59,10 +59,8 @@ describe('BotApplication', () => {
 
   describe('handleUpdate', () => {
     it('should execute git pull and restart the service', () => {
-      // Spy on the exec method of the mocked child_process module
-      const execSpy = jest.spyOn(child_process, 'exec');
-      execSpy.mockImplementation((command, callback) => {
-        // Simulate success for both commands
+      // Since 'exec' is mocked, we can provide a new implementation for this test
+      exec.mockImplementation((command, callback) => {
         callback(null, 'OK', '');
       });
 
@@ -70,8 +68,8 @@ describe('BotApplication', () => {
       
       botApp.handleUpdate();
 
-      expect(execSpy).toHaveBeenCalledWith('git pull', expect.any(Function));
-      expect(execSpy).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
+      expect(exec).toHaveBeenCalledWith('git pull', expect.any(Function));
+      expect(exec).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
     });
   });
 
