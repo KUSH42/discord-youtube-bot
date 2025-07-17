@@ -1,7 +1,51 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { DependencyContainer } from '../../src/infrastructure/dependency-container.js';
-import { Configuration } from '../../src/infrastructure/configuration.js';
-import { setupProductionServices } from '../../src/setup/production-setup.js';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+
+// Mock external dependencies that require services not available in CI
+jest.unstable_mockModule('discord.js', () => ({
+  Client: jest.fn(() => ({
+    channels: {
+      fetch: jest.fn().mockResolvedValue({ isTextBased: () => true, send: jest.fn() }),
+    },
+    isReady: jest.fn(() => true),
+    options: { intents: ['Guilds', 'GuildMessages', 'MessageContent'] },
+    login: jest.fn().mockResolvedValue(),
+    destroy: jest.fn().mockResolvedValue(),
+    on: jest.fn(),
+    once: jest.fn()
+  })),
+  GatewayIntentBits: {
+    Guilds: 1,
+    GuildMessages: 512,
+    MessageContent: 32768,
+  },
+  Partials: {
+    Message: 'Message',
+    Channel: 'Channel',
+    Reaction: 'Reaction',
+  },
+}));
+
+jest.unstable_mockModule('googleapis', () => ({
+  google: {
+    youtube: jest.fn(() => ({ videos: { list: jest.fn() } })),
+  },
+}));
+
+jest.unstable_mockModule('playwright', () => ({
+  chromium: {
+    launch: jest.fn().mockResolvedValue({
+      newPage: jest.fn().mockResolvedValue({
+        goto: jest.fn(),
+        close: jest.fn(),
+      }),
+      close: jest.fn(),
+    }),
+  },
+}));
+
+const { DependencyContainer } = await import('../../src/infrastructure/dependency-container.js');
+const { Configuration } = await import('../../src/infrastructure/configuration.js');
+const { setupProductionServices } = await import('../../src/setup/production-setup.js');
 
 describe('Production Setup Validation', () => {
   let container;
