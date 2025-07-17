@@ -237,7 +237,7 @@ async function setupLogging(container, config) {
     if (supportChannelId) {
       const discordService = c.resolve('discordService');
       transports.push(new DiscordTransport({
-        level: 'warn', // Only send warnings and errors to Discord
+        level: logLevel, // Use the same log level as configured
         client: discordService.client,
         channelId: supportChannelId,
         flushInterval: 2000,
