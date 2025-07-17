@@ -216,7 +216,15 @@ describe('CommandProcessor', () => {
       
       expect(result.success).toBe(true);
       expect(result.requiresRestart).toBe(true);
-      expect(result.message).toContain('Initiating soft restart');
+      expect(result.message).toContain('Initiating full restart');
+    });
+
+    it('should process update command', async () => {
+      const result = await processor.processCommand('update', [], 'user1');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresUpdate).toBe(true);
+      expect(result.message).toContain('Initiating update...');
     });
     
     it('should handle unknown command', async () => {

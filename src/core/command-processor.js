@@ -42,7 +42,7 @@ export class CommandProcessor {
    */
   isUserAuthorized(userId, command) {
     const allowedUserIds = this.getAllowedUserIds();
-    const restrictedCommands = ['restart', 'kill'];
+const restrictedCommands = ['restart', 'kill', 'update'];
     
     if (restrictedCommands.includes(command)) {
       return allowedUserIds.includes(userId);
@@ -165,6 +165,9 @@ export class CommandProcessor {
         
       case 'readme':
         return await this.handleReadme();
+
+      case 'update':
+        return await this.handleUpdate(userId);
         
       default:
         return {
@@ -178,6 +181,15 @@ export class CommandProcessor {
   /**
    * Handle restart command
    */
+  async handleUpdate(userId) {
+    return {
+      success: true,
+      message: '🚀 Initiating update... Pulling latest changes and restarting.',
+      requiresUpdate: true,
+      userId,
+    };
+  }
+
   async handleRestart(userId) {
     // Note: The actual restart logic is handled by the application layer
     return {
@@ -327,6 +339,7 @@ export class CommandProcessor {
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
       `**${this.commandPrefix}health-detailed**: Shows detailed health status for all components.`,
+      `**${this.commandPrefix}update**: Pulls the latest changes from git and restarts the bot.`,
       `**${this.commandPrefix}readme**: Displays this command information.`
     ];
     
@@ -365,8 +378,8 @@ export class CommandProcessor {
 
   getStats() {
     return {
-      availableCommands: ['restart', 'kill', 'announce', 'vxtwitter', 'loglevel', 'health', 'health-detailed', 'readme'],
-      restrictedCommands: ['restart', 'kill'],
+      availableCommands: ['restart', 'kill', 'announce', 'vxtwitter', 'loglevel', 'health', 'health-detailed', 'readme', 'update'],
+      restrictedCommands: ['restart', 'kill', 'update'],
       allowedUsers: this.getAllowedUserIds().length,
       commandPrefix: this.commandPrefix
     };

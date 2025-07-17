@@ -1,10 +1,16 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { BotApplication } from '../../src/application/bot-application.js';
+import { exec } from 'child_process';
+
+jest.mock('child_process', () => ({
+  exec: jest.fn(),
+}));
 
 describe('BotApplication', () => {
   let botApp;
   let mockDiscordService;
   let mockEventBus;
+  let mockConfig;
 
   beforeEach(() => {
     mockDiscordService = {
@@ -15,14 +21,16 @@ describe('BotApplication', () => {
       emit: jest.fn(),
     };
 
+    mockConfig = {
+      get: jest.fn(),
+      getBoolean: jest.fn(),
+    };
+
     const dependencies = {
       discordService: mockDiscordService,
       commandProcessor: {},
       eventBus: mockEventBus,
-      config: {
-        get: jest.fn(),
-        getBoolean: jest.fn(),
-      },
+      config: mockConfig,
       stateManager: {
         get: jest.fn(),
         set: jest.fn(),
@@ -37,13 +45,28 @@ describe('BotApplication', () => {
     };
 
     botApp = new BotApplication(dependencies);
+  });
+
   describe('softRestart', () => {
     it('should emit a bot.request_restart event', async () => {
       await botApp.softRestart();
       expect(mockEventBus.emit).toHaveBeenCalledWith('bot.request_restart');
     });
   });
-});
+
+  describe('handleUpdate', () => {
+    it('should execute git pull and restart the service', () => {
+      mockConfig.get.mockReturnValue('discord-bot.service');
+      exec.mockImplementation((command, callback) => {
+        callback(null, 'OK', '');
+      });
+
+      botApp.handleUpdate();
+
+      expect(exec).toHaveBeenCalledWith('git pull', expect.any(Function));
+      expect(exec).toHaveBeenCalledWith('sudo systemctl restart discord-bot.service', expect.any(Function));
+    });
+  });
 
   describe('createDetailedHealthEmbed', () => {
     it('should create a detailed health embed correctly', () => {
