@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { google } from 'googleapis';
 import express from 'express';
+import { exec } from 'child_process';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
@@ -169,6 +170,7 @@ async function setupApplicationServices(container, config) {
   // Bot Application
   container.registerSingleton('botApplication', (c) => {
     const botApp = new BotApplication({
+      exec,
       discordService: c.resolve('discordService'),
       commandProcessor: c.resolve('commandProcessor'),
       eventBus: c.resolve('eventBus'),
