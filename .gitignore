@@ -154,3 +154,6 @@ enforcer.env
 # Playwright/Puppeteer browser data
 .playwright/
 .chrome/
+
+# npm audit files
+*-audit.json

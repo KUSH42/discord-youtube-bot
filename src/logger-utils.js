@@ -124,8 +124,9 @@ export const LoggerUtils = {
      * @returns {winston.Logform.Format} Winston log format
      */
     createFileLogFormat() {
-        return winston.format.printf(({ level, message, timestamp, stack }) => {
-            const baseMessage = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
+        return winston.format.printf(({ level, message, timestamp, stack, service }) => {
+            const serviceLabel = service ? `[${service}]` : '';
+            const baseMessage = `[${timestamp}] ${serviceLabel} [${level.toUpperCase()}]: ${message}`;
             return stack ? `${baseMessage}\n${stack}` : baseMessage;
         });
     },
@@ -135,8 +136,9 @@ export const LoggerUtils = {
      * @returns {winston.Logform.Format} Winston log format
      */
     createConsoleLogFormat() {
-        return winston.format.printf(({ level, message, timestamp, stack }) => {
-            const baseMessage = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
+        return winston.format.printf(({ level, message, timestamp, stack, service }) => {
+            const serviceLabel = service ? `[${service}]` : '';
+            const baseMessage = `${serviceLabel} [${level.toUpperCase()}]: ${message}`;
             return stack ? `${baseMessage}\n${stack}` : baseMessage;
         });
     },

@@ -75,22 +75,19 @@ async function main() {
  * Start core applications (Bot, Monitor, Scraper)
  */
 async function startApplications(container, config) {
-  const logger = container.resolve('logger');
+  const logger = container.resolve('logger').child({ service: 'Main' });
   
   // Start Discord Bot
-  logger.info('Starting Discord Bot Application...');
   const botApp = container.resolve('botApplication');
   await botApp.start();
   
   // Start YouTube Monitor
-  logger.info('Starting YouTube Monitor Application...');
   const monitorApp = container.resolve('monitorApplication');
   await monitorApp.start();
   
   // Start X Scraper (if enabled)
   const xUser = config.get('X_USER_HANDLE');
   if (xUser) {
-    logger.info('Starting X Scraper Application...');
     const scraperApp = container.resolve('scraperApplication');
     await scraperApp.start();
   } else {

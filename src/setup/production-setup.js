@@ -173,7 +173,7 @@ async function setupApplicationServices(container, config) {
       eventBus: c.resolve('eventBus'),
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
-      logger: c.resolve('logger')
+      logger: c.resolve('logger').child({ service: 'BotApplication' })
     });
   });
   
@@ -186,7 +186,7 @@ async function setupApplicationServices(container, config) {
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
       eventBus: c.resolve('eventBus'),
-      logger: c.resolve('logger')
+      logger: c.resolve('logger').child({ service: 'ScraperApplication' })
     });
   });
   
@@ -200,7 +200,7 @@ async function setupApplicationServices(container, config) {
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
       eventBus: c.resolve('eventBus'),
-      logger: c.resolve('logger')
+      logger: c.resolve('logger').child({ service: 'MonitorApplication' })
     });
   });
 }
@@ -247,6 +247,10 @@ async function setupLogging(container, config) {
     
     return winston.createLogger({
       level: logLevel,
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true })
+      ),
       transports
     });
   });
