@@ -11,8 +11,8 @@ export default {
       lines: 0
     }
   },
-  // Only collect coverage if specifically requested
-  collectCoverage: process.env.COLLECT_COVERAGE === 'true',
+  // Disable coverage for security tests by default since they focus on input validation
+  collectCoverage: false,
   testMatch: [
     '**/tests/security/**/*.test.js',
     '**/tests/security/**/*.spec.js'
