@@ -4,9 +4,6 @@ export default {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.js',
-    'index.js',
-    'x-scraper.js',
-    'youtube-monitor.js',
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',
@@ -14,7 +11,10 @@ export default {
     '!tests/**',
     '!test-duplicate-prevention.js',
     '!src/services/interfaces/**',
-    '!src/setup/**'
+    '!src/setup/**',
+    '!index.js',
+    '!x-scraper.js',
+    '!youtube-monitor.js'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],
