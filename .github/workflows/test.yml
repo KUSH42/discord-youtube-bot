@@ -691,20 +691,18 @@ jobs:
             STATEMENTS_PCT=$(jq -r '.total.statements.pct // 0' coverage-summary.json)
             QUALITY_SCORE=$(echo "$COVERAGE * 0.4 + $BRANCHES_PCT * 0.3 + $FUNCTIONS_PCT * 0.3" | bc -l)
             
-            cat > coverage-metrics.json << EOF
-{
-  "timestamp": "$(date -Iseconds)",
-  "commit": "${{ github.sha }}",
-  "branch": "${{ github.ref_name }}",
-  "coverage": {
-    "lines": $COVERAGE,
-    "branches": $BRANCHES_PCT,
-    "functions": $FUNCTIONS_PCT,
-    "statements": $STATEMENTS_PCT
-  },
-  "quality_score": $QUALITY_SCORE
-}
-EOF
+            echo "{
+              \"timestamp\": \"$(date -Iseconds)\",
+              \"commit\": \"${{ github.sha }}\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"coverage\": {
+                \"lines\": $COVERAGE,
+                \"branches\": $BRANCHES_PCT,
+                \"functions\": $FUNCTIONS_PCT,
+                \"statements\": $STATEMENTS_PCT
+              },
+              \"quality_score\": $QUALITY_SCORE
+            }" > coverage-metrics.json
           else
             echo "No coverage data available"
             echo "coverage_status=missing" >> $GITHUB_ENV
