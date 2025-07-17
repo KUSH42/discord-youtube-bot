@@ -182,6 +182,7 @@ async function setupApplicationServices(container, config) {
     return new ScraperApplication({
       browserService: c.resolve('browserService'),
       contentClassifier: c.resolve('contentClassifier'),
+      discordService: c.resolve('discordService'),
       contentAnnouncer: c.resolve('contentAnnouncer'),
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
