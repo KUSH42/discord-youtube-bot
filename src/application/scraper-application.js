@@ -376,8 +376,12 @@ export class ScraperApplication {
     try {
       this.logger.info(`Polling X profile: @${this.xUser}`);
       
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const sinceDate = yesterday.toISOString().split('T')[0];
+
       // Navigate to user's search results
-      const searchUrl = `https://x.com/search?q=from:${this.xUser}&src=typed_query&f=live`;
+      const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
       await this.browser.goto(searchUrl);
       
       // Wait for content to load - try multiple selectors
@@ -405,8 +409,11 @@ export class ScraperApplication {
         this.logger.warn('No content selectors found, proceeding anyway');
       }
       
-      // Wait a bit more for dynamic content to load
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Scroll down to load more tweets
+      for (let i = 0; i < 3; i++) {
+        await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for content to load
+      }
       
       // Extract tweets
       const tweets = await this.extractTweets();
