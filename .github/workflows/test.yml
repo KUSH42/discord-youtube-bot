@@ -301,7 +301,7 @@ jobs:
           NODE_ENV: test
         run: |
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
-          npm run test:e2e -- \
+          npx jest --config jest.e2e.config.js \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
@@ -434,7 +434,7 @@ jobs:
       - name: Run security tests
         run: |
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
-          npm run test:security -- \
+          npx jest --config jest.security.config.js \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles \
