@@ -184,7 +184,7 @@ const restrictedCommands = ['restart', 'kill', 'update'];
   async handleUpdate(userId) {
     return {
       success: true,
-      message: '🚀 Initiating update... Pulling latest changes and restarting.',
+      message: '🚀 Initiating update... Pulling latest changes, please wait for confirmation.',
       requiresUpdate: true,
       userId,
     };
