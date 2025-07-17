@@ -12,16 +12,18 @@ export default {
     '!jest.config.js',
     '!setup-encryption.js',
     '!tests/**',
-    '!test-duplicate-prevention.js'
+    '!test-duplicate-prevention.js',
+    '!src/services/interfaces/**',
+    '!src/setup/**'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],
   coverageThreshold: {
     global: {
-      statements: 25,
-      branches: 20,
-      functions: 25,
-      lines: 25
+      statements: 35,
+      branches: 30,
+      functions: 35,
+      lines: 35
     },
     'src/core/': {
       statements: 85,
