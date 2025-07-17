@@ -11,6 +11,7 @@ export class ScraperApplication {
     this.announcer = dependencies.contentAnnouncer;
     this.config = dependencies.config;
     this.state = dependencies.stateManager;
+    this.discord = dependencies.discordService;
     this.eventBus = dependencies.eventBus;
     this.logger = dependencies.logger;
     
@@ -436,6 +437,14 @@ export class ScraperApplication {
         newTweets: newTweets.length,
         stats: this.getStats()
       });
+
+      const nextInterval = this.getNextInterval();
+      const nextRunTime = new Date(Date.now() + nextInterval);
+      
+      const supportChannelId = this.config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
+      if (supportChannelId) {
+        this.discord.sendMessage(supportChannelId, `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`);
+      }
       
     } catch (error) {
       this.logger.error('Error polling X profile:', error);
