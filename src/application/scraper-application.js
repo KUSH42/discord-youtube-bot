@@ -379,8 +379,33 @@ export class ScraperApplication {
       const searchUrl = `https://x.com/search?q=from:${this.xUser}&src=typed_query&f=live`;
       await this.browser.goto(searchUrl);
       
-      // Wait for content to load
-      await this.browser.waitForSelector('article[data-testid="tweet"]', { timeout: 10000 });
+      // Wait for content to load - try multiple selectors
+      const contentSelectors = [
+        'article[data-testid="tweet"]',
+        'article[role="article"]',
+        'div[data-testid="cellInnerDiv"]',
+        'main[role="main"]'
+      ];
+      
+      let contentLoaded = false;
+      for (const selector of contentSelectors) {
+        try {
+          await this.browser.waitForSelector(selector, { timeout: 5000 });
+          this.logger.debug(`Content loaded, found selector: ${selector}`);
+          contentLoaded = true;
+          break;
+        } catch (err) {
+          this.logger.debug(`Selector not found: ${selector}`);
+          continue;
+        }
+      }
+      
+      if (!contentLoaded) {
+        this.logger.warn('No content selectors found, proceeding anyway');
+      }
+      
+      // Wait a bit more for dynamic content to load
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Extract tweets
       const tweets = await this.extractTweets();
@@ -423,12 +448,44 @@ export class ScraperApplication {
   async extractTweets() {
     return await this.browser.evaluate(() => {
       const tweets = [];
-      const articles = document.querySelectorAll('article[data-testid="tweet"]');
+      
+      // Try multiple selectors for tweet articles (X keeps changing these)
+      const articleSelectors = [
+        'article[data-testid="tweet"]',
+        'article[role="article"]',
+        'div[data-testid="cellInnerDiv"] article',
+        'article'
+      ];
+      
+      let articles = [];
+      for (const selector of articleSelectors) {
+        articles = document.querySelectorAll(selector);
+        if (articles.length > 0) {
+          console.log(`Found ${articles.length} articles using selector: ${selector}`);
+          break;
+        }
+      }
+      
+      if (articles.length === 0) {
+        console.log('No tweet articles found with any selector');
+        return tweets;
+      }
       
       for (const article of articles) {
         try {
-          // Extract tweet URL
-          const tweetLink = article.querySelector('a[href*="/status/"]');
+          // Extract tweet URL with multiple selectors
+          const linkSelectors = [
+            'a[href*="/status/"]',
+            'time[datetime] + a',
+            'a[role="link"][href*="/status/"]'
+          ];
+          
+          let tweetLink = null;
+          for (const selector of linkSelectors) {
+            tweetLink = article.querySelector(selector);
+            if (tweetLink) break;
+          }
+          
           if (!tweetLink) continue;
           
           const url = tweetLink.href;
@@ -437,13 +494,39 @@ export class ScraperApplication {
           
           const tweetID = tweetIdMatch[1];
           
-          // Extract author
-          const authorElement = article.querySelector('[data-testid="User-Name"] a');
-          const author = authorElement ? authorElement.textContent.trim() : 'Unknown';
+          // Extract author with multiple selectors
+          const authorSelectors = [
+            '[data-testid="User-Name"] a',
+            '[data-testid="User-Names"] a',
+            'a[role="link"][href^="/"]',
+            'div[dir="ltr"] span'
+          ];
           
-          // Extract text content
-          const textElement = article.querySelector('[data-testid="tweetText"]');
-          const text = textElement ? textElement.innerText : '';
+          let author = 'Unknown';
+          for (const selector of authorSelectors) {
+            const authorElement = article.querySelector(selector);
+            if (authorElement && authorElement.textContent.trim()) {
+              author = authorElement.textContent.trim();
+              break;
+            }
+          }
+          
+          // Extract text content with multiple selectors
+          const textSelectors = [
+            '[data-testid="tweetText"]',
+            '[lang] span',
+            'div[dir="ltr"]',
+            'span[dir="ltr"]'
+          ];
+          
+          let text = '';
+          for (const selector of textSelectors) {
+            const textElement = article.querySelector(selector);
+            if (textElement && textElement.innerText) {
+              text = textElement.innerText;
+              break;
+            }
+          }
           
           // Extract timestamp
           const timeElement = article.querySelector('time');
@@ -453,8 +536,14 @@ export class ScraperApplication {
           let tweetCategory = 'Post';
           
           // Check for reply indicators
-          const replyIndicator = article.querySelector('div:has-text("Replying to")');
-          if (replyIndicator || text.startsWith('@')) {
+          let isReply = text.startsWith('@');
+          if (!isReply) {
+            // Check for "Replying to" text content in the article
+            const allText = article.innerText || '';
+            isReply = allText.includes('Replying to') || allText.includes('Show this thread');
+          }
+          
+          if (isReply) {
             tweetCategory = 'Reply';
           }
           
@@ -478,11 +567,14 @@ export class ScraperApplication {
             tweetCategory
           });
           
+          console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
+          
         } catch (error) {
           console.error('Error extracting tweet:', error);
         }
       }
       
+      console.log(`Total tweets extracted: ${tweets.length}`);
       return tweets;
     });
   }
