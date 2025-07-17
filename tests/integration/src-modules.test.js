@@ -259,9 +259,13 @@ describe('Source Module Integration Tests', () => {
       
       // Test that it transforms log info correctly
       const transformed = fileFormat.transform(logInfo);
-      expect(transformed).toContain('Test error message');
-      expect(transformed).toContain('Error stack trace');
-      expect(transformed).toContain('[ERROR]');
+      expect(transformed).toBeDefined();
+      
+      // Winston format transform returns the info object, potentially with Symbol.for('message')
+      const message = transformed[Symbol.for('message')] || transformed.message;
+      expect(message || transformed).toMatch(/Test error message/);
+      expect(message || transformed).toMatch(/Error stack trace/);
+      expect(message || transformed).toMatch(/\[ERROR\]/);
     });
   });
 
