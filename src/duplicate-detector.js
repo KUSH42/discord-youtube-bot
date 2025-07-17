@@ -200,6 +200,49 @@ export class DuplicateDetector {
     }
 
     /**
+     * Check if a URL is a duplicate (simplified interface for applications)
+     * @param {string} url - URL to check for duplicates
+     * @returns {boolean} - True if URL is a duplicate
+     */
+    isDuplicate(url) {
+        if (!url || typeof url !== 'string') {
+            return false;
+        }
+        
+        // Check for video URLs
+        const videoIds = this.extractVideoIds(url);
+        if (videoIds.length > 0) {
+            return videoIds.some(id => this.isVideoIdKnown(id));
+        }
+        
+        // Check for tweet URLs
+        const tweetIds = this.extractTweetIds(url);
+        if (tweetIds.length > 0) {
+            return tweetIds.some(id => this.isTweetIdKnown(id));
+        }
+        
+        return false;
+    }
+
+    /**
+     * Mark a URL as seen (simplified interface for applications)
+     * @param {string} url - URL to mark as seen
+     */
+    markAsSeen(url) {
+        if (!url || typeof url !== 'string') {
+            return;
+        }
+        
+        // Add video IDs if found
+        const videoIds = this.extractVideoIds(url);
+        videoIds.forEach(id => this.addVideoId(id));
+        
+        // Add tweet IDs if found
+        const tweetIds = this.extractTweetIds(url);
+        tweetIds.forEach(id => this.addTweetId(id));
+    }
+
+    /**
      * Get statistics about known IDs
      * @returns {Object} - Statistics object
      */
