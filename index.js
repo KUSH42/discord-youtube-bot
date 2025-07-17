@@ -33,7 +33,7 @@ async function startBot() {
     logger.info('🚀 Starting Discord YouTube Bot...');
     await startApplications(container, configuration);
     await startWebServer(container, configuration);
-    setupGracefultestShutdown(container);
+    setupGracefulShutdown(container);
     logger.info('✅ Bot startup completed successfully');
     return container;
   } catch (error) {
