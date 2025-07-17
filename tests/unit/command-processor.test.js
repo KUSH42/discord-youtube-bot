@@ -193,6 +193,14 @@ describe('CommandProcessor', () => {
       expect(result.healthData.uptime).toBeDefined();
       expect(result.healthData.memoryUsage).toBeDefined();
     });
+
+    it('should process health-detailed command', async () => {
+      const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
+      const result = await processor.processCommand('health-detailed', [], 'user1', appStats);
+      
+      expect(result.success).toBe(true);
+      expect(result.healthData).toEqual(appStats);
+    });
     
     it('should process readme command', async () => {
       const result = await processor.processCommand('readme', [], 'user1');

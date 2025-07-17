@@ -6,6 +6,8 @@ import { CommandRateLimit } from '../rate-limiter.js';
  */
 export class BotApplication {
   constructor(dependencies) {
+    this.scraperApplication = dependencies.scraperApplication;
+    this.monitorApplication = dependencies.monitorApplication;
     this.discord = dependencies.discordService;
     this.commandProcessor = dependencies.commandProcessor;
     this.eventBus = dependencies.eventBus;
@@ -228,7 +230,17 @@ export class BotApplication {
       }
       
       // Process command
-      const result = await this.commandProcessor.processCommand(command, args, user.id);
+      const appStats = {
+          bot: this.getStats(),
+          scraper: this.scraperApplication.getStats(),
+          monitor: this.monitorApplication.getStats(),
+          system: {
+              uptime: process.uptime(),
+              memory: process.memoryUsage(),
+              timestamp: new Date().toISOString()
+          }
+      };
+      const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
       
       // Handle command result
       await this.handleCommandResult(message, result, command, user);
@@ -255,9 +267,13 @@ export class BotApplication {
       // Send response message
       if (result.message) {
         if (result.healthData) {
-          // Handle health command with embed
-          const healthEmbed = this.createHealthEmbed(result.healthData);
-          await message.reply({ embeds: [healthEmbed] });
+            if (command === 'health-detailed') {
+                const healthEmbed = this.createDetailedHealthEmbed(result.healthData);
+                await message.reply({ embeds: [healthEmbed] });
+            } else if (command === 'health') {
+                const healthEmbed = this.createHealthEmbed(result.healthData);
+                await message.reply({ embeds: [healthEmbed] });
+            }
         } else {
           await message.reply(result.message);
         }
@@ -334,6 +350,29 @@ export class BotApplication {
       footer: {
         text: `Bot started: ${healthData.botStartTime}`
       }
+    };
+  }
+
+  /**
+   * Create detailed health status embed
+   * @param {Object} healthData - Health data from command processor
+   * @returns {Object} Discord embed object
+   */
+  createDetailedHealthEmbed(healthData) {
+    const { bot, scraper, monitor, system } = healthData;
+
+    const formatMemory = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
+
+    return {
+      title: '📊 Detailed Bot Health Status',
+      color: this.discord.isReady() ? 0x00ff00 : 0xff0000,
+      fields: [
+        { name: '🤖 Bot Application', value: `Status: ${bot.isRunning ? 'Running' : 'Stopped'}\nDiscord Ready: ${bot.isDiscordReady ? 'Yes' : 'No'}`, inline: false },
+        { name: ' scrapes Scraper Application', value: `Status: ${scraper.isRunning ? 'Running' : 'Stopped'}\nTotal Runs: ${scraper.totalRuns}\nSuccessful Runs: ${scraper.successfulRuns}`, inline: false },
+        { name: '▶️ Monitor Application', value: `Status: ${monitor.isRunning ? 'Running' : 'Stopped'}\nSubscriptions: ${monitor.activeSubscriptions}`, inline: false },
+        { name: '⚙️ System', value: `Uptime: ${new Date(system.uptime * 1000).toISOString().substr(11, 8)}\nMemory: ${formatMemory(system.memory.heapUsed)}`, inline: false },
+      ],
+      timestamp: system.timestamp,
     };
   }
   

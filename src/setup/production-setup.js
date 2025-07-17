@@ -167,14 +167,20 @@ async function setupCoreServices(container, config) {
 async function setupApplicationServices(container, config) {
   // Bot Application
   container.registerSingleton('botApplication', (c) => {
-    return new BotApplication({
+    const botApp = new BotApplication({
       discordService: c.resolve('discordService'),
       commandProcessor: c.resolve('commandProcessor'),
       eventBus: c.resolve('eventBus'),
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
-      logger: c.resolve('logger').child({ service: 'BotApplication' })
+      logger: c.resolve('logger').child({ service: 'BotApplication' }),
     });
+
+    // Manually set dependencies to avoid circular dependency issues
+    botApp.scraperApplication = c.resolve('scraperApplication');
+    botApp.monitorApplication = c.resolve('monitorApplication');
+    
+    return botApp;
   });
   
   // Scraper Application (X/Twitter monitoring)

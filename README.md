@@ -258,6 +258,7 @@ All commands work in the configured support channel with your chosen prefix (def
 | `!vxtwitter <true\|false>` | 🐦 Toggle URL conversion | Anyone |
 | `!loglevel <level>` | 📝 Change logging level | Anyone |
 | `!health` | 🏥 Show bot health status | Anyone |
+| `!health-detailed` | 📊 Show detailed component health | Anyone |
 | `!readme` | 📖 Display command help | Anyone |
 
 ## 📊 Monitoring & Health
