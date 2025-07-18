@@ -606,19 +606,48 @@ jobs:
             echo "Merging the following coverage files:"
             printf '%s\n' "${COVERAGE_FILES[@]}"
             
-            # Use nyc to merge coverage reports
-            mkdir -p .nyc_output
-            
-            # Copy all lcov files into a temporary directory for nyc to find
+            # Debug: Check the source lcov files before merging
+            echo "Debugging source coverage files:"
             for file in "${COVERAGE_FILES[@]}"; do
-              cp "$file" "coverage/merged/$(basename "$file" .info)-$(uuidgen).info"
+              echo "File: $file"
+              echo "  Size: $(wc -l < "$file") lines"
+              echo "  Sample content:"
+              head -10 "$file"
+              echo "  Coverage totals:"
+              grep -E "^(LF|LH|BRF|BRH|FNF|FNH):" "$file" | head -5
+              echo "---"
             done
             
-            # Run the merge
-            npx nyc merge coverage/merged .nyc_output/coverage.json
+            # Try direct lcov merging first (more reliable than nyc)
+            if command -v lcov >/dev/null 2>&1; then
+              echo "Using lcov to merge coverage files..."
+              lcov_merge_args=""
+              for file in "${COVERAGE_FILES[@]}"; do
+                lcov_merge_args="$lcov_merge_args -a $file"
+              done
+              lcov $lcov_merge_args -o coverage/merged/lcov.info
+            else
+              echo "lcov not available, using manual merge..."
+              # Manual merge by concatenating and deduplicating
+              cat "${COVERAGE_FILES[@]}" > coverage/merged/lcov.info
+            fi
             
-            # Generate the final lcov report from the merged data
-            npx nyc report --reporter=lcov --report-dir=coverage/merged --temp-dir=.nyc_output
+            # Fallback: Use nyc merge if lcov merge failed
+            if [ ! -s coverage/merged/lcov.info ]; then
+              echo "Fallback to nyc merge..."
+              mkdir -p .nyc_output
+              
+              # Copy all lcov files into a temporary directory for nyc to find
+              for file in "${COVERAGE_FILES[@]}"; do
+                cp "$file" "coverage/merged/$(basename "$file" .info)-$(uuidgen).info"
+              done
+              
+              # Run the merge
+              npx nyc merge coverage/merged .nyc_output/coverage.json
+              
+              # Generate the final lcov report from the merged data
+              npx nyc report --reporter=lcov --report-dir=coverage/merged --temp-dir=.nyc_output
+            fi
             
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
@@ -633,26 +662,71 @@ jobs:
               echo "Sample of coverage.json:"
               head -10 .nyc_output/coverage.json
               
-              # Generate summary from merged coverage - try with and without include filter
-              npx nyc report --reporter=json-summary --temp-dir=.nyc_output > coverage-summary.json
-              echo "Generated coverage-summary.json:"
-              cat coverage-summary.json
+              # Extract coverage directly from lcov file (more reliable)
+              echo "Extracting coverage directly from merged lcov.info..."
+              LINES_FOUND=$(grep -E "^LF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
+              LINES_HIT=$(grep -E "^LH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
+              FUNCTIONS_FOUND=$(grep -E "^FNF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
+              FUNCTIONS_HIT=$(grep -E "^FNH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
+              BRANCHES_FOUND=$(grep -E "^BRF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
+              BRANCHES_HIT=$(grep -E "^BRH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
               
-              # Check if coverage summary was generated successfully
-              if [ -s coverage-summary.json ] && [ "$(jq -r '.total.lines.total // 0' coverage-summary.json)" != "0" ]; then
-                LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
-                echo "Successfully generated coverage summary with ${LINES_PCT}% coverage"
-                echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
-                echo "status=available" >> $GITHUB_OUTPUT
-              else
-                echo "Coverage summary is empty, trying with source file filter..."
-                npx nyc report --reporter=json-summary --temp-dir=.nyc_output --include='src/**/*.js' --include='*.js' > coverage-summary.json
-                
-                LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null || echo "0")
-                echo "Generated coverage with filter: ${LINES_PCT}% coverage"
-                echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
-                echo "status=available" >> $GITHUB_OUTPUT
+              echo "Coverage totals: Lines $LINES_HIT/$LINES_FOUND, Functions $FUNCTIONS_HIT/$FUNCTIONS_FOUND, Branches $BRANCHES_HIT/$BRANCHES_FOUND"
+              
+              # Calculate percentages
+              LINES_PCT=0
+              FUNCTIONS_PCT=0  
+              BRANCHES_PCT=0
+              
+              if [ "$LINES_FOUND" -gt 0 ]; then
+                LINES_PCT=$(awk "BEGIN {printf \"%.2f\", $LINES_HIT * 100 / $LINES_FOUND}")
               fi
+              
+              if [ "$FUNCTIONS_FOUND" -gt 0 ]; then
+                FUNCTIONS_PCT=$(awk "BEGIN {printf \"%.2f\", $FUNCTIONS_HIT * 100 / $FUNCTIONS_FOUND}")
+              fi
+              
+              if [ "$BRANCHES_FOUND" -gt 0 ]; then
+                BRANCHES_PCT=$(awk "BEGIN {printf \"%.2f\", $BRANCHES_HIT * 100 / $BRANCHES_FOUND}")
+              fi
+              
+              echo "Calculated coverage: Lines ${LINES_PCT}%, Functions ${FUNCTIONS_PCT}%, Branches ${BRANCHES_PCT}%"
+              
+              # Create coverage-summary.json manually
+              cat > coverage-summary.json << EOF
+{
+  "total": {
+    "lines": {
+      "total": $LINES_FOUND,
+      "covered": $LINES_HIT,
+      "skipped": 0,
+      "pct": $LINES_PCT
+    },
+    "statements": {
+      "total": $LINES_FOUND,
+      "covered": $LINES_HIT,
+      "skipped": 0,
+      "pct": $LINES_PCT
+    },
+    "functions": {
+      "total": $FUNCTIONS_FOUND,
+      "covered": $FUNCTIONS_HIT,
+      "skipped": 0,
+      "pct": $FUNCTIONS_PCT
+    },
+    "branches": {
+      "total": $BRANCHES_FOUND,
+      "covered": $BRANCHES_HIT,
+      "skipped": 0,
+      "pct": $BRANCHES_PCT
+    }
+  }
+}
+EOF
+              
+              echo "Generated coverage-summary.json with ${LINES_PCT}% line coverage"
+              echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
+              echo "status=available" >> $GITHUB_OUTPUT
             else
               echo "Failed to merge coverage reports"
               echo '{"total":{"lines":{"pct":0},"statements":{"pct":0},"functions":{"pct":0},"branches":{"pct":0}}}' > coverage-summary.json
