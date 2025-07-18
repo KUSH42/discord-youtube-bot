@@ -88,7 +88,7 @@ describe('ScraperApplication', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
-    
+
     // Mock auth manager
     const mockAuthManager = {
       ensureAuthenticated: jest.fn(),
@@ -593,7 +593,7 @@ describe('ScraperApplication', () => {
 
       // Should navigate to search URL, not profile timeline
       expect(mockBrowserService.goto).toHaveBeenCalledWith(
-        expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/),
+        expect.stringMatching(/https:\/\/x.com\/search\?q=\\(from%3Atestuser\\)/),
       );
 
       // Clear mocks for next test
