@@ -67,14 +67,18 @@ describe('BotApplication', () => {
   });
 
   describe('handleUpdate', () => {
-    it('should execute git pull and restart the service', () => {
+    it('should execute git pull, npm install, and restart the service', () => {
       // Configure the mock to immediately execute the callback
       mockExec.mockImplementation((command, callback) => {
-        // The first call is 'git pull', its callback schedules the restart
+        // The first call is 'git pull', its callback schedules npm install
         if (command === 'git pull') {
           callback(null, 'OK', '');
         }
-        // The second call is the restart, we don't need to do anything in its callback
+        // The second call is 'npm install', its callback schedules the restart
+        if (command === 'npm install') {
+          callback(null, 'Dependencies updated', '');
+        }
+        // The third call is the restart, we don't need to do anything in its callback
         if (command.includes('systemctl restart')) {
             callback(null, '', '');
         }
@@ -87,6 +91,9 @@ describe('BotApplication', () => {
 
       // Verify git pull was called
       expect(mockExec).toHaveBeenCalledWith('git pull', expect.any(Function));
+      
+      // Verify npm install was called
+      expect(mockExec).toHaveBeenCalledWith('npm install', expect.any(Function));
 
       // Fast-forward time to trigger the setTimeout for the restart
       jest.advanceTimersByTime(5000);

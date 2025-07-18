@@ -339,7 +339,7 @@ const restrictedCommands = ['restart', 'kill', 'update'];
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
       `**${this.commandPrefix}health-detailed**: Shows detailed health status for all components.`,
-      `**${this.commandPrefix}update**: Pulls the latest changes from git and restarts the bot.`,
+      `**${this.commandPrefix}update**: Pulls the latest changes from git, updates dependencies, and restarts the bot.`,
       `**${this.commandPrefix}readme**: Displays this command information.`
     ];
     

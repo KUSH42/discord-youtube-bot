@@ -167,17 +167,34 @@ export class BotApplication {
         await message.reply(output);
       }
       
-      // Delay restart to ensure the message is sent
-      setTimeout(() => {
-        this.exec(`sudo systemctl restart ${serviceName}`, (restartError) => {
-          if (restartError) {
-            this.logger.error(`systemctl restart failed: ${restartError}`);
-            // We cannot reply here as the bot might be down
-          } else {
-            this.logger.info('Systemd restart command issued successfully.');
+      // Run npm install after git pull
+      this.exec('npm install', async (installError, installStdout, installStderr) => {
+        if (installError) {
+          this.logger.error(`npm install failed: ${installError}`);
+          if (message) {
+            await message.reply(`❌ **npm install failed:**\n\`\`\`${installError.message}\`\`\``);
           }
-        });
-      }, 5000); // 5-second delay
+          return;
+        }
+        
+        this.logger.info(`npm install successful: ${installStdout}`);
+        
+        if (message) {
+          await message.reply(`**✅ Dependencies updated successfully.**`);
+        }
+        
+        // Delay restart to ensure the message is sent
+        setTimeout(() => {
+          this.exec(`sudo systemctl restart ${serviceName}`, (restartError) => {
+            if (restartError) {
+              this.logger.error(`systemctl restart failed: ${restartError}`);
+              // We cannot reply here as the bot might be down
+            } else {
+              this.logger.info('Systemd restart command issued successfully.');
+            }
+          });
+        }, 5000); // 5-second delay
+      });
     });
   }
 
