@@ -4,16 +4,16 @@ export default {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.js',
+    'index.js',           // Include main entry point
+    'x-scraper.js',       // Include X/Twitter scraper  
+    'youtube-monitor.js', // Include YouTube monitor
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',
     '!setup-encryption.js',
     '!tests/**',
     '!src/services/interfaces/**',
-    '!src/setup/**',
-    '!index.js',
-    '!x-scraper.js',
-    '!youtube-monitor.js'
+    '!src/setup/**'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],
