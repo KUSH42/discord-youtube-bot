@@ -898,7 +898,8 @@ export class ScraperApplication {
         type: classification.type,
         id: tweet.tweetID,
         url: tweet.url,
-        author: tweet.author,
+        author: classification.type === 'retweet' ? this.xUser : tweet.author,
+        originalAuthor: tweet.author, // Store original author for retweets
         text: tweet.text,
         timestamp: tweet.timestamp,
         isOld: !this.isNewContent(tweet)

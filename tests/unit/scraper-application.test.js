@@ -301,11 +301,12 @@ describe('ScraperApplication', () => {
       // Should NOT call the classifier since it's an author-based retweet
       expect(mockContentClassifier.classifyXContent).not.toHaveBeenCalled();
       
-      // Should still announce the content as a retweet
+      // Should still announce the content as a retweet with correct author
       expect(mockContentAnnouncer.announceContent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'retweet',
-          author: 'differentuser',
+          author: 'testuser', // Should be the monitored user, not the original author
+          originalAuthor: 'differentuser', // Original author stored separately
           platform: 'x'
         })
       );
