@@ -11,7 +11,7 @@ export class BrowserService {
   async launch(options = {}) {
     throw new Error('Abstract method: launch must be implemented');
   }
-  
+
   /**
    * Create a new page
    * @returns {Promise<Object>} Page object
@@ -19,7 +19,7 @@ export class BrowserService {
   async newPage() {
     throw new Error('Abstract method: newPage must be implemented');
   }
-  
+
   /**
    * Navigate to a URL
    * @param {string} url - URL to navigate to
@@ -29,7 +29,7 @@ export class BrowserService {
   async goto(url, options = {}) {
     throw new Error('Abstract method: goto must be implemented');
   }
-  
+
   /**
    * Wait for a selector to appear
    * @param {string} selector - CSS selector
@@ -39,7 +39,7 @@ export class BrowserService {
   async waitForSelector(selector, options = {}) {
     throw new Error('Abstract method: waitForSelector must be implemented');
   }
-  
+
   /**
    * Wait for navigation to complete
    * @param {Object} options - Wait options
@@ -48,7 +48,7 @@ export class BrowserService {
   async waitForNavigation(options = {}) {
     throw new Error('Abstract method: waitForNavigation must be implemented');
   }
-  
+
   /**
    * Execute JavaScript in the page context
    * @param {string|Function} script - JavaScript code or function
@@ -58,7 +58,7 @@ export class BrowserService {
   async evaluate(script, ...args) {
     throw new Error('Abstract method: evaluate must be implemented');
   }
-  
+
   /**
    * Type text into an element
    * @param {string} selector - CSS selector
@@ -69,7 +69,7 @@ export class BrowserService {
   async type(selector, text, options = {}) {
     throw new Error('Abstract method: type must be implemented');
   }
-  
+
   /**
    * Click an element
    * @param {string} selector - CSS selector
@@ -79,7 +79,7 @@ export class BrowserService {
   async click(selector, options = {}) {
     throw new Error('Abstract method: click must be implemented');
   }
-  
+
   /**
    * Get text content of an element
    * @param {string} selector - CSS selector
@@ -88,7 +88,7 @@ export class BrowserService {
   async getTextContent(selector) {
     throw new Error('Abstract method: getTextContent must be implemented');
   }
-  
+
   /**
    * Get attribute value of an element
    * @param {string} selector - CSS selector
@@ -98,7 +98,7 @@ export class BrowserService {
   async getAttribute(selector, attribute) {
     throw new Error('Abstract method: getAttribute must be implemented');
   }
-  
+
   /**
    * Take a screenshot
    * @param {Object} options - Screenshot options
@@ -107,7 +107,7 @@ export class BrowserService {
   async screenshot(options = {}) {
     throw new Error('Abstract method: screenshot must be implemented');
   }
-  
+
   /**
    * Set cookies
    * @param {Array<Object>} cookies - Array of cookie objects
@@ -116,7 +116,7 @@ export class BrowserService {
   async setCookies(cookies) {
     throw new Error('Abstract method: setCookies must be implemented');
   }
-  
+
   /**
    * Get cookies
    * @param {Array<string>} urls - URLs to get cookies for (optional)
@@ -125,7 +125,7 @@ export class BrowserService {
   async getCookies(urls = []) {
     throw new Error('Abstract method: getCookies must be implemented');
   }
-  
+
   /**
    * Set user agent
    * @param {string} userAgent - User agent string
@@ -134,7 +134,7 @@ export class BrowserService {
   async setUserAgent(userAgent) {
     throw new Error('Abstract method: setUserAgent must be implemented');
   }
-  
+
   /**
    * Set viewport size
    * @param {Object} viewport - Viewport dimensions
@@ -143,7 +143,7 @@ export class BrowserService {
   async setViewport(viewport) {
     throw new Error('Abstract method: setViewport must be implemented');
   }
-  
+
   /**
    * Wait for a specified amount of time
    * @param {number} ms - Milliseconds to wait
@@ -152,7 +152,7 @@ export class BrowserService {
   async waitFor(ms) {
     throw new Error('Abstract method: waitFor must be implemented');
   }
-  
+
   /**
    * Get page content/HTML
    * @returns {Promise<string>} Page HTML content
@@ -160,7 +160,7 @@ export class BrowserService {
   async getContent() {
     throw new Error('Abstract method: getContent must be implemented');
   }
-  
+
   /**
    * Get current page URL
    * @returns {Promise<string>} Current URL
@@ -168,7 +168,7 @@ export class BrowserService {
   async getCurrentUrl() {
     throw new Error('Abstract method: getCurrentUrl must be implemented');
   }
-  
+
   /**
    * Check if element exists
    * @param {string} selector - CSS selector
@@ -177,7 +177,7 @@ export class BrowserService {
   async elementExists(selector) {
     throw new Error('Abstract method: elementExists must be implemented');
   }
-  
+
   /**
    * Get multiple elements
    * @param {string} selector - CSS selector
@@ -186,7 +186,7 @@ export class BrowserService {
   async getElements(selector) {
     throw new Error('Abstract method: getElements must be implemented');
   }
-  
+
   /**
    * Close the current page
    * @returns {Promise<void>}
@@ -194,7 +194,7 @@ export class BrowserService {
   async closePage() {
     throw new Error('Abstract method: closePage must be implemented');
   }
-  
+
   /**
    * Close the browser
    * @returns {Promise<void>}
@@ -202,7 +202,7 @@ export class BrowserService {
   async close() {
     throw new Error('Abstract method: close must be implemented');
   }
-  
+
   /**
    * Check if browser is running
    * @returns {boolean} True if browser is running
@@ -210,7 +210,7 @@ export class BrowserService {
   isRunning() {
     throw new Error('Abstract method: isRunning must be implemented');
   }
-  
+
   /**
    * Dispose of resources
    * @returns {Promise<void>}

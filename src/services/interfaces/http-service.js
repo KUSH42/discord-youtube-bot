@@ -12,7 +12,7 @@ export class HttpService {
   async get(url, options = {}) {
     throw new Error('Abstract method: get must be implemented');
   }
-  
+
   /**
    * Make a POST request
    * @param {string} url - Request URL
@@ -23,7 +23,7 @@ export class HttpService {
   async post(url, data = null, options = {}) {
     throw new Error('Abstract method: post must be implemented');
   }
-  
+
   /**
    * Make a PUT request
    * @param {string} url - Request URL
@@ -34,7 +34,7 @@ export class HttpService {
   async put(url, data = null, options = {}) {
     throw new Error('Abstract method: put must be implemented');
   }
-  
+
   /**
    * Make a DELETE request
    * @param {string} url - Request URL
@@ -44,7 +44,7 @@ export class HttpService {
   async delete(url, options = {}) {
     throw new Error('Abstract method: delete must be implemented');
   }
-  
+
   /**
    * Make a PATCH request
    * @param {string} url - Request URL
@@ -55,7 +55,7 @@ export class HttpService {
   async patch(url, data = null, options = {}) {
     throw new Error('Abstract method: patch must be implemented');
   }
-  
+
   /**
    * Make a HEAD request
    * @param {string} url - Request URL
@@ -65,7 +65,7 @@ export class HttpService {
   async head(url, options = {}) {
     throw new Error('Abstract method: head must be implemented');
   }
-  
+
   /**
    * Make a generic HTTP request
    * @param {string} method - HTTP method
@@ -77,7 +77,7 @@ export class HttpService {
   async request(method, url, data = null, options = {}) {
     throw new Error('Abstract method: request must be implemented');
   }
-  
+
   /**
    * Download a file
    * @param {string} url - File URL
@@ -88,7 +88,7 @@ export class HttpService {
   async downloadFile(url, destination, options = {}) {
     throw new Error('Abstract method: downloadFile must be implemented');
   }
-  
+
   /**
    * Upload a file
    * @param {string} url - Upload URL
@@ -99,7 +99,7 @@ export class HttpService {
   async uploadFile(url, file, options = {}) {
     throw new Error('Abstract method: uploadFile must be implemented');
   }
-  
+
   /**
    * Set default headers for all requests
    * @param {Object} headers - Default headers
@@ -107,7 +107,7 @@ export class HttpService {
   setDefaultHeaders(headers) {
     throw new Error('Abstract method: setDefaultHeaders must be implemented');
   }
-  
+
   /**
    * Set default timeout for all requests
    * @param {number} timeout - Timeout in milliseconds
@@ -115,7 +115,7 @@ export class HttpService {
   setTimeout(timeout) {
     throw new Error('Abstract method: setTimeout must be implemented');
   }
-  
+
   /**
    * Set base URL for relative requests
    * @param {string} baseUrl - Base URL
@@ -123,7 +123,7 @@ export class HttpService {
   setBaseUrl(baseUrl) {
     throw new Error('Abstract method: setBaseUrl must be implemented');
   }
-  
+
   /**
    * Add request interceptor
    * @param {Function} interceptor - Request interceptor function
@@ -132,7 +132,7 @@ export class HttpService {
   addRequestInterceptor(interceptor) {
     throw new Error('Abstract method: addRequestInterceptor must be implemented');
   }
-  
+
   /**
    * Add response interceptor
    * @param {Function} interceptor - Response interceptor function
@@ -141,7 +141,7 @@ export class HttpService {
   addResponseInterceptor(interceptor) {
     throw new Error('Abstract method: addResponseInterceptor must be implemented');
   }
-  
+
   /**
    * Create a new HTTP client instance with custom configuration
    * @param {Object} config - Client configuration
@@ -150,7 +150,7 @@ export class HttpService {
   createInstance(config = {}) {
     throw new Error('Abstract method: createInstance must be implemented');
   }
-  
+
   /**
    * Validate URL format
    * @param {string} url - URL to validate
@@ -160,7 +160,7 @@ export class HttpService {
     if (typeof url !== 'string') {
       return false;
     }
-    
+
     try {
       new URL(url);
       return true;
@@ -168,7 +168,7 @@ export class HttpService {
       return false;
     }
   }
-  
+
   /**
    * Build query string from object
    * @param {Object} params - Query parameters
@@ -178,22 +178,22 @@ export class HttpService {
     if (!params || typeof params !== 'object') {
       return '';
     }
-    
+
     const searchParams = new URLSearchParams();
-    
+
     for (const [key, value] of Object.entries(params)) {
       if (value !== null && value !== undefined) {
         if (Array.isArray(value)) {
-          value.forEach(v => searchParams.append(key, v));
+          value.forEach((v) => searchParams.append(key, v));
         } else {
           searchParams.append(key, value);
         }
       }
     }
-    
+
     return searchParams.toString();
   }
-  
+
   /**
    * Join URL path segments
    * @param {...string} segments - Path segments
@@ -201,11 +201,11 @@ export class HttpService {
    */
   joinUrlPath(...segments) {
     return segments
-      .filter(segment => segment)
-      .map(segment => segment.toString().replace(/^\/+|\/+$/g, ''))
+      .filter((segment) => segment)
+      .map((segment) => segment.toString().replace(/^\/+|\/+$/g, ''))
       .join('/');
   }
-  
+
   /**
    * Check if response indicates success
    * @param {Object} response - Response object
@@ -214,7 +214,7 @@ export class HttpService {
   isSuccessResponse(response) {
     return response && response.status >= 200 && response.status < 300;
   }
-  
+
   /**
    * Check if response indicates client error
    * @param {Object} response - Response object
@@ -223,7 +223,7 @@ export class HttpService {
   isClientError(response) {
     return response && response.status >= 400 && response.status < 500;
   }
-  
+
   /**
    * Check if response indicates server error
    * @param {Object} response - Response object
@@ -232,7 +232,7 @@ export class HttpService {
   isServerError(response) {
     return response && response.status >= 500 && response.status < 600;
   }
-  
+
   /**
    * Get content type from response
    * @param {Object} response - Response object
@@ -242,11 +242,11 @@ export class HttpService {
     if (!response || !response.headers) {
       return null;
     }
-    
+
     const contentType = response.headers['content-type'] || response.headers['Content-Type'];
     return contentType ? contentType.split(';')[0].trim() : null;
   }
-  
+
   /**
    * Check if response is JSON
    * @param {Object} response - Response object
@@ -256,7 +256,7 @@ export class HttpService {
     const contentType = this.getContentType(response);
     return contentType === 'application/json';
   }
-  
+
   /**
    * Dispose of resources
    * @returns {Promise<void>}

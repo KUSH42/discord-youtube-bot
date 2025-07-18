@@ -11,18 +11,18 @@ export const mockVideoDetails = {
     publishedAt: '2009-10-25T06:57:33Z',
     thumbnails: {
       high: {
-        url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
-      }
-    }
+        url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      },
+    },
   },
   statistics: {
     viewCount: '1000000000',
-    likeCount: '10000000'
+    likeCount: '10000000',
   },
   liveStreamingDetails: {
     actualStartTime: new Date().toISOString(),
-    scheduledStartTime: new Date().toISOString()
-  }
+    scheduledStartTime: new Date().toISOString(),
+  },
 };
 
 export const mockLiveStreamDetails = {
@@ -36,14 +36,14 @@ export const mockLiveStreamDetails = {
     liveBroadcastContent: 'live',
     thumbnails: {
       high: {
-        url: 'https://i.ytimg.com/vi/live123456789/hqdefault_live.jpg'
-      }
-    }
+        url: 'https://i.ytimg.com/vi/live123456789/hqdefault_live.jpg',
+      },
+    },
   },
   liveStreamingDetails: {
     actualStartTime: new Date().toISOString(),
-    concurrentViewers: '1000'
-  }
+    concurrentViewers: '1000',
+  },
 };
 
 // Mock PubSubHubbub notification payload
@@ -73,26 +73,26 @@ export const mockYouTubeAPI = {
   videos: {
     list: jest.fn().mockResolvedValue({
       data: {
-        items: [mockVideoDetails]
-      }
-    })
-  }
+        items: [mockVideoDetails],
+      },
+    }),
+  },
 };
 
 export const mockGoogleAuth = {
   auth: {
     GoogleAuth: jest.fn(() => ({
       getClient: jest.fn().mockResolvedValue({}),
-      getAccessToken: jest.fn().mockResolvedValue('mock-token')
-    }))
-  }
+      getAccessToken: jest.fn().mockResolvedValue('mock-token'),
+    })),
+  },
 };
 
 export const mockGoogleAPIs = {
   google: {
     youtube: jest.fn(() => mockYouTubeAPI),
-    auth: mockGoogleAuth.auth
-  }
+    auth: mockGoogleAuth.auth,
+  },
 };
 
 // Mock subscription management
@@ -100,8 +100,8 @@ export const mockSubscriptionResponse = {
   status: 202,
   statusText: 'Accepted',
   headers: {
-    'content-type': 'application/json'
-  }
+    'content-type': 'application/json',
+  },
 };
 
 // Helper functions for creating test data
@@ -110,19 +110,19 @@ export const createMockVideoDetails = (overrides = {}) => ({
   ...overrides,
   snippet: {
     ...mockVideoDetails.snippet,
-    ...(overrides.snippet || {})
-  }
+    ...(overrides.snippet || {}),
+  },
 });
 
-export const createMockPubSubNotification = (videoId, channelId = 'UCuAXFkgsw1L7xaCfnd5JJOw') => 
-  mockPubSubNotification
-    .replace(/dQw4w9WgXcQ/g, videoId)
-    .replace(/UCuAXFkgsw1L7xaCfnd5JJOw/g, channelId);
+export const createMockPubSubNotification = (videoId, channelId = 'UCuAXFkgsw1L7xaCfnd5JJOw') =>
+  mockPubSubNotification.replace(/dQw4w9WgXcQ/g, videoId).replace(/UCuAXFkgsw1L7xaCfnd5JJOw/g, channelId);
 
 // Mock HMAC signature verification
 export const mockHmacSignature = 'sha1=da39a3ee5e6b4b0d3255bfef95601890afd80709';
 
 export const createMockSignature = (data, secret = 'test-secret') => {
   // Simple mock signature for testing
-  return `sha1=${Buffer.from(data + secret).toString('hex').substring(0, 40)}`;
+  return `sha1=${Buffer.from(data + secret)
+    .toString('hex')
+    .substring(0, 40)}`;
 };

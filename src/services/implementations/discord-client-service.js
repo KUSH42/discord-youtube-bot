@@ -9,14 +9,14 @@ export class DiscordClientService extends DiscordService {
     this.client = client;
     this.eventHandlers = new Map();
   }
-  
+
   /**
    * Login to Discord with bot token
    */
   async login(token) {
     await this.client.login(token);
   }
-  
+
   /**
    * Send a message to a Discord channel
    */
@@ -27,21 +27,21 @@ export class DiscordClientService extends DiscordService {
     }
     return await channel.send(content);
   }
-  
+
   /**
    * Fetch a Discord channel
    */
   async fetchChannel(channelId) {
     return await this.client.channels.fetch(channelId);
   }
-  
+
   /**
    * Fetch a Discord guild
    */
   async fetchGuild(guildId) {
     return await this.client.guilds.fetch(guildId);
   }
-  
+
   /**
    * Register a message event handler
    */
@@ -53,15 +53,15 @@ export class DiscordClientService extends DiscordService {
         console.error('Error in message handler:', error);
       }
     };
-    
+
     this.client.on('messageCreate', wrappedHandler);
-    
+
     // Return unregister function
     return () => {
       this.client.off('messageCreate', wrappedHandler);
     };
   }
-  
+
   /**
    * Register a ready event handler
    */
@@ -73,15 +73,15 @@ export class DiscordClientService extends DiscordService {
         console.error('Error in ready handler:', error);
       }
     };
-    
+
     this.client.on('ready', wrappedHandler);
-    
+
     // Return unregister function
     return () => {
       this.client.off('ready', wrappedHandler);
     };
   }
-  
+
   /**
    * Register an error event handler
    */
@@ -93,43 +93,43 @@ export class DiscordClientService extends DiscordService {
         console.error('Error in error handler:', handlerError);
       }
     };
-    
+
     this.client.on('error', wrappedHandler);
-    
+
     // Return unregister function
     return () => {
       this.client.off('error', wrappedHandler);
     };
   }
-  
+
   /**
    * Get current user information
    */
   async getCurrentUser() {
     return this.client.user;
   }
-  
+
   /**
    * Check if the bot is logged in and ready
    */
   isReady() {
     return this.client.readyAt !== null;
   }
-  
+
   /**
    * Get bot latency/ping
    */
   getLatency() {
     return this.client.ws.ping;
   }
-  
+
   /**
    * Destroy the Discord client connection
    */
   async destroy() {
     await this.client.destroy();
   }
-  
+
   /**
    * Edit a message
    */
@@ -138,11 +138,11 @@ export class DiscordClientService extends DiscordService {
     if (!channel || !channel.isTextBased()) {
       throw new Error(`Channel ${channelId} is not a valid text channel`);
     }
-    
+
     const message = await channel.messages.fetch(messageId);
     return await message.edit(newContent);
   }
-  
+
   /**
    * Delete a message
    */
@@ -151,11 +151,11 @@ export class DiscordClientService extends DiscordService {
     if (!channel || !channel.isTextBased()) {
       throw new Error(`Channel ${channelId} is not a valid text channel`);
     }
-    
+
     const message = await channel.messages.fetch(messageId);
     await message.delete();
   }
-  
+
   /**
    * Add a reaction to a message
    */
@@ -164,11 +164,11 @@ export class DiscordClientService extends DiscordService {
     if (!channel || !channel.isTextBased()) {
       throw new Error(`Channel ${channelId} is not a valid text channel`);
     }
-    
+
     const message = await channel.messages.fetch(messageId);
     await message.react(emoji);
   }
-  
+
   /**
    * Get user from guild
    */
@@ -176,7 +176,7 @@ export class DiscordClientService extends DiscordService {
     const guild = await this.client.guilds.fetch(guildId);
     return await guild.members.fetch(userId);
   }
-  
+
   /**
    * Check if user has permission in channel
    */
@@ -185,11 +185,11 @@ export class DiscordClientService extends DiscordService {
     if (!channel || !channel.guild) {
       return false;
     }
-    
+
     const member = await channel.guild.members.fetch(userId);
     return channel.permissionsFor(member).has(permission);
   }
-  
+
   /**
    * Set bot presence/status
    */

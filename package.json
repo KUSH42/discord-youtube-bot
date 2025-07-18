@@ -19,6 +19,8 @@
     "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/performance",
     "test:security": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.security.config.js",
     "lint": "eslint .",
+    "format": "prettier --check .",
+    "lint:fix": "eslint . --fix",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -54,10 +56,12 @@
   },
   "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme",
   "devDependencies": {
+    "@eslint/js": "^9.31.0",
     "@jest/globals": "^30.0.4",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.5.1",
+    "globals": "^16.3.0",
     "husky": "^9.1.7",
     "jest": "^30.0.4",
     "lint-staged": "^16.1.2",

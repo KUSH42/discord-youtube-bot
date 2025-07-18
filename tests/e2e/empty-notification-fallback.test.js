@@ -15,22 +15,22 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
-      verbose: jest.fn()
+      verbose: jest.fn(),
     };
 
     mockYouTubeAPI = {
       search: {
-        list: jest.fn()
+        list: jest.fn(),
       },
       videos: {
-        list: jest.fn()
-      }
+        list: jest.fn(),
+      },
     };
 
     mockDiscordClient = {
       channels: {
-        fetch: jest.fn()
-      }
+        fetch: jest.fn(),
+      },
     };
 
     mockRequest = {
@@ -39,16 +39,16 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       headers: {
         'x-hub-signature': '',
         'content-type': 'application/atom+xml',
-        'user-agent': 'FeedFetcher-Google'
+        'user-agent': 'FeedFetcher-Google',
       },
       url: '/webhook/youtube',
-      method: 'POST'
+      method: 'POST',
     };
 
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      json: jest.fn().mockReturnThis(),
     };
 
     // Mock complete YouTube monitor with all required methods
@@ -56,7 +56,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       logger: mockLogger,
       youtube: mockYouTubeAPI,
       discordClient: mockDiscordClient,
-      
+
       // Configuration
       PSH_SECRET: 'test-secret-key',
       YOUTUBE_CHANNEL_ID: 'UCTestChannelId123456789',
@@ -66,7 +66,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       YOUTUBE_API_POLL_INTERVAL_MS: 1000,
       YOUTUBE_FALLBACK_BACKFILL_HOURS: 2,
       DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345678',
-      
+
       // State
       lastSuccessfulCheck: new Date(Date.now() - 300000), // 5 minutes ago
       failedNotifications: new Map(),
@@ -74,7 +74,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       fallbackInProgress: false,
       apiFallbackTimer: null,
       announcedVideos: new Set(['oldVideo1', 'oldVideo2']), // Previously announced
-      
+
       // Metrics
       fallbackMetrics: {
         totalNotificationFailures: 0,
@@ -82,9 +82,9 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
         totalSuccessfulRetries: 0,
         totalFallbackTriggers: 0,
         totalVideosRecoveredByFallback: 0,
-        totalApiFallbackExecutions: 0
+        totalApiFallbackExecutions: 0,
       },
-      
+
       // Mock methods
       handlePubSubNotification: jest.fn(),
       handleFailedNotification: jest.fn(),
@@ -93,7 +93,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       performApiFallback: jest.fn(),
       announceYouTubeContent: jest.fn(),
       sendMirroredMessage: jest.fn(),
-      verifySignature: jest.fn()
+      verifySignature: jest.fn(),
     };
 
     // Implement mock behavior
@@ -112,7 +112,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Step 1: Setup empty notification with valid signature
       const emptyBody = '';
       const signature = generateValidSignature(emptyBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = emptyBody;
       mockRequest.rawBody = Buffer.from(emptyBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -126,57 +126,56 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
           publishedAt: new Date().toISOString(),
           channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
           channelTitle: 'Test Channel',
-          description: 'This is a new video that was missed due to empty notification'
-        }
+          description: 'This is a new video that was missed due to empty notification',
+        },
       };
 
       mockYouTubeAPI.search.list.mockResolvedValue({
         data: {
-          items: [newVideoData]
-        }
+          items: [newVideoData],
+        },
       });
 
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: [{
-            id: newVideoId,
-            snippet: newVideoData.snippet,
-            contentDetails: { duration: 'PT8M30S' },
-            statistics: { viewCount: '1234', likeCount: '56' }
-          }]
-        }
+          items: [
+            {
+              id: newVideoId,
+              snippet: newVideoData.snippet,
+              contentDetails: { duration: 'PT8M30S' },
+              statistics: { viewCount: '1234', likeCount: '56' },
+            },
+          ],
+        },
       });
 
       // Step 3: Mock Discord channel for announcements
       const mockChannel = {
         send: jest.fn().mockResolvedValue({ id: 'message123' }),
-        isTextBased: () => true
+        isTextBased: () => true,
       };
       mockDiscordClient.channels.fetch.mockResolvedValue(mockChannel);
 
       // Step 4: Execute the complete workflow
-      
+
       // 4a: Signature verification should pass
       expect(mockYouTubeMonitor.verifySignature(mockRequest)).toBe(true);
-      
+
       // 4b: Handle the empty notification (should fail parsing)
       const parseError = new Error('Empty notification body - no XML content to parse');
-      
+
       // 4c: This should trigger fallback handling
       await mockYouTubeMonitor.handleFailedNotification(emptyBody, parseError);
-      
+
       // 4d: After delay, API fallback should be triggered
-      await new Promise(resolve => setTimeout(resolve, 150)); // Wait for fallback delay
+      await new Promise((resolve) => setTimeout(resolve, 150)); // Wait for fallback delay
       await mockYouTubeMonitor.performApiFallback();
-      
+
       // Step 5: Verify the complete workflow executed correctly
-      
+
       // 5a: Verify failure was recorded
-      expect(mockYouTubeMonitor.handleFailedNotification).toHaveBeenCalledWith(
-        emptyBody,
-        parseError
-      );
-      
+      expect(mockYouTubeMonitor.handleFailedNotification).toHaveBeenCalledWith(emptyBody, parseError);
+
       // 5b: Verify API fallback was called with correct parameters
       expect(mockYouTubeAPI.search.list).toHaveBeenCalledWith({
         part: 'id,snippet',
@@ -184,37 +183,31 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
         type: 'video',
         order: 'date',
         publishedAfter: expect.any(String),
-        maxResults: 10
+        maxResults: 10,
       });
-      
+
       // 5c: Verify new video was announced (not previously announced videos)
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: newVideoId,
           title: 'New Video: Important Announcement',
-          channelTitle: 'Test Channel'
-        })
+          channelTitle: 'Test Channel',
+        }),
       );
-      
+
       // 5d: Verify metrics were updated
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(1);
       expect(mockYouTubeMonitor.fallbackMetrics.totalApiFallbackExecutions).toBe(1);
       expect(mockYouTubeMonitor.fallbackMetrics.totalVideosRecoveredByFallback).toBe(1);
-      
+
       // 5e: Verify Discord announcement was sent
-      expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith(
-        mockYouTubeMonitor.DISCORD_YOUTUBE_CHANNEL_ID
-      );
+      expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith(mockYouTubeMonitor.DISCORD_YOUTUBE_CHANNEL_ID);
       expect(mockChannel.send).toHaveBeenCalled();
-      
+
       // 5f: Verify appropriate logging occurred
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Failed notification queued for retry')
-      );
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('API fallback completed')
-      );
-      
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed notification queued for retry'));
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('API fallback completed'));
+
       mockLogger.info('Empty notification fallback workflow completed successfully');
     });
 
@@ -222,7 +215,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Setup empty notification
       const emptyBody = '';
       const signature = generateValidSignature(emptyBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = emptyBody;
       mockRequest.rawBody = Buffer.from(emptyBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -231,16 +224,18 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       const oldVideoId = 'oldVideo1'; // This is in our announcedVideos set
       mockYouTubeAPI.search.list.mockResolvedValue({
         data: {
-          items: [{
-            id: { videoId: oldVideoId },
-            snippet: {
-              title: 'Old Video Already Announced',
-              publishedAt: new Date(Date.now() - 600000).toISOString(), // 10 minutes ago
-              channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
-              channelTitle: 'Test Channel'
-            }
-          }]
-        }
+          items: [
+            {
+              id: { videoId: oldVideoId },
+              snippet: {
+                title: 'Old Video Already Announced',
+                publishedAt: new Date(Date.now() - 600000).toISOString(), // 10 minutes ago
+                channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
+                channelTitle: 'Test Channel',
+              },
+            },
+          ],
+        },
       });
 
       // Execute workflow
@@ -251,7 +246,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Verify no announcement was made for already announced video
       expect(mockYouTubeMonitor.announceYouTubeContent).not.toHaveBeenCalled();
       expect(mockYouTubeMonitor.fallbackMetrics.totalVideosRecoveredByFallback).toBe(0);
-      
+
       mockLogger.info('Correctly skipped already announced videos during fallback');
     });
 
@@ -259,7 +254,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Setup empty notification
       const emptyBody = '';
       const signature = generateValidSignature(emptyBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = emptyBody;
       mockRequest.rawBody = Buffer.from(emptyBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -272,8 +267,8 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
             title: 'First New Video',
             publishedAt: new Date().toISOString(),
             channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
-            channelTitle: 'Test Channel'
-          }
+            channelTitle: 'Test Channel',
+          },
         },
         {
           id: { videoId: 'newVideo2' },
@@ -281,30 +276,30 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
             title: 'Second New Video',
             publishedAt: new Date().toISOString(),
             channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
-            channelTitle: 'Test Channel'
-          }
-        }
+            channelTitle: 'Test Channel',
+          },
+        },
       ];
 
       mockYouTubeAPI.search.list.mockResolvedValue({
-        data: { items: newVideos }
+        data: { items: newVideos },
       });
 
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: newVideos.map(v => ({
+          items: newVideos.map((v) => ({
             id: v.id.videoId,
             snippet: v.snippet,
             contentDetails: { duration: 'PT5M' },
-            statistics: { viewCount: '100' }
-          }))
-        }
+            statistics: { viewCount: '100' },
+          })),
+        },
       });
 
       // Mock Discord channel
       const mockChannel = {
         send: jest.fn().mockResolvedValue({ id: 'message123' }),
-        isTextBased: () => true
+        isTextBased: () => true,
       };
       mockDiscordClient.channels.fetch.mockResolvedValue(mockChannel);
 
@@ -316,26 +311,26 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Verify both videos were announced
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalledTimes(2);
       expect(mockYouTubeMonitor.fallbackMetrics.totalVideosRecoveredByFallback).toBe(2);
-      
+
       // Verify both specific videos were announced
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'newVideo1', title: 'First New Video' })
+        expect.objectContaining({ id: 'newVideo1', title: 'First New Video' }),
       );
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'newVideo2', title: 'Second New Video' })
+        expect.objectContaining({ id: 'newVideo2', title: 'Second New Video' }),
       );
-      
+
       mockLogger.info('Successfully handled multiple new videos during fallback');
     });
 
     it('should handle empty notification when fallback is disabled', async () => {
       // Disable fallback system
       mockYouTubeMonitor.YOUTUBE_FALLBACK_ENABLED = false;
-      
+
       // Setup empty notification
       const emptyBody = '';
       const signature = generateValidSignature(emptyBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = emptyBody;
       mockRequest.rawBody = Buffer.from(emptyBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -347,12 +342,10 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Verify fallback was not triggered
       expect(mockYouTubeMonitor.scheduleApiFallback).not.toHaveBeenCalled();
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(0);
-      
+
       // Should log warning about disabled fallback
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'YouTube fallback system is disabled. Notification lost.'
-      );
-      
+      expect(mockLogger.warn).toHaveBeenCalledWith('YouTube fallback system is disabled. Notification lost.');
+
       mockLogger.info('Correctly handled disabled fallback system');
     });
   });
@@ -362,7 +355,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Setup whitespace-only notification (should also be considered empty)
       const whitespaceBody = '   \n\t  \r\n  ';
       const signature = generateValidSignature(whitespaceBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = whitespaceBody;
       mockRequest.rawBody = Buffer.from(whitespaceBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -370,22 +363,24 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Mock new video for recovery
       mockYouTubeAPI.search.list.mockResolvedValue({
         data: {
-          items: [{
-            id: { videoId: 'whitespaceRecovery' },
-            snippet: {
-              title: 'Recovered from Whitespace Notification',
-              publishedAt: new Date().toISOString(),
-              channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
-              channelTitle: 'Test Channel'
-            }
-          }]
-        }
+          items: [
+            {
+              id: { videoId: 'whitespaceRecovery' },
+              snippet: {
+                title: 'Recovered from Whitespace Notification',
+                publishedAt: new Date().toISOString(),
+                channelId: mockYouTubeMonitor.YOUTUBE_CHANNEL_ID,
+                channelTitle: 'Test Channel',
+              },
+            },
+          ],
+        },
       });
 
       // Mock Discord channel
       const mockChannel = {
         send: jest.fn().mockResolvedValue({ id: 'message123' }),
-        isTextBased: () => true
+        isTextBased: () => true,
       };
       mockDiscordClient.channels.fetch.mockResolvedValue(mockChannel);
 
@@ -398,10 +393,10 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'whitespaceRecovery',
-          title: 'Recovered from Whitespace Notification'
-        })
+          title: 'Recovered from Whitespace Notification',
+        }),
       );
-      
+
       mockLogger.info('Successfully handled whitespace-only notification');
     });
 
@@ -409,7 +404,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Setup empty notification
       const emptyBody = '';
       const signature = generateValidSignature(emptyBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = emptyBody;
       mockRequest.rawBody = Buffer.from(emptyBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -421,7 +416,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Execute workflow
       const parseError = new Error('Empty notification body');
       await mockYouTubeMonitor.handleFailedNotification(emptyBody, parseError);
-      
+
       let fallbackError;
       try {
         await mockYouTubeMonitor.performApiFallback();
@@ -432,14 +427,14 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       // Verify API error was handled gracefully
       expect(fallbackError).toBeDefined();
       expect(fallbackError.message).toBe('YouTube API quota exceeded');
-      
+
       // Should still record the notification failure
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(1);
       expect(mockYouTubeMonitor.fallbackMetrics.totalApiFallbackExecutions).toBe(1);
-      
+
       // Should log the API error (done by the mock implementation)
       // Note: The actual logging is handled by the production code, not the mock
-      
+
       mockLogger.info('Gracefully handled YouTube API error during fallback');
     });
   });
@@ -447,9 +442,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
 
 // Helper functions
 function generateValidSignature(body, secret) {
-  return crypto.createHmac('sha1', secret)
-    .update(Buffer.from(body))
-    .digest('hex');
+  return crypto.createHmac('sha1', secret).update(Buffer.from(body)).digest('hex');
 }
 
 function setupMockImplementations(monitor) {
@@ -458,28 +451,25 @@ function setupMockImplementations(monitor) {
     if (!request.headers['x-hub-signature']) {
       return false;
     }
-    
+
     const [algorithm, providedSignature] = request.headers['x-hub-signature'].split('=');
     if (algorithm !== 'sha1') {
       return false;
     }
-    
+
     const hmac = crypto.createHmac('sha1', monitor.PSH_SECRET);
     hmac.update(request.rawBody);
     const expectedSignature = hmac.digest('hex');
-    
+
     try {
-      return crypto.timingSafeEqual(
-        Buffer.from(expectedSignature, 'hex'),
-        Buffer.from(providedSignature, 'hex')
-      );
+      return crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(providedSignature, 'hex'));
     } catch {
       return false;
     }
   });
 
   // Mock failed notification handler
-  monitor.handleFailedNotification.mockImplementation(async function(rawXML, error) {
+  monitor.handleFailedNotification.mockImplementation(async function (rawXML, error) {
     if (!this.YOUTUBE_FALLBACK_ENABLED) {
       this.logger.warn('YouTube fallback system is disabled. Notification lost.');
       return;
@@ -488,20 +478,20 @@ function setupMockImplementations(monitor) {
     this.fallbackMetrics.totalNotificationFailures++;
     const failureId = crypto.randomUUID();
     const now = new Date();
-    
+
     this.failedNotifications.set(failureId, {
       rawXML,
       error: error.message,
       timestamp: now,
-      retryCount: 0
+      retryCount: 0,
     });
 
     this.recentFailures.push(now);
-    this.recentFailures = this.recentFailures.filter(timestamp => 
-      now.getTime() - timestamp.getTime() < 30000
-    );
+    this.recentFailures = this.recentFailures.filter((timestamp) => now.getTime() - timestamp.getTime() < 30000);
 
-    this.logger.warn(`Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}`);
+    this.logger.warn(
+      `Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}`,
+    );
 
     this.scheduleRetry(failureId);
 
@@ -512,12 +502,12 @@ function setupMockImplementations(monitor) {
   });
 
   // Mock API fallback
-  monitor.performApiFallback.mockImplementation(async function() {
+  monitor.performApiFallback.mockImplementation(async function () {
     this.fallbackInProgress = true;
     this.fallbackMetrics.totalApiFallbackExecutions++;
-    
+
     try {
-      const backfillStart = new Date(Date.now() - (this.YOUTUBE_FALLBACK_BACKFILL_HOURS * 60 * 60 * 1000));
+      const backfillStart = new Date(Date.now() - this.YOUTUBE_FALLBACK_BACKFILL_HOURS * 60 * 60 * 1000);
       const publishedAfter = this.lastSuccessfulCheck > backfillStart ? this.lastSuccessfulCheck : backfillStart;
 
       const searchResponse = await this.youtube.search.list({
@@ -526,7 +516,7 @@ function setupMockImplementations(monitor) {
         type: 'video',
         order: 'date',
         publishedAfter: publishedAfter.toISOString(),
-        maxResults: 10
+        maxResults: 10,
       });
 
       const videos = searchResponse.data.items || [];
@@ -539,7 +529,7 @@ function setupMockImplementations(monitor) {
             id: videoId,
             title: video.snippet.title,
             channelTitle: video.snippet.channelTitle,
-            publishedAt: video.snippet.publishedAt
+            publishedAt: video.snippet.publishedAt,
           });
           this.announcedVideos.add(videoId);
           recoveredCount++;
@@ -549,14 +539,13 @@ function setupMockImplementations(monitor) {
       this.fallbackMetrics.totalVideosRecoveredByFallback += recoveredCount;
       this.lastSuccessfulCheck = new Date();
       this.logger.info(`API fallback completed, recovered ${recoveredCount} videos`);
-      
     } finally {
       this.fallbackInProgress = false;
     }
   });
 
   // Mock announcement
-  monitor.announceYouTubeContent.mockImplementation(async function(videoData) {
+  monitor.announceYouTubeContent.mockImplementation(async function (videoData) {
     const channel = await this.discordClient.channels.fetch(this.DISCORD_YOUTUBE_CHANNEL_ID);
     await channel.send(`New video: ${videoData.title} by ${videoData.channelTitle}`);
     this.logger.info(`Announced video: ${videoData.title}`);

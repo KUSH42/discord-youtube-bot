@@ -15,22 +15,22 @@ export class ScraperApplication {
     this.eventBus = dependencies.eventBus;
     this.logger = dependencies.logger;
     this.authManager = dependencies.authManager;
-    
+
     // Scraper configuration
     this.xUser = this.config.getRequired('X_USER_HANDLE');
     this.twitterUsername = this.config.getRequired('TWITTER_USERNAME');
     this.twitterPassword = this.config.getRequired('TWITTER_PASSWORD');
-    
+
     // Polling configuration
     this.minInterval = parseInt(this.config.get('X_QUERY_INTERVALL_MIN', '300000'), 10);
     this.maxInterval = parseInt(this.config.get('X_QUERY_INTERVALL_MAX', '600000'), 10);
-    
+
     // State management
     this.duplicateDetector = new DuplicateDetector();
     this.isRunning = false;
     this.timerId = null;
     this.currentSession = null;
-    
+
     // Statistics
     this.stats = {
       totalRuns: 0,
@@ -39,11 +39,11 @@ export class ScraperApplication {
       totalTweetsFound: 0,
       totalTweetsAnnounced: 0,
       lastRunTime: null,
-      lastError: null
+      lastError: null,
     };
     this.nextPollTimestamp = null;
   }
-  
+
   /**
    * Start X content monitoring
    * @returns {Promise<void>}
@@ -52,36 +52,35 @@ export class ScraperApplication {
     if (this.isRunning) {
       throw new Error('Scraper application is already running');
     }
-    
+
     try {
       this.logger.info('Starting X scraper application...');
-      
+
       // Initialize browser
       await this.initializeBrowser();
-      
+
       // Perform initial login
       await this.ensureAuthenticated();
-      
+
       // Start polling
       this.startPolling();
-      
+
       this.isRunning = true;
       this.logger.info('✅ X scraper application started successfully');
-      
+
       // Emit start event
       this.eventBus.emit('scraper.started', {
         startTime: new Date(),
         xUser: this.xUser,
-        pollingInterval: this.getNextInterval()
+        pollingInterval: this.getNextInterval(),
       });
-      
     } catch (error) {
       this.logger.error('Failed to start scraper application:', error);
       await this.stop();
       throw error;
     }
   }
-  
+
   /**
    * Stop X content monitoring
    * @returns {Promise<void>}
@@ -90,30 +89,29 @@ export class ScraperApplication {
     if (!this.isRunning) {
       return;
     }
-    
+
     try {
       this.logger.info('Stopping X scraper application...');
-      
+
       // Stop polling
       this.stopPolling();
-      
+
       // Close browser
       await this.closeBrowser();
-      
+
       this.isRunning = false;
       this.logger.info('X scraper application stopped');
-      
+
       // Emit stop event
       this.eventBus.emit('scraper.stopped', {
         stopTime: new Date(),
-        stats: this.getStats()
+        stats: this.getStats(),
       });
-      
     } catch (error) {
       this.logger.error('Error stopping scraper application:', error);
     }
   }
-  
+
   /**
    * Initialize browser for scraping
    * @returns {Promise<void>}
@@ -128,23 +126,24 @@ export class ScraperApplication {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--disable-gpu'
-      ]
+        '--disable-gpu',
+      ],
     };
-    
+
     // Add display if running in headless environment
     if (process.env.DISPLAY) {
       browserOptions.args.push(`--display=${process.env.DISPLAY}`);
     }
-    
+
     await this.browser.launch(browserOptions);
     this.logger.info('Browser initialized for X scraping');
 
-    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+    const userAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
     await this.browser.setUserAgent(userAgent);
     this.logger.info(`User agent set to: ${userAgent}`);
   }
-  
+
   /**
    * Close browser
    * @returns {Promise<void>}
@@ -159,13 +158,12 @@ export class ScraperApplication {
       this.logger.error('Error closing browser:', error);
     }
   }
-  
+
   /**
    * Login to X (Twitter)
    * @returns {Promise<void>}
    */
 
-  
   /**
    * Start polling for new content
    */
@@ -173,7 +171,7 @@ export class ScraperApplication {
     if (this.timerId) {
       this.stopPolling();
     }
-    
+
     const runPolling = async () => {
       try {
         await this.pollXProfile();
@@ -182,23 +180,23 @@ export class ScraperApplication {
         this.logger.error('Error in polling cycle:', error);
         this.stats.failedRuns++;
         this.stats.lastError = error.message;
-        
+
         // Emit error event
         this.eventBus.emit('scraper.error', {
           error,
           timestamp: new Date(),
-          stats: this.getStats()
+          stats: this.getStats(),
         });
-        
+
         // Schedule retry with exponential backoff
         this.scheduleRetry();
       }
     };
-    
+
     // Start first poll immediately
     runPolling();
   }
-  
+
   /**
    * Stop polling
    */
@@ -209,7 +207,7 @@ export class ScraperApplication {
       this.nextPollTimestamp = null;
     }
   }
-  
+
   /**
    * Schedule next polling cycle
    */
@@ -222,10 +220,10 @@ export class ScraperApplication {
         this.scheduleNextPoll();
       }
     }, interval);
-    
+
     this.logger.debug(`Next X poll scheduled in ${interval}ms`);
   }
-  
+
   /**
    * Schedule retry after error
    */
@@ -242,10 +240,10 @@ export class ScraperApplication {
         }
       }
     }, retryInterval);
-    
+
     this.logger.info(`Retry scheduled in ${retryInterval}ms`);
   }
-  
+
   /**
    * Get next polling interval with jitter
    * @returns {number} Interval in milliseconds
@@ -255,7 +253,7 @@ export class ScraperApplication {
     const baseInterval = this.minInterval + Math.random() * (this.maxInterval - this.minInterval);
     return Math.floor(baseInterval * (1 + jitter));
   }
-  
+
   /**
    * Poll X profile for new content
    * @returns {Promise<void>}
@@ -264,33 +262,33 @@ export class ScraperApplication {
     this.nextPollTimestamp = null;
     this.stats.totalRuns++;
     this.stats.lastRunTime = new Date();
-    
+
     try {
       this.logger.info(`Polling X profile: @${this.xUser}`);
-      
+
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const sinceDate = yesterday.toISOString().split('T')[0];
 
       // Verify authentication before searching
       await this.verifyAuthentication();
-      
+
       // Always use search for normal post detection
       const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
       this.logger.info(`Navigating to search URL: ${searchUrl}`);
       await this.browser.goto(searchUrl);
-      
+
       // This is the search for normal tweets. Retweet logic should not be invoked here.
       this.logger.info('Executing search for new tweets.');
-      
+
       // Wait for content to load - try multiple selectors
       const contentSelectors = [
         'article[data-testid="tweet"]',
         'article[role="article"]',
         'div[data-testid="cellInnerDiv"]',
-        'main[role="main"]'
+        'main[role="main"]',
       ];
-      
+
       let contentLoaded = false;
       for (const selector of contentSelectors) {
         try {
@@ -303,28 +301,30 @@ export class ScraperApplication {
           continue;
         }
       }
-      
+
       if (!contentLoaded) {
         this.logger.warn('No content selectors found, proceeding anyway');
       }
-      
+
       // Scroll down to load more tweets
       for (let i = 0; i < 3; i++) {
+        /* eslint-disable no-undef */
         await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for content to load
+        /* eslint-enable no-undef */
+        await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait for content to load
       }
-      
+
       // Extract tweets
       const tweets = await this.extractTweets();
       this.stats.totalTweetsFound += tweets.length;
-      
+
       this.logger.info(`Found ${tweets.length} tweets from @${this.xUser}`);
-      
+
       // Process new tweets
       const newTweets = this.filterNewTweets(tweets);
-      
+
       this.logger.info(`After filtering: ${newTweets.length} new tweets out of ${tweets.length} total tweets`);
-      
+
       if (newTweets.length > 0) {
         for (const tweet of newTweets) {
           try {
@@ -335,25 +335,26 @@ export class ScraperApplication {
           }
         }
       }
-      
+
       this.stats.successfulRuns++;
-      
+
       // Emit poll completion event
       this.eventBus.emit('scraper.poll.completed', {
         timestamp: new Date(),
         tweetsFound: tweets.length,
         newTweets: newTweets.length,
-        stats: this.getStats()
+        stats: this.getStats(),
       });
 
       const nextInterval = this.getNextInterval();
       const nextRunTime = new Date(Date.now() + nextInterval);
-      
-      this.logger.info(`X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`);
+
+      this.logger.info(
+        `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`,
+      );
 
       // Perform the enhanced retweet detection as a separate, final step.
       await this.performEnhancedRetweetDetection();
-      
     } catch (error) {
       this.logger.error('Error polling X profile:', error);
       // In case of a major failure, we still want to schedule the next poll
@@ -398,23 +399,24 @@ export class ScraperApplication {
       // Do not rethrow, as a failure here should not stop the main polling cycle.
     }
   }
-  
+
   /**
    * Extract tweets from current page
    * @returns {Promise<Array>} Array of tweet objects
    */
   async extractTweets() {
     return await this.browser.evaluate(() => {
+      /* eslint-disable no-undef */
       const tweets = [];
-      
+
       // Try multiple selectors for tweet articles (X keeps changing these)
       const articleSelectors = [
         'article[data-testid="tweet"]',
         'article[role="article"]',
         'div[data-testid="cellInnerDiv"] article',
-        'article'
+        'article',
       ];
-      
+
       let articles = [];
       for (const selector of articleSelectors) {
         articles = document.querySelectorAll(selector);
@@ -423,43 +425,39 @@ export class ScraperApplication {
           break;
         }
       }
-      
+
       if (articles.length === 0) {
         console.log('No tweet articles found with any selector');
         return tweets;
       }
-      
+
       for (const article of articles) {
         try {
           // Extract tweet URL with multiple selectors
-          const linkSelectors = [
-            'a[href*="/status/"]',
-            'time[datetime] + a',
-            'a[role="link"][href*="/status/"]'
-          ];
-          
+          const linkSelectors = ['a[href*="/status/"]', 'time[datetime] + a', 'a[role="link"][href*="/status/"]'];
+
           let tweetLink = null;
           for (const selector of linkSelectors) {
             tweetLink = article.querySelector(selector);
             if (tweetLink) break;
           }
-          
+
           if (!tweetLink) continue;
-          
+
           const url = tweetLink.href;
           const tweetIdMatch = url.match(/status\/(\d+)/);
           if (!tweetIdMatch) continue;
-          
+
           const tweetID = tweetIdMatch[1];
-          
+
           // Extract author with multiple selectors
           const authorSelectors = [
             '[data-testid="User-Name"] a',
             '[data-testid="User-Names"] a',
             'a[role="link"][href^="/"]',
-            'div[dir="ltr"] span'
+            'div[dir="ltr"] span',
           ];
-          
+
           let author = 'Unknown';
           for (const selector of authorSelectors) {
             const authorElement = article.querySelector(selector);
@@ -468,15 +466,10 @@ export class ScraperApplication {
               break;
             }
           }
-          
+
           // Extract text content with multiple selectors
-          const textSelectors = [
-            '[data-testid="tweetText"]',
-            '[lang] span',
-            'div[dir="ltr"]',
-            'span[dir="ltr"]'
-          ];
-          
+          const textSelectors = ['[data-testid="tweetText"]', '[lang] span', 'div[dir="ltr"]', 'span[dir="ltr"]'];
+
           let text = '';
           for (const selector of textSelectors) {
             const textElement = article.querySelector(selector);
@@ -485,14 +478,14 @@ export class ScraperApplication {
               break;
             }
           }
-          
+
           // Extract timestamp
           const timeElement = article.querySelector('time');
           const timestamp = timeElement ? timeElement.getAttribute('datetime') : null;
-          
+
           // Determine tweet category
           let tweetCategory = 'Post';
-          
+
           // Check for reply indicators
           let isReply = text.startsWith('@');
           if (!isReply) {
@@ -500,25 +493,25 @@ export class ScraperApplication {
             const allText = article.innerText || '';
             isReply = allText.includes('Replying to') || allText.includes('Show this thread');
           }
-          
+
           if (isReply) {
             tweetCategory = 'Reply';
           }
-          
+
           // Check for quote tweet
           const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
           if (quoteTweetBlock && quoteTweetBlock.href !== url) {
             tweetCategory = 'Quote';
           }
-          
+
           // Check for retweet - enhanced detection with author comparison
           let isRetweet = false;
-          
+
           // Method 1: Check if author is different from monitored user
           if (author !== this.xUser && author !== `@${this.xUser}` && author !== 'Unknown') {
             isRetweet = true;
           }
-          
+
           // Method 2: Check for social context element (modern retweet indicator)
           if (!isRetweet) {
             const socialContext = article.querySelector('[data-testid="socialContext"]');
@@ -526,37 +519,37 @@ export class ScraperApplication {
               isRetweet = true;
             }
           }
-          
+
           // Method 3: Check for classic RT @ pattern
           if (!isRetweet && text.startsWith('RT @')) {
             isRetweet = true;
           }
-          
+
           if (isRetweet) {
             tweetCategory = 'Retweet';
           }
-          
+
           tweets.push({
             tweetID,
             url,
             author,
             text,
             timestamp,
-            tweetCategory
+            tweetCategory,
           });
-          
+
           console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
-          
         } catch (error) {
           console.error('Error extracting tweet:', error);
         }
       }
-      
+
       console.log(`Total tweets extracted: ${tweets.length}`);
       return tweets;
+      /* eslint-enable no-undef */
     });
   }
-  
+
   /**
    * Filter tweets to only include new ones
    * @param {Array} tweets - All extracted tweets
@@ -566,14 +559,14 @@ export class ScraperApplication {
     const newTweets = [];
     let duplicateCount = 0;
     let oldContentCount = 0;
-    
+
     this.logger.debug(`Starting to filter ${tweets.length} tweets`);
-    
+
     for (const tweet of tweets) {
       if (!this.duplicateDetector.isDuplicate(tweet.url)) {
         // Mark as seen immediately to prevent future duplicates
         this.duplicateDetector.markAsSeen(tweet.url);
-        
+
         // Check if tweet is new enough based on bot start time
         if (this.isNewContent(tweet)) {
           newTweets.push(tweet);
@@ -587,12 +580,14 @@ export class ScraperApplication {
         this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
       }
     }
-    
-    this.logger.info(`Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`);
-    
+
+    this.logger.info(
+      `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`,
+    );
+
     return newTweets;
   }
-  
+
   /**
    * Check if content is new enough to announce
    * @param {Object} tweet - Tweet object
@@ -600,32 +595,34 @@ export class ScraperApplication {
    */
   isNewContent(tweet) {
     const announceOldTweets = this.config.getBoolean('ANNOUNCE_OLD_TWEETS', false);
-    
+
     // If configured to announce old tweets, consider all tweets as new
     if (announceOldTweets) {
       this.logger.debug(`ANNOUNCE_OLD_TWEETS=true, considering tweet ${tweet.tweetID} as new`);
       return true;
     }
-    
+
     const botStartTime = this.state.get('botStartTime');
     if (!botStartTime) {
       this.logger.debug(`No bot start time set, considering tweet ${tweet.tweetID} as new`);
       return true; // If no start time set, consider all content new
     }
-    
+
     if (!tweet.timestamp) {
       this.logger.debug(`No timestamp for tweet ${tweet.tweetID}, considering as new`);
       return true; // If no timestamp available, assume it's new
     }
-    
+
     const tweetTime = new Date(tweet.timestamp);
     const isNew = tweetTime >= botStartTime;
-    
-    this.logger.debug(`Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`);
-    
+
+    this.logger.debug(
+      `Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`,
+    );
+
     return isNew;
   }
-  
+
   /**
    * Check if enhanced retweet processing should be enabled
    * @returns {boolean} True if retweet processing is enabled
@@ -633,7 +630,7 @@ export class ScraperApplication {
   shouldProcessRetweets() {
     return this.config.getBoolean('ENABLE_RETWEET_PROCESSING', true);
   }
-  
+
   /**
    * Process a new tweet
    * @param {Object} tweet - Tweet object
@@ -645,18 +642,23 @@ export class ScraperApplication {
       const metadata = {
         timestamp: tweet.timestamp,
         author: tweet.author,
-        monitoredUser: this.xUser
+        monitoredUser: this.xUser,
       };
-      
+
       // Add retweet metadata if available from enhanced detection
       if (tweet.retweetMetadata) {
         metadata.isRetweet = tweet.tweetCategory === 'Retweet';
         metadata.retweetDetection = tweet.retweetMetadata;
       }
-      
+
       // Check if this is a retweet based on author comparison (bypass classifier)
       let classification;
-      if (tweet.tweetCategory === 'Retweet' && tweet.author !== this.xUser && tweet.author !== `@${this.xUser}` && tweet.author !== 'Unknown') {
+      if (
+        tweet.tweetCategory === 'Retweet' &&
+        tweet.author !== this.xUser &&
+        tweet.author !== `@${this.xUser}` &&
+        tweet.author !== 'Unknown'
+      ) {
         // Bypass classifier for author-based retweets - send directly to retweet channel
         this.logger.info(`Bypassing classifier for author-based retweet: ${tweet.author} != ${this.xUser}`);
         classification = {
@@ -666,15 +668,17 @@ export class ScraperApplication {
           details: {
             statusId: tweet.tweetID,
             author: tweet.author,
-            detectionMethod: 'author-based'
-          }
+            detectionMethod: 'author-based',
+          },
         };
       } else {
         // Use classifier for other tweets
-        this.logger.info(`Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`);
+        this.logger.info(
+          `Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`,
+        );
         classification = this.classifier.classifyXContent(tweet.url, tweet.text, metadata);
       }
-      
+
       // Create content object for announcement
       const content = {
         platform: 'x',
@@ -685,12 +689,12 @@ export class ScraperApplication {
         originalAuthor: tweet.author, // Store original author for retweets
         text: tweet.text,
         timestamp: tweet.timestamp,
-        isOld: !this.isNewContent(tweet)
+        isOld: !this.isNewContent(tweet),
       };
-      
+
       // Announce the content
       const result = await this.announcer.announceContent(content);
-      
+
       if (result.success) {
         this.logger.info(`Announced ${classification.type} from @${tweet.author}: ${tweet.tweetID}`);
       } else if (result.skipped) {
@@ -698,21 +702,20 @@ export class ScraperApplication {
       } else {
         this.logger.warn(`Failed to announce ${classification.type} from @${tweet.author}: ${result.reason}`);
       }
-      
+
       // Emit tweet processed event
       this.eventBus.emit('scraper.tweet.processed', {
         tweet: content,
         classification,
         result,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
-      
     } catch (error) {
       this.logger.error(`Error processing tweet ${tweet.tweetID}:`, error);
       throw error;
     }
   }
-  
+
   /**
    * Handle email verification screen
    * @returns {Promise<void>}
@@ -720,23 +723,23 @@ export class ScraperApplication {
   async handleEmailVerification() {
     try {
       this.logger.info('Handling email verification screen...');
-      
+
       // Get email from configuration
       const email = this.config.get('TWITTER_EMAIL') || this.config.get('TWITTER_USERNAME');
       if (!email || !email.includes('@')) {
         this.logger.warn('No valid email found in configuration for email verification');
         throw new Error('Email verification required but no email configured');
       }
-      
+
       // Look for email input field - X uses a generic text input for email/phone
       const emailInputSelectors = [
-        'input[data-testid="ocfEnterTextTextInput"]',  // X's email verification input
-        'input[name="text"]',                          // Fallback generic text input
+        'input[data-testid="ocfEnterTextTextInput"]', // X's email verification input
+        'input[name="text"]', // Fallback generic text input
         'input[name="email"]',
         'input[type="email"]',
-        'input[placeholder*="email" i]'
+        'input[placeholder*="email" i]',
       ];
-      
+
       let emailInput = null;
       for (const selector of emailInputSelectors) {
         try {
@@ -749,16 +752,16 @@ export class ScraperApplication {
           continue;
         }
       }
-      
+
       if (!emailInput) {
         this.logger.warn('Could not find email input field, proceeding anyway');
         return;
       }
-      
+
       // Enter email
       await this.browser.type(emailInput, email);
       this.logger.info(`Entered email: ${email}`);
-      
+
       // Look for and click continue/next button
       const continueButtonSelectors = [
         'div[role="button"]:has-text("Next")',
@@ -766,9 +769,9 @@ export class ScraperApplication {
         'div[role="button"]:has-text("Continue")',
         'button:has-text("Continue")',
         '[data-testid="ocf_submit_button"]',
-        'button[type="submit"]'
+        'button[type="submit"]',
       ];
-      
+
       let continueClicked = false;
       for (const selector of continueButtonSelectors) {
         try {
@@ -782,14 +785,13 @@ export class ScraperApplication {
           continue;
         }
       }
-      
+
       if (!continueClicked) {
         this.logger.warn('Could not find continue button after email entry');
       }
-      
+
       // Wait a bit for the next screen to load
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     } catch (error) {
       this.logger.error('Error handling email verification:', error.message);
       throw error;
@@ -825,28 +827,29 @@ export class ScraperApplication {
   async refreshAuth() {
     try {
       this.logger.info('Refreshing X authentication...');
-      
+
       // Navigate to home page to refresh session
       await this.browser.goto('https://x.com/home');
-      
+
       // Check if we're still logged in
       const isLoggedIn = await this.browser.evaluate(() => {
+        /* eslint-disable no-undef */
         return !document.querySelector('[data-testid="login"]');
+        /* eslint-enable no-undef */
       });
-      
+
       if (!isLoggedIn) {
         this.logger.warn('Authentication expired, re-logging in...');
         await this.loginToX();
       }
-      
+
       this.logger.info('Authentication refreshed successfully');
-      
     } catch (error) {
       this.logger.error('Failed to refresh authentication:', error);
       throw error;
     }
   }
-  
+
   /**
    * Check if scraper is running
    * @returns {boolean} True if running
@@ -854,7 +857,7 @@ export class ScraperApplication {
   isRunning() {
     return this.isRunning;
   }
-  
+
   /**
    * Get scraper statistics
    * @returns {Object} Statistics object
@@ -869,10 +872,10 @@ export class ScraperApplication {
         next: this.nextPollTimestamp,
       },
       ...this.stats,
-      duplicateDetectorStats: this.duplicateDetector.getStats()
+      duplicateDetectorStats: this.duplicateDetector.getStats(),
     };
   }
-  
+
   /**
    * Perform enhanced scrolling for comprehensive content loading
    * @returns {Promise<void>}
@@ -880,8 +883,10 @@ export class ScraperApplication {
   async performEnhancedScrolling() {
     // Scroll down multiple times to load more content for retweet detection
     for (let i = 0; i < 5; i++) {
+      /* eslint-disable no-undef */
       await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for content to load
+      /* eslint-enable no-undef */
+      await new Promise((resolve) => setTimeout(resolve, 1500)); // Wait for content to load
     }
   }
 
@@ -923,12 +928,11 @@ export class ScraperApplication {
     if (!cookies || !Array.isArray(cookies) || cookies.length === 0) {
       return false;
     }
-    
-    return cookies.every(cookie => {
-      return cookie && 
-             typeof cookie === 'object' && 
-             typeof cookie.name === 'string' && 
-             typeof cookie.value === 'string';
+
+    return cookies.every((cookie) => {
+      return (
+        cookie && typeof cookie === 'object' && typeof cookie.name === 'string' && typeof cookie.value === 'string'
+      );
     });
   }
 

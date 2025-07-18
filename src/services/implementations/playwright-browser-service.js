@@ -197,7 +197,7 @@ export class PlaywrightBrowserService extends BrowserService {
       throw new Error('No page available');
     }
     await this.page.setExtraHTTPHeaders({
-      'User-Agent': userAgent
+      'User-Agent': userAgent,
     });
   }
 

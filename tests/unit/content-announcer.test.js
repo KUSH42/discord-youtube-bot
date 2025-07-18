@@ -11,43 +11,43 @@ describe('ContentAnnouncer', () => {
     // Mock Discord service
     mockDiscordService = {
       sendMessage: jest.fn(() => Promise.resolve({ id: 'message123' })),
-      fetchChannel: jest.fn(() => Promise.resolve({ name: 'test-channel' }))
+      fetchChannel: jest.fn(() => Promise.resolve({ name: 'test-channel' })),
     };
 
     // Mock config
     mockConfig = {
       getRequired: jest.fn((key) => {
         const values = {
-          'DISCORD_YOUTUBE_CHANNEL_ID': 'youtube-channel-123',
-          'DISCORD_X_POSTS_CHANNEL_ID': 'x-posts-channel-123',
-          'DISCORD_X_REPLIES_CHANNEL_ID': 'x-replies-channel-123',
-          'DISCORD_X_QUOTES_CHANNEL_ID': 'x-quotes-channel-123',
-          'DISCORD_X_RETWEETS_CHANNEL_ID': 'x-retweets-channel-123'
+          DISCORD_YOUTUBE_CHANNEL_ID: 'youtube-channel-123',
+          DISCORD_X_POSTS_CHANNEL_ID: 'x-posts-channel-123',
+          DISCORD_X_REPLIES_CHANNEL_ID: 'x-replies-channel-123',
+          DISCORD_X_QUOTES_CHANNEL_ID: 'x-quotes-channel-123',
+          DISCORD_X_RETWEETS_CHANNEL_ID: 'x-retweets-channel-123',
         };
         return values[key] || `mock-${key}`;
       }),
       get: jest.fn((key, defaultValue) => {
         const values = {
-          'DISCORD_BOT_SUPPORT_LOG_CHANNEL': 'support-channel-123',
-          'DISCORD_X_RETWEETS_CHANNEL_ID': 'x-retweets-channel-123'
+          DISCORD_BOT_SUPPORT_LOG_CHANNEL: 'support-channel-123',
+          DISCORD_X_RETWEETS_CHANNEL_ID: 'x-retweets-channel-123',
         };
         return values[key] || defaultValue;
       }),
       getBoolean: jest.fn((key, defaultValue) => {
         const values = {
-          'ANNOUNCE_OLD_TWEETS': false,
-          'MIRROR_ANNOUNCEMENTS': false
+          ANNOUNCE_OLD_TWEETS: false,
+          MIRROR_ANNOUNCEMENTS: false,
         };
         return values[key] !== undefined ? values[key] : defaultValue;
-      })
+      }),
     };
 
     // Mock state manager
     const state = {
-      'postingEnabled': true,
-      'announcementEnabled': true,
-      'vxTwitterConversionEnabled': false,
-      'botStartTime': new Date('2024-01-01T00:00:00Z')
+      postingEnabled: true,
+      announcementEnabled: true,
+      vxTwitterConversionEnabled: false,
+      botStartTime: new Date('2024-01-01T00:00:00Z'),
     };
 
     mockStateManager = {
@@ -57,7 +57,7 @@ describe('ContentAnnouncer', () => {
       set: jest.fn(),
       _state: state,
     };
-    
+
     // Create content announcer instance
     contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager);
   });
@@ -76,7 +76,7 @@ describe('ContentAnnouncer', () => {
         author: 'testuser',
         text: 'This is a test tweet with some content',
         timestamp: '2024-01-01T00:01:00Z',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -84,7 +84,7 @@ describe('ContentAnnouncer', () => {
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
         'x-posts-channel-123',
-        '🐦 **testuser** posted:\nhttps://x.com/testuser/status/1234567890'
+        '🐦 **testuser** posted:\nhttps://x.com/testuser/status/1234567890',
       );
     });
 
@@ -97,7 +97,7 @@ describe('ContentAnnouncer', () => {
         author: 'testuser',
         text: '@someone This is a reply',
         timestamp: '2024-01-01T00:01:00Z',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -105,7 +105,7 @@ describe('ContentAnnouncer', () => {
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
         'x-replies-channel-123',
-        '↩️ **testuser** replied:\nhttps://x.com/testuser/status/1234567890'
+        '↩️ **testuser** replied:\nhttps://x.com/testuser/status/1234567890',
       );
     });
 
@@ -118,7 +118,7 @@ describe('ContentAnnouncer', () => {
         author: 'testuser',
         text: 'Quoting this tweet',
         timestamp: '2024-01-01T00:01:00Z',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -126,7 +126,7 @@ describe('ContentAnnouncer', () => {
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
         'x-quotes-channel-123',
-        '💬 **testuser** quoted:\nhttps://x.com/testuser/status/1234567890'
+        '💬 **testuser** quoted:\nhttps://x.com/testuser/status/1234567890',
       );
     });
 
@@ -139,7 +139,7 @@ describe('ContentAnnouncer', () => {
         author: 'testuser',
         text: 'RT @someone: Original tweet text',
         timestamp: '2024-01-01T00:01:00Z',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -147,7 +147,7 @@ describe('ContentAnnouncer', () => {
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
         'x-retweets-channel-123',
-        '🔄 **testuser** retweeted:\nhttps://x.com/testuser/status/1234567890'
+        '🔄 **testuser** retweeted:\nhttps://x.com/testuser/status/1234567890',
       );
     });
 
@@ -162,7 +162,7 @@ describe('ContentAnnouncer', () => {
         author: 'testuser',
         text: 'Test tweet',
         timestamp: '2024-01-01T00:01:00Z',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -170,7 +170,7 @@ describe('ContentAnnouncer', () => {
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
         'x-posts-channel-123',
-        '🐦 **testuser** posted:\nhttps://vxtwitter.com/testuser/status/1234567890'
+        '🐦 **testuser** posted:\nhttps://vxtwitter.com/testuser/status/1234567890',
       );
     });
   });
@@ -179,7 +179,7 @@ describe('ContentAnnouncer', () => {
     it('should reject content without platform', async () => {
       const content = {
         type: 'post',
-        url: 'https://example.com'
+        url: 'https://example.com',
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -191,7 +191,7 @@ describe('ContentAnnouncer', () => {
     it('should reject content without type', async () => {
       const content = {
         platform: 'x',
-        url: 'https://x.com/testuser/status/1234567890'
+        url: 'https://x.com/testuser/status/1234567890',
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -204,7 +204,7 @@ describe('ContentAnnouncer', () => {
       const content = {
         platform: 'unsupported',
         type: 'post',
-        url: 'https://example.com'
+        url: 'https://example.com',
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -217,7 +217,7 @@ describe('ContentAnnouncer', () => {
       const content = {
         platform: 'x',
         type: 'unsupported',
-        url: 'https://x.com/testuser/status/1234567890'
+        url: 'https://x.com/testuser/status/1234567890',
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -237,7 +237,7 @@ describe('ContentAnnouncer', () => {
         url: 'https://x.com/testuser/status/1234567890',
         author: 'testuser',
         text: 'Test tweet',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -256,7 +256,7 @@ describe('ContentAnnouncer', () => {
         url: 'https://x.com/testuser/status/1234567890',
         author: 'testuser',
         text: 'Test tweet',
-        isOld: false
+        isOld: false,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -273,7 +273,7 @@ describe('ContentAnnouncer', () => {
         url: 'https://x.com/testuser/status/1234567890',
         author: 'testuser',
         text: 'Old tweet',
-        isOld: true
+        isOld: true,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -295,7 +295,7 @@ describe('ContentAnnouncer', () => {
         url: 'https://x.com/testuser/status/1234567890',
         author: 'testuser',
         text: 'Old tweet',
-        isOld: true
+        isOld: true,
       };
 
       const result = await contentAnnouncer.announceContent(content);
@@ -313,7 +313,7 @@ describe('ContentAnnouncer', () => {
         url: 'https://x.com/testuser/status/1234567890',
         author: 'testuser',
         text: 'Test tweet',
-        isOld: false
+        isOld: false,
       };
 
       await contentAnnouncer.announceContent(content, { force: true });
@@ -326,7 +326,7 @@ describe('ContentAnnouncer', () => {
     it('should route X posts to correct channel', () => {
       const channelId = contentAnnouncer.getChannelForContent({
         platform: 'x',
-        type: 'post'
+        type: 'post',
       });
 
       expect(channelId).toBe('x-posts-channel-123');
@@ -335,7 +335,7 @@ describe('ContentAnnouncer', () => {
     it('should route X replies to correct channel', () => {
       const channelId = contentAnnouncer.getChannelForContent({
         platform: 'x',
-        type: 'reply'
+        type: 'reply',
       });
 
       expect(channelId).toBe('x-replies-channel-123');
@@ -344,7 +344,7 @@ describe('ContentAnnouncer', () => {
     it('should route YouTube videos to correct channel', () => {
       const channelId = contentAnnouncer.getChannelForContent({
         platform: 'youtube',
-        type: 'video'
+        type: 'video',
       });
 
       expect(channelId).toBe('youtube-channel-123');
@@ -353,7 +353,7 @@ describe('ContentAnnouncer', () => {
     it('should return null for unsupported platform/type combinations', () => {
       const channelId = contentAnnouncer.getChannelForContent({
         platform: 'unsupported',
-        type: 'post'
+        type: 'post',
       });
 
       expect(channelId).toBeNull();

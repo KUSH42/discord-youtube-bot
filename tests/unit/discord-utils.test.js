@@ -56,14 +56,14 @@ describe('Discord Utils Tests', () => {
         id: 'channel123',
         name: 'test-channel',
         send: jest.fn().mockResolvedValue(true),
-        isTextBased: jest.fn().mockReturnValue(true)
+        isTextBased: jest.fn().mockReturnValue(true),
       };
 
       mockSupportChannel = {
         id: 'support123',
         name: 'support-channel',
         send: jest.fn().mockResolvedValue(true),
-        isTextBased: jest.fn().mockReturnValue(true)
+        isTextBased: jest.fn().mockReturnValue(true),
       };
 
       mockClient = {
@@ -71,20 +71,20 @@ describe('Discord Utils Tests', () => {
           fetch: jest.fn().mockImplementation((id) => {
             if (id === 'support123') return Promise.resolve(mockSupportChannel);
             return Promise.resolve(mockChannel);
-          })
-        }
+          }),
+        },
       };
 
       mockLogger = {
         info: jest.fn(),
         error: jest.fn(),
-        warn: jest.fn()
+        warn: jest.fn(),
       };
 
       discordManager = new DiscordManager(mockClient, mockLogger, {
         isPostingEnabled: true,
         mirrorMessage: true,
-        supportChannelId: 'support123'
+        supportChannelId: 'support123',
       });
     });
 
@@ -106,9 +106,7 @@ describe('Discord Utils Tests', () => {
 
     it('should mirror message to support channel when enabled', async () => {
       await discordManager.sendMirroredMessage(mockChannel, 'Test message');
-      expect(mockSupportChannel.send).toHaveBeenCalledWith(
-        expect.stringContaining('[Bot message from #test-channel]')
-      );
+      expect(mockSupportChannel.send).toHaveBeenCalledWith(expect.stringContaining('[Bot message from #test-channel]'));
     });
 
     it('should not mirror message when disabled', async () => {
@@ -120,10 +118,7 @@ describe('Discord Utils Tests', () => {
     it('should handle support channel fetch errors', async () => {
       mockClient.channels.fetch.mockRejectedValue(new Error('Channel not found'));
       await discordManager.sendMirroredMessage(mockChannel, 'Test message');
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to send mirrored message:',
-        expect.any(Error)
-      );
+      expect(mockLogger.error).toHaveBeenCalledWith('Failed to send mirrored message:', expect.any(Error));
     });
 
     it('should update posting enabled state', () => {
@@ -156,7 +151,7 @@ describe('Discord Utils Tests', () => {
       const mockClient = {};
       const mockLogger = {};
       const config = { isPostingEnabled: true };
-      
+
       const manager = createDiscordManager(mockClient, mockLogger, config);
       expect(manager).toBeInstanceOf(DiscordManager);
       expect(manager.client).toBe(mockClient);
@@ -167,7 +162,7 @@ describe('Discord Utils Tests', () => {
     it('should create DiscordManager with default config', () => {
       const mockClient = {};
       const mockLogger = {};
-      
+
       const manager = createDiscordManager(mockClient, mockLogger);
       expect(manager).toBeInstanceOf(DiscordManager);
       expect(manager.isPostingEnabled).toBe(false);

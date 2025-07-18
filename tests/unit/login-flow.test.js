@@ -23,9 +23,9 @@ describe('Login Flow', () => {
     mockConfig = {
       getRequired: jest.fn((key) => {
         const values = {
-          'X_USER_HANDLE': 'testuser',
-          'TWITTER_USERNAME': 'testuser',
-          'TWITTER_PASSWORD': 'testpass'
+          X_USER_HANDLE: 'testuser',
+          TWITTER_USERNAME: 'testuser',
+          TWITTER_PASSWORD: 'testpass',
         };
         return values[key];
       }),
@@ -36,7 +36,7 @@ describe('Login Flow', () => {
       info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
-      debug: jest.fn()
+      debug: jest.fn(),
     };
 
     scraperApp = new ScraperApplication({
@@ -66,7 +66,6 @@ describe('Login Flow', () => {
     scraperApp.handleEmailVerification = jest.fn().mockResolvedValue();
     scraperApp.verifyAuthentication = jest.fn().mockResolvedValue();
 
-
     await scraperApp.loginToX();
 
     expect(mockBrowserService.type).toHaveBeenCalledWith('input[name="text"]', 'testuser');
@@ -87,7 +86,7 @@ describe('Login Flow', () => {
     expect(mockBrowserService.goto).toHaveBeenCalledWith('https://x.com/home');
     expect(mockLogger.info).toHaveBeenCalledWith('✅ Cookie authentication successful');
   });
-  
+
   it('should call clickNextButton and handle its failure', async () => {
     // Mock so that clickNextButton fails
     mockBrowserService.waitForSelector.mockRejectedValue(new Error('Selector not found'));
@@ -107,16 +106,15 @@ describe('Login Flow', () => {
   it('should fall back to credential login if cookie authentication fails', async () => {
     const mockCookies = JSON.stringify([{ name: 'auth_token', value: 'testtoken' }]);
     mockConfig.get.mockReturnValue(mockCookies);
-    
+
     // Simulate cookie auth failure
     mockBrowserService.waitForSelector.mockRejectedValue(new Error('Selector not found'));
-    
+
     // Simulate successful credential login
     mockBrowserService.evaluate.mockResolvedValueOnce({ hasUsernameInput: true });
     mockBrowserService.evaluate.mockResolvedValueOnce({ hasPasswordInput: true });
     mockBrowserService.evaluate.mockResolvedValueOnce({ isLoggedIn: true });
     scraperApp.verifyAuthentication = jest.fn().mockResolvedValue();
-
 
     await scraperApp.loginToX();
 

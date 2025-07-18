@@ -14,25 +14,25 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
-      verbose: jest.fn()
+      verbose: jest.fn(),
     };
 
     // Mock response object
     mockResponse = {
       status: jest.fn().mockReturnThis(),
-      send: jest.fn().mockReturnThis()
+      send: jest.fn().mockReturnThis(),
     };
 
     // Mock basic request structure
     mockRequest = {
       headers: {
         'content-type': 'application/atom+xml',
-        'x-hub-signature': ''
+        'x-hub-signature': '',
       },
       body: '',
       rawBody: Buffer.from(''),
       url: '/webhook/youtube',
-      method: 'POST'
+      method: 'POST',
     };
 
     // Mock YouTube monitor with minimal required methods
@@ -50,13 +50,13 @@ describe('PubSubHubbub Failure Handling Tests', () => {
         totalRetryAttempts: 0,
         totalSuccessfulRetries: 0,
         totalFallbackTriggers: 0,
-        totalVideosRecoveredByFallback: 0
+        totalVideosRecoveredByFallback: 0,
       },
       handleFailedNotification: jest.fn(),
       scheduleRetry: jest.fn(),
       scheduleApiFallback: jest.fn(),
       processNotificationEntry: jest.fn(),
-      reprocessFailedNotification: jest.fn()
+      reprocessFailedNotification: jest.fn(),
     };
   });
 
@@ -68,14 +68,14 @@ describe('PubSubHubbub Failure Handling Tests', () => {
     it('should trigger fallback for completely invalid XML', async () => {
       const invalidXML = 'This is not XML at all!';
       const signature = generateValidSignature(invalidXML, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = invalidXML;
       mockRequest.rawBody = Buffer.from(invalidXML);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
 
       // Simulate the handlePubSubNotification logic
       const xml2js = await import('xml2js');
-      const parser = new xml2js.Parser({ 
+      const parser = new xml2js.Parser({
         explicitArray: false,
         normalize: true,
         normalizeTags: true,
@@ -83,7 +83,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
         explicitRoot: false,
         strict: true,
         chunkSize: 10000,
-        cdata: false
+        cdata: false,
       });
 
       let shouldTriggerFallback = false;
@@ -98,7 +98,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
 
       expect(shouldTriggerFallback).toBe(true);
       expect(error).toBeDefined();
-      
+
       // This would trigger fallback in catch block
       if (shouldTriggerFallback) {
         await mockYouTubeMonitor.handleFailedNotification(invalidXML, error);
@@ -110,14 +110,14 @@ describe('PubSubHubbub Failure Handling Tests', () => {
     it('should trigger fallback for XML missing feed element', async () => {
       const malformedXML = '<?xml version="1.0" encoding="UTF-8"?><root><entry>test</entry></root>';
       const signature = generateValidSignature(malformedXML, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = malformedXML;
       mockRequest.rawBody = Buffer.from(malformedXML);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
 
       // Simulate the handlePubSubNotification logic
       const xml2js = await import('xml2js');
-      const parser = new xml2js.Parser({ 
+      const parser = new xml2js.Parser({
         explicitArray: false,
         normalize: true,
         normalizeTags: true,
@@ -125,15 +125,15 @@ describe('PubSubHubbub Failure Handling Tests', () => {
         explicitRoot: false,
         strict: true,
         chunkSize: 10000,
-        cdata: false
+        cdata: false,
       });
 
       const result = await parser.parseStringPromise(malformedXML);
-      
+
       // This is the critical bug: missing feed element should trigger fallback
       const shouldTriggerFallback = !result || !result.feed;
       expect(shouldTriggerFallback).toBe(true);
-      
+
       // Current implementation doesn't call handleFailedNotification for this case (BUG!)
       // It should call it like this:
       if (shouldTriggerFallback) {
@@ -142,8 +142,8 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       }
 
       expect(mockYouTubeMonitor.handleFailedNotification).toHaveBeenCalledWith(
-        malformedXML, 
-        expect.objectContaining({ message: 'Invalid XML structure: missing feed element' })
+        malformedXML,
+        expect.objectContaining({ message: 'Invalid XML structure: missing feed element' }),
       );
     });
 
@@ -153,16 +153,16 @@ describe('PubSubHubbub Failure Handling Tests', () => {
           <title>YouTube video feed</title>
           <!-- Missing required elements -->
         </feed>`;
-      
+
       const signature = generateValidSignature(malformedFeedXML, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = malformedFeedXML;
       mockRequest.rawBody = Buffer.from(malformedFeedXML);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
 
       // This should parse successfully but might fail during processing
       const xml2js = await import('xml2js');
-      const parser = new xml2js.Parser({ 
+      const parser = new xml2js.Parser({
         explicitArray: false,
         normalize: true,
         normalizeTags: true,
@@ -170,22 +170,19 @@ describe('PubSubHubbub Failure Handling Tests', () => {
         explicitRoot: false,
         strict: true,
         chunkSize: 10000,
-        cdata: false
+        cdata: false,
       });
 
       const result = await parser.parseStringPromise(malformedFeedXML);
       expect(result).toBeDefined();
       // With explicitRoot: false, the result IS the feed content
       expect(result.title).toBeDefined();
-      
+
       // Simulate processing failure due to malformed structure
       const processingError = new Error('Missing required feed entry elements');
       await mockYouTubeMonitor.handleFailedNotification(malformedFeedXML, processingError);
 
-      expect(mockYouTubeMonitor.handleFailedNotification).toHaveBeenCalledWith(
-        malformedFeedXML,
-        processingError
-      );
+      expect(mockYouTubeMonitor.handleFailedNotification).toHaveBeenCalledWith(malformedFeedXML, processingError);
     });
   });
 
@@ -201,7 +198,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       const shouldReject = !signatureHeader;
 
       expect(shouldReject).toBe(true);
-      
+
       // Should log warning and return 403 (not trigger fallback for security)
       if (shouldReject) {
         mockLogger.warn('Received PubSubHubbub notification without X-Hub-Signature header. Rejecting.');
@@ -209,7 +206,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       }
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Received PubSubHubbub notification without X-Hub-Signature header. Rejecting.'
+        'Received PubSubHubbub notification without X-Hub-Signature header. Rejecting.',
       );
       expect(mockResponse.status).toHaveBeenCalledWith(403);
     });
@@ -217,7 +214,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
     it('should reject notifications with invalid signature', async () => {
       const validXML = generateValidAtomFeed();
       const invalidSignature = 'invalid-signature-hash';
-      
+
       mockRequest.body = validXML;
       mockRequest.rawBody = Buffer.from(validXML);
       mockRequest.headers['x-hub-signature'] = `sha1=${invalidSignature}`;
@@ -232,8 +229,8 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       let isValidSignature = false;
       try {
         isValidSignature = crypto.timingSafeEqual(
-          Buffer.from(expectedSignature, 'hex'), 
-          Buffer.from(providedSignature, 'hex')
+          Buffer.from(expectedSignature, 'hex'),
+          Buffer.from(providedSignature, 'hex'),
         );
       } catch (error) {
         // Different lengths will cause timingSafeEqual to throw
@@ -241,7 +238,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       }
 
       expect(isValidSignature).toBe(false);
-      
+
       // Should log warning and return 403 (not trigger fallback for security)
       if (!isValidSignature) {
         mockLogger.warn('X-Hub-Signature mismatch detected');
@@ -257,17 +254,15 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       const validXML = generateValidAtomFeed();
       const correctSecret = 'webhook-secret-for-main-bot';
       const wrongSecret = 'webhook-secret-for-test-bot'; // Different bot instance
-      
+
       // Generate signature with wrong secret (simulating cross-bot signature)
-      const wrongSignature = crypto.createHmac('sha1', wrongSecret)
-        .update(Buffer.from(validXML))
-        .digest('hex');
-      
+      const wrongSignature = crypto.createHmac('sha1', wrongSecret).update(Buffer.from(validXML)).digest('hex');
+
       mockRequest.body = validXML;
       mockRequest.rawBody = Buffer.from(validXML);
       mockRequest.headers['x-hub-signature'] = `sha1=${wrongSignature}`;
       mockRequest.url = '/webhook/youtube'; // Main bot path
-      
+
       // Simulate verification with correct secret
       const [algorithm, providedSignature] = mockRequest.headers['x-hub-signature'].split('=');
       const hmac = crypto.createHmac('sha1', correctSecret);
@@ -275,12 +270,12 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       const expectedSignature = hmac.digest('hex');
 
       const isValidSignature = crypto.timingSafeEqual(
-        Buffer.from(expectedSignature, 'hex'), 
-        Buffer.from(providedSignature, 'hex')
+        Buffer.from(expectedSignature, 'hex'),
+        Buffer.from(providedSignature, 'hex'),
       );
 
       expect(isValidSignature).toBe(false);
-      
+
       // This should be rejected (signature was for different bot/secret)
       mockLogger.warn('X-Hub-Signature mismatch detected');
       mockResponse.status(403).send('Forbidden: Invalid signature.');
@@ -292,11 +287,11 @@ describe('PubSubHubbub Failure Handling Tests', () => {
   describe('Fallback System Behavior', () => {
     it('should be disabled by default and warn when notification fails', async () => {
       mockYouTubeMonitor.YOUTUBE_FALLBACK_ENABLED = false;
-      
+
       const error = new Error('Test notification failure');
-      
+
       // Mock the actual handleFailedNotification implementation
-      mockYouTubeMonitor.handleFailedNotification = async function(rawXML, error) {
+      mockYouTubeMonitor.handleFailedNotification = async function (rawXML, error) {
         if (!this.YOUTUBE_FALLBACK_ENABLED) {
           this.logger.warn('YouTube fallback system is disabled. Notification lost.');
           return;
@@ -306,16 +301,14 @@ describe('PubSubHubbub Failure Handling Tests', () => {
 
       await mockYouTubeMonitor.handleFailedNotification('test-xml', error);
 
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'YouTube fallback system is disabled. Notification lost.'
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith('YouTube fallback system is disabled. Notification lost.');
     });
 
     it('should queue failed notifications when fallback is enabled', async () => {
       mockYouTubeMonitor.YOUTUBE_FALLBACK_ENABLED = true;
-      
+
       // Mock the actual handleFailedNotification implementation
-      mockYouTubeMonitor.handleFailedNotification = async function(rawXML, error) {
+      mockYouTubeMonitor.handleFailedNotification = async function (rawXML, error) {
         if (!this.YOUTUBE_FALLBACK_ENABLED) {
           this.logger.warn('YouTube fallback system is disabled. Notification lost.');
           return;
@@ -324,20 +317,20 @@ describe('PubSubHubbub Failure Handling Tests', () => {
         this.fallbackMetrics.totalNotificationFailures++;
         const failureId = crypto.randomUUID();
         const now = new Date();
-        
+
         this.failedNotifications.set(failureId, {
           rawXML,
           error: error.message,
           timestamp: now,
-          retryCount: 0
+          retryCount: 0,
         });
 
         this.recentFailures.push(now);
-        this.recentFailures = this.recentFailures.filter(timestamp => 
-          now.getTime() - timestamp.getTime() < 30000
-        );
+        this.recentFailures = this.recentFailures.filter((timestamp) => now.getTime() - timestamp.getTime() < 30000);
 
-        this.logger.warn(`Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`);
+        this.logger.warn(
+          `Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`,
+        );
 
         this.scheduleRetry(failureId);
 
@@ -349,31 +342,29 @@ describe('PubSubHubbub Failure Handling Tests', () => {
 
       const testXML = 'test-notification-xml';
       const error = new Error('Test notification failure');
-      
+
       await mockYouTubeMonitor.handleFailedNotification(testXML, error);
 
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(1);
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(1);
       expect(mockYouTubeMonitor.scheduleRetry).toHaveBeenCalled();
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Failed notification queued for retry')
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed notification queued for retry'));
     });
 
     it('should trigger API fallback after multiple failures', async () => {
       mockYouTubeMonitor.YOUTUBE_FALLBACK_ENABLED = true;
-      
+
       // Simulate multiple recent failures
       const now = new Date();
       mockYouTubeMonitor.recentFailures = [
         new Date(now.getTime() - 10000), // 10 seconds ago
-        new Date(now.getTime() - 5000),  // 5 seconds ago
+        new Date(now.getTime() - 5000), // 5 seconds ago
       ];
 
       // Mock the actual handleFailedNotification implementation
-      mockYouTubeMonitor.handleFailedNotification = async function(rawXML, error) {
+      mockYouTubeMonitor.handleFailedNotification = async function (rawXML, error) {
         this.recentFailures.push(new Date());
-        
+
         if (this.recentFailures.length >= 2) {
           this.logger.warn('Multiple recent failures detected, scheduling API fallback');
           this.scheduleApiFallback();
@@ -383,9 +374,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       await mockYouTubeMonitor.handleFailedNotification('test-xml', new Error('Test'));
 
       expect(mockYouTubeMonitor.scheduleApiFallback).toHaveBeenCalled();
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Multiple recent failures detected, scheduling API fallback'
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith('Multiple recent failures detected, scheduling API fallback');
     });
   });
 
@@ -393,7 +382,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
     it('should handle empty notification body', async () => {
       const emptyBody = '';
       const signature = generateValidSignature(emptyBody, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = emptyBody;
       mockRequest.rawBody = Buffer.from(emptyBody);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
@@ -431,21 +420,21 @@ describe('PubSubHubbub Failure Handling Tests', () => {
           <id>yt:channel:UCTestChannelId</id>
           <!-- No entry element -->
         </feed>`;
-      
+
       const signature = generateValidSignature(feedWithoutEntry, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = feedWithoutEntry;
       mockRequest.rawBody = Buffer.from(feedWithoutEntry);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
 
       const xml2js = await import('xml2js');
-      const parser = new xml2js.Parser({ 
+      const parser = new xml2js.Parser({
         explicitArray: false,
         normalize: true,
         normalizeTags: true,
         trim: true,
         explicitRoot: false,
-        strict: true
+        strict: true,
       });
 
       const result = await parser.parseStringPromise(feedWithoutEntry);
@@ -453,7 +442,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       // With explicitRoot: false, the result IS the feed content
       expect(result.title).toBeDefined();
       expect(result.entry).toBeUndefined();
-      
+
       // This should not trigger fallback (valid XML, just no entry)
       // But should be logged appropriately
       mockLogger.info('No new entry in PubSubHubbub notification.');
@@ -472,22 +461,22 @@ describe('PubSubHubbub Failure Handling Tests', () => {
             <deleted-at xmlns="http://www.w3.org/2005/Atom">2025-01-01T00:00:00Z</deleted-at>
           </entry>
         </feed>`;
-      
+
       const signature = generateValidSignature(deletionNotification, mockYouTubeMonitor.PSH_SECRET);
-      
+
       mockRequest.body = deletionNotification;
       mockRequest.rawBody = Buffer.from(deletionNotification);
       mockRequest.headers['x-hub-signature'] = `sha1=${signature}`;
 
       // This should parse successfully but might need special handling
       const xml2js = await import('xml2js');
-      const parser = new xml2js.Parser({ 
+      const parser = new xml2js.Parser({
         explicitArray: false,
         normalize: true,
         normalizeTags: true,
         trim: true,
         explicitRoot: false,
-        strict: true
+        strict: true,
       });
 
       const result = await parser.parseStringPromise(deletionNotification);
@@ -496,7 +485,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
       expect(result.title).toBeDefined();
       expect(result.entry).toBeDefined();
       expect(result.entry['deleted-at']).toBeDefined();
-      
+
       // Should handle gracefully without triggering fallback
       mockLogger.info('Processing notification for deleted/unavailable content');
     });
@@ -507,9 +496,7 @@ describe('PubSubHubbub Failure Handling Tests', () => {
  * Helper function to generate valid HMAC-SHA1 signature
  */
 function generateValidSignature(data, secret) {
-  return crypto.createHmac('sha1', secret)
-    .update(Buffer.from(data))
-    .digest('hex');
+  return crypto.createHmac('sha1', secret).update(Buffer.from(data)).digest('hex');
 }
 
 /**

@@ -4,8 +4,8 @@ export default {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.js',
-    'index.js',           // Include main entry point
-    'x-scraper.js',       // Include X/Twitter scraper  
+    'index.js', // Include main entry point
+    'x-scraper.js', // Include X/Twitter scraper
     'youtube-monitor.js', // Include YouTube monitor
     '!node_modules/**',
     '!coverage/**',
@@ -13,7 +13,7 @@ export default {
     '!setup-encryption.js',
     '!tests/**',
     '!src/services/interfaces/**',
-    '!src/setup/**'
+    '!src/setup/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],
@@ -22,27 +22,21 @@ export default {
       statements: 15,
       branches: 19,
       functions: 15,
-      lines: 15
+      lines: 15,
     },
     'src/core/': {
       statements: 4,
       branches: 1,
       functions: 13,
-      lines: 4
-    }
+      lines: 4,
+    },
   },
-  testMatch: [
-    '**/tests/**/*.test.js',
-    '**/tests/**/*.spec.js',
-    '**/__tests__/**/*.js'
-  ],
+  testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js', '**/__tests__/**/*.js'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,
   verbose: false,
   forceExit: true,
   detectOpenHandles: true,
   moduleFileExtensions: ['js', 'json'],
-  transformIgnorePatterns: [
-    'node_modules/(?!(.*\\.mjs$))'
-  ]
+  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
 };

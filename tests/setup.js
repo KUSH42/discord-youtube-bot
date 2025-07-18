@@ -4,13 +4,13 @@ import { jest } from '@jest/globals';
 beforeEach(() => {
   // Clear all mocks before each test
   jest.clearAllMocks();
-  
+
   // Reset environment variables
   delete process.env.DISCORD_TOKEN;
   delete process.env.YOUTUBE_API_KEY;
   delete process.env.X_USERNAME;
   delete process.env.X_PASSWORD;
-  
+
   // Set test environment variables
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'error'; // Suppress logs during tests
@@ -33,5 +33,5 @@ global.console = {
   info: jest.fn(),
   warn: jest.fn(),
   error: jest.fn(),
-  debug: jest.fn()
+  debug: jest.fn(),
 };

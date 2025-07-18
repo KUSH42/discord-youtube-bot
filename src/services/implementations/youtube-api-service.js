@@ -8,7 +8,7 @@ export class YouTubeApiService extends YouTubeService {
     super();
     this.youtube = youtube;
   }
-  
+
   /**
    * Get video details by ID
    */
@@ -16,19 +16,19 @@ export class YouTubeApiService extends YouTubeService {
     if (!this.validateVideoId(videoId)) {
       throw new Error(`Invalid video ID: ${videoId}`);
     }
-    
+
     try {
       const response = await this.youtube.videos.list({
         part: 'snippet,contentDetails,liveStreamingDetails,statistics',
-        id: videoId
+        id: videoId,
       });
-      
+
       return response.data.items[0] || null;
     } catch (error) {
       throw new Error(`Failed to fetch video details for ${videoId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Get channel details by ID
    */
@@ -36,19 +36,19 @@ export class YouTubeApiService extends YouTubeService {
     if (!this.validateChannelId(channelId)) {
       throw new Error(`Invalid channel ID: ${channelId}`);
     }
-    
+
     try {
       const response = await this.youtube.channels.list({
         part: 'snippet,contentDetails,statistics',
-        id: channelId
+        id: channelId,
       });
-      
+
       return response.data.items[0] || null;
     } catch (error) {
       throw new Error(`Failed to fetch channel details for ${channelId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Get latest videos from a channel
    */
@@ -56,45 +56,45 @@ export class YouTubeApiService extends YouTubeService {
     if (!this.validateChannelId(channelId)) {
       throw new Error(`Invalid channel ID: ${channelId}`);
     }
-    
+
     try {
       // First get the upload playlist ID
       const channelResponse = await this.youtube.channels.list({
         part: 'contentDetails',
-        id: channelId
+        id: channelId,
       });
-      
+
       if (!channelResponse.data.items[0]) {
         throw new Error(`Channel ${channelId} not found`);
       }
-      
+
       const uploadPlaylistId = channelResponse.data.items[0].contentDetails.relatedPlaylists.uploads;
-      
+
       // Then get videos from the upload playlist
       const playlistResponse = await this.youtube.playlistItems.list({
         part: 'snippet',
         playlistId: uploadPlaylistId,
-        maxResults: Math.min(maxResults, 50)
+        maxResults: Math.min(maxResults, 50),
       });
-      
+
       // Get detailed info for each video
-      const videoIds = playlistResponse.data.items.map(item => item.snippet.resourceId.videoId);
-      
+      const videoIds = playlistResponse.data.items.map((item) => item.snippet.resourceId.videoId);
+
       if (videoIds.length === 0) {
         return [];
       }
-      
+
       const videosResponse = await this.youtube.videos.list({
         part: 'snippet,contentDetails,liveStreamingDetails,statistics',
-        id: videoIds.join(',')
+        id: videoIds.join(','),
       });
-      
+
       return videosResponse.data.items;
     } catch (error) {
       throw new Error(`Failed to fetch channel videos for ${channelId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Search for videos
    */
@@ -105,24 +105,24 @@ export class YouTubeApiService extends YouTubeService {
         q: query,
         type: 'video',
         maxResults: options.maxResults || 10,
-        order: options.order || 'relevance'
+        order: options.order || 'relevance',
       };
-      
+
       if (options.channelId) {
         searchParams.channelId = options.channelId;
       }
-      
+
       if (options.publishedAfter) {
         searchParams.publishedAfter = options.publishedAfter;
       }
-      
+
       const response = await this.youtube.search.list(searchParams);
       return response.data.items;
     } catch (error) {
       throw new Error(`Failed to search videos: ${error.message}`);
     }
   }
-  
+
   /**
    * Get video statistics
    */
@@ -130,19 +130,19 @@ export class YouTubeApiService extends YouTubeService {
     if (!this.validateVideoId(videoId)) {
       throw new Error(`Invalid video ID: ${videoId}`);
     }
-    
+
     try {
       const response = await this.youtube.videos.list({
         part: 'statistics',
-        id: videoId
+        id: videoId,
       });
-      
+
       return response.data.items[0]?.statistics || null;
     } catch (error) {
       throw new Error(`Failed to fetch video statistics for ${videoId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Get playlist details
    */
@@ -150,15 +150,15 @@ export class YouTubeApiService extends YouTubeService {
     try {
       const response = await this.youtube.playlists.list({
         part: 'snippet,contentDetails',
-        id: playlistId
+        id: playlistId,
       });
-      
+
       return response.data.items[0] || null;
     } catch (error) {
       throw new Error(`Failed to fetch playlist details for ${playlistId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Get videos from a playlist
    */
@@ -167,15 +167,15 @@ export class YouTubeApiService extends YouTubeService {
       const response = await this.youtube.playlistItems.list({
         part: 'snippet',
         playlistId: playlistId,
-        maxResults: Math.min(maxResults, 50)
+        maxResults: Math.min(maxResults, 50),
       });
-      
+
       return response.data.items;
     } catch (error) {
       throw new Error(`Failed to fetch playlist videos for ${playlistId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Check if a video is live
    */
@@ -183,13 +183,13 @@ export class YouTubeApiService extends YouTubeService {
     try {
       const video = await this.getVideoDetails(videoId);
       if (!video) return false;
-      
+
       return video.snippet.liveBroadcastContent === 'live';
     } catch (error) {
       return false;
     }
   }
-  
+
   /**
    * Get live streaming details
    */
@@ -199,13 +199,13 @@ export class YouTubeApiService extends YouTubeService {
       if (!video || !video.liveStreamingDetails) {
         return null;
       }
-      
+
       return video.liveStreamingDetails;
     } catch (error) {
       return null;
     }
   }
-  
+
   /**
    * Get video comments
    */
@@ -213,21 +213,21 @@ export class YouTubeApiService extends YouTubeService {
     if (!this.validateVideoId(videoId)) {
       throw new Error(`Invalid video ID: ${videoId}`);
     }
-    
+
     try {
       const response = await this.youtube.commentThreads.list({
         part: 'snippet',
         videoId: videoId,
         maxResults: Math.min(maxResults, 100),
-        order: 'time'
+        order: 'time',
       });
-      
+
       return response.data.items;
     } catch (error) {
       throw new Error(`Failed to fetch comments for ${videoId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Get channel's upload playlist ID
    */
@@ -235,24 +235,24 @@ export class YouTubeApiService extends YouTubeService {
     if (!this.validateChannelId(channelId)) {
       throw new Error(`Invalid channel ID: ${channelId}`);
     }
-    
+
     try {
       const response = await this.youtube.channels.list({
         part: 'contentDetails',
-        id: channelId
+        id: channelId,
       });
-      
+
       const channel = response.data.items[0];
       if (!channel) {
         throw new Error(`Channel ${channelId} not found`);
       }
-      
+
       return channel.contentDetails.relatedPlaylists.uploads;
     } catch (error) {
       throw new Error(`Failed to get upload playlist for ${channelId}: ${error.message}`);
     }
   }
-  
+
   /**
    * Get API quota usage information
    */
@@ -262,10 +262,10 @@ export class YouTubeApiService extends YouTubeService {
     return {
       used: 'unknown',
       remaining: 'unknown',
-      resetTime: 'daily'
+      resetTime: 'daily',
     };
   }
-  
+
   /**
    * Check if API key is valid
    */
@@ -275,7 +275,7 @@ export class YouTubeApiService extends YouTubeService {
       await this.youtube.channels.list({
         part: 'id',
         mine: false,
-        id: 'UC_x5XG1OV2P6uZZ5FSM9Ttw' // Google Developers channel
+        id: 'UC_x5XG1OV2P6uZZ5FSM9Ttw', // Google Developers channel
       });
       return true;
     } catch (error) {

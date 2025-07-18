@@ -11,7 +11,7 @@ export class DiscordService {
   async login(token) {
     throw new Error('Abstract method: login must be implemented');
   }
-  
+
   /**
    * Send a message to a Discord channel
    * @param {string} channelId - Discord channel ID
@@ -21,7 +21,7 @@ export class DiscordService {
   async sendMessage(channelId, content) {
     throw new Error('Abstract method: sendMessage must be implemented');
   }
-  
+
   /**
    * Fetch a Discord channel
    * @param {string} channelId - Discord channel ID
@@ -30,7 +30,7 @@ export class DiscordService {
   async fetchChannel(channelId) {
     throw new Error('Abstract method: fetchChannel must be implemented');
   }
-  
+
   /**
    * Fetch a Discord guild
    * @param {string} guildId - Discord guild ID
@@ -39,7 +39,7 @@ export class DiscordService {
   async fetchGuild(guildId) {
     throw new Error('Abstract method: fetchGuild must be implemented');
   }
-  
+
   /**
    * Register a message event handler
    * @param {Function} handler - Message handler function
@@ -48,7 +48,7 @@ export class DiscordService {
   onMessage(handler) {
     throw new Error('Abstract method: onMessage must be implemented');
   }
-  
+
   /**
    * Register a ready event handler
    * @param {Function} handler - Ready handler function
@@ -57,7 +57,7 @@ export class DiscordService {
   onReady(handler) {
     throw new Error('Abstract method: onReady must be implemented');
   }
-  
+
   /**
    * Register an error event handler
    * @param {Function} handler - Error handler function
@@ -66,7 +66,7 @@ export class DiscordService {
   onError(handler) {
     throw new Error('Abstract method: onError must be implemented');
   }
-  
+
   /**
    * Get current user information
    * @returns {Promise<Object>} User object
@@ -74,7 +74,7 @@ export class DiscordService {
   async getCurrentUser() {
     throw new Error('Abstract method: getCurrentUser must be implemented');
   }
-  
+
   /**
    * Check if the bot is logged in and ready
    * @returns {boolean} True if ready
@@ -82,7 +82,7 @@ export class DiscordService {
   isReady() {
     throw new Error('Abstract method: isReady must be implemented');
   }
-  
+
   /**
    * Get bot latency/ping
    * @returns {number} Latency in milliseconds
@@ -90,7 +90,7 @@ export class DiscordService {
   getLatency() {
     throw new Error('Abstract method: getLatency must be implemented');
   }
-  
+
   /**
    * Destroy the Discord client connection
    * @returns {Promise<void>}
@@ -98,7 +98,7 @@ export class DiscordService {
   async destroy() {
     throw new Error('Abstract method: destroy must be implemented');
   }
-  
+
   /**
    * Edit a message
    * @param {string} channelId - Discord channel ID
@@ -109,7 +109,7 @@ export class DiscordService {
   async editMessage(channelId, messageId, newContent) {
     throw new Error('Abstract method: editMessage must be implemented');
   }
-  
+
   /**
    * Delete a message
    * @param {string} channelId - Discord channel ID
@@ -119,7 +119,7 @@ export class DiscordService {
   async deleteMessage(channelId, messageId) {
     throw new Error('Abstract method: deleteMessage must be implemented');
   }
-  
+
   /**
    * Add a reaction to a message
    * @param {string} channelId - Discord channel ID
@@ -130,7 +130,7 @@ export class DiscordService {
   async addReaction(channelId, messageId, emoji) {
     throw new Error('Abstract method: addReaction must be implemented');
   }
-  
+
   /**
    * Get user from guild
    * @param {string} guildId - Guild ID
@@ -140,7 +140,7 @@ export class DiscordService {
   async getGuildMember(guildId, userId) {
     throw new Error('Abstract method: getGuildMember must be implemented');
   }
-  
+
   /**
    * Check if user has permission in channel
    * @param {string} channelId - Channel ID
@@ -151,7 +151,7 @@ export class DiscordService {
   async hasPermission(channelId, userId, permission) {
     throw new Error('Abstract method: hasPermission must be implemented');
   }
-  
+
   /**
    * Set bot presence/status
    * @param {Object} presence - Presence object
@@ -160,7 +160,7 @@ export class DiscordService {
   async setPresence(presence) {
     throw new Error('Abstract method: setPresence must be implemented');
   }
-  
+
   /**
    * Dispose of resources
    * @returns {Promise<void>}

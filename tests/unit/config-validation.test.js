@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { 
-  validateEnvironmentVariables, 
-  validateDiscordChannelId, 
-  validateYouTubeChannelId, 
-  validateUrl, 
-  validatePort, 
-  validateLogLevel, 
+import {
+  validateEnvironmentVariables,
+  validateDiscordChannelId,
+  validateYouTubeChannelId,
+  validateUrl,
+  validatePort,
+  validateLogLevel,
   validateBooleanEnvVar,
-  parseBooleanEnvVar 
+  parseBooleanEnvVar,
 } from '../../src/config-validator.js';
 
 describe('Configuration Validation Tests', () => {
@@ -17,7 +17,7 @@ describe('Configuration Validation Tests', () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...process.env };
-    
+
     // Mock console methods
     consoleSpy = {
       log: jest.spyOn(console, 'log').mockImplementation(() => {}),
@@ -26,16 +26,18 @@ describe('Configuration Validation Tests', () => {
     };
 
     // Clear environment variables
-    Object.keys(process.env).forEach(key => {
-      if (key.startsWith('DISCORD_') || 
-          key.startsWith('YOUTUBE_') || 
-          key.startsWith('PSH_') ||
-          key.startsWith('X_') ||
-          key.startsWith('TWITTER_') ||
-          key.includes('COMMAND_') ||
-          key.includes('LOG_') ||
-          key.includes('ANNOUNCEMENT_') ||
-          key.includes('ALLOWED_')) {
+    Object.keys(process.env).forEach((key) => {
+      if (
+        key.startsWith('DISCORD_') ||
+        key.startsWith('YOUTUBE_') ||
+        key.startsWith('PSH_') ||
+        key.startsWith('X_') ||
+        key.startsWith('TWITTER_') ||
+        key.includes('COMMAND_') ||
+        key.includes('LOG_') ||
+        key.includes('ANNOUNCEMENT_') ||
+        key.includes('ALLOWED_')
+      ) {
         delete process.env[key];
       }
     });
@@ -44,9 +46,9 @@ describe('Configuration Validation Tests', () => {
   afterEach(() => {
     // Restore original environment
     process.env = originalEnv;
-    
+
     // Restore console methods
-    Object.values(consoleSpy).forEach(spy => spy.mockRestore());
+    Object.values(consoleSpy).forEach((spy) => spy.mockRestore());
   });
 
   describe('Required Environment Variables', () => {
@@ -63,17 +65,17 @@ describe('Configuration Validation Tests', () => {
       'DISCORD_X_RETWEETS_CHANNEL_ID',
       'TWITTER_USERNAME',
       'TWITTER_PASSWORD',
-      'DISCORD_BOT_SUPPORT_LOG_CHANNEL'
+      'DISCORD_BOT_SUPPORT_LOG_CHANNEL',
     ];
 
     // Using imported validateEnvironmentVariables function
 
     it('should pass validation when all required variables are set', () => {
       // Set all required variables
-      requiredVars.forEach(varName => {
+      requiredVars.forEach((varName) => {
         process.env[varName] = `test-${varName.toLowerCase()}`;
       });
-      
+
       // Set optional variables to avoid warnings
       process.env.PSH_SECRET = 'test-secret-key-long-enough-to-be-secure';
       process.env.PSH_VERIFY_TOKEN = 'test-verify-token';
@@ -97,7 +99,7 @@ describe('Configuration Validation Tests', () => {
     it('should detect partially missing required variables', () => {
       // Set only half the required variables
       const halfVars = requiredVars.slice(0, Math.floor(requiredVars.length / 2));
-      halfVars.forEach(varName => {
+      halfVars.forEach((varName) => {
         process.env[varName] = `test-${varName.toLowerCase()}`;
       });
 
@@ -108,12 +110,14 @@ describe('Configuration Validation Tests', () => {
       expect(missing).toEqual(expect.arrayContaining(expectedMissing));
     });
 
-    requiredVars.forEach(varName => {
+    requiredVars.forEach((varName) => {
       it(`should detect when ${varName} is missing`, () => {
         // Set all except this one
-        requiredVars.filter(v => v !== varName).forEach(v => {
-          process.env[v] = `test-${v.toLowerCase()}`;
-        });
+        requiredVars
+          .filter((v) => v !== varName)
+          .forEach((v) => {
+            process.env[v] = `test-${v.toLowerCase()}`;
+          });
 
         const { missing } = validateEnvironmentVariables();
 
@@ -136,7 +140,7 @@ describe('Configuration Validation Tests', () => {
       { name: 'X_QUERY_INTERVALL_MIN', defaultValue: '300000' },
       { name: 'X_QUERY_INTERVALL_MAX', defaultValue: '600000' },
       { name: 'ALLOWED_USER_IDS', defaultValue: null },
-      { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' }
+      { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' },
     ];
 
     it('should provide default values for unset optional variables', () => {
@@ -163,7 +167,7 @@ describe('Configuration Validation Tests', () => {
         X_QUERY_INTERVALL_MIN: '120000',
         X_QUERY_INTERVALL_MAX: '240000',
         ALLOWED_USER_IDS: '123,456,789',
-        ANNOUNCE_OLD_TWEETS: 'true'
+        ANNOUNCE_OLD_TWEETS: 'true',
       };
 
       Object.entries(customValues).forEach(([name, value]) => {
@@ -182,20 +186,28 @@ describe('Configuration Validation Tests', () => {
     it('should warn about default security values', () => {
       // Set all required variables to pass validation
       const requiredVars = [
-        'DISCORD_BOT_TOKEN', 'YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID',
-        'DISCORD_YOUTUBE_CHANNEL_ID', 'PSH_CALLBACK_URL', 'X_USER_HANDLE',
-        'DISCORD_X_POSTS_CHANNEL_ID', 'DISCORD_X_REPLIES_CHANNEL_ID',
-        'DISCORD_X_QUOTES_CHANNEL_ID', 'DISCORD_X_RETWEETS_CHANNEL_ID',
-        'TWITTER_USERNAME', 'TWITTER_PASSWORD', 'DISCORD_BOT_SUPPORT_LOG_CHANNEL'
+        'DISCORD_BOT_TOKEN',
+        'YOUTUBE_API_KEY',
+        'YOUTUBE_CHANNEL_ID',
+        'DISCORD_YOUTUBE_CHANNEL_ID',
+        'PSH_CALLBACK_URL',
+        'X_USER_HANDLE',
+        'DISCORD_X_POSTS_CHANNEL_ID',
+        'DISCORD_X_REPLIES_CHANNEL_ID',
+        'DISCORD_X_QUOTES_CHANNEL_ID',
+        'DISCORD_X_RETWEETS_CHANNEL_ID',
+        'TWITTER_USERNAME',
+        'TWITTER_PASSWORD',
+        'DISCORD_BOT_SUPPORT_LOG_CHANNEL',
       ];
-      
-      requiredVars.forEach(varName => {
+
+      requiredVars.forEach((varName) => {
         process.env[varName] = `test-${varName.toLowerCase()}`;
       });
 
       const validateEnvironmentVariables = () => {
         const warnings = [];
-        securityVars.forEach(name => {
+        securityVars.forEach((name) => {
           if (!process.env[name]) {
             warnings.push(`${name} not set - using default value (consider setting for security)`);
           }
@@ -206,21 +218,29 @@ describe('Configuration Validation Tests', () => {
       const { warnings } = validateEnvironmentVariables();
 
       expect(warnings).toHaveLength(securityVars.length);
-      securityVars.forEach(varName => {
-        expect(warnings.some(w => w.includes(varName))).toBe(true);
+      securityVars.forEach((varName) => {
+        expect(warnings.some((w) => w.includes(varName))).toBe(true);
       });
     });
 
     it('should not warn when security variables are explicitly set', () => {
       const requiredVars = [
-        'DISCORD_BOT_TOKEN', 'YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID',
-        'DISCORD_YOUTUBE_CHANNEL_ID', 'PSH_CALLBACK_URL', 'X_USER_HANDLE',
-        'DISCORD_X_POSTS_CHANNEL_ID', 'DISCORD_X_REPLIES_CHANNEL_ID',
-        'DISCORD_X_QUOTES_CHANNEL_ID', 'DISCORD_X_RETWEETS_CHANNEL_ID',
-        'TWITTER_USERNAME', 'TWITTER_PASSWORD', 'DISCORD_BOT_SUPPORT_LOG_CHANNEL'
+        'DISCORD_BOT_TOKEN',
+        'YOUTUBE_API_KEY',
+        'YOUTUBE_CHANNEL_ID',
+        'DISCORD_YOUTUBE_CHANNEL_ID',
+        'PSH_CALLBACK_URL',
+        'X_USER_HANDLE',
+        'DISCORD_X_POSTS_CHANNEL_ID',
+        'DISCORD_X_REPLIES_CHANNEL_ID',
+        'DISCORD_X_QUOTES_CHANNEL_ID',
+        'DISCORD_X_RETWEETS_CHANNEL_ID',
+        'TWITTER_USERNAME',
+        'TWITTER_PASSWORD',
+        'DISCORD_BOT_SUPPORT_LOG_CHANNEL',
       ];
-      
-      requiredVars.forEach(varName => {
+
+      requiredVars.forEach((varName) => {
         process.env[varName] = `test-${varName.toLowerCase()}`;
       });
 
@@ -230,7 +250,7 @@ describe('Configuration Validation Tests', () => {
 
       const validateEnvironmentVariables = () => {
         const warnings = [];
-        securityVars.forEach(name => {
+        securityVars.forEach((name) => {
           if (!process.env[name]) {
             warnings.push(`${name} not set - using default value (consider setting for security)`);
           }
@@ -249,10 +269,10 @@ describe('Configuration Validation Tests', () => {
       const booleanVars = ['ANNOUNCEMENT_ENABLED', 'X_VX_TWITTER_CONVERSION', 'ANNOUNCE_OLD_TWEETS'];
       const validBooleanValues = ['true', 'false', '1', '0', 'yes', 'no'];
 
-      booleanVars.forEach(varName => {
-        validBooleanValues.forEach(value => {
+      booleanVars.forEach((varName) => {
+        validBooleanValues.forEach((value) => {
           process.env[varName] = value;
-          
+
           // Test parsing logic
           const parsedValue = ['true', '1', 'yes'].includes(value.toLowerCase());
           expect(typeof parsedValue).toBe('boolean');
@@ -262,11 +282,11 @@ describe('Configuration Validation Tests', () => {
 
     it('should handle numeric environment variables', () => {
       const numericVars = ['PSH_PORT', 'X_QUERY_INTERVALL_MIN', 'X_QUERY_INTERVALL_MAX'];
-      
-      numericVars.forEach(varName => {
+
+      numericVars.forEach((varName) => {
         process.env[varName] = '12345';
         const parsedValue = parseInt(process.env[varName], 10);
-        
+
         expect(typeof parsedValue).toBe('number');
         expect(parsedValue).toBe(12345);
         expect(Number.isNaN(parsedValue)).toBe(false);
@@ -275,9 +295,9 @@ describe('Configuration Validation Tests', () => {
 
     it('should handle comma-separated list variables', () => {
       process.env.ALLOWED_USER_IDS = '123456789,987654321,555666777';
-      
-      const userIds = process.env.ALLOWED_USER_IDS.split(',').map(id => id.trim());
-      
+
+      const userIds = process.env.ALLOWED_USER_IDS.split(',').map((id) => id.trim());
+
       expect(userIds).toHaveLength(3);
       expect(userIds).toEqual(['123456789', '987654321', '555666777']);
     });
@@ -289,21 +309,21 @@ describe('Configuration Validation Tests', () => {
         'DISCORD_X_REPLIES_CHANNEL_ID',
         'DISCORD_X_QUOTES_CHANNEL_ID',
         'DISCORD_X_RETWEETS_CHANNEL_ID',
-        'DISCORD_BOT_SUPPORT_LOG_CHANNEL'
+        'DISCORD_BOT_SUPPORT_LOG_CHANNEL',
       ];
 
       // Discord Snowflake ID format: 17-19 digits
       const validChannelId = '123456789012345678';
       const invalidChannelIds = ['123', 'abc123def', '123456789012345678901234'];
 
-      channelIdVars.forEach(varName => {
+      channelIdVars.forEach((varName) => {
         // Test valid ID
         process.env[varName] = validChannelId;
         const isValidFormat = /^\d{17,19}$/.test(process.env[varName]);
         expect(isValidFormat).toBe(true);
 
         // Test invalid IDs
-        invalidChannelIds.forEach(invalidId => {
+        invalidChannelIds.forEach((invalidId) => {
           process.env[varName] = invalidId;
           const isValidFormat = /^\d{17,19}$/.test(process.env[varName]);
           expect(isValidFormat).toBe(false);
@@ -313,14 +333,14 @@ describe('Configuration Validation Tests', () => {
 
     it('should validate YouTube channel ID format', () => {
       process.env.YOUTUBE_CHANNEL_ID = 'UCuAXFkgsw1L7xaCfnd5JJOw'; // Valid format
-      
+
       // YouTube channel ID format: UC followed by 22 characters
       const isValidFormat = /^UC[a-zA-Z0-9_-]{22}$/.test(process.env.YOUTUBE_CHANNEL_ID);
       expect(isValidFormat).toBe(true);
 
       // Test invalid formats
       const invalidIds = ['123456', 'UCshort', 'notuc123456789012345678901234'];
-      invalidIds.forEach(invalidId => {
+      invalidIds.forEach((invalidId) => {
         process.env.YOUTUBE_CHANNEL_ID = invalidId;
         const isValidFormat = /^UC[a-zA-Z0-9_-]{22}$/.test(process.env.YOUTUBE_CHANNEL_ID);
         expect(isValidFormat).toBe(false);
@@ -331,22 +351,17 @@ describe('Configuration Validation Tests', () => {
       const validUrls = [
         'https://example.com/webhook',
         'http://localhost:3000/webhook',
-        'https://bot.mydomain.com/youtube/webhook'
+        'https://bot.mydomain.com/youtube/webhook',
       ];
 
-      const invalidUrls = [
-        'not-a-url',
-        'invalid-url-format',
-        'http://',
-        'https://'
-      ];
+      const invalidUrls = ['not-a-url', 'invalid-url-format', 'http://', 'https://'];
 
-      validUrls.forEach(url => {
+      validUrls.forEach((url) => {
         process.env.PSH_CALLBACK_URL = url;
         expect(() => new URL(process.env.PSH_CALLBACK_URL)).not.toThrow();
       });
 
-      invalidUrls.forEach(url => {
+      invalidUrls.forEach((url) => {
         process.env.PSH_CALLBACK_URL = url;
         expect(() => new URL(process.env.PSH_CALLBACK_URL)).toThrow();
       });
@@ -358,14 +373,14 @@ describe('Configuration Validation Tests', () => {
       const validPorts = ['1', '80', '443', '3000', '8080', '65535'];
       const invalidPorts = ['0', '65536', '100000', '-1', 'abc'];
 
-      validPorts.forEach(port => {
+      validPorts.forEach((port) => {
         process.env.PSH_PORT = port;
         const portNum = parseInt(process.env.PSH_PORT, 10);
         expect(portNum).toBeGreaterThan(0);
         expect(portNum).toBeLessThanOrEqual(65535);
       });
 
-      invalidPorts.forEach(port => {
+      invalidPorts.forEach((port) => {
         process.env.PSH_PORT = port;
         const portNum = parseInt(process.env.PSH_PORT, 10);
         if (!Number.isNaN(portNum)) {
@@ -393,12 +408,12 @@ describe('Configuration Validation Tests', () => {
       const validLogLevels = ['error', 'warn', 'info', 'debug', 'silly'];
       const invalidLogLevels = ['invalid', 'trace', 'verbose'];
 
-      validLogLevels.forEach(level => {
+      validLogLevels.forEach((level) => {
         process.env.LOG_LEVEL = level;
         expect(validLogLevels).toContain(process.env.LOG_LEVEL);
       });
 
-      invalidLogLevels.forEach(level => {
+      invalidLogLevels.forEach((level) => {
         process.env.LOG_LEVEL = level;
         expect(validLogLevels).not.toContain(process.env.LOG_LEVEL);
       });
@@ -447,19 +462,19 @@ describe('Configuration Validation Tests', () => {
   describe('Individual Validation Functions', () => {
     describe('validateDiscordChannelId', () => {
       it('should validate correct Discord channel IDs', () => {
-        expect(validateDiscordChannelId('123456789012345678')).toBe(true);  // 18 digits
-        expect(validateDiscordChannelId('12345678901234567')).toBe(true);   // 17 digits
+        expect(validateDiscordChannelId('123456789012345678')).toBe(true); // 18 digits
+        expect(validateDiscordChannelId('12345678901234567')).toBe(true); // 17 digits
         expect(validateDiscordChannelId('1234567890123456789')).toBe(true); // 19 digits
       });
 
       it('should reject invalid Discord channel IDs', () => {
-        expect(validateDiscordChannelId('123456789012345')).toBe(false);     // Too short
+        expect(validateDiscordChannelId('123456789012345')).toBe(false); // Too short
         expect(validateDiscordChannelId('12345678901234567890')).toBe(false); // Too long
-        expect(validateDiscordChannelId('1234567890123456a8')).toBe(false);   // Contains letter
-        expect(validateDiscordChannelId('')).toBe(false);                     // Empty
-        expect(validateDiscordChannelId(null)).toBe(false);                   // Null
-        expect(validateDiscordChannelId(undefined)).toBe(false);              // Undefined
-        expect(validateDiscordChannelId(123456789012345678)).toBe(false);     // Number instead of string
+        expect(validateDiscordChannelId('1234567890123456a8')).toBe(false); // Contains letter
+        expect(validateDiscordChannelId('')).toBe(false); // Empty
+        expect(validateDiscordChannelId(null)).toBe(false); // Null
+        expect(validateDiscordChannelId(undefined)).toBe(false); // Undefined
+        expect(validateDiscordChannelId('123456789012345678')).toBe(true);
       });
     });
 
@@ -471,13 +486,13 @@ describe('Configuration Validation Tests', () => {
       });
 
       it('should reject invalid YouTube channel IDs', () => {
-        expect(validateYouTubeChannelId('UCrAOyUwjSM5zzPz_FqsUhu')).toBe(false);   // Too short
+        expect(validateYouTubeChannelId('UCrAOyUwjSM5zzPz_FqsUhu')).toBe(false); // Too short
         expect(validateYouTubeChannelId('UCrAOyUwjSM5zzPz_FqsUhuQQ')).toBe(false); // Too long
-        expect(validateYouTubeChannelId('ACrAOyUwjSM5zzPz_FqsUhuQ')).toBe(false);  // Doesn't start with UC
-        expect(validateYouTubeChannelId('UC')).toBe(false);                         // Too short
-        expect(validateYouTubeChannelId('')).toBe(false);                          // Empty
-        expect(validateYouTubeChannelId(null)).toBe(false);                        // Null
-        expect(validateYouTubeChannelId(undefined)).toBe(false);                   // Undefined
+        expect(validateYouTubeChannelId('ACrAOyUwjSM5zzPz_FqsUhuQ')).toBe(false); // Doesn't start with UC
+        expect(validateYouTubeChannelId('UC')).toBe(false); // Too short
+        expect(validateYouTubeChannelId('')).toBe(false); // Empty
+        expect(validateYouTubeChannelId(null)).toBe(false); // Null
+        expect(validateYouTubeChannelId(undefined)).toBe(false); // Undefined
       });
     });
 
@@ -492,7 +507,7 @@ describe('Configuration Validation Tests', () => {
 
       it('should reject invalid URLs', () => {
         expect(validateUrl('not-a-url')).toBe(false);
-        expect(validateUrl('ftp://example.com')).toBe(true);  // URL constructor accepts ftp URLs
+        expect(validateUrl('ftp://example.com')).toBe(true); // URL constructor accepts ftp URLs
         expect(validateUrl('')).toBe(false);
         expect(validateUrl(null)).toBe(false);
         expect(validateUrl(undefined)).toBe(false);
@@ -510,12 +525,12 @@ describe('Configuration Validation Tests', () => {
       });
 
       it('should reject invalid ports', () => {
-        expect(validatePort('0')).toBe(false);       // Port 0 is invalid
-        expect(validatePort('65536')).toBe(false);   // Above max port
-        expect(validatePort('-1')).toBe(false);      // Negative
-        expect(validatePort('abc')).toBe(false);     // Not a number
-        expect(validatePort('')).toBe(false);        // Empty
-        expect(validatePort(null)).toBe(false);      // Null
+        expect(validatePort('0')).toBe(false); // Port 0 is invalid
+        expect(validatePort('65536')).toBe(false); // Above max port
+        expect(validatePort('-1')).toBe(false); // Negative
+        expect(validatePort('abc')).toBe(false); // Not a number
+        expect(validatePort('')).toBe(false); // Empty
+        expect(validatePort(null)).toBe(false); // Null
         expect(validatePort(undefined)).toBe(false); // Undefined
       });
     });
@@ -531,11 +546,11 @@ describe('Configuration Validation Tests', () => {
 
       it('should reject invalid log levels', () => {
         expect(validateLogLevel('invalid')).toBe(false);
-        expect(validateLogLevel('INFO')).toBe(false);     // Case sensitive
-        expect(validateLogLevel('Warning')).toBe(false);  // Case sensitive
-        expect(validateLogLevel('')).toBe(false);         // Empty
-        expect(validateLogLevel(null)).toBe(false);       // Null
-        expect(validateLogLevel(undefined)).toBe(false);  // Undefined
+        expect(validateLogLevel('INFO')).toBe(false); // Case sensitive
+        expect(validateLogLevel('Warning')).toBe(false); // Case sensitive
+        expect(validateLogLevel('')).toBe(false); // Empty
+        expect(validateLogLevel(null)).toBe(false); // Null
+        expect(validateLogLevel(undefined)).toBe(false); // Undefined
       });
     });
 

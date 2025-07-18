@@ -1,4 +1,3 @@
-
 /**
  * Manages authentication for the scraper, handling cookies and login flows.
  */
@@ -67,7 +66,7 @@ export class AuthManager {
     await this.browser.waitForSelector('input[name="text"]', { timeout: 10000 });
     await this.browser.type('input[name="text"]', this.twitterUsername);
     await this.clickNextButton();
-    await new Promise(resolve => setTimeout(resolve, 4000));
+    await new Promise((resolve) => setTimeout(resolve, 4000));
 
     // Step 2: Enter password
     this.logger.info('Entering password...');
@@ -146,6 +145,6 @@ export class AuthManager {
     if (!Array.isArray(cookies) || cookies.length === 0) {
       return false;
     }
-    return cookies.every(c => c && typeof c.name === 'string' && typeof c.value === 'string');
+    return cookies.every((c) => c && typeof c.name === 'string' && typeof c.value === 'string');
   }
 }

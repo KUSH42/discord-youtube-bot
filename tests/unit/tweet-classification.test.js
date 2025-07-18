@@ -23,33 +23,33 @@ describe('Tweet Category Classification', () => {
       evaluate: jest.fn(),
       page: {
         url: jest.fn(() => 'https://x.com/home'),
-        screenshot: jest.fn()
-      }
+        screenshot: jest.fn(),
+      },
     };
 
     // Mock config
     mockConfig = {
       getRequired: jest.fn((key) => {
         const values = {
-          'X_USER_HANDLE': 'testuser',
-          'TWITTER_USERNAME': 'testuser',
-          'TWITTER_PASSWORD': 'testpass'
+          X_USER_HANDLE: 'testuser',
+          TWITTER_USERNAME: 'testuser',
+          TWITTER_PASSWORD: 'testpass',
         };
         return values[key] || `mock-${key}`;
       }),
       get: jest.fn((key, defaultValue) => {
         const values = {
-          'X_QUERY_INTERVALL_MIN': '300000',
-          'X_QUERY_INTERVALL_MAX': '600000'
+          X_QUERY_INTERVALL_MIN: '300000',
+          X_QUERY_INTERVALL_MAX: '600000',
         };
         return values[key] || defaultValue;
       }),
       getBoolean: jest.fn((key, defaultValue) => {
         const values = {
-          'ANNOUNCE_OLD_TWEETS': false
+          ANNOUNCE_OLD_TWEETS: false,
         };
         return values[key] !== undefined ? values[key] : defaultValue;
-      })
+      }),
     };
 
     // Mock state manager
@@ -58,12 +58,12 @@ describe('Tweet Category Classification', () => {
       set: jest.fn(),
       has: jest.fn(),
       delete: jest.fn(),
-      clear: jest.fn()
+      clear: jest.fn(),
     };
 
     // Mock event bus
     mockEventBus = {
-      emit: jest.fn()
+      emit: jest.fn(),
     };
 
     // Mock logger
@@ -71,7 +71,7 @@ describe('Tweet Category Classification', () => {
       info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
-      debug: jest.fn()
+      debug: jest.fn(),
     };
 
     // Create scraper application instance
@@ -80,7 +80,7 @@ describe('Tweet Category Classification', () => {
       config: mockConfig,
       stateManager: mockStateManager,
       eventBus: mockEventBus,
-      logger: mockLogger
+      logger: mockLogger,
     });
   });
 
@@ -88,25 +88,25 @@ describe('Tweet Category Classification', () => {
     it('should classify tweets as retweets when author differs from monitored user', () => {
       // Test the classification logic directly
       const monitoredUser = 'testuser';
-      
+
       // Test cases: [author, expectedCategory]
       const testCases = [
-        ['differentuser', 'Retweet'],    // Different author -> Retweet
-        ['testuser', 'Post'],           // Same author -> Post  
-        ['@testuser', 'Post'],          // Same author with @ -> Post
-        ['anotheruser', 'Retweet'],     // Different author -> Retweet
-        ['Unknown', 'Post']             // Unknown author -> Post (not retweet)
+        ['differentuser', 'Retweet'], // Different author -> Retweet
+        ['testuser', 'Post'], // Same author -> Post
+        ['@testuser', 'Post'], // Same author with @ -> Post
+        ['anotheruser', 'Retweet'], // Different author -> Retweet
+        ['Unknown', 'Post'], // Unknown author -> Post (not retweet)
       ];
 
       testCases.forEach(([author, expectedCategory]) => {
         // Simulate the classification logic from scraper-application.js
         let isRetweet = false;
-        
+
         // Method 1: Check if author is different from monitored user
         if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
           isRetweet = true;
         }
-        
+
         const actualCategory = isRetweet ? 'Retweet' : 'Post';
         expect(actualCategory).toBe(expectedCategory);
       });
@@ -117,20 +117,20 @@ describe('Tweet Category Classification', () => {
       const monitoredUser = 'testuser';
       const author = 'testuser'; // Same as monitored user
       const socialContextText = 'User reposted';
-      
+
       // Simulate the classification logic
       let isRetweet = false;
-      
+
       // Method 1: Check if author is different from monitored user
       if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
         isRetweet = true;
       }
-      
+
       // Method 2: Check for social context element (modern retweet indicator)
       if (!isRetweet && socialContextText && socialContextText.includes('reposted')) {
         isRetweet = true;
       }
-      
+
       const actualCategory = isRetweet ? 'Retweet' : 'Post';
       expect(actualCategory).toBe('Retweet');
     });
@@ -140,22 +140,22 @@ describe('Tweet Category Classification', () => {
       const monitoredUser = 'testuser';
       const author = 'testuser'; // Same as monitored user
       const text = 'RT @someuser This is a classic retweet';
-      
+
       // Simulate the classification logic
       let isRetweet = false;
-      
+
       // Method 1: Check if author is different from monitored user
       if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
         isRetweet = true;
       }
-      
+
       // Method 2: Check for social context element (skipped for this test)
-      
+
       // Method 3: Check for classic RT @ pattern
       if (!isRetweet && text.startsWith('RT @')) {
         isRetweet = true;
       }
-      
+
       const actualCategory = isRetweet ? 'Retweet' : 'Post';
       expect(actualCategory).toBe('Retweet');
     });
@@ -165,15 +165,15 @@ describe('Tweet Category Classification', () => {
       const monitoredUser = 'testuser';
       const author = 'differentuser'; // Different from monitored user
       const text = 'This is a regular tweet about RT something';
-      
+
       // Simulate the classification logic
       let isRetweet = false;
-      
+
       // Method 1: Check if author is different from monitored user
       if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
         isRetweet = true;
       }
-      
+
       const actualCategory = isRetweet ? 'Retweet' : 'Post';
       expect(actualCategory).toBe('Retweet');
     });
@@ -181,28 +181,28 @@ describe('Tweet Category Classification', () => {
     it('should handle complex classification scenarios', () => {
       // Test multiple scenarios
       const monitoredUser = 'testuser';
-      
+
       const scenarios = [
         { author: 'testuser', text: 'My own post', expected: 'Post' },
         { author: 'testuser', text: 'RT @someone This is a retweet', expected: 'Retweet' },
         { author: 'otheruser', text: '@testuser This is a retweet by someone else', expected: 'Retweet' },
         { author: 'Unknown', text: 'RT @someone Unknown author', expected: 'Retweet' }, // RT pattern wins
-        { author: 'Unknown', text: 'Normal tweet', expected: 'Post' } // Unknown author, no RT pattern
+        { author: 'Unknown', text: 'Normal tweet', expected: 'Post' }, // Unknown author, no RT pattern
       ];
 
       scenarios.forEach(({ author, text, expected }) => {
         let isRetweet = false;
-        
+
         // Method 1: Check if author is different from monitored user
         if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
           isRetweet = true;
         }
-        
+
         // Method 3: Check for classic RT @ pattern
         if (!isRetweet && text.startsWith('RT @')) {
           isRetweet = true;
         }
-        
+
         const actualCategory = isRetweet ? 'Retweet' : 'Post';
         expect(actualCategory).toBe(expected);
       });
@@ -215,22 +215,22 @@ describe('Tweet Category Classification', () => {
       const monitoredUser = 'testuser';
       const author = 'otheruser'; // Different author (would be retweet)
       const text = '@testuser This is a reply'; // Reply pattern
-      
+
       // Simulate the classification logic (simplified)
       let isReply = text.startsWith('@');
       let isRetweet = false;
-      
+
       if (!isReply && author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
         isRetweet = true;
       }
-      
+
       let tweetCategory = 'Post';
       if (isReply) {
         tweetCategory = 'Reply';
       } else if (isRetweet) {
         tweetCategory = 'Retweet';
       }
-      
+
       // Reply should take precedence over retweet
       expect(tweetCategory).toBe('Reply');
     });
@@ -238,38 +238,38 @@ describe('Tweet Category Classification', () => {
     it('should demonstrate correct classification precedence', () => {
       // Test the order of classification: Reply > Quote > Retweet > Post
       const monitoredUser = 'testuser';
-      
+
       const testScenarios = [
         { author: 'otheruser', text: 'Normal tweet', expected: 'Retweet' }, // Different author
         { author: 'otheruser', text: '@testuser Reply', expected: 'Reply' }, // Reply takes precedence
         { author: 'testuser', text: 'RT @someone Retweet', expected: 'Retweet' }, // RT pattern
-        { author: 'testuser', text: 'My own post', expected: 'Post' } // Own post
+        { author: 'testuser', text: 'My own post', expected: 'Post' }, // Own post
       ];
 
       testScenarios.forEach(({ author, text, expected }) => {
         // Simulate the classification logic
         let isReply = text.startsWith('@');
         let isRetweet = false;
-        
+
         if (!isReply) {
           // Check author mismatch
           if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
             isRetweet = true;
           }
-          
+
           // Check RT pattern
           if (!isRetweet && text.startsWith('RT @')) {
             isRetweet = true;
           }
         }
-        
+
         let tweetCategory = 'Post';
         if (isReply) {
           tweetCategory = 'Reply';
         } else if (isRetweet) {
           tweetCategory = 'Retweet';
         }
-        
+
         expect(tweetCategory).toBe(expected);
       });
     });

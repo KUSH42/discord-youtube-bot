@@ -1,24 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { 
-  createMockClient, 
-  createMockChannel, 
-  createMockMessage 
-} from '../mocks/discord.mock.js';
-import { 
-  mockVideoDetails, 
+import { createMockClient, createMockChannel, createMockMessage } from '../mocks/discord.mock.js';
+import {
+  mockVideoDetails,
   mockPubSubNotification,
   createMockVideoDetails,
-  createMockPubSubNotification
+  createMockPubSubNotification,
 } from '../mocks/youtube.mock.js';
-import { 
-  mockTweetData,
-  mockScraperResults,
-  createMockTweet
-} from '../mocks/x-twitter.mock.js';
-import { 
-  createMockRequest, 
-  createMockResponse 
-} from '../mocks/express.mock.js';
+import { mockTweetData, mockScraperResults, createMockTweet } from '../mocks/x-twitter.mock.js';
+import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 
 describe('End-to-End Announcement Workflows', () => {
   let discordClient;
@@ -33,10 +22,10 @@ describe('End-to-End Announcement Workflows', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    
+
     // Set bot start time for content filtering
     botStartTime = new Date('2024-01-01T12:00:00Z');
-    
+
     // Create mock Discord client and channels
     discordClient = createMockClient();
     youtubeChannel = createMockChannel({ id: 'youtube-channel', name: 'youtube' });
@@ -64,14 +53,14 @@ describe('End-to-End Announcement Workflows', () => {
       // Step 1: Receive PubSubHubbub notification
       const videoId = 'dQw4w9WgXcQ';
       const notification = createMockPubSubNotification(videoId);
-      
+
       const parseNotification = (xmlData) => {
         const videoIdMatch = xmlData.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
         const publishedMatch = xmlData.match(/<published>([^<]+)<\/published>/);
-        
+
         return {
           videoId: videoIdMatch[1],
-          publishedAt: publishedMatch[1]
+          publishedAt: publishedMatch[1],
         };
       };
 
@@ -98,24 +87,24 @@ describe('End-to-End Announcement Workflows', () => {
           description: 'Test video description',
           publishedAt: '2024-01-01T13:00:00Z',
           thumbnails: {
-            high: { url: 'https://i.ytimg.com/vi/test/hqdefault.jpg' }
-          }
-        }
+            high: { url: 'https://i.ytimg.com/vi/test/hqdefault.jpg' },
+          },
+        },
       });
 
       // Step 5: Create Discord embed
       const createVideoEmbed = (video) => ({
         title: `🎥 New Video: ${video.snippet.title}`,
         url: `https://www.youtube.com/watch?v=${video.id}`,
-        author: { 
+        author: {
           name: video.snippet.channelTitle,
-          icon_url: 'https://www.youtube.com/favicon.ico'
+          icon_url: 'https://www.youtube.com/favicon.ico',
         },
         description: video.snippet.description.substring(0, 200) + '...',
         thumbnail: { url: video.snippet.thumbnails.high.url },
         color: 0xff0000,
         timestamp: video.snippet.publishedAt,
-        footer: { text: 'YouTube' }
+        footer: { text: 'YouTube' },
       });
 
       const embed = createVideoEmbed(videoDetails);
@@ -125,20 +114,24 @@ describe('End-to-End Announcement Workflows', () => {
 
       // Step 7: Log successful announcement
       await supportChannel.send({
-        embeds: [{
-          title: '✅ YouTube Announcement Sent',
-          description: `Video: ${videoDetails.snippet.title}`,
-          color: 0x00ff00,
-          timestamp: new Date().toISOString()
-        }]
+        embeds: [
+          {
+            title: '✅ YouTube Announcement Sent',
+            description: `Video: ${videoDetails.snippet.title}`,
+            color: 0x00ff00,
+            timestamp: new Date().toISOString(),
+          },
+        ],
       });
 
       // Verify the complete workflow
       expect(youtubeChannel.send).toHaveBeenCalledWith({ embeds: [embed] });
       expect(supportChannel.send).toHaveBeenCalledWith({
-        embeds: [expect.objectContaining({
-          title: '✅ YouTube Announcement Sent'
-        })]
+        embeds: [
+          expect.objectContaining({
+            title: '✅ YouTube Announcement Sent',
+          }),
+        ],
       });
     });
 
@@ -149,12 +142,12 @@ describe('End-to-End Announcement Workflows', () => {
           title: 'Live Stream: Test Stream',
           channelTitle: 'Test Channel',
           liveBroadcastContent: 'live',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
         },
         liveStreamingDetails: {
           actualStartTime: new Date().toISOString(),
-          concurrentViewers: '1000'
-        }
+          concurrentViewers: '1000',
+        },
       });
 
       const createLiveEmbed = (video) => ({
@@ -167,31 +160,33 @@ describe('End-to-End Announcement Workflows', () => {
           {
             name: 'Status',
             value: '🔴 Live',
-            inline: true
+            inline: true,
           },
           {
             name: 'Viewers',
             value: video.liveStreamingDetails.concurrentViewers,
-            inline: true
-          }
-        ]
+            inline: true,
+          },
+        ],
       });
 
       const liveEmbed = createLiveEmbed(liveVideoDetails);
       await youtubeChannel.send({ embeds: [liveEmbed] });
 
       expect(youtubeChannel.send).toHaveBeenCalledWith({
-        embeds: [expect.objectContaining({
-          title: expect.stringContaining('🔴 LIVE NOW:')
-        })]
+        embeds: [
+          expect.objectContaining({
+            title: expect.stringContaining('🔴 LIVE NOW:'),
+          }),
+        ],
       });
     });
 
     it('should filter out old YouTube content', async () => {
       const oldVideoDetails = createMockVideoDetails({
         snippet: {
-          publishedAt: '2023-12-01T10:00:00Z' // Before bot start time
-        }
+          publishedAt: '2023-12-01T10:00:00Z', // Before bot start time
+        },
       });
 
       const contentTimestamp = new Date(oldVideoDetails.snippet.publishedAt);
@@ -218,12 +213,12 @@ describe('End-to-End Announcement Workflows', () => {
           id: '1234567890123456789',
           text: 'This is a new test post',
           user: { username: 'testuser' },
-          createdAt: '2024-01-01T13:00:00Z'
-        })
+          createdAt: '2024-01-01T13:00:00Z',
+        }),
       ];
 
       // Step 2: Filter by timestamp (after bot start)
-      const newPosts = scrapedPosts.filter(post => {
+      const newPosts = scrapedPosts.filter((post) => {
         const postTime = new Date(post.createdAt);
         return postTime > botStartTime;
       });
@@ -232,23 +227,23 @@ describe('End-to-End Announcement Workflows', () => {
 
       // Step 3: Extract post IDs and check for duplicates
       const knownTweetIds = new Set();
-      const postUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com)\/[^\/]+\/status\/(\d+)/;
-      
+      const postUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/;
+
       const processPost = (post) => {
         const url = `https://x.com/${post.user.username}/status/${post.id}`;
         const match = url.match(postUrlRegex);
-        
+
         if (match) {
           const tweetId = match[1];
-          
+
           if (knownTweetIds.has(tweetId)) {
             return { duplicate: true };
           }
-          
+
           knownTweetIds.add(tweetId);
           return { duplicate: false, tweetId, url };
         }
-        
+
         return { duplicate: false };
       };
 
@@ -268,22 +263,24 @@ describe('End-to-End Announcement Workflows', () => {
 
       // Step 6: Log successful announcement
       await supportChannel.send({
-        embeds: [{
-          title: '✅ X/Twitter Post Announced',
-          description: `@${newPosts[0].user.username}: ${newPosts[0].text.substring(0, 100)}...`,
-          color: 0x1da1f2,
-          timestamp: new Date().toISOString()
-        }]
+        embeds: [
+          {
+            title: '✅ X/Twitter Post Announced',
+            description: `@${newPosts[0].user.username}: ${newPosts[0].text.substring(0, 100)}...`,
+            color: 0x1da1f2,
+            timestamp: new Date().toISOString(),
+          },
+        ],
       });
 
       // Verify the complete workflow
-      expect(xPostsChannel.send).toHaveBeenCalledWith(
-        expect.stringContaining('New Post from @testuser:')
-      );
+      expect(xPostsChannel.send).toHaveBeenCalledWith(expect.stringContaining('New Post from @testuser:'));
       expect(supportChannel.send).toHaveBeenCalledWith({
-        embeds: [expect.objectContaining({
-          title: '✅ X/Twitter Post Announced'
-        })]
+        embeds: [
+          expect.objectContaining({
+            title: '✅ X/Twitter Post Announced',
+          }),
+        ],
       });
     });
 
@@ -292,28 +289,28 @@ describe('End-to-End Announcement Workflows', () => {
         posts: [createMockTweet({ text: 'Regular post', type: 'post' })],
         replies: [createMockTweet({ text: 'Reply to someone', type: 'reply' })],
         quotes: [createMockTweet({ text: 'Quote tweet', type: 'quote' })],
-        retweets: [createMockTweet({ text: 'RT @user: Original tweet', type: 'retweet' })]
+        retweets: [createMockTweet({ text: 'RT @user: Original tweet', type: 'retweet' })],
       };
 
       const routeContent = async (content) => {
         const promises = [];
-        
+
         if (content.posts.length > 0) {
           promises.push(xPostsChannel.send(`New posts: ${content.posts.length}`));
         }
-        
+
         if (content.replies.length > 0) {
           promises.push(xRepliesChannel.send(`New replies: ${content.replies.length}`));
         }
-        
+
         if (content.quotes.length > 0) {
           promises.push(xQuotesChannel.send(`New quotes: ${content.quotes.length}`));
         }
-        
+
         if (content.retweets.length > 0) {
           promises.push(xRetweetsChannel.send(`New retweets: ${content.retweets.length}`));
         }
-        
+
         await Promise.all(promises);
       };
 
@@ -329,7 +326,7 @@ describe('End-to-End Announcement Workflows', () => {
       const originalPost = createMockTweet({
         id: '1234567890123456789',
         text: 'Test post for URL conversion',
-        user: { username: 'testuser' }
+        user: { username: 'testuser' },
       });
 
       const convertToVxTwitter = (twitterUrl) => {
@@ -344,9 +341,7 @@ describe('End-to-End Announcement Workflows', () => {
       const messageWithVx = `**New Post from @${originalPost.user.username}:**\n\n${originalPost.text}\n\n${vxUrl}`;
       await xPostsChannel.send(messageWithVx);
 
-      expect(xPostsChannel.send).toHaveBeenCalledWith(
-        expect.stringContaining('vxtwitter.com')
-      );
+      expect(xPostsChannel.send).toHaveBeenCalledWith(expect.stringContaining('vxtwitter.com'));
     });
   });
 
@@ -355,17 +350,18 @@ describe('End-to-End Announcement Workflows', () => {
       const globalDuplicateTracker = {
         urls: new Set(),
         videoIds: new Set(),
-        tweetIds: new Set()
+        tweetIds: new Set(),
       };
 
       // Process YouTube video
       const youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-      const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+      const videoUrlRegex =
+        /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
       const videoMatch = youtubeUrl.match(videoUrlRegex);
-      
+
       if (videoMatch) {
         const videoId = videoMatch[1];
-        
+
         if (globalDuplicateTracker.videoIds.has(videoId)) {
           console.log('Duplicate YouTube video detected');
         } else {
@@ -376,12 +372,13 @@ describe('End-to-End Announcement Workflows', () => {
 
       // Process X/Twitter post
       const twitterUrl = 'https://x.com/user/status/1234567890123456789';
-      const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com)\/[^\/]+\/status\/(\d+)/;
+      const tweetUrlRegex =
+        /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com)\/[^/]+\/status\/(\d+)/;
       const tweetMatch = twitterUrl.match(tweetUrlRegex);
-      
+
       if (tweetMatch) {
         const tweetId = tweetMatch[1];
-        
+
         if (globalDuplicateTracker.tweetIds.has(tweetId)) {
           console.log('Duplicate X/Twitter post detected');
         } else {
@@ -405,19 +402,19 @@ describe('End-to-End Announcement Workflows', () => {
 
     it('should handle cross-channel duplicate prevention', async () => {
       const channelTracker = new Map();
-      
+
       const trackChannelMessage = (channelId, content) => {
         if (!channelTracker.has(channelId)) {
           channelTracker.set(channelId, new Set());
         }
-        
+
         const channelMessages = channelTracker.get(channelId);
         const contentHash = Buffer.from(content).toString('base64');
-        
+
         if (channelMessages.has(contentHash)) {
           return { duplicate: true };
         }
-        
+
         channelMessages.add(contentHash);
         return { duplicate: false };
       };
@@ -457,7 +454,7 @@ describe('End-to-End Announcement Workflows', () => {
           return { success: true, channel: 'primary' };
         } catch (error) {
           console.error('Primary channel failed:', error.message);
-          
+
           try {
             await fallbackChannel.send(`[Fallback] ${content}`);
             return { success: true, channel: 'fallback' };
@@ -492,7 +489,7 @@ describe('End-to-End Announcement Workflows', () => {
             if (attempt === maxRetries) {
               throw error;
             }
-            
+
             console.log(`Attempt ${attempt} failed, retrying...`);
             // No timeout in test - immediate retry
             delay *= 2; // Exponential backoff for tracking
@@ -509,35 +506,35 @@ describe('End-to-End Announcement Workflows', () => {
     it('should log all announcement activities', async () => {
       const activityLogger = {
         logs: [],
-        log: function(level, message, data = {}) {
+        log: function (level, message, data = {}) {
           this.logs.push({
             level,
             message,
             data,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
-        }
+        },
       };
 
       // Simulate successful YouTube announcement
       activityLogger.log('info', 'YouTube video processed', {
         videoId: 'dQw4w9WgXcQ',
         channelId: 'youtube-channel',
-        success: true
+        success: true,
       });
 
       // Simulate failed X/Twitter announcement
       activityLogger.log('error', 'X/Twitter announcement failed', {
         tweetId: '1234567890123456789',
         error: 'Channel not found',
-        success: false
+        success: false,
       });
 
       // Simulate duplicate detection
       activityLogger.log('warn', 'Duplicate content detected', {
         contentType: 'youtube',
         videoId: 'dQw4w9WgXcQ',
-        action: 'skipped'
+        action: 'skipped',
       });
 
       expect(activityLogger.logs).toHaveLength(3);
@@ -546,23 +543,25 @@ describe('End-to-End Announcement Workflows', () => {
       expect(activityLogger.logs[2].level).toBe('warn');
 
       // Send logs to Discord support channel
-      const logSummary = activityLogger.logs.map(log => 
-        `[${log.level.toUpperCase()}] ${log.message}`
-      ).join('\n');
+      const logSummary = activityLogger.logs.map((log) => `[${log.level.toUpperCase()}] ${log.message}`).join('\n');
 
       await supportChannel.send({
-        embeds: [{
-          title: '📊 Activity Summary',
-          description: logSummary,
-          color: 0x00ff00,
-          timestamp: new Date().toISOString()
-        }]
+        embeds: [
+          {
+            title: '📊 Activity Summary',
+            description: logSummary,
+            color: 0x00ff00,
+            timestamp: new Date().toISOString(),
+          },
+        ],
       });
 
       expect(supportChannel.send).toHaveBeenCalledWith({
-        embeds: [expect.objectContaining({
-          title: '📊 Activity Summary'
-        })]
+        embeds: [
+          expect.objectContaining({
+            title: '📊 Activity Summary',
+          }),
+        ],
       });
     });
   });
@@ -571,7 +570,7 @@ describe('End-to-End Announcement Workflows', () => {
     it('should monitor announcement success rates', async () => {
       const metrics = {
         youtube: { success: 0, failed: 0, total: 0 },
-        twitter: { success: 0, failed: 0, total: 0 }
+        twitter: { success: 0, failed: 0, total: 0 },
       };
 
       const recordMetric = (platform, success) => {
@@ -592,9 +591,7 @@ describe('End-to-End Announcement Workflows', () => {
 
       const calculateSuccessRate = (platform) => {
         const platformMetrics = metrics[platform];
-        return platformMetrics.total > 0 
-          ? (platformMetrics.success / platformMetrics.total) * 100 
-          : 0;
+        return platformMetrics.total > 0 ? (platformMetrics.success / platformMetrics.total) * 100 : 0;
       };
 
       const youtubeSuccessRate = calculateSuccessRate('youtube');
@@ -609,18 +606,20 @@ describe('End-to-End Announcement Workflows', () => {
         platforms: {
           youtube: {
             successRate: youtubeSuccessRate,
-            total: metrics.youtube.total
+            total: metrics.youtube.total,
           },
           twitter: {
             successRate: twitterSuccessRate,
-            total: metrics.twitter.total
-          }
+            total: metrics.twitter.total,
+          },
         },
         overall: {
           totalAnnouncements: Object.values(metrics).reduce((sum, m) => sum + m.total, 0),
-          overallSuccessRate: Object.values(metrics).reduce((sum, m) => sum + m.success, 0) / 
-                             Object.values(metrics).reduce((sum, m) => sum + m.total, 0) * 100
-        }
+          overallSuccessRate:
+            (Object.values(metrics).reduce((sum, m) => sum + m.success, 0) /
+              Object.values(metrics).reduce((sum, m) => sum + m.total, 0)) *
+            100,
+        },
       };
 
       expect(healthReport.overall.totalAnnouncements).toBe(5);
@@ -632,45 +631,45 @@ describe('End-to-End Announcement Workflows', () => {
         thresholds: {
           failureRate: 50, // Alert if failure rate > 50%
           responseTime: 5000, // Alert if response time > 5 seconds
-          duplicateRate: 80 // Alert if duplicate rate > 80%
+          duplicateRate: 80, // Alert if duplicate rate > 80%
         },
-        
-        checkAnomaly: function(metrics) {
+
+        checkAnomaly: function (metrics) {
           const alerts = [];
-          
+
           if (metrics.failureRate > this.thresholds.failureRate) {
             alerts.push({
               type: 'HIGH_FAILURE_RATE',
               value: metrics.failureRate,
-              threshold: this.thresholds.failureRate
+              threshold: this.thresholds.failureRate,
             });
           }
-          
+
           if (metrics.avgResponseTime > this.thresholds.responseTime) {
             alerts.push({
               type: 'HIGH_RESPONSE_TIME',
               value: metrics.avgResponseTime,
-              threshold: this.thresholds.responseTime
+              threshold: this.thresholds.responseTime,
             });
           }
-          
+
           if (metrics.duplicateRate > this.thresholds.duplicateRate) {
             alerts.push({
               type: 'HIGH_DUPLICATE_RATE',
               value: metrics.duplicateRate,
-              threshold: this.thresholds.duplicateRate
+              threshold: this.thresholds.duplicateRate,
             });
           }
-          
+
           return alerts;
-        }
+        },
       };
 
       // Test with problematic metrics
       const problemMetrics = {
         failureRate: 75, // Above threshold
         avgResponseTime: 6000, // Above threshold
-        duplicateRate: 85 // Above threshold
+        duplicateRate: 85, // Above threshold
       };
 
       const alerts = anomalyDetector.checkAnomaly(problemMetrics);
@@ -683,25 +682,28 @@ describe('End-to-End Announcement Workflows', () => {
       // Send alerts to support channel
       if (alerts.length > 0) {
         const alertMessage = {
-          embeds: [{
-            title: '🚨 System Anomaly Detected',
-            description: alerts.map(alert => 
-              `**${alert.type}**: ${alert.value} (threshold: ${alert.threshold})`
-            ).join('\n'),
-            color: 0xff0000,
-            timestamp: new Date().toISOString()
-          }]
+          embeds: [
+            {
+              title: '🚨 System Anomaly Detected',
+              description: alerts
+                .map((alert) => `**${alert.type}**: ${alert.value} (threshold: ${alert.threshold})`)
+                .join('\n'),
+              color: 0xff0000,
+              timestamp: new Date().toISOString(),
+            },
+          ],
         };
 
         await supportChannel.send(alertMessage);
       }
 
       expect(supportChannel.send).toHaveBeenCalledWith({
-        embeds: [expect.objectContaining({
-          title: '🚨 System Anomaly Detected'
-        })]
+        embeds: [
+          expect.objectContaining({
+            title: '🚨 System Anomaly Detected',
+          }),
+        ],
       });
     });
   });
-
 });

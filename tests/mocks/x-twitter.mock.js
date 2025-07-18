@@ -8,18 +8,18 @@ export const mockTweetData = {
     id: '987654321',
     username: 'testuser',
     displayName: 'Test User',
-    verified: false
+    verified: false,
   },
   createdAt: new Date().toISOString(),
   metrics: {
     retweets: 10,
     likes: 50,
-    replies: 5
+    replies: 5,
   },
   media: [],
   urls: ['https://example.com'],
   hashtags: ['test', 'example'],
-  mentions: []
+  mentions: [],
 };
 
 export const mockQuoteTweet = {
@@ -31,9 +31,9 @@ export const mockQuoteTweet = {
     text: 'Original quoted tweet',
     user: {
       username: 'originaluser',
-      displayName: 'Original User'
-    }
-  }
+      displayName: 'Original User',
+    },
+  },
 };
 
 export const mockReplyTweet = {
@@ -43,9 +43,9 @@ export const mockReplyTweet = {
   replyTo: {
     id: '1234567890123456789',
     user: {
-      username: 'testuser'
-    }
-  }
+      username: 'testuser',
+    },
+  },
 };
 
 export const mockRetweetData = {
@@ -53,10 +53,10 @@ export const mockRetweetData = {
   type: 'retweet',
   user: {
     username: 'retweetuser',
-    displayName: 'Retweet User'
+    displayName: 'Retweet User',
   },
   originalTweet: mockTweetData,
-  createdAt: new Date().toISOString()
+  createdAt: new Date().toISOString(),
 };
 
 // Mock Playwright/Puppeteer browser and page
@@ -75,25 +75,25 @@ export const mockPage = {
     textContent: jest.fn().mockResolvedValue('Mock text'),
     getAttribute: jest.fn().mockResolvedValue('mock-attribute'),
     click: jest.fn().mockResolvedValue(),
-    isVisible: jest.fn().mockResolvedValue(true)
+    isVisible: jest.fn().mockResolvedValue(true),
   }),
   $: jest.fn().mockResolvedValue({
     textContent: jest.fn().mockResolvedValue('Mock text'),
-    getAttribute: jest.fn().mockResolvedValue('mock-attribute')
+    getAttribute: jest.fn().mockResolvedValue('mock-attribute'),
   }),
   $$: jest.fn().mockResolvedValue([
     {
       textContent: jest.fn().mockResolvedValue('Mock text 1'),
-      getAttribute: jest.fn().mockResolvedValue('mock-attribute-1')
+      getAttribute: jest.fn().mockResolvedValue('mock-attribute-1'),
     },
     {
       textContent: jest.fn().mockResolvedValue('Mock text 2'),
-      getAttribute: jest.fn().mockResolvedValue('mock-attribute-2')
-    }
+      getAttribute: jest.fn().mockResolvedValue('mock-attribute-2'),
+    },
   ]),
   cookies: jest.fn().mockResolvedValue([]),
   setCookie: jest.fn().mockResolvedValue(),
-  close: jest.fn().mockResolvedValue()
+  close: jest.fn().mockResolvedValue(),
 };
 
 export const mockBrowser = {
@@ -102,8 +102,8 @@ export const mockBrowser = {
   contexts: jest.fn().mockReturnValue([]),
   newContext: jest.fn().mockResolvedValue({
     newPage: jest.fn().mockResolvedValue(mockPage),
-    close: jest.fn().mockResolvedValue()
-  })
+    close: jest.fn().mockResolvedValue(),
+  }),
 };
 
 export const mockPlaywright = {
@@ -111,15 +111,15 @@ export const mockPlaywright = {
     launch: jest.fn().mockResolvedValue(mockBrowser),
     launchPersistentContext: jest.fn().mockResolvedValue({
       newPage: jest.fn().mockResolvedValue(mockPage),
-      close: jest.fn().mockResolvedValue()
-    })
+      close: jest.fn().mockResolvedValue(),
+    }),
   },
   firefox: {
-    launch: jest.fn().mockResolvedValue(mockBrowser)
+    launch: jest.fn().mockResolvedValue(mockBrowser),
   },
   webkit: {
-    launch: jest.fn().mockResolvedValue(mockBrowser)
-  }
+    launch: jest.fn().mockResolvedValue(mockBrowser),
+  },
 };
 
 // Mock cookie data for X/Twitter authentication
@@ -131,7 +131,7 @@ export const mockXCookies = [
     path: '/',
     expires: Date.now() + 86400000, // 24 hours
     httpOnly: true,
-    secure: true
+    secure: true,
   },
   {
     name: 'ct0',
@@ -140,8 +140,8 @@ export const mockXCookies = [
     path: '/',
     expires: Date.now() + 86400000,
     httpOnly: false,
-    secure: true
-  }
+    secure: true,
+  },
 ];
 
 // Mock scraper results
@@ -153,7 +153,7 @@ export const mockScraperResults = {
   totalFound: 4,
   newContentCount: 2,
   duplicatesFiltered: 1,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
 };
 
 // Helper functions for creating test data
@@ -162,22 +162,22 @@ export const createMockTweet = (overrides = {}) => ({
   ...overrides,
   user: {
     ...mockTweetData.user,
-    ...(overrides.user || {})
-  }
+    ...(overrides.user || {}),
+  },
 });
 
 export const createMockPage = (overrides = {}) => ({
   ...mockPage,
-  ...overrides
+  ...overrides,
 });
 
 export const createMockBrowser = (overrides = {}) => ({
   ...mockBrowser,
   newPage: jest.fn().mockResolvedValue({
     ...mockPage,
-    ...(overrides.pageOverrides || {})
+    ...(overrides.pageOverrides || {}),
   }),
-  ...overrides
+  ...overrides,
 });
 
 // Mock X/Twitter search URL patterns
@@ -185,7 +185,7 @@ export const mockSearchUrls = {
   posts: 'https://x.com/search?q=(from%3Atestuser)+exclude%3Areplies+exclude%3Aretweets&src=typed_query&f=live',
   replies: 'https://x.com/search?q=(from%3Atestuser)+filter%3Areplies&src=typed_query&f=live',
   quotes: 'https://x.com/search?q=quoted%3Atestuser&src=typed_query&f=live',
-  retweets: 'https://x.com/search?q=(from%3Atestuser)+filter%3Aretweets&src=typed_query&f=live'
+  retweets: 'https://x.com/search?q=(from%3Atestuser)+filter%3Aretweets&src=typed_query&f=live',
 };
 
 // Mock login flow
@@ -194,5 +194,5 @@ export const mockLoginSequence = [
   { action: 'fill', selector: 'input[name="text"]', value: 'mock-username' },
   { action: 'click', selector: '[role="button"]' },
   { action: 'fill', selector: 'input[name="password"]', value: 'mock-password' },
-  { action: 'click', selector: '[data-testid="LoginForm_Login_Button"]' }
+  { action: 'click', selector: '[data-testid="LoginForm_Login_Button"]' },
 ];

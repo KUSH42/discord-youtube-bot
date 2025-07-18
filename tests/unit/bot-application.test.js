@@ -39,10 +39,10 @@ describe('BotApplication', () => {
       child: jest.fn(() => mockLogger),
     };
     mockScraperApplication = {
-        getStats: jest.fn().mockReturnValue({ pollingInterval: {} }),
+      getStats: jest.fn().mockReturnValue({ pollingInterval: {} }),
     };
     mockMonitorApplication = {
-        getStats: jest.fn().mockReturnValue({}),
+      getStats: jest.fn().mockReturnValue({}),
     };
     mockExec = jest.fn();
 
@@ -80,7 +80,7 @@ describe('BotApplication', () => {
         }
         // The third call is the restart, we don't need to do anything in its callback
         if (command.includes('systemctl restart')) {
-            callback(null, '', '');
+          callback(null, '', '');
         }
       });
 
@@ -106,10 +106,32 @@ describe('BotApplication', () => {
   describe('createDetailedHealthEmbed', () => {
     it('should create a detailed health embed correctly', () => {
       const healthData = {
-        bot: { isRunning: true, announcementEnabled: true, vxTwitterEnabled: false, botStartTime: new Date().toISOString() },
-        scraper: { isRunning: true, pollingInterval: { next: Date.now() + 60000 }, totalRuns: 10, successfulRuns: 9, failedRuns: 1, totalTweetsFound: 100, totalTweetsAnnounced: 50, lastError: 'None' },
-        monitor: { isRunning: true, subscriptions: 1, webhooksReceived: 5, videosProcessed: 5, videosAnnounced: 4, xmlParseFailures: 0, lastError: 'None' },
-        system: { uptime: 12345, memory: { heapUsed: 1024 * 1024 * 50 }, timestamp: new Date().toISOString() }
+        bot: {
+          isRunning: true,
+          announcementEnabled: true,
+          vxTwitterEnabled: false,
+          botStartTime: new Date().toISOString(),
+        },
+        scraper: {
+          isRunning: true,
+          pollingInterval: { next: Date.now() + 60000 },
+          totalRuns: 10,
+          successfulRuns: 9,
+          failedRuns: 1,
+          totalTweetsFound: 100,
+          totalTweetsAnnounced: 50,
+          lastError: 'None',
+        },
+        monitor: {
+          isRunning: true,
+          subscriptions: 1,
+          webhooksReceived: 5,
+          videosProcessed: 5,
+          videosAnnounced: 4,
+          xmlParseFailures: 0,
+          lastError: 'None',
+        },
+        system: { uptime: 12345, memory: { heapUsed: 1024 * 1024 * 50 }, timestamp: new Date().toISOString() },
       };
       botApplication.discord.isReady = () => true;
       botApplication.discord.getLatency = () => 123;
@@ -122,18 +144,40 @@ describe('BotApplication', () => {
     });
 
     it('should display "In progress..." for next X poll when scraper is running but no next poll time is set', () => {
-        const healthData = {
-            bot: { isRunning: true, announcementEnabled: true, vxTwitterEnabled: false, botStartTime: new Date().toISOString() },
-            scraper: { isRunning: true, pollingInterval: { next: null }, totalRuns: 10, successfulRuns: 9, failedRuns: 1, totalTweetsFound: 100, totalTweetsAnnounced: 50, lastError: 'None' },
-            monitor: { isRunning: true, subscriptions: 1, webhooksReceived: 5, videosProcessed: 5, videosAnnounced: 4, xmlParseFailures: 0, lastError: 'None' },
-            system: { uptime: 12345, memory: { heapUsed: 1024 * 1024 * 50 }, timestamp: new Date().toISOString() }
-          };
+      const healthData = {
+        bot: {
+          isRunning: true,
+          announcementEnabled: true,
+          vxTwitterEnabled: false,
+          botStartTime: new Date().toISOString(),
+        },
+        scraper: {
+          isRunning: true,
+          pollingInterval: { next: null },
+          totalRuns: 10,
+          successfulRuns: 9,
+          failedRuns: 1,
+          totalTweetsFound: 100,
+          totalTweetsAnnounced: 50,
+          lastError: 'None',
+        },
+        monitor: {
+          isRunning: true,
+          subscriptions: 1,
+          webhooksReceived: 5,
+          videosProcessed: 5,
+          videosAnnounced: 4,
+          xmlParseFailures: 0,
+          lastError: 'None',
+        },
+        system: { uptime: 12345, memory: { heapUsed: 1024 * 1024 * 50 }, timestamp: new Date().toISOString() },
+      };
       botApplication.discord.isReady = () => true;
       botApplication.discord.getLatency = () => 123;
       botApplication.buildInfo = { version: '1.0', build: '123' };
 
       const embed = botApplication.createDetailedHealthEmbed(healthData);
-      const nextPollField = embed.fields.find(f => f.name === '⏳ Next X Poll');
+      const nextPollField = embed.fields.find((f) => f.name === '⏳ Next X Poll');
 
       expect(nextPollField).toBeDefined();
       expect(nextPollField.value).toBe('In progress...');
@@ -147,13 +191,13 @@ describe('BotApplication', () => {
       mockMessage = {
         author: {
           bot: false,
-          id: 'user123'
+          id: 'user123',
         },
         content: '!test',
         channel: {
-          id: 'channel123'
+          id: 'channel123',
         },
-        reply: jest.fn()
+        reply: jest.fn(),
       };
       botApplication.supportChannelId = 'channel123';
       botApplication.commandPrefix = '!';
@@ -174,9 +218,9 @@ describe('BotApplication', () => {
     it('should process commands when user is properly defined', async () => {
       // Use a simple command that doesn't require complex mocking
       mockMessage.content = '!readme';
-      
+
       await botApplication.handleMessage(mockMessage);
-      
+
       // Verify that the message was processed (reply was called)
       expect(mockMessage.reply).toHaveBeenCalled();
     });
@@ -185,7 +229,7 @@ describe('BotApplication', () => {
       // This test verifies that the user variable is accessible after being declared
       mockMessage.content = '!readme';
       mockMessage.author.id = 'validUserId';
-      
+
       // This should not throw a ReferenceError about user being accessed before initialization
       await expect(botApplication.handleMessage(mockMessage)).resolves.not.toThrow();
       expect(mockMessage.reply).toHaveBeenCalled();

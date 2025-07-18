@@ -31,7 +31,7 @@ describe('Performance and Load Tests', () => {
       for (let i = 0; i < numEntries; i++) {
         const youtubeText = `Check out this video: https://youtube.com/watch?v=dQw4w9WgXc${i.toString().padStart(4, '0')}`;
         const twitterText = `Great post: https://x.com/user/status/123456789012345${i.toString().padStart(3, '0')}`;
-        
+
         // Mark URLs as seen to add them to the known sets
         duplicateDetector.markAsSeen(youtubeText);
         duplicateDetector.markAsSeen(twitterText);
@@ -63,22 +63,22 @@ describe('Performance and Load Tests', () => {
         maxSize: 10000,
         maxAge: 3600000, // 1 hour
 
-        add: function(key, value) {
+        add: function (key, value) {
           this.cleanup();
-          
+
           if (this.entries.size >= this.maxSize) {
             // Remove oldest entry
             const oldestKey = this.entries.keys().next().value;
             this.entries.delete(oldestKey);
           }
-          
+
           this.entries.set(key, {
             value,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
         },
 
-        cleanup: function() {
+        cleanup: function () {
           const now = Date.now();
           for (const [key, entry] of this.entries) {
             if (now - entry.timestamp > this.maxAge) {
@@ -87,17 +87,17 @@ describe('Performance and Load Tests', () => {
           }
         },
 
-        get: function(key) {
+        get: function (key) {
           const entry = this.entries.get(key);
           if (!entry) return null;
-          
+
           if (Date.now() - entry.timestamp > this.maxAge) {
             this.entries.delete(key);
             return null;
           }
-          
+
           return entry.value;
-        }
+        },
       };
 
       const initialMemory = process.memoryUsage().heapUsed;
@@ -116,7 +116,7 @@ describe('Performance and Load Tests', () => {
 
       // Should not exceed max size
       expect(memoryManager.entries.size).toBeLessThanOrEqual(10000);
-      
+
       // Memory should be managed by size, not heap usage (GC timing is unpredictable)
       expect(memoryManager.entries.size).toBeGreaterThan(0);
       expect(memoryManager.entries.size).toBeLessThanOrEqual(10000);
@@ -130,13 +130,13 @@ describe('Performance and Load Tests', () => {
       // Simulate concurrent additions
       for (let i = 0; i < numConcurrent; i++) {
         promises.push(
-          new Promise(resolve => {
+          new Promise((resolve) => {
             // Add some delay to simulate real work
             setTimeout(() => {
               sharedSet.add(`item${i}`);
               resolve(i);
             }, Math.random() * 10);
-          })
+          }),
         );
       }
 
@@ -149,44 +149,46 @@ describe('Performance and Load Tests', () => {
       const lookupPromises = [];
       for (let i = 0; i < numConcurrent; i++) {
         lookupPromises.push(
-          new Promise(resolve => {
+          new Promise((resolve) => {
             const exists = sharedSet.has(`item${i}`);
             resolve(exists);
-          })
+          }),
         );
       }
 
       const lookupResults = await Promise.all(lookupPromises);
-      expect(lookupResults.every(result => result === true)).toBe(true);
+      expect(lookupResults.every((result) => result === true)).toBe(true);
     });
   });
 
   describe('Regex Performance at Scale', () => {
     it('should handle large text with many URLs efficiently', () => {
       const duplicateDetector = new DuplicateDetector();
-      
+
       // Define regex patterns locally
-      const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
-      const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
-      
+      const videoUrlRegex =
+        /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+      const tweetUrlRegex =
+        /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d+)/g;
+
       // Generate large text with many URLs using real duplicate detection
       const numUrls = 10000;
       const textSegments = [];
-      
+
       for (let i = 0; i < numUrls / 2; i++) {
         textSegments.push(
           `Text segment ${i} with YouTube: https://www.youtube.com/watch?v=video${i.toString().padStart(7, '0')} and`,
-          `Twitter: https://x.com/user/status/12345678901234567${i.toString().padStart(2, '0')} more text.`
+          `Twitter: https://x.com/user/status/12345678901234567${i.toString().padStart(2, '0')} more text.`,
         );
       }
-      
+
       const largeText = textSegments.join(' ');
 
       const regexStart = performance.now();
-      
+
       const videoMatches = [...largeText.matchAll(videoUrlRegex)];
       const tweetMatches = [...largeText.matchAll(tweetUrlRegex)];
-      
+
       const regexEnd = performance.now();
       const regexDuration = regexEnd - regexStart;
 
@@ -196,10 +198,10 @@ describe('Performance and Load Tests', () => {
 
       // Test individual URL processing performance
       const processingStart = performance.now();
-      
-      const videoIds = videoMatches.map(match => match[1]);
-      const tweetIds = tweetMatches.map(match => match[1]);
-      
+
+      const videoIds = videoMatches.map((match) => match[1]);
+      const tweetIds = tweetMatches.map((match) => match[1]);
+
       const processingEnd = performance.now();
       const processingDuration = processingEnd - processingStart;
 
@@ -218,21 +220,23 @@ describe('Performance and Load Tests', () => {
         ${'invalid-url-format '.repeat(1000)}
       `;
 
-      const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
-      const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
+      const videoUrlRegex =
+        /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+      const tweetUrlRegex =
+        /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d+)/g;
 
       const malformedStart = performance.now();
-      
+
       const videoMatches = [...malformedText.matchAll(videoUrlRegex)];
       const tweetMatches = [...malformedText.matchAll(tweetUrlRegex)];
-      
+
       const malformedEnd = performance.now();
       const malformedDuration = malformedEnd - malformedStart;
 
       // Should not match any malformed URLs
       expect(videoMatches).toHaveLength(0);
       expect(tweetMatches).toHaveLength(0);
-      
+
       // Should still complete quickly despite many malformed URLs
       expect(malformedDuration).toBeLessThan(500);
     });
@@ -242,12 +246,10 @@ describe('Performance and Load Tests', () => {
     it('should handle high-frequency message sending efficiently', async () => {
       const mockChannel = createMockChannel();
       const numMessages = 1000;
-      
+
       // Mock successful sends with realistic delay
-      mockChannel.send.mockImplementation(() => 
-        new Promise(resolve => 
-          setTimeout(() => resolve({ id: `msg-${Date.now()}` }), Math.random() * 50)
-        )
+      mockChannel.send.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve({ id: `msg-${Date.now()}` }), Math.random() * 50)),
       );
 
       const sendStart = performance.now();
@@ -260,12 +262,12 @@ describe('Performance and Load Tests', () => {
         for (let j = 0; j < batchSize && i + j < numMessages; j++) {
           batch.push(mockChannel.send(`Message ${i + j}`));
         }
-        
+
         promises.push(Promise.all(batch));
-        
+
         // Small delay between batches to simulate rate limiting
         if (i + batchSize < numMessages) {
-          await new Promise(resolve => setTimeout(resolve, 10));
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
       }
 
@@ -274,48 +276,44 @@ describe('Performance and Load Tests', () => {
       const sendDuration = sendEnd - sendStart;
 
       const totalMessages = results.reduce((sum, batch) => sum + batch.length, 0);
-      
+
       expect(totalMessages).toBe(numMessages);
       expect(mockChannel.send).toHaveBeenCalledTimes(numMessages);
-      
+
       // Calculate messages per second
       const messagesPerSecond = (numMessages / sendDuration) * 1000;
       console.log(`Sent ${messagesPerSecond.toFixed(2)} messages per second`);
-      
+
       // Should handle reasonable throughput
       expect(messagesPerSecond).toBeGreaterThan(10);
     });
 
     it('should handle concurrent channel operations', async () => {
       const numChannels = 50;
-      const channels = Array.from({ length: numChannels }, (_, i) => 
-        createMockChannel({ id: `channel-${i}`, name: `test-channel-${i}` })
+      const channels = Array.from({ length: numChannels }, (_, i) =>
+        createMockChannel({ id: `channel-${i}`, name: `test-channel-${i}` }),
       );
 
       // Mock send operations with varying delays
-      channels.forEach(channel => {
-        channel.send.mockImplementation(() => 
-          new Promise(resolve => 
-            setTimeout(() => resolve({ id: `msg-${Date.now()}` }), Math.random() * 100)
-          )
+      channels.forEach((channel) => {
+        channel.send.mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve({ id: `msg-${Date.now()}` }), Math.random() * 100)),
         );
       });
 
       const concurrentStart = performance.now();
-      
+
       // Send messages to all channels simultaneously
-      const promises = channels.map(channel => 
-        channel.send('Broadcast message to all channels')
-      );
+      const promises = channels.map((channel) => channel.send('Broadcast message to all channels'));
 
       const results = await Promise.all(promises);
       const concurrentEnd = performance.now();
       const concurrentDuration = concurrentEnd - concurrentStart;
 
       expect(results).toHaveLength(numChannels);
-      
+
       // All channels should have been called
-      channels.forEach(channel => {
+      channels.forEach((channel) => {
         expect(channel.send).toHaveBeenCalledWith('Broadcast message to all channels');
       });
 
@@ -341,16 +339,16 @@ describe('Performance and Load Tests', () => {
         const req = createMockRequest({
           method: 'POST',
           url: '/webhook/youtube',
-          body: `<notification>Video ${i}</notification>`
+          body: `<notification>Video ${i}</notification>`,
         });
         const res = createMockResponse();
 
         promises.push(
-          new Promise(resolve => {
+          new Promise((resolve) => {
             webhookHandler(req, res);
             // Simulate async completion
             setTimeout(() => resolve({ req, res }), Math.random() * 20);
-          })
+          }),
         );
       }
 
@@ -371,9 +369,10 @@ describe('Performance and Load Tests', () => {
 
     it('should handle large webhook payloads efficiently', async () => {
       const createLargePayload = (size) => {
-        return Array(size).fill(0).map((_, i) => 
-          `<entry><id>video${i}</id><title>Video Title ${i}</title></entry>`
-        ).join('');
+        return Array(size)
+          .fill(0)
+          .map((_, i) => `<entry><id>video${i}</id><title>Video Title ${i}</title></entry>`)
+          .join('');
       };
 
       const payloadSizes = [1, 10, 100, 1000]; // Number of entries
@@ -383,17 +382,19 @@ describe('Performance and Load Tests', () => {
         const payload = createLargePayload(size);
         const req = createMockRequest({
           body: `<feed>${payload}</feed>`,
-          headers: { 'content-length': payload.length.toString() }
+          headers: { 'content-length': payload.length.toString() },
         });
 
         const parseStart = performance.now();
-        
+
         // Simulate XML parsing
         const entries = payload.match(/<entry>.*?<\/entry>/g) || [];
-        const videoIds = entries.map(entry => {
-          const match = entry.match(/<id>([^<]+)<\/id>/);
-          return match ? match[1] : null;
-        }).filter(Boolean);
+        const videoIds = entries
+          .map((entry) => {
+            const match = entry.match(/<id>([^<]+)<\/id>/);
+            return match ? match[1] : null;
+          })
+          .filter(Boolean);
 
         const parseEnd = performance.now();
         const parseDuration = parseEnd - parseStart;
@@ -402,14 +403,14 @@ describe('Performance and Load Tests', () => {
           size,
           entries: videoIds.length,
           duration: parseDuration,
-          throughput: (videoIds.length / parseDuration) * 1000
+          throughput: (videoIds.length / parseDuration) * 1000,
         });
 
         expect(videoIds).toHaveLength(size);
       }
 
       // Performance should scale reasonably
-      results.forEach(result => {
+      results.forEach((result) => {
         console.log(`Size ${result.size}: ${result.throughput.toFixed(2)} entries/sec`);
         expect(result.throughput).toBeGreaterThan(100); // At least 100 entries per second
       });
@@ -425,7 +426,7 @@ describe('Performance and Load Tests', () => {
       const webhookRateLimit = createWebhookLimiter();
       const commandRateLimit = createCommandRateLimiter();
       const numRequests = 1000;
-      
+
       // Test webhook rate limiting performance
       const webhookStart = performance.now();
       for (let i = 0; i < numRequests; i++) {
@@ -435,7 +436,7 @@ describe('Performance and Load Tests', () => {
       }
       const webhookEnd = performance.now();
       const webhookDuration = webhookEnd - webhookStart;
-      
+
       // Test command rate limiting performance
       const commandStart = performance.now();
       for (let i = 0; i < numRequests; i++) {
@@ -444,14 +445,14 @@ describe('Performance and Load Tests', () => {
       }
       const commandEnd = performance.now();
       const commandDuration = commandEnd - commandStart;
-      
+
       // Performance assertions
       expect(webhookDuration).toBeLessThan(1000); // Should complete within 1 second
-      expect(commandDuration).toBeLessThan(500);  // Should be even faster
-      
+      expect(commandDuration).toBeLessThan(500); // Should be even faster
+
       const webhookThroughput = numRequests / (webhookDuration / 1000);
       const commandThroughput = numRequests / (commandDuration / 1000);
-      
+
       expect(webhookThroughput).toBeGreaterThan(500); // At least 500 requests per second
       expect(commandThroughput).toBeGreaterThan(1000); // At least 1000 checks per second
     });
@@ -487,7 +488,7 @@ describe('Performance and Load Tests', () => {
         global.gc();
         const afterGCMemory = process.memoryUsage();
         const afterGCIncrease = afterGCMemory.heapUsed - initialMemory.heapUsed;
-        
+
         // After GC, memory increase should be minimal
         expect(afterGCIncrease).toBeLessThan(5 * 1024 * 1024);
       } else {
@@ -500,10 +501,10 @@ describe('Performance and Load Tests', () => {
       const createCircularStructure = () => {
         const obj1 = { name: 'obj1' };
         const obj2 = { name: 'obj2' };
-        
+
         obj1.ref = obj2;
         obj2.ref = obj1;
-        
+
         return { obj1, obj2 };
       };
 
@@ -541,12 +542,12 @@ describe('Performance and Load Tests', () => {
         const duplicates = [];
 
         const videoRegex = /(?:(?:www\.)?youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-        const tweetRegex = /(?:x\.com|twitter\.com)\/[^\/]+\/status\/(\d+)/;
+        const tweetRegex = /(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/;
 
         for (const url of urls) {
           // Simulate complex processing
           const normalizedUrl = url.toLowerCase().trim();
-          
+
           const videoMatch = normalizedUrl.match(videoRegex);
           if (videoMatch) {
             const videoId = videoMatch[1];
@@ -601,15 +602,16 @@ describe('Performance and Load Tests', () => {
       const urlsPerIteration = 1000;
 
       for (let iteration = 0; iteration < iterations; iteration++) {
-        const urls = Array.from({ length: urlsPerIteration }, (_, i) => 
-          `https://www.youtube.com/watch?v=test${iteration * urlsPerIteration + i}`
+        const urls = Array.from(
+          { length: urlsPerIteration },
+          (_, i) => `https://www.youtube.com/watch?v=test${iteration * urlsPerIteration + i}`,
         );
 
         const iterationStart = performance.now();
-        
+
         // Simulate processing
         const videoIds = new Set();
-        urls.forEach(url => {
+        urls.forEach((url) => {
           const match = url.match(/watch\?v=([a-zA-Z0-9_-]+)/);
           if (match) videoIds.add(match[1]);
         });
@@ -620,7 +622,7 @@ describe('Performance and Load Tests', () => {
         performanceMetrics.push({
           iteration,
           duration: iterationDuration,
-          throughput: (urlsPerIteration / iterationDuration) * 1000
+          throughput: (urlsPerIteration / iterationDuration) * 1000,
         });
 
         expect(videoIds.size).toBe(urlsPerIteration);
@@ -628,10 +630,10 @@ describe('Performance and Load Tests', () => {
 
       // Calculate average and check for performance degradation
       const avgThroughput = performanceMetrics.reduce((sum, m) => sum + m.throughput, 0) / iterations;
-      const firstHalfAvg = performanceMetrics.slice(0, iterations / 2)
-        .reduce((sum, m) => sum + m.throughput, 0) / (iterations / 2);
-      const secondHalfAvg = performanceMetrics.slice(iterations / 2)
-        .reduce((sum, m) => sum + m.throughput, 0) / (iterations / 2);
+      const firstHalfAvg =
+        performanceMetrics.slice(0, iterations / 2).reduce((sum, m) => sum + m.throughput, 0) / (iterations / 2);
+      const secondHalfAvg =
+        performanceMetrics.slice(iterations / 2).reduce((sum, m) => sum + m.throughput, 0) / (iterations / 2);
 
       console.log(`Average throughput: ${avgThroughput.toFixed(2)} URLs/sec`);
       console.log(`First half: ${firstHalfAvg.toFixed(2)}, Second half: ${secondHalfAvg.toFixed(2)}`);

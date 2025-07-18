@@ -7,13 +7,13 @@ export const mockRequest = {
   headers: {
     'content-type': 'application/atom+xml',
     'x-hub-signature': 'sha1=mock-signature',
-    'user-agent': 'FeedFetcher-Google'
+    'user-agent': 'FeedFetcher-Google',
   },
   body: '',
   rawBody: Buffer.from(''),
   ip: '127.0.0.1',
   get: jest.fn((header) => mockRequest.headers[header.toLowerCase()]),
-  header: jest.fn((header) => mockRequest.headers[header.toLowerCase()])
+  header: jest.fn((header) => mockRequest.headers[header.toLowerCase()]),
 };
 
 // Mock Express response object
@@ -26,7 +26,7 @@ export const mockResponse = {
   cookie: jest.fn().mockReturnThis(),
   clearCookie: jest.fn().mockReturnThis(),
   redirect: jest.fn().mockReturnThis(),
-  locals: {}
+  locals: {},
 };
 
 // Mock Express next function
@@ -44,7 +44,7 @@ export const mockApp = {
     return mockServer;
   }),
   set: jest.fn(),
-  locals: {}
+  locals: {},
 };
 
 // Mock Express server
@@ -55,9 +55,9 @@ export const mockServer = {
   address: jest.fn().mockReturnValue({
     address: '::',
     family: 'IPv6',
-    port: 3000
+    port: 3000,
   }),
-  listening: true
+  listening: true,
 };
 
 // Mock rate limiter
@@ -67,15 +67,15 @@ export const mockRateLimit = jest.fn().mockImplementation((options) => {
     const rateLimitInfo = {
       limit: options.max || 100,
       remaining: options.max - 1 || 99,
-      reset: Date.now() + (options.windowMs || 900000)
+      reset: Date.now() + (options.windowMs || 900000),
     };
-    
+
     res.set({
       'X-RateLimit-Limit': rateLimitInfo.limit,
       'X-RateLimit-Remaining': rateLimitInfo.remaining,
-      'X-RateLimit-Reset': new Date(rateLimitInfo.reset).toISOString()
+      'X-RateLimit-Reset': new Date(rateLimitInfo.reset).toISOString(),
     });
-    
+
     next();
   });
 });
@@ -96,7 +96,7 @@ export const mockBodyParser = {
   }),
   urlencoded: jest.fn().mockReturnValue((req, res, next) => {
     next();
-  })
+  }),
 };
 
 // Helper functions for creating test data
@@ -105,12 +105,12 @@ export const createMockRequest = (overrides = {}) => ({
   ...overrides,
   headers: {
     ...mockRequest.headers,
-    ...(overrides.headers || {})
+    ...(overrides.headers || {}),
   },
   get: jest.fn((header) => {
     const headers = { ...mockRequest.headers, ...(overrides.headers || {}) };
     return headers[header.toLowerCase()];
-  })
+  }),
 });
 
 export const createMockResponse = (overrides = {}) => ({
@@ -120,7 +120,7 @@ export const createMockResponse = (overrides = {}) => ({
   send: jest.fn().mockReturnThis(),
   end: jest.fn().mockReturnThis(),
   set: jest.fn().mockReturnThis(),
-  ...overrides
+  ...overrides,
 });
 
 export const createMockApp = (overrides = {}) => ({
@@ -132,21 +132,21 @@ export const createMockApp = (overrides = {}) => ({
     if (callback) callback();
     return { ...mockServer, ...(overrides.serverOverrides || {}) };
   }),
-  ...overrides
+  ...overrides,
 });
 
 // Mock middleware for testing
 export const mockMiddleware = {
   cors: jest.fn().mockReturnValue((req, res, next) => next()),
   helmet: jest.fn().mockReturnValue((req, res, next) => next()),
-  compression: jest.fn().mockReturnValue((req, res, next) => next())
+  compression: jest.fn().mockReturnValue((req, res, next) => next()),
 };
 
 // Mock webhook signatures for testing
 export const mockWebhookSignatures = {
   valid: 'sha1=da39a3ee5e6b4b0d3255bfef95601890afd80709',
   invalid: 'sha1=invalid-signature-hash',
-  malformed: 'invalid-format-signature'
+  malformed: 'invalid-format-signature',
 };
 
 // Mock health check responses
@@ -159,8 +159,8 @@ export const mockHealthResponse = {
     discord: 'connected',
     youtube: 'active',
     xScraper: 'running',
-    database: 'n/a'
-  }
+    database: 'n/a',
+  },
 };
 
 export const mockDetailedHealthResponse = {
@@ -170,73 +170,73 @@ export const mockDetailedHealthResponse = {
       connected: true,
       guilds: 1,
       channels: 2,
-      latency: 50
+      latency: 50,
     },
     youtube: {
       subscriptions: 1,
       lastNotification: new Date().toISOString(),
       apiQuota: {
         used: 100,
-        limit: 10000
-      }
+        limit: 10000,
+      },
     },
     xScraper: {
       lastScrape: new Date().toISOString(),
       cookieValid: true,
-      errorRate: 0.01
-    }
-  }
+      errorRate: 0.01,
+    },
+  },
 };
 
 // Helper function to create a mock rate limiter implementation
 export const createMockRateLimit = (options = {}) => {
   const store = new Map();
-  
+
   return (req, res, next) => {
     const key = options.keyGenerator ? options.keyGenerator(req) : req.ip || 'unknown';
     const now = Date.now();
     const windowStart = now - (options.windowMs || 900000);
-    
+
     // Handle skip function
     if (options.skip && options.skip(req)) {
       return next();
     }
-    
+
     // Clean expired entries
     for (const [k, data] of store.entries()) {
       if (data.resetTime <= now) {
         store.delete(k);
       }
     }
-    
+
     const existing = store.get(key);
     if (!existing) {
       store.set(key, {
         count: 1,
-        resetTime: now + (options.windowMs || 900000)
+        resetTime: now + (options.windowMs || 900000),
       });
-      
+
       res.set({
         'X-RateLimit-Limit': options.max || 100,
         'X-RateLimit-Remaining': (options.max || 100) - 1,
-        'X-RateLimit-Reset': new Date(now + (options.windowMs || 900000)).toISOString()
+        'X-RateLimit-Reset': new Date(now + (options.windowMs || 900000)).toISOString(),
       });
-      
+
       return next();
     }
-    
+
     if (existing.count >= (options.max || 100)) {
       return res.status(429).json(options.message || { error: 'Too Many Requests' });
     }
-    
+
     existing.count++;
-    
+
     res.set({
       'X-RateLimit-Limit': options.max || 100,
       'X-RateLimit-Remaining': (options.max || 100) - existing.count,
-      'X-RateLimit-Reset': new Date(existing.resetTime).toISOString()
+      'X-RateLimit-Reset': new Date(existing.resetTime).toISOString(),
     });
-    
+
     next();
   };
 };
@@ -245,6 +245,6 @@ export const createMockRateLimit = (options = {}) => {
 export const createCommandRateLimit = (options = {}) => {
   return createMockRateLimit({
     ...options,
-    message: { error: 'Command rate limit exceeded. Please wait before trying again.' }
+    message: { error: 'Command rate limit exceeded. Please wait before trying again.' },
   });
 };

@@ -20,11 +20,11 @@ jest.mock('../src/application/monitor-application.js', () => ({
 }));
 
 jest.mock('../src/application/scraper-application.js', () => ({
-    ScraperApplication: jest.fn().mockImplementation(() => ({
-      start: jest.fn().mockResolvedValue(),
-      stop: jest.fn().mockResolvedValue(),
-      startNonBlocking: jest.fn(),
-    })),
+  ScraperApplication: jest.fn().mockImplementation(() => ({
+    start: jest.fn().mockResolvedValue(),
+    stop: jest.fn().mockResolvedValue(),
+    startNonBlocking: jest.fn(),
+  })),
 }));
 
 describe('Application Startup Integration Test', () => {
@@ -50,7 +50,7 @@ describe('Application Startup Integration Test', () => {
     expect(container.isRegistered('botApplication')).toBe(true);
 
     if (container) {
-        await container.dispose();
+      await container.dispose();
     }
   });
 });

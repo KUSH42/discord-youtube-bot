@@ -7,30 +7,30 @@ describe('End-to-End Fallback Recovery Tests', () => {
   let mockYouTubeAPI;
   let mockDiscordClient;
 
-  beforeEach(function() {
+  beforeEach(function () {
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
-      verbose: jest.fn()
+      verbose: jest.fn(),
     };
 
     mockYouTubeAPI = {
       search: {
-        list: jest.fn()
+        list: jest.fn(),
       },
       videos: {
-        list: jest.fn()
-      }
+        list: jest.fn(),
+      },
     };
 
     mockDiscordClient = {
       channels: {
-        fetch: jest.fn()
-      }
+        fetch: jest.fn(),
+      },
     };
-    
+
     // Timers array to keep track of created timers
     this.timers = [];
 
@@ -39,7 +39,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       logger: mockLogger,
       youtube: mockYouTubeAPI,
       discordClient: mockDiscordClient,
-      
+
       // Configuration
       PSH_SECRET: 'test-secret',
       YOUTUBE_CHANNEL_ID: 'UCTestChannelId',
@@ -48,7 +48,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       YOUTUBE_FALLBACK_MAX_RETRIES: 3,
       YOUTUBE_API_POLL_INTERVAL_MS: 5000, // Shorter for testing
       YOUTUBE_FALLBACK_BACKFILL_HOURS: 2,
-      
+
       // State
       lastSuccessfulCheck: new Date(Date.now() - 60000), // 1 minute ago
       failedNotifications: new Map(),
@@ -56,7 +56,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       fallbackInProgress: false,
       apiFallbackTimer: null,
       announcedVideos: new Set(),
-      
+
       // Metrics
       fallbackMetrics: {
         totalNotificationFailures: 0,
@@ -64,11 +64,11 @@ describe('End-to-End Fallback Recovery Tests', () => {
         totalSuccessfulRetries: 0,
         totalFallbackTriggers: 0,
         totalVideosRecoveredByFallback: 0,
-        totalApiFallbackExecutions: 0
+        totalApiFallbackExecutions: 0,
       },
-      
+
       // Timer tracking for cleanup
-      timers: []
+      timers: [],
     };
 
     // Mock implementations
@@ -81,18 +81,18 @@ describe('End-to-End Fallback Recovery Tests', () => {
     mockYouTubeMonitor.sendMirroredMessage = jest.fn();
   });
 
-  afterEach(function() {
+  afterEach(function () {
     // Clean up any timers
     if (mockYouTubeMonitor.apiFallbackTimer) {
       clearTimeout(mockYouTubeMonitor.apiFallbackTimer);
     }
-    
+
     // Clear all scheduled timers to prevent open handles
     if (mockYouTubeMonitor.timers) {
-        mockYouTubeMonitor.timers.forEach(timer => clearTimeout(timer));
-        mockYouTubeMonitor.timers = [];
+      mockYouTubeMonitor.timers.forEach((timer) => clearTimeout(timer));
+      mockYouTubeMonitor.timers = [];
     }
-    
+
     jest.clearAllMocks();
   });
 
@@ -103,27 +103,25 @@ describe('End-to-End Fallback Recovery Tests', () => {
         <root>
           <invalid>structure</invalid>
         </root>`;
-      
+
       const error = new Error('Invalid XML structure: missing feed element');
-      
+
       // Track initial state
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(0);
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(0);
-      
+
       // Trigger the failure (this should now work with our fix)
       await mockYouTubeMonitor.handleFailedNotification(malformedXML, error);
-      
+
       // Verify failure was recorded
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(1);
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(1);
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Failed notification queued for retry')
-      );
-      
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed notification queued for retry'));
+
       // Simulate retry processing after delay
       const [failureId] = mockYouTubeMonitor.failedNotifications.keys();
       const failure = mockYouTubeMonitor.failedNotifications.get(failureId);
-      
+
       expect(failure.rawXML).toBe(malformedXML);
       expect(failure.error).toBe('Invalid XML structure: missing feed element');
       expect(failure.retryCount).toBe(0);
@@ -134,32 +132,30 @@ describe('End-to-End Fallback Recovery Tests', () => {
       const failures = [
         { xml: 'malformed-xml-1', error: new Error('Parse error 1') },
         { xml: 'malformed-xml-2', error: new Error('Parse error 2') },
-        { xml: 'malformed-xml-3', error: new Error('Parse error 3') }
+        { xml: 'malformed-xml-3', error: new Error('Parse error 3') },
       ];
-      
+
       // Track API fallback calls
       let apiFallbackCallCount = 0;
-      mockYouTubeMonitor.scheduleApiFallback = function() {
+      mockYouTubeMonitor.scheduleApiFallback = function () {
         apiFallbackCallCount++;
         this.logger.warn('Multiple recent failures detected, scheduling API fallback');
         this.fallbackMetrics.totalFallbackTriggers++;
       };
-      
+
       // Process failures rapidly
       for (const failure of failures) {
         await mockYouTubeMonitor.handleFailedNotification(failure.xml, failure.error);
-        
+
         // Small delay to simulate realistic timing
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       }
-      
+
       // Should have triggered API fallback after multiple failures
       expect(apiFallbackCallCount).toBeGreaterThan(0);
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(3);
       expect(mockYouTubeMonitor.fallbackMetrics.totalFallbackTriggers).toBeGreaterThan(0);
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Multiple recent failures detected, scheduling API fallback'
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith('Multiple recent failures detected, scheduling API fallback');
     });
 
     it('should recover missed content via YouTube Data API fallback', async () => {
@@ -171,8 +167,8 @@ describe('End-to-End Fallback Recovery Tests', () => {
             title: 'Missed Video 1',
             publishedAt: new Date().toISOString(),
             channelId: 'UCTestChannelId',
-            channelTitle: 'Test Channel'
-          }
+            channelTitle: 'Test Channel',
+          },
         },
         {
           id: { videoId: 'missedVideo2' },
@@ -180,31 +176,31 @@ describe('End-to-End Fallback Recovery Tests', () => {
             title: 'Missed Video 2',
             publishedAt: new Date().toISOString(),
             channelId: 'UCTestChannelId',
-            channelTitle: 'Test Channel'
-          }
-        }
+            channelTitle: 'Test Channel',
+          },
+        },
       ];
-      
+
       mockYouTubeAPI.search.list.mockResolvedValue({
         data: {
-          items: missedVideos
-        }
+          items: missedVideos,
+        },
       });
-      
+
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: missedVideos.map(v => ({
+          items: missedVideos.map((v) => ({
             id: v.id.videoId,
             snippet: v.snippet,
             contentDetails: { duration: 'PT5M' },
-            statistics: { viewCount: '1000' }
-          }))
-        }
+            statistics: { viewCount: '1000' },
+          })),
+        },
       });
-      
+
       // Execute API fallback
       await mockYouTubeMonitor.performApiFallback();
-      
+
       // Verify API was called correctly
       expect(mockYouTubeAPI.search.list).toHaveBeenCalledWith({
         part: 'id,snippet',
@@ -212,76 +208,80 @@ describe('End-to-End Fallback Recovery Tests', () => {
         type: 'video',
         order: 'date',
         publishedAfter: expect.any(String),
-        maxResults: 10
+        maxResults: 10,
       });
-      
+
       // Verify missed videos were announced
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalledTimes(2);
       expect(mockYouTubeMonitor.fallbackMetrics.totalVideosRecoveredByFallback).toBe(2);
-      
+
       mockLogger.info('API fallback completed successfully, recovered 2 missed videos');
     });
 
     it('should handle complete system recovery workflow', async () => {
       // Simulate complete failure and recovery scenario
-      
+
       // Step 1: Initial notification failure
       const malformedNotification = 'invalid-xml-content';
       const error = new Error('Invalid XML structure: missing feed element');
-      
+
       await mockYouTubeMonitor.handleFailedNotification(malformedNotification, error);
-      
+
       // Step 2: Retry fails
       const failureId = Array.from(mockYouTubeMonitor.failedNotifications.keys())[0];
-      
+
       try {
         await mockYouTubeMonitor.reprocessFailedNotification(malformedNotification);
       } catch (retryError) {
         // Retry should fail for malformed XML
         expect(retryError.message).toContain('XML structure');
       }
-      
+
       // Step 3: Multiple failures trigger API fallback
       await mockYouTubeMonitor.handleFailedNotification('another-failure', new Error('Another error'));
-      
+
       // Step 4: API fallback recovers content
       mockYouTubeAPI.search.list.mockResolvedValue({
         data: {
-          items: [{
-            id: { videoId: 'recoveredVideo' },
-            snippet: {
-              title: 'Recovered Video',
-              publishedAt: new Date().toISOString(),
-              channelId: 'UCTestChannelId',
-              channelTitle: 'Test Channel'
-            }
-          }]
-        }
+          items: [
+            {
+              id: { videoId: 'recoveredVideo' },
+              snippet: {
+                title: 'Recovered Video',
+                publishedAt: new Date().toISOString(),
+                channelId: 'UCTestChannelId',
+                channelTitle: 'Test Channel',
+              },
+            },
+          ],
+        },
       });
-      
+
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: [{
-            id: 'recoveredVideo',
-            snippet: {
-              title: 'Recovered Video',
-              publishedAt: new Date().toISOString(),
-              channelId: 'UCTestChannelId',
-              channelTitle: 'Test Channel'
+          items: [
+            {
+              id: 'recoveredVideo',
+              snippet: {
+                title: 'Recovered Video',
+                publishedAt: new Date().toISOString(),
+                channelId: 'UCTestChannelId',
+                channelTitle: 'Test Channel',
+              },
+              contentDetails: { duration: 'PT3M' },
+              statistics: { viewCount: '500' },
             },
-            contentDetails: { duration: 'PT3M' },
-            statistics: { viewCount: '500' }
-          }]
-        }
+          ],
+        },
       });
-      
+
       await mockYouTubeMonitor.performApiFallback();
-      
+
       // Verify complete recovery metrics
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(2);
       expect(mockYouTubeMonitor.fallbackMetrics.totalVideosRecoveredByFallback).toBe(1);
       expect(mockYouTubeMonitor.announceYouTubeContent).toHaveBeenCalled();
-      
+
       mockLogger.info('Complete system recovery workflow executed successfully');
     });
   });
@@ -290,22 +290,20 @@ describe('End-to-End Fallback Recovery Tests', () => {
     it('should handle fallback system being disabled during active failures', async () => {
       // Start with fallback enabled
       mockYouTubeMonitor.YOUTUBE_FALLBACK_ENABLED = true;
-      
+
       const error = new Error('Test failure');
       await mockYouTubeMonitor.handleFailedNotification('test-xml', error);
-      
+
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(1);
-      
+
       // Disable fallback system
       mockYouTubeMonitor.YOUTUBE_FALLBACK_ENABLED = false;
-      
+
       // New failures should be ignored
       await mockYouTubeMonitor.handleFailedNotification('another-failure', error);
-      
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'YouTube fallback system is disabled. Notification lost.'
-      );
-      
+
+      expect(mockLogger.warn).toHaveBeenCalledWith('YouTube fallback system is disabled. Notification lost.');
+
       // Should not queue new failures when disabled
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(1); // No change
     });
@@ -313,17 +311,17 @@ describe('End-to-End Fallback Recovery Tests', () => {
     it('should handle YouTube API failures during fallback', async () => {
       // Mock API failure
       mockYouTubeAPI.search.list.mockRejectedValue(new Error('YouTube API quota exceeded'));
-      
+
       let apiError = null;
       try {
         await mockYouTubeMonitor.performApiFallback();
       } catch (error) {
         apiError = error;
       }
-      
+
       expect(apiError).toBeDefined();
       expect(apiError.message).toBe('YouTube API quota exceeded');
-      
+
       // Should log API fallback failure
       mockLogger.error('API fallback failed:', apiError);
       expect(mockLogger.error).toHaveBeenCalledWith('API fallback failed:', apiError);
@@ -332,21 +330,19 @@ describe('End-to-End Fallback Recovery Tests', () => {
     it('should prevent concurrent API fallback executions', async () => {
       // Mark fallback as in progress
       mockYouTubeMonitor.fallbackInProgress = true;
-      
+
       // Attempt to trigger another fallback
-      mockYouTubeMonitor.scheduleApiFallback = function() {
+      mockYouTubeMonitor.scheduleApiFallback = function () {
         if (this.fallbackInProgress) {
           this.logger.info('API fallback already in progress, skipping');
           return;
         }
         // Normal fallback logic would go here
       };
-      
+
       mockYouTubeMonitor.scheduleApiFallback();
-      
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'API fallback already in progress, skipping'
-      );
+
+      expect(mockLogger.info).toHaveBeenCalledWith('API fallback already in progress, skipping');
     });
   });
 
@@ -357,56 +353,49 @@ describe('End-to-End Fallback Recovery Tests', () => {
         info: [
           'Received request to handlePubSubNotification.',
           'Received PubSubHubbub notification.',
-          'X-Hub-Signature verified successfully.'
+          'X-Hub-Signature verified successfully.',
         ],
         error: [
           'Invalid XML structure: missing feed element',
           'Raw XML body received:',
           'Parsed XML result:',
-          'Request headers:'
-        ]
+          'Request headers:',
+        ],
       };
-      
+
       // This scenario should now trigger fallback (with our fix)
       const error = new Error('Invalid XML structure: missing feed element');
       await mockYouTubeMonitor.handleFailedNotification('', error);
-      
+
       // Verify the exact logging that should occur
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Failed notification queued for retry')
-      );
-      
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed notification queued for retry'));
+
       // Verify fallback metrics
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(1);
-      
+
       // This is the critical fix - before this fix, the fallback would never trigger
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(1);
-      
+
       mockLogger.info('Successfully handled user-reported error scenario with fallback');
     });
 
     it('should handle signature mismatch scenario without triggering fallback', async () => {
       // Replicate the signature mismatch scenario
       const loggedScenario = {
-        info: [
-          'Received request to handlePubSubNotification.',
-          'Received PubSubHubbub notification.'
-        ],
-        warn: [
-          'X-Hub-Signature mismatch detected'
-        ]
+        info: ['Received request to handlePubSubNotification.', 'Received PubSubHubbub notification.'],
+        warn: ['X-Hub-Signature mismatch detected'],
       };
-      
+
       // Signature mismatches should NOT trigger fallback (security feature)
       mockLogger.warn('X-Hub-Signature mismatch detected');
-      
+
       // Verify no fallback was triggered
       expect(mockYouTubeMonitor.fallbackMetrics.totalNotificationFailures).toBe(0);
       expect(mockYouTubeMonitor.failedNotifications.size).toBe(0);
-      
+
       // Should log the security warning
       expect(mockLogger.warn).toHaveBeenCalledWith('X-Hub-Signature mismatch detected');
-      
+
       mockLogger.info('Correctly handled signature mismatch without triggering fallback');
     });
   });
@@ -422,20 +411,20 @@ async function handleFailedNotificationImpl(rawXML, error) {
   this.fallbackMetrics.totalNotificationFailures++;
   const failureId = crypto.randomUUID();
   const now = new Date();
-  
+
   this.failedNotifications.set(failureId, {
     rawXML,
     error: error.message,
     timestamp: now,
-    retryCount: 0
+    retryCount: 0,
   });
 
   this.recentFailures.push(now);
-  this.recentFailures = this.recentFailures.filter(timestamp => 
-    now.getTime() - timestamp.getTime() < 30000
-  );
+  this.recentFailures = this.recentFailures.filter((timestamp) => now.getTime() - timestamp.getTime() < 30000);
 
-  this.logger.warn(`Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`);
+  this.logger.warn(
+    `Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`,
+  );
 
   this.scheduleRetry(failureId);
 
@@ -463,17 +452,16 @@ function scheduleRetryImpl(failureId) {
       this.logger.info(`Retrying failed notification ${failureId}, attempt ${failure.retryCount + 1}`);
       failure.retryCount++;
       this.fallbackMetrics.totalRetryAttempts++;
-      
+
       await this.reprocessFailedNotification(failure.rawXML);
-      
+
       this.failedNotifications.delete(failureId);
       this.fallbackMetrics.totalSuccessfulRetries++;
       this.logger.info(`Successfully reprocessed notification ${failureId}`);
       this.lastSuccessfulCheck = new Date();
-      
     } catch (error) {
       this.logger.warn(`Retry ${failure.retryCount} failed for notification ${failureId}: ${error.message}`);
-      
+
       if (failure.retryCount < this.YOUTUBE_FALLBACK_MAX_RETRIES) {
         this.scheduleRetry(failureId);
       } else {
@@ -482,10 +470,10 @@ function scheduleRetryImpl(failureId) {
       }
     }
   }, delay);
-  
+
   // Store the timer to be cleared in afterEach
   if (this.timers) {
-      this.timers.push(timer);
+    this.timers.push(timer);
   }
 }
 
@@ -511,9 +499,9 @@ function scheduleApiFallbackImpl() {
 async function performApiFallbackImpl() {
   this.fallbackInProgress = true;
   this.fallbackMetrics.totalApiFallbackExecutions++;
-  
+
   try {
-    const backfillStart = new Date(Date.now() - (this.YOUTUBE_FALLBACK_BACKFILL_HOURS * 60 * 60 * 1000));
+    const backfillStart = new Date(Date.now() - this.YOUTUBE_FALLBACK_BACKFILL_HOURS * 60 * 60 * 1000);
     const publishedAfter = this.lastSuccessfulCheck > backfillStart ? this.lastSuccessfulCheck : backfillStart;
 
     const searchResponse = await this.youtube.search.list({
@@ -522,7 +510,7 @@ async function performApiFallbackImpl() {
       type: 'video',
       order: 'date',
       publishedAfter: publishedAfter.toISOString(),
-      maxResults: 10
+      maxResults: 10,
     });
 
     const videos = searchResponse.data.items || [];
@@ -535,7 +523,7 @@ async function performApiFallbackImpl() {
           id: videoId,
           title: video.snippet.title,
           channelTitle: video.snippet.channelTitle,
-          publishedAt: video.snippet.publishedAt
+          publishedAt: video.snippet.publishedAt,
         });
         this.announcedVideos.add(videoId);
         recoveredCount++;
@@ -545,7 +533,6 @@ async function performApiFallbackImpl() {
     this.fallbackMetrics.totalVideosRecoveredByFallback += recoveredCount;
     this.lastSuccessfulCheck = new Date();
     this.logger.info(`API fallback completed, recovered ${recoveredCount} videos`);
-    
   } finally {
     this.fallbackInProgress = false;
   }
@@ -556,7 +543,7 @@ async function reprocessFailedNotificationImpl(rawXML) {
   if (!rawXML || rawXML.includes('malformed') || rawXML.includes('invalid')) {
     throw new Error('Invalid XML structure: missing feed element');
   }
-  
+
   // If XML is valid, processing would succeed
   this.logger.info('Successfully reprocessed notification');
 }

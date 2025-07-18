@@ -11,7 +11,7 @@ jest.unstable_mockModule('discord.js', () => ({
     login: jest.fn().mockResolvedValue(),
     destroy: jest.fn().mockResolvedValue(),
     on: jest.fn(),
-    once: jest.fn()
+    once: jest.fn(),
   })),
   GatewayIntentBits: {
     Guilds: 1,
@@ -20,7 +20,7 @@ jest.unstable_mockModule('discord.js', () => ({
   },
   Partials: {
     Message: 'Message',
-    Channel: 'Channel', 
+    Channel: 'Channel',
     Reaction: 'Reaction',
   },
 }));
@@ -56,7 +56,7 @@ describe('Browser Service Dependency Injection', () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = process.env;
-    
+
     // Set up test environment
     process.env = {
       ...originalEnv,
@@ -74,7 +74,7 @@ describe('Browser Service Dependency Injection', () => {
       PSH_CALLBACK_URL: 'http://test.com/webhook',
       X_USER_HANDLE: 'testuser',
       TWITTER_USERNAME: 'testuser',
-      TWITTER_PASSWORD: 'testpass'
+      TWITTER_PASSWORD: 'testpass',
     };
 
     container = new DependencyContainer();
@@ -84,7 +84,7 @@ describe('Browser Service Dependency Injection', () => {
   afterEach(() => {
     // Restore original environment
     process.env = originalEnv;
-    
+
     // Clean up container
     if (container) {
       container.dispose();
@@ -94,7 +94,7 @@ describe('Browser Service Dependency Injection', () => {
   describe('Browser Service Registration', () => {
     it('should register browser service in container', async () => {
       await setupProductionServices(container, config);
-      
+
       const browserService = container.resolve('browserService');
       expect(browserService).toBeDefined();
       expect(browserService).toHaveProperty('launch');
@@ -104,7 +104,7 @@ describe('Browser Service Dependency Injection', () => {
 
     it('should inject browser service into scraper application', async () => {
       await setupProductionServices(container, config);
-      
+
       const scraperApp = container.resolve('scraperApplication');
       expect(scraperApp).toBeDefined();
       expect(scraperApp.browser).toBeDefined();
@@ -113,18 +113,36 @@ describe('Browser Service Dependency Injection', () => {
 
     it('should provide browser service with required methods', async () => {
       await setupProductionServices(container, config);
-      
+
       const browserService = container.resolve('browserService');
-      
+
       // Check all required methods exist
       const requiredMethods = [
-        'launch', 'newPage', 'goto', 'waitForSelector', 'waitForNavigation',
-        'evaluate', 'type', 'click', 'getTextContent', 'getAttribute',
-        'screenshot', 'setCookies', 'getCookies', 'setUserAgent',
-        'setViewport', 'waitFor', 'getContent', 'getCurrentUrl',
-        'elementExists', 'getElements', 'closePage', 'close', 'isRunning'
+        'launch',
+        'newPage',
+        'goto',
+        'waitForSelector',
+        'waitForNavigation',
+        'evaluate',
+        'type',
+        'click',
+        'getTextContent',
+        'getAttribute',
+        'screenshot',
+        'setCookies',
+        'getCookies',
+        'setUserAgent',
+        'setViewport',
+        'waitFor',
+        'getContent',
+        'getCurrentUrl',
+        'elementExists',
+        'getElements',
+        'closePage',
+        'close',
+        'isRunning',
       ];
-      
+
       for (const method of requiredMethods) {
         expect(browserService).toHaveProperty(method);
         expect(typeof browserService[method]).toBe('function');
@@ -143,7 +161,7 @@ describe('Browser Service Dependency Injection', () => {
           config: config,
           stateManager: { get: () => ({}) },
           eventBus: { emit: jest.fn() },
-          logger: { info: jest.fn(), error: jest.fn() }
+          logger: { info: jest.fn(), error: jest.fn() },
         });
       }).not.toThrow();
     });
@@ -156,7 +174,7 @@ describe('Browser Service Dependency Injection', () => {
         config: config,
         stateManager: { get: () => ({}) },
         eventBus: { emit: jest.fn() },
-        logger: { info: jest.fn(), error: jest.fn() }
+        logger: { info: jest.fn(), error: jest.fn() },
       });
 
       await expect(scraperApp.start()).rejects.toThrow();
@@ -164,7 +182,7 @@ describe('Browser Service Dependency Injection', () => {
 
     it('should successfully initialize with proper browser service', async () => {
       await setupProductionServices(container, config);
-      
+
       const scraperApp = container.resolve('scraperApplication');
       expect(scraperApp.browser).toBeDefined();
       expect(scraperApp.browser).not.toBeNull();
@@ -175,16 +193,16 @@ describe('Browser Service Dependency Injection', () => {
   describe('Browser Service Lifecycle', () => {
     it('should start browser service in not running state', async () => {
       await setupProductionServices(container, config);
-      
+
       const browserService = container.resolve('browserService');
       expect(browserService.isRunning()).toBe(false);
     });
 
     it('should handle browser service disposal', async () => {
       await setupProductionServices(container, config);
-      
+
       const browserService = container.resolve('browserService');
-      
+
       // Should not throw when disposing
       await expect(browserService.dispose()).resolves.not.toThrow();
     });
@@ -200,7 +218,7 @@ describe('Browser Service Dependency Injection', () => {
     it('should catch missing browser service configuration', async () => {
       // Mock setupProductionServices to not register browser service
       const brokenContainer = new DependencyContainer();
-      
+
       // Register everything except browser service
       brokenContainer.registerSingleton('scraperApplication', () => {
         return new ScraperApplication({
@@ -210,12 +228,12 @@ describe('Browser Service Dependency Injection', () => {
           config: config,
           stateManager: { get: () => ({}) },
           eventBus: { emit: jest.fn() },
-          logger: { info: jest.fn(), error: jest.fn() }
+          logger: { info: jest.fn(), error: jest.fn() },
         });
       });
-      
+
       const scraperApp = brokenContainer.resolve('scraperApplication');
-      
+
       // Should fail when trying to start
       await expect(scraperApp.start()).rejects.toThrow();
     });

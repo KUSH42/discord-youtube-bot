@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { DuplicateDetector, videoUrlRegex, tweetUrlRegex, createDuplicateDetector } from '../../src/duplicate-detector.js';
+import {
+  DuplicateDetector,
+  videoUrlRegex,
+  tweetUrlRegex,
+  createDuplicateDetector,
+} from '../../src/duplicate-detector.js';
 
 describe('Duplicate Detection Logic Tests', () => {
   let knownVideoIds, knownTweetIds;
@@ -24,15 +29,15 @@ describe('Duplicate Detection Logic Tests', () => {
         `Check this out: https://www.youtube.com/watch?v=${videoId}`,
         `Short link: https://youtu.be/${videoId}`,
         `Shorts format: https://youtube.com/shorts/${videoId}`,
-        `Embedded: https://www.youtube.com/embed/${videoId}`
+        `Embedded: https://www.youtube.com/embed/${videoId}`,
       ];
 
       let duplicateCount = 0;
       let uniqueCount = 0;
 
-      urls.forEach(url => {
+      urls.forEach((url) => {
         const matches = [...url.matchAll(videoUrlRegex)];
-        matches.forEach(match => {
+        matches.forEach((match) => {
           const extractedId = match[1];
           if (knownVideoIds.has(extractedId)) {
             duplicateCount++;
@@ -55,15 +60,15 @@ describe('Duplicate Detection Logic Tests', () => {
         `Original: https://x.com/user/status/${tweetId}`,
         `Twitter: https://twitter.com/user/status/${tweetId}`,
         `VX: https://vxtwitter.com/user/status/${tweetId}`,
-        `FX: https://fxtwitter.com/user/status/${tweetId}`
+        `FX: https://fxtwitter.com/user/status/${tweetId}`,
       ];
 
       let duplicateCount = 0;
       let uniqueCount = 0;
 
-      urls.forEach(url => {
+      urls.forEach((url) => {
         const matches = [...url.matchAll(tweetUrlRegex)];
-        matches.forEach(match => {
+        matches.forEach((match) => {
           const extractedId = match[1];
           if (knownTweetIds.has(extractedId)) {
             duplicateCount++;
@@ -82,17 +87,17 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should handle multiple unique IDs correctly', () => {
       const videoIds = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'oHg5SJYRHA0'];
-      const urls = videoIds.map(id => `https://youtu.be/${id}`);
+      const urls = videoIds.map((id) => `https://youtu.be/${id}`);
 
-      urls.forEach(url => {
+      urls.forEach((url) => {
         const matches = [...url.matchAll(videoUrlRegex)];
-        matches.forEach(match => {
+        matches.forEach((match) => {
           knownVideoIds.add(match[1]);
         });
       });
 
       expect(knownVideoIds.size).toBe(3);
-      videoIds.forEach(id => {
+      videoIds.forEach((id) => {
         expect(knownVideoIds.has(id)).toBe(true);
       });
     });
@@ -102,20 +107,20 @@ describe('Duplicate Detection Logic Tests', () => {
     it('should demonstrate the original Twitter bug with match[2]', () => {
       const buggyKnownIds = new Set();
       const correctKnownIds = new Set();
-      
+
       const testUrls = [
         'First: https://x.com/user/status/1111111111',
         'Second: https://x.com/user/status/2222222222',
-        'Third: https://x.com/user/status/3333333333'
+        'Third: https://x.com/user/status/3333333333',
       ];
 
-      testUrls.forEach(url => {
+      testUrls.forEach((url) => {
         const matches = [...url.matchAll(tweetUrlRegex)];
-        matches.forEach(match => {
+        matches.forEach((match) => {
           // Original buggy behavior (using match[2])
           const buggyId = match[2]; // undefined
           buggyKnownIds.add(buggyId);
-          
+
           // Correct behavior (using match[1])
           const correctId = match[1]; // actual tweet ID
           correctKnownIds.add(correctId);
@@ -125,7 +130,7 @@ describe('Duplicate Detection Logic Tests', () => {
       // Buggy behavior: all undefined values collapse to single Set entry
       expect(buggyKnownIds.size).toBe(1);
       expect(buggyKnownIds.has(undefined)).toBe(true);
-      
+
       // Correct behavior: 3 unique tweet IDs
       expect(correctKnownIds.size).toBe(3);
       expect(correctKnownIds.has('1111111111')).toBe(true);
@@ -135,7 +140,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should show how undefined values break duplicate detection', () => {
       const testSet = new Set();
-      
+
       // Simulate adding undefined values (original bug)
       testSet.add(undefined);
       testSet.add(undefined);
@@ -159,16 +164,16 @@ describe('Duplicate Detection Logic Tests', () => {
         `https://www.youtube.com/watch?v=${sameVideoId}`,
         `https://youtu.be/${sameVideoId}`,
         `https://youtube.com/shorts/${sameVideoId}`,
-        `https://www.youtube.com/embed/${sameVideoId}?autoplay=1`
+        `https://www.youtube.com/embed/${sameVideoId}?autoplay=1`,
       ];
 
       const detectedVideos = new Set();
       let totalMatches = 0;
 
-      urls.forEach(url => {
+      urls.forEach((url) => {
         const matches = [...url.matchAll(videoUrlRegex)];
         totalMatches += matches.length;
-        matches.forEach(match => {
+        matches.forEach((match) => {
           detectedVideos.add(match[1]);
         });
       });
@@ -185,16 +190,16 @@ describe('Duplicate Detection Logic Tests', () => {
         `https://twitter.com/user/status/${sameTweetId}`,
         `https://vxtwitter.com/user/status/${sameTweetId}`,
         `https://fxtwitter.com/user/status/${sameTweetId}`,
-        `https://nitter.net/user/status/${sameTweetId}`
+        `https://nitter.net/user/status/${sameTweetId}`,
       ];
 
       const detectedTweets = new Set();
       let totalMatches = 0;
 
-      urls.forEach(url => {
+      urls.forEach((url) => {
         const matches = [...url.matchAll(tweetUrlRegex)];
         totalMatches += matches.length;
-        matches.forEach(match => {
+        matches.forEach((match) => {
           detectedTweets.add(match[1]);
         });
       });
@@ -241,7 +246,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should handle Set deletion operation', () => {
       const videoIds = ['video1', 'video2', 'video3'];
-      videoIds.forEach(id => knownVideoIds.add(id));
+      videoIds.forEach((id) => knownVideoIds.add(id));
 
       expect(knownVideoIds.size).toBe(3);
 
@@ -279,13 +284,13 @@ describe('Duplicate Detection Logic Tests', () => {
         'https://youtube.com/watch?v=',
         'https://x.com/user/status/',
         'https://youtube.com/watch?v=invalid',
-        'https://x.com/user/status/notanumber'
+        'https://x.com/user/status/notanumber',
       ];
 
-      malformedUrls.forEach(url => {
+      malformedUrls.forEach((url) => {
         const videoMatches = [...url.matchAll(videoUrlRegex)];
         const tweetMatches = [...url.matchAll(tweetUrlRegex)];
-        
+
         expect(videoMatches).toHaveLength(0);
         expect(tweetMatches).toHaveLength(0);
       });
@@ -293,7 +298,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should handle null and undefined values in Set operations', () => {
       const testSet = new Set();
-      
+
       testSet.add(null);
       testSet.add(undefined);
       testSet.add('validId');
@@ -316,8 +321,8 @@ describe('Duplicate Detection Logic Tests', () => {
       let duplicateCount = 0;
 
       const start = performance.now();
-      
-      duplicateIds.forEach(id => {
+
+      duplicateIds.forEach((id) => {
         if (uniqueSet.has(id)) {
           duplicateCount++;
         } else {
@@ -334,7 +339,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should maintain constant-time lookup performance', () => {
       const largeSet = new Set();
-      
+
       // Add 50,000 items
       for (let i = 0; i < 50000; i++) {
         largeSet.add(`item${i}`);
@@ -344,7 +349,7 @@ describe('Duplicate Detection Logic Tests', () => {
       const lookupTimes = [];
       const testItems = ['item1', 'item25000', 'item49999', 'nonexistent'];
 
-      testItems.forEach(item => {
+      testItems.forEach((item) => {
         const start = performance.now();
         largeSet.has(item);
         const end = performance.now();
@@ -365,27 +370,28 @@ describe('Duplicate Detection Logic Tests', () => {
     beforeEach(() => {
       // Mock Discord channel with message history
       mockMessages = new Map();
-      
+
       // Create mock messages with YouTube and Twitter content
       mockMessages.set('msg1', {
         id: 'msg1',
-        content: 'Check out this video: https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        content: 'Check out this video: https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       });
       mockMessages.set('msg2', {
         id: 'msg2',
-        content: 'Another video: https://youtu.be/oHg5SJYRHA0'
+        content: 'Another video: https://youtu.be/oHg5SJYRHA0',
       });
       mockMessages.set('msg3', {
         id: 'msg3',
-        content: 'Tweet: https://x.com/user/status/1234567890123456789'
+        content: 'Tweet: https://x.com/user/status/1234567890123456789',
       });
       mockMessages.set('msg4', {
         id: 'msg4',
-        content: 'Multiple links: https://www.youtube.com/watch?v=dQw4w9WgXcQ and https://x.com/user/status/9876543210987654321'
+        content:
+          'Multiple links: https://www.youtube.com/watch?v=dQw4w9WgXcQ and https://x.com/user/status/9876543210987654321',
       });
       mockMessages.set('msg5', {
         id: 'msg5',
-        content: 'No links here, just text'
+        content: 'No links here, just text',
       });
 
       // Mock Discord channel
@@ -393,30 +399,30 @@ describe('Duplicate Detection Logic Tests', () => {
         messages: {
           fetch: jest.fn().mockImplementation(async (options = {}) => {
             const { limit = 100, before } = options;
-            
+
             // Simulate Discord API pagination
             const allMessages = Array.from(mockMessages.values()).reverse(); // Newest first
             let startIndex = 0;
-            
+
             if (before) {
-              const beforeIndex = allMessages.findIndex(msg => msg.id === before);
+              const beforeIndex = allMessages.findIndex((msg) => msg.id === before);
               if (beforeIndex !== -1) {
                 startIndex = beforeIndex + 1;
               }
             }
-            
+
             const messagesToReturn = allMessages.slice(startIndex, startIndex + limit);
-            
+
             // Return a Map-like object similar to Discord.js Collection
             const resultMap = new Map();
-            messagesToReturn.forEach(msg => resultMap.set(msg.id, msg));
-            
+            messagesToReturn.forEach((msg) => resultMap.set(msg.id, msg));
+
             return {
               size: resultMap.size,
-              values: () => resultMap.values()
+              values: () => resultMap.values(),
             };
-          })
-        }
+          }),
+        },
       };
     });
 
@@ -452,9 +458,9 @@ describe('Duplicate Detection Logic Tests', () => {
           messages: {
             fetch: jest.fn().mockResolvedValue({
               size: 0,
-              values: () => [].values()
-            })
-          }
+              values: () => [].values(),
+            }),
+          },
         };
 
         const results = await duplicateDetector.scanDiscordChannelForVideos(emptyChannel, 100);
@@ -468,8 +474,8 @@ describe('Duplicate Detection Logic Tests', () => {
       it('should handle API errors gracefully', async () => {
         const errorChannel = {
           messages: {
-            fetch: jest.fn().mockRejectedValue(new Error('Discord API error'))
-          }
+            fetch: jest.fn().mockRejectedValue(new Error('Discord API error')),
+          },
         };
 
         const results = await duplicateDetector.scanDiscordChannelForVideos(errorChannel, 100);
@@ -481,11 +487,13 @@ describe('Duplicate Detection Logic Tests', () => {
       });
 
       it('should throw error for invalid channel', async () => {
-        await expect(duplicateDetector.scanDiscordChannelForVideos(null))
-          .rejects.toThrow('Invalid Discord channel provided');
+        await expect(duplicateDetector.scanDiscordChannelForVideos(null)).rejects.toThrow(
+          'Invalid Discord channel provided',
+        );
 
-        await expect(duplicateDetector.scanDiscordChannelForVideos({}))
-          .rejects.toThrow('Invalid Discord channel provided');
+        await expect(duplicateDetector.scanDiscordChannelForVideos({})).rejects.toThrow(
+          'Invalid Discord channel provided',
+        );
       });
     });
 
@@ -520,30 +528,31 @@ describe('Duplicate Detection Logic Tests', () => {
 
       it('should handle rate limiting with delays', async () => {
         const startTime = Date.now();
-        
+
         // Mock a channel with multiple batches
         const largeMockChannel = {
           messages: {
-            fetch: jest.fn()
+            fetch: jest
+              .fn()
               .mockResolvedValueOnce({
                 size: 2,
-                values: () => [mockMessages.get('msg1'), mockMessages.get('msg2')].values()
+                values: () => [mockMessages.get('msg1'), mockMessages.get('msg2')].values(),
               })
               .mockResolvedValueOnce({
                 size: 2,
-                values: () => [mockMessages.get('msg3'), mockMessages.get('msg4')].values()
+                values: () => [mockMessages.get('msg3'), mockMessages.get('msg4')].values(),
               })
               .mockResolvedValueOnce({
                 size: 0,
-                values: () => [].values()
-              })
-          }
+                values: () => [].values(),
+              }),
+          },
         };
 
         await duplicateDetector.scanDiscordChannelForTweets(largeMockChannel, 200);
-        
+
         const elapsed = Date.now() - startTime;
-        
+
         // Should have included delays between batches (at least 200ms total)
         expect(elapsed).toBeGreaterThan(150);
         expect(largeMockChannel.messages.fetch).toHaveBeenCalledTimes(3);
@@ -575,7 +584,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
       it('should maintain statistics correctly after scanning', async () => {
         const initialStats = duplicateDetector.getStats();
-        
+
         await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
         await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
 

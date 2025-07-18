@@ -1,4 +1,3 @@
-
 import { jest } from '@jest/globals';
 import { AuthManager } from '../../src/application/auth-manager.js';
 
@@ -15,34 +14,37 @@ describe('Persistent Cookie Storage', () => {
       setCookies: jest.fn(),
       getCookies: jest.fn(),
       page: {
-        url: jest.fn().mockReturnValue('https://x.com/home')
-      }
+        url: jest.fn().mockReturnValue('https://x.com/home'),
+      },
     };
 
     mockConfig = {
-      getRequired: jest.fn(key => ({
-        'TWITTER_USERNAME': 'testuser',
-        'TWITTER_PASSWORD': 'testpassword'
-      }[key]))
+      getRequired: jest.fn(
+        (key) =>
+          ({
+            TWITTER_USERNAME: 'testuser',
+            TWITTER_PASSWORD: 'testpassword',
+          })[key],
+      ),
     };
 
     mockStateManager = {
       get: jest.fn(),
       set: jest.fn(),
-      delete: jest.fn()
+      delete: jest.fn(),
     };
 
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
-      error: jest.fn()
+      error: jest.fn(),
     };
 
     authManager = new AuthManager({
       browserService: mockBrowserService,
       config: mockConfig,
       stateManager: mockStateManager,
-      logger: mockLogger
+      logger: mockLogger,
     });
   });
 
@@ -56,7 +58,7 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.getCookies.mockResolvedValue(mockCookies);
       jest.spyOn(authManager, 'loginToX').mockResolvedValue(true);
       jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(true);
-      
+
       await authManager.ensureAuthenticated();
 
       // Directly call saveAuthenticationState to test it, as loginToX is mocked
@@ -126,9 +128,9 @@ describe('Persistent Cookie Storage', () => {
         await authManager.saveAuthenticationState();
         return true;
       });
-      
+
       await authManager.ensureAuthenticated();
-      
+
       expect(mockStateManager.set).toHaveBeenCalledWith('x_session_cookies', newCookies);
       expect(mockLogger.info).toHaveBeenCalledWith('Saved session cookies to state');
     });
@@ -140,7 +142,7 @@ describe('Persistent Cookie Storage', () => {
       jest.spyOn(authManager, 'loginToX').mockRejectedValue(new Error('Authentication failed'));
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
-      
+
       expect(mockStateManager.delete).toHaveBeenCalledWith('x_session_cookies');
       expect(mockLogger.warn).toHaveBeenCalledWith('Clearing expired session cookies');
     });
@@ -155,7 +157,10 @@ describe('Persistent Cookie Storage', () => {
 
       await authManager.ensureAuthenticated();
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error validating saved cookies, falling back to login:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error validating saved cookies, falling back to login:',
+        expect.any(Error),
+      );
       expect(loginSpy).toHaveBeenCalled();
     });
 
@@ -166,7 +171,7 @@ describe('Persistent Cookie Storage', () => {
       const loginSpy = jest.spyOn(authManager, 'loginToX').mockResolvedValue(true);
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
-      
+
       expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', expect.any(Error));
       expect(loginSpy).not.toHaveBeenCalled(); // Should fail before calling login
     });

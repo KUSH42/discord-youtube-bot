@@ -10,7 +10,7 @@ jest.unstable_mockModule('discord.js', () => ({
     login: jest.fn().mockResolvedValue(),
     destroy: jest.fn().mockResolvedValue(),
     on: jest.fn(),
-    once: jest.fn()
+    once: jest.fn(),
   })),
   GatewayIntentBits: {
     Guilds: 1,
@@ -71,7 +71,7 @@ describe('Production Setup', () => {
       ALLOWED_USER_IDS: '123456789012345678',
       LOG_LEVEL: 'info',
     };
-    
+
     config = new Configuration(configObject);
     container = new DependencyContainer();
   });
@@ -128,12 +128,12 @@ describe('Production Setup', () => {
     // This test specifically validates the logger import path works in production
     await setupProductionServices(container, config);
     const logger = container.resolve('logger');
-    
+
     // Test that logger has the expected methods
     expect(typeof logger.info).toBe('function');
     expect(typeof logger.error).toBe('function');
     expect(typeof logger.warn).toBe('function');
-    
+
     // Test that the logger can actually log without throwing
     expect(() => logger.info('Test log message')).not.toThrow();
   });

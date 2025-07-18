@@ -15,12 +15,12 @@ export const timing = {
     return {
       result,
       duration: end - start,
-      durationMs: Math.round(end - start)
+      durationMs: Math.round(end - start),
     };
   },
 
   // Wait for a specified time
-  wait: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+  wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 
   // Wait for a condition to be true
   waitFor: async (condition, timeout = 5000, interval = 100) => {
@@ -49,7 +49,7 @@ export const timing = {
       }
     }
     throw lastError;
-  }
+  },
 };
 
 // Memory monitoring utilities
@@ -62,34 +62,34 @@ export const memory = {
       heapTotal: usage.heapTotal,
       external: usage.external,
       rss: usage.rss,
-      arrayBuffers: usage.arrayBuffers
+      arrayBuffers: usage.arrayBuffers,
     };
   },
 
   // Monitor memory usage during test execution
   monitor: async (testFn) => {
     const initialMemory = memory.getUsage();
-    
+
     // Force garbage collection if available
     if (global.gc) {
       global.gc();
     }
-    
+
     const result = await testFn();
-    
+
     const finalMemory = memory.getUsage();
     const memoryDelta = {
       heapUsed: finalMemory.heapUsed - initialMemory.heapUsed,
       heapTotal: finalMemory.heapTotal - initialMemory.heapTotal,
       external: finalMemory.external - initialMemory.external,
-      rss: finalMemory.rss - initialMemory.rss
+      rss: finalMemory.rss - initialMemory.rss,
     };
-    
+
     return {
       result,
       initialMemory,
       finalMemory,
-      memoryDelta
+      memoryDelta,
     };
   },
 
@@ -100,7 +100,7 @@ export const memory = {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
+  },
 };
 
 // Mock management utilities
@@ -109,7 +109,7 @@ export const mocks = {
   createMockFunction: (name, implementation = jest.fn()) => {
     const mockFn = jest.fn(implementation);
     mockFn.mockName(name);
-    
+
     // Add helper methods
     mockFn.getCallCount = () => mockFn.mock.calls.length;
     mockFn.getCallArgs = (callIndex = -1) => {
@@ -117,44 +117,48 @@ export const mocks = {
       return callIndex >= 0 ? calls[callIndex] : calls[calls.length - 1];
     };
     mockFn.wasCalledWith = (...args) => {
-      return mockFn.mock.calls.some(call => 
-        call.length === args.length && call.every((arg, i) => arg === args[i])
-      );
+      return mockFn.mock.calls.some((call) => call.length === args.length && call.every((arg, i) => arg === args[i]));
     };
-    
+
     return mockFn;
   },
 
   // Create a mock with realistic delays
   createAsyncMock: (name, resolveValue, delay = 0) => {
-    return mocks.createMockFunction(name, jest.fn().mockImplementation(async (...args) => {
-      if (delay > 0) {
-        await timing.wait(delay);
-      }
-      return resolveValue;
-    }));
+    return mocks.createMockFunction(
+      name,
+      jest.fn().mockImplementation(async (...args) => {
+        if (delay > 0) {
+          await timing.wait(delay);
+        }
+        return resolveValue;
+      }),
+    );
   },
 
   // Create a mock that fails after N successful calls
   createFailingMock: (name, successCount, errorMessage = 'Mock failure') => {
     let callCount = 0;
-    return mocks.createMockFunction(name, jest.fn().mockImplementation(() => {
-      callCount++;
-      if (callCount > successCount) {
-        throw new Error(errorMessage);
-      }
-      return { success: true, callCount };
-    }));
+    return mocks.createMockFunction(
+      name,
+      jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount > successCount) {
+          throw new Error(errorMessage);
+        }
+        return { success: true, callCount };
+      }),
+    );
   },
 
   // Reset all mocks in an object
   resetAllMocks: (mockObject) => {
-    Object.values(mockObject).forEach(mock => {
+    Object.values(mockObject).forEach((mock) => {
       if (jest.isMockFunction(mock)) {
         mock.mockReset();
       }
     });
-  }
+  },
 };
 
 // Assertion helpers
@@ -171,7 +175,7 @@ export const assertions = {
     function checkStructure(actual, expected, path = '') {
       for (const [key, expectedType] of Object.entries(expected)) {
         const currentPath = path ? `${path}.${key}` : key;
-        
+
         if (typeof expectedType === 'string') {
           expect(actual).toHaveProperty(key);
           expect(typeof actual[key]).toBe(expectedType);
@@ -190,7 +194,7 @@ export const assertions = {
         }
       }
     }
-    
+
     checkStructure(obj, expectedStructure);
   },
 
@@ -220,7 +224,7 @@ export const assertions = {
   assertRateLimit: async (fn, maxRequests, windowMs, description = 'Rate limit') => {
     const results = [];
     const start = Date.now();
-    
+
     // Make requests rapidly
     for (let i = 0; i < maxRequests + 5; i++) {
       try {
@@ -230,13 +234,13 @@ export const assertions = {
         results.push({ success: false, error, timestamp: Date.now() });
       }
     }
-    
-    const successful = results.filter(r => r.success);
-    const failed = results.filter(r => !r.success);
-    
+
+    const successful = results.filter((r) => r.success);
+    const failed = results.filter((r) => !r.success);
+
     expect(successful.length).toBeLessThanOrEqual(maxRequests);
     expect(failed.length).toBeGreaterThan(0);
-  }
+  },
 };
 
 // Test data validation
@@ -276,18 +280,18 @@ export const validation = {
   // Validate object against schema
   validateSchema: (obj, schema) => {
     const errors = [];
-    
+
     function validate(actual, expected, path = '') {
       for (const [key, expectedType] of Object.entries(expected)) {
         const currentPath = path ? `${path}.${key}` : key;
-        
+
         if (!(key in actual)) {
           errors.push(`Missing property: ${currentPath}`);
           continue;
         }
-        
+
         const actualValue = actual[key];
-        
+
         if (typeof expectedType === 'string') {
           if (typeof actualValue !== expectedType) {
             errors.push(`Type mismatch at ${currentPath}: expected ${expectedType}, got ${typeof actualValue}`);
@@ -309,13 +313,13 @@ export const validation = {
         }
       }
     }
-    
+
     validate(obj, schema);
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
-  }
+  },
 };
 
 // Test environment utilities
@@ -323,27 +327,29 @@ export const environment = {
   // Set up clean test environment
   setup: (customEnv = {}) => {
     const originalEnv = { ...process.env };
-    
+
     // Clear relevant environment variables
-    Object.keys(process.env).forEach(key => {
-      if (key.startsWith('DISCORD_') || 
-          key.startsWith('YOUTUBE_') || 
-          key.startsWith('X_') ||
-          key.startsWith('TWITTER_') ||
-          key.startsWith('PSH_') ||
-          key.includes('LOG_') ||
-          key.includes('COMMAND_')) {
+    Object.keys(process.env).forEach((key) => {
+      if (
+        key.startsWith('DISCORD_') ||
+        key.startsWith('YOUTUBE_') ||
+        key.startsWith('X_') ||
+        key.startsWith('TWITTER_') ||
+        key.startsWith('PSH_') ||
+        key.includes('LOG_') ||
+        key.includes('COMMAND_')
+      ) {
         delete process.env[key];
       }
     });
-    
+
     // Set custom environment variables
     Object.assign(process.env, customEnv);
-    
+
     return {
       restore: () => {
         process.env = originalEnv;
-      }
+      },
     };
   },
 
@@ -351,27 +357,27 @@ export const environment = {
   createIsolatedContext: () => {
     const mocks = new Map();
     const timers = [];
-    
+
     return {
       addMock: (name, mock) => mocks.set(name, mock),
       getMock: (name) => mocks.get(name),
       addTimer: (timer) => timers.push(timer),
       cleanup: () => {
         // Clear all mocks
-        mocks.forEach(mock => {
+        mocks.forEach((mock) => {
           if (jest.isMockFunction(mock)) {
             mock.mockRestore();
           }
         });
-        
+
         // Clear all timers
-        timers.forEach(timer => clearTimeout(timer));
-        
+        timers.forEach((timer) => clearTimeout(timer));
+
         mocks.clear();
         timers.length = 0;
-      }
+      },
     };
-  }
+  },
 };
 
 // Logging utilities for tests
@@ -379,25 +385,25 @@ export const logging = {
   // Create a test logger that captures logs
   createTestLogger: () => {
     const logs = [];
-    
+
     return {
       log: (level, message, meta = {}) => {
         logs.push({
           level,
           message,
           meta,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       },
       getLogs: (level = null) => {
-        return level ? logs.filter(log => log.level === level) : logs;
+        return level ? logs.filter((log) => log.level === level) : logs;
       },
       clear: () => {
         logs.length = 0;
       },
       getLogCount: (level = null) => {
-        return level ? logs.filter(log => log.level === level).length : logs.length;
-      }
+        return level ? logs.filter((log) => log.level === level).length : logs.length;
+      },
     };
   },
 
@@ -408,19 +414,19 @@ export const logging = {
       error: console.error,
       warn: console.warn,
       info: console.info,
-      debug: console.debug
+      debug: console.debug,
     };
-    
-    Object.keys(originalMethods).forEach(method => {
+
+    Object.keys(originalMethods).forEach((method) => {
       console[method] = jest.fn();
     });
-    
+
     return {
       restore: () => {
         Object.assign(console, originalMethods);
-      }
+      },
     };
-  }
+  },
 };
 
 // Network simulation utilities
@@ -445,37 +451,37 @@ export const network = {
     data,
     headers: {
       'content-type': 'application/json',
-      ...headers
+      ...headers,
     },
-    ok: status >= 200 && status < 300
+    ok: status >= 200 && status < 300,
   }),
 
   // Simulate rate limiting
   createRateLimiter: (maxRequests = 10, windowMs = 60000) => {
     const requests = [];
-    
+
     return {
       checkLimit: () => {
         const now = Date.now();
         const windowStart = now - windowMs;
-        
+
         // Remove old requests
-        const validRequests = requests.filter(timestamp => timestamp > windowStart);
+        const validRequests = requests.filter((timestamp) => timestamp > windowStart);
         requests.length = 0;
         requests.push(...validRequests);
-        
+
         if (requests.length >= maxRequests) {
           throw new Error('Rate limit exceeded');
         }
-        
+
         requests.push(now);
         return {
           remaining: maxRequests - requests.length,
-          resetTime: now + windowMs
+          resetTime: now + windowMs,
         };
-      }
+      },
     };
-  }
+  },
 };
 
 // Test reporting utilities
@@ -484,19 +490,19 @@ export const reporting = {
   generateSummary: (testResults) => {
     const summary = {
       total: testResults.length,
-      passed: testResults.filter(r => r.passed).length,
-      failed: testResults.filter(r => !r.passed).length,
+      passed: testResults.filter((r) => r.passed).length,
+      failed: testResults.filter((r) => !r.passed).length,
       duration: testResults.reduce((sum, r) => sum + (r.duration || 0), 0),
       coverage: {
         statements: 0,
         branches: 0,
         functions: 0,
-        lines: 0
-      }
+        lines: 0,
+      },
     };
-    
+
     summary.passRate = (summary.passed / summary.total) * 100;
-    
+
     return summary;
   },
 
@@ -515,7 +521,7 @@ Coverage:
   Functions: ${summary.coverage.functions}%
   Lines: ${summary.coverage.lines}%
     `.trim();
-  }
+  },
 };
 
 export default {
@@ -527,5 +533,5 @@ export default {
   environment,
   logging,
   network,
-  reporting
+  reporting,
 };

@@ -11,7 +11,7 @@ jest.unstable_mockModule('discord.js', () => ({
     login: jest.fn().mockResolvedValue(),
     destroy: jest.fn().mockResolvedValue(),
     on: jest.fn(),
-    once: jest.fn()
+    once: jest.fn(),
   })),
   GatewayIntentBits: {
     Guilds: 1,
@@ -55,7 +55,7 @@ describe('Production Setup Validation', () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = process.env;
-    
+
     // Set up minimal test environment
     process.env = {
       ...originalEnv,
@@ -74,7 +74,7 @@ describe('Production Setup Validation', () => {
       X_USER_HANDLE: 'testuser',
       TWITTER_USERNAME: 'testuser',
       TWITTER_PASSWORD: 'testpass',
-      LOG_LEVEL: 'info'
+      LOG_LEVEL: 'info',
     };
 
     container = new DependencyContainer();
@@ -84,7 +84,7 @@ describe('Production Setup Validation', () => {
   afterEach(() => {
     // Restore original environment
     process.env = originalEnv;
-    
+
     // Clean up container
     if (container) {
       container.dispose();
@@ -94,29 +94,29 @@ describe('Production Setup Validation', () => {
   describe('Complete Service Registration', () => {
     it('should register all required services', async () => {
       await setupProductionServices(container, config);
-      
+
       // Infrastructure services
       expect(container.resolve('config')).toBeDefined();
       expect(container.resolve('eventBus')).toBeDefined();
       expect(container.resolve('stateManager')).toBeDefined();
-      
+
       // External services
       expect(container.resolve('discordService')).toBeDefined();
       expect(container.resolve('youtubeService')).toBeDefined();
       expect(container.resolve('httpService')).toBeDefined();
       expect(container.resolve('expressApp')).toBeDefined();
       expect(container.resolve('browserService')).toBeDefined();
-      
+
       // Core services
       expect(container.resolve('commandProcessor')).toBeDefined();
       expect(container.resolve('contentClassifier')).toBeDefined();
       expect(container.resolve('contentAnnouncer')).toBeDefined();
-      
+
       // Application services
       expect(container.resolve('botApplication')).toBeDefined();
       expect(container.resolve('scraperApplication')).toBeDefined();
       expect(container.resolve('monitorApplication')).toBeDefined();
-      
+
       // Logging
       expect(container.resolve('logger')).toBeDefined();
     });
@@ -130,7 +130,7 @@ describe('Production Setup Validation', () => {
   describe('Critical Dependency Validation', () => {
     it('should ensure scraper application has browser service', async () => {
       await setupProductionServices(container, config);
-      
+
       const scraperApp = container.resolve('scraperApplication');
       expect(scraperApp.browser).toBeDefined();
       expect(scraperApp.browser).not.toBeNull();
@@ -139,21 +139,21 @@ describe('Production Setup Validation', () => {
 
     it('should ensure logger has Discord transport when configured', async () => {
       await setupProductionServices(container, config);
-      
+
       const logger = container.resolve('logger');
       expect(logger).toBeDefined();
       expect(logger.transports).toBeDefined();
-      
+
       // Should have at least console and file transports
       expect(logger.transports.length).toBeGreaterThanOrEqual(2);
-      
+
       // Should have Discord transport since DISCORD_BOT_SUPPORT_LOG_CHANNEL is set
       expect(logger.transports.length).toBe(3);
     });
 
     it('should ensure Discord service is properly configured', async () => {
       await setupProductionServices(container, config);
-      
+
       const discordService = container.resolve('discordService');
       expect(discordService).toBeDefined();
       expect(discordService.client).toBeDefined();
@@ -163,7 +163,7 @@ describe('Production Setup Validation', () => {
 
     it('should ensure YouTube service is properly configured', async () => {
       await setupProductionServices(container, config);
-      
+
       const youtubeService = container.resolve('youtubeService');
       expect(youtubeService).toBeDefined();
       expect(youtubeService.youtube).toBeDefined();
@@ -173,9 +173,9 @@ describe('Production Setup Validation', () => {
   describe('Service Dependencies', () => {
     it('should resolve all scraper application dependencies', async () => {
       await setupProductionServices(container, config);
-      
+
       const scraperApp = container.resolve('scraperApplication');
-      
+
       // Verify all dependencies are properly injected
       expect(scraperApp.browser).toBeDefined();
       expect(scraperApp.classifier).toBeDefined();
@@ -184,7 +184,7 @@ describe('Production Setup Validation', () => {
       expect(scraperApp.state).toBeDefined();
       expect(scraperApp.eventBus).toBeDefined();
       expect(scraperApp.logger).toBeDefined();
-      
+
       // Verify configuration is accessible
       expect(scraperApp.xUser).toBe('testuser');
       expect(scraperApp.twitterUsername).toBe('testuser');
@@ -193,9 +193,9 @@ describe('Production Setup Validation', () => {
 
     it('should resolve all monitor application dependencies', async () => {
       await setupProductionServices(container, config);
-      
+
       const monitorApp = container.resolve('monitorApplication');
-      
+
       // Verify all dependencies are properly injected
       expect(monitorApp.youtube).toBeDefined();
       expect(monitorApp.http).toBeDefined();
@@ -209,9 +209,9 @@ describe('Production Setup Validation', () => {
 
     it('should resolve all bot application dependencies', async () => {
       await setupProductionServices(container, config);
-      
+
       const botApp = container.resolve('botApplication');
-      
+
       // Verify all dependencies are properly injected
       expect(botApp.discord).toBeDefined();
       expect(botApp.commandProcessor).toBeDefined();
@@ -226,7 +226,7 @@ describe('Production Setup Validation', () => {
     it('should handle missing browser service registration', async () => {
       // Create a broken version of setupProductionServices that doesn't register browser service
       const brokenContainer = new DependencyContainer();
-      
+
       // Only register the scraper application without browser service
       brokenContainer.registerSingleton('scraperApplication', () => {
         return {
@@ -235,10 +235,10 @@ describe('Production Setup Validation', () => {
             if (!this.browser) {
               throw new Error('Browser service not available');
             }
-          }
+          },
         };
       });
-      
+
       const scraperApp = brokenContainer.resolve('scraperApplication');
       expect(scraperApp.browser).toBeNull();
     });
@@ -246,9 +246,9 @@ describe('Production Setup Validation', () => {
     it('should catch missing critical environment variables', () => {
       // Test with missing Discord token
       delete process.env.DISCORD_BOT_TOKEN;
-      
+
       const brokenConfig = new Configuration();
-      
+
       expect(() => {
         brokenConfig.getRequired('DISCORD_BOT_TOKEN');
       }).toThrow();
@@ -259,9 +259,9 @@ describe('Production Setup Validation', () => {
     it('should handle Discord transport initialization without token', async () => {
       // Set up environment without Discord token
       delete process.env.DISCORD_BOT_TOKEN;
-      
+
       const brokenConfig = new Configuration();
-      
+
       // This should throw during getRequired call
       expect(() => {
         brokenConfig.getRequired('DISCORD_BOT_TOKEN');
@@ -270,17 +270,17 @@ describe('Production Setup Validation', () => {
 
     it('should handle browser service failure gracefully', async () => {
       await setupProductionServices(container, config);
-      
+
       const browserService = container.resolve('browserService');
-      
+
       // Mock browser launch failure - this should throw as expected
       const mockFailingLaunch = jest.fn().mockRejectedValue(new Error('Browser launch failed'));
       browserService.launch = mockFailingLaunch;
-      
+
       const scraperApp = container.resolve('scraperApplication');
-      
+
       await expect(scraperApp.start()).rejects.toThrow('Browser launch failed');
-      
+
       // Verify the launch method was called
       expect(mockFailingLaunch).toHaveBeenCalled();
     });
@@ -289,16 +289,16 @@ describe('Production Setup Validation', () => {
   describe('Production Readiness Checks', () => {
     it('should validate all services are ready for production', async () => {
       await setupProductionServices(container, config);
-      
+
       // Check that all critical services are singleton
       const scraperApp1 = container.resolve('scraperApplication');
       const scraperApp2 = container.resolve('scraperApplication');
       expect(scraperApp1).toBe(scraperApp2);
-      
+
       const browserService1 = container.resolve('browserService');
       const browserService2 = container.resolve('browserService');
       expect(browserService1).toBe(browserService2);
-      
+
       const logger1 = container.resolve('logger');
       const logger2 = container.resolve('logger');
       expect(logger1).toBe(logger2);
@@ -306,28 +306,26 @@ describe('Production Setup Validation', () => {
 
     it('should ensure proper logging configuration', async () => {
       await setupProductionServices(container, config);
-      
+
       const logger = container.resolve('logger');
-      
+
       // Should have proper log level (defaults to info in test environment)
       expect(logger.level).toBe('info');
-      
+
       // Should have file transport (check for DailyRotateFile name or similar)
-      const fileTransport = logger.transports.find(t => 
-        t.name === 'DailyRotateFile' || 
-        t.name === 'file' || 
-        t.constructor.name === 'DailyRotateFile'
+      const fileTransport = logger.transports.find(
+        (t) => t.name === 'DailyRotateFile' || t.name === 'file' || t.constructor.name === 'DailyRotateFile',
       );
       expect(fileTransport).toBeDefined();
-      
+
       // Should have console transport
-      const consoleTransport = logger.transports.find(t => t.name === 'console');
+      const consoleTransport = logger.transports.find((t) => t.name === 'console');
       expect(consoleTransport).toBeDefined();
     });
 
     it('should validate Express app configuration', async () => {
       await setupProductionServices(container, config);
-      
+
       const expressApp = container.resolve('expressApp');
       expect(expressApp).toBeDefined();
       expect(typeof expressApp.listen).toBe('function');
@@ -338,11 +336,11 @@ describe('Production Setup Validation', () => {
   describe('Service Health Checks', () => {
     it('should provide health check capability for all applications', async () => {
       await setupProductionServices(container, config);
-      
+
       const botApp = container.resolve('botApplication');
       const scraperApp = container.resolve('scraperApplication');
       const monitorApp = container.resolve('monitorApplication');
-      
+
       // All applications should have stats/status methods
       expect(typeof botApp.getStatus).toBe('function');
       expect(typeof scraperApp.getStats).toBe('function');
@@ -351,11 +349,11 @@ describe('Production Setup Validation', () => {
 
     it('should handle graceful shutdown', async () => {
       await setupProductionServices(container, config);
-      
+
       const botApp = container.resolve('botApplication');
       const scraperApp = container.resolve('scraperApplication');
       const monitorApp = container.resolve('monitorApplication');
-      
+
       // All applications should have stop methods
       expect(typeof botApp.stop).toBe('function');
       expect(typeof scraperApp.stop).toBe('function');

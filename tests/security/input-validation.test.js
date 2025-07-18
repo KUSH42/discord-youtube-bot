@@ -14,7 +14,7 @@ describe('Security and Input Validation Tests', () => {
   });
 
   afterEach(() => {
-    Object.values(consoleSpy).forEach(spy => spy.mockRestore());
+    Object.values(consoleSpy).forEach((spy) => spy.mockRestore());
   });
 
   describe('Input Sanitization and Validation', () => {
@@ -43,12 +43,12 @@ describe('Security and Input Validation Tests', () => {
         '<div onclick="alert(1)">Click me</div>',
         'data:text/html,<script>alert(1)</script>',
         '<svg onload="alert(1)"></svg>',
-        '"><script>alert(1)</script>'
+        '"><script>alert(1)</script>',
       ];
 
-      maliciousInputs.forEach(input => {
+      maliciousInputs.forEach((input) => {
         const sanitized = sanitizeMessage(input);
-        
+
         expect(sanitized).not.toContain('<script>');
         expect(sanitized).not.toContain('<iframe>');
         expect(sanitized).not.toContain('javascript:');
@@ -64,10 +64,10 @@ describe('Security and Input Validation Tests', () => {
         'Check out this video: https://youtube.com/watch?v=abc123',
         'New tweet: https://x.com/user/status/123456789',
         'Normal message with emojis 🎉🎊',
-        'Message with numbers 123 and symbols !@#$%'
+        'Message with numbers 123 and symbols !@#$%',
       ];
 
-      validInputs.forEach(input => {
+      validInputs.forEach((input) => {
         const sanitized = sanitizeMessage(input);
         expect(sanitized).toBe(input);
       });
@@ -81,12 +81,12 @@ describe('Security and Input Validation Tests', () => {
 
         try {
           const parsedUrl = new URL(url);
-          
+
           // Only allow HTTP and HTTPS protocols
           if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
             throw new Error('Invalid protocol');
           }
-          
+
           // Block internal IP ranges
           const hostname = parsedUrl.hostname;
           const blockedPatterns = [
@@ -98,31 +98,24 @@ describe('Security and Input Validation Tests', () => {
             /^169\.254\./, // Link-local
             /^::1$/, // IPv6 localhost
             /^fc00:/, // IPv6 private
-            /^fe80:/ // IPv6 link-local
+            /^fe80:/, // IPv6 link-local
           ];
-          
-          if (blockedPatterns.some(pattern => pattern.test(hostname))) {
+
+          if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
             throw new Error('Blocked internal IP range');
           }
-          
+
           // Validate allowed domains for webhooks
-          const allowedDomains = [
-            'youtube.com',
-            'youtu.be',
-            'x.com',
-            'twitter.com',
-            'vxtwitter.com',
-            'fxtwitter.com'
-          ];
-          
-          const isAllowedDomain = allowedDomains.some(domain => 
-            hostname === domain || hostname.endsWith('.' + domain)
+          const allowedDomains = ['youtube.com', 'youtu.be', 'x.com', 'twitter.com', 'vxtwitter.com', 'fxtwitter.com'];
+
+          const isAllowedDomain = allowedDomains.some(
+            (domain) => hostname === domain || hostname.endsWith('.' + domain),
           );
-          
+
           if (!isAllowedDomain) {
             throw new Error('Domain not in allowlist');
           }
-          
+
           return { valid: true, url: parsedUrl.toString() };
         } catch (error) {
           return { valid: false, error: error.message };
@@ -139,10 +132,10 @@ describe('Security and Input Validation Tests', () => {
         'http://169.254.169.254/metadata', // AWS metadata
         'javascript:alert(1)',
         'data:text/html,<script>alert(1)</script>',
-        'http://malicious.com/webhook'
+        'http://malicious.com/webhook',
       ];
 
-      maliciousUrls.forEach(url => {
+      maliciousUrls.forEach((url) => {
         const result = validateUrl(url);
         expect(result.valid).toBe(false);
         expect(result.error).toBeDefined();
@@ -153,10 +146,10 @@ describe('Security and Input Validation Tests', () => {
         'https://youtu.be/dQw4w9WgXcQ',
         'https://x.com/user/status/123456789',
         'https://twitter.com/user/status/123456789',
-        'https://vxtwitter.com/user/status/123456789'
+        'https://vxtwitter.com/user/status/123456789',
       ];
 
-      validUrls.forEach(url => {
+      validUrls.forEach((url) => {
         const result = validateUrl(url);
         expect(result.valid).toBe(true);
         expect(result.url).toBe(url);
@@ -167,49 +160,47 @@ describe('Security and Input Validation Tests', () => {
       const crypto = {
         createHmac: jest.fn().mockReturnValue({
           update: jest.fn().mockReturnThis(),
-          digest: jest.fn().mockReturnValue('expected-signature-hash')
-        })
+          digest: jest.fn().mockReturnValue('expected-signature-hash'),
+        }),
       };
 
       const validateWebhookSignature = (signature, payload, secret, timestamp) => {
         if (!signature || !payload || !secret) {
           return { valid: false, error: 'Missing required parameters' };
         }
-        
+
         // Check signature format
         if (!signature.startsWith('sha1=')) {
           return { valid: false, error: 'Invalid signature format' };
         }
-        
+
         // Check timestamp to prevent replay attacks (5 minute window)
         const currentTime = Math.floor(Date.now() / 1000);
         const maxAge = 300; // 5 minutes
-        
+
         if (Math.abs(currentTime - timestamp) > maxAge) {
           return { valid: false, error: 'Timestamp too old' };
         }
-        
+
         // Verify signature
-        const expectedSignature = 'sha1=' + crypto.createHmac('sha1', secret)
-          .update(payload)
-          .digest('hex');
-        
+        const expectedSignature = 'sha1=' + crypto.createHmac('sha1', secret).update(payload).digest('hex');
+
         const receivedSignature = signature;
-        
+
         // Use constant-time comparison to prevent timing attacks
         if (expectedSignature.length !== receivedSignature.length) {
           return { valid: false, error: 'Invalid signature' };
         }
-        
+
         let result = 0;
         for (let i = 0; i < expectedSignature.length; i++) {
           result |= expectedSignature.charCodeAt(i) ^ receivedSignature.charCodeAt(i);
         }
-        
+
         if (result !== 0) {
           return { valid: false, error: 'Invalid signature' };
         }
-        
+
         return { valid: true };
       };
 
@@ -252,12 +243,12 @@ describe('Security and Input Validation Tests', () => {
 
         // Check if command requires special authorization
         const restrictedCommands = ['restart', 'kill', 'announce'];
-        
+
         if (restrictedCommands.includes(command)) {
           if (allowedUserIds.length === 0) {
             return { authorized: false, reason: 'No authorized users configured' };
           }
-          
+
           if (!allowedUserIds.includes(user.id)) {
             return { authorized: false, reason: 'User not in authorized list' };
           }
@@ -309,35 +300,35 @@ describe('Security and Input Validation Tests', () => {
   describe('Rate Limiting Security', () => {
     it('should prevent rate limit bypass attempts', () => {
       const rateLimitTracker = new Map();
-      
+
       const checkRateLimit = (identifier, maxRequests = 5, windowMs = 60000) => {
         const now = Date.now();
         const windowStart = now - windowMs;
-        
+
         if (!rateLimitTracker.has(identifier)) {
           rateLimitTracker.set(identifier, []);
         }
-        
+
         const requests = rateLimitTracker.get(identifier);
-        
+
         // Remove old requests outside the window
-        const validRequests = requests.filter(timestamp => timestamp > windowStart);
-        
+        const validRequests = requests.filter((timestamp) => timestamp > windowStart);
+
         if (validRequests.length >= maxRequests) {
-          return { 
-            allowed: false, 
-            remaining: 0, 
-            resetTime: Math.min(...validRequests) + windowMs 
+          return {
+            allowed: false,
+            remaining: 0,
+            resetTime: Math.min(...validRequests) + windowMs,
           };
         }
-        
+
         validRequests.push(now);
         rateLimitTracker.set(identifier, validRequests);
-        
-        return { 
-          allowed: true, 
-          remaining: maxRequests - validRequests.length, 
-          resetTime: now + windowMs 
+
+        return {
+          allowed: true,
+          remaining: maxRequests - validRequests.length,
+          resetTime: now + windowMs,
         };
       };
 
@@ -360,18 +351,11 @@ describe('Security and Input Validation Tests', () => {
       expect(otherResult.allowed).toBe(true);
 
       // Test IP-based rate limiting bypass attempt
-      const suspiciousIPs = [
-        '192.168.1.1',
-        '192.168.1.2',
-        '192.168.1.3',
-        '192.168.1.4',
-        '192.168.1.5',
-        '192.168.1.6'
-      ];
+      const suspiciousIPs = ['192.168.1.1', '192.168.1.2', '192.168.1.3', '192.168.1.4', '192.168.1.5', '192.168.1.6'];
 
       // If multiple IPs from same range exceed limits, should trigger alert
       let blockedIPs = 0;
-      suspiciousIPs.forEach(ip => {
+      suspiciousIPs.forEach((ip) => {
         for (let i = 0; i < 6; i++) {
           const result = checkRateLimit(ip);
           if (!result.allowed) {
@@ -388,61 +372,61 @@ describe('Security and Input Validation Tests', () => {
       const distributedAttackDetector = {
         ipRequests: new Map(),
         suspiciousActivity: new Set(),
-        
-        checkForDistributedAttack: function(ip, threshold = 10, timeWindow = 60000) {
+
+        checkForDistributedAttack: function (ip, threshold = 10, timeWindow = 60000) {
           const now = Date.now();
           const windowStart = now - timeWindow;
-          
+
           if (!this.ipRequests.has(ip)) {
             this.ipRequests.set(ip, []);
           }
-          
+
           const requests = this.ipRequests.get(ip);
-          const recentRequests = requests.filter(timestamp => timestamp > windowStart);
+          const recentRequests = requests.filter((timestamp) => timestamp > windowStart);
           recentRequests.push(now);
           this.ipRequests.set(ip, recentRequests);
-          
+
           // Check for suspicious patterns
           if (recentRequests.length > threshold) {
             this.suspiciousActivity.add(ip);
-            return { 
-              suspicious: true, 
+            return {
+              suspicious: true,
               reason: 'High request frequency',
-              requests: recentRequests.length 
+              requests: recentRequests.length,
             };
           }
-          
+
           // Check for coordinated attacks (multiple IPs with similar patterns)
           const subnet = ip.split('.').slice(0, 3).join('.');
-          const subnetIPs = Array.from(this.ipRequests.keys())
-            .filter(testIP => testIP.startsWith(subnet));
-          
-          if (subnetIPs.length > 5) { // More than 5 IPs from same subnet
+          const subnetIPs = Array.from(this.ipRequests.keys()).filter((testIP) => testIP.startsWith(subnet));
+
+          if (subnetIPs.length > 5) {
+            // More than 5 IPs from same subnet
             const totalRequests = subnetIPs.reduce((sum, testIP) => {
               const ipRequests = this.ipRequests.get(testIP) || [];
-              return sum + ipRequests.filter(timestamp => timestamp > windowStart).length;
+              return sum + ipRequests.filter((timestamp) => timestamp > windowStart).length;
             }, 0);
-            
+
             if (totalRequests > threshold * 3) {
               this.suspiciousActivity.add(subnet);
-              return { 
-                suspicious: true, 
+              return {
+                suspicious: true,
                 reason: 'Coordinated subnet attack',
                 subnet,
-                totalRequests 
+                totalRequests,
               };
             }
           }
-          
+
           return { suspicious: false };
-        }
+        },
       };
 
       // Simulate distributed attack
       const attackIPs = Array.from({ length: 10 }, (_, i) => `192.168.1.${i + 1}`);
       const results = [];
 
-      attackIPs.forEach(ip => {
+      attackIPs.forEach((ip) => {
         for (let i = 0; i < 15; i++) {
           const result = distributedAttackDetector.checkForDistributedAttack(ip);
           if (result.suspicious) {
@@ -453,8 +437,8 @@ describe('Security and Input Validation Tests', () => {
       });
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results.some(r => r.reason === 'High request frequency')).toBe(true);
-      expect(results.some(r => r.reason === 'Coordinated subnet attack')).toBe(true);
+      expect(results.some((r) => r.reason === 'High request frequency')).toBe(true);
+      expect(results.some((r) => r.reason === 'Coordinated subnet attack')).toBe(true);
     });
   });
 
@@ -465,30 +449,32 @@ describe('Security and Input Validation Tests', () => {
           throw new Error('Arguments must be an array');
         }
 
-        return args.map(arg => {
-          if (typeof arg !== 'string') {
-            return '';
-          }
+        return args
+          .map((arg) => {
+            if (typeof arg !== 'string') {
+              return '';
+            }
 
-          // Remove dangerous characters and patterns
-          return arg
-            .replace(/[;&|`$(){}[\]\\]/g, '') // Shell metacharacters
-            .replace(/\.\./g, '') // Path traversal
-            .replace(/^-+/, '') // Leading dashes (command flags)
-            .trim()
-            .substring(0, 100); // Limit length
-        }).filter(arg => arg.length > 0);
+            // Remove dangerous characters and patterns
+            return arg
+              .replace(/[;&|`$(){}[\]\\]/g, '') // Shell metacharacters
+              .replace(/\.\./g, '') // Path traversal
+              .replace(/^-+/, '') // Leading dashes (command flags)
+              .trim()
+              .substring(0, 100); // Limit length
+          })
+          .filter((arg) => arg.length > 0);
       };
 
       const validateCommand = (command, args) => {
         const allowedCommands = ['health', 'announce', 'restart', 'kill', 'loglevel', 'vxtwitter'];
-        
+
         if (!allowedCommands.includes(command)) {
           return { valid: false, error: 'Unknown command' };
         }
 
         const sanitizedArgs = sanitizeCommandArgs(args);
-        
+
         // Command-specific validation
         switch (command) {
           case 'announce':
@@ -496,20 +482,21 @@ describe('Security and Input Validation Tests', () => {
               return { valid: false, error: 'Invalid argument for announce command' };
             }
             break;
-            
-          case 'loglevel':
+
+          case 'loglevel': {
             const validLevels = ['error', 'warn', 'info', 'debug', 'silly'];
             if (sanitizedArgs.length !== 1 || !validLevels.includes(sanitizedArgs[0])) {
               return { valid: false, error: 'Invalid log level' };
             }
             break;
-            
+          }
+
           case 'vxtwitter':
             if (sanitizedArgs.length !== 1 || !['true', 'false'].includes(sanitizedArgs[0])) {
               return { valid: false, error: 'Invalid argument for vxtwitter command' };
             }
             break;
-            
+
           case 'restart':
           case 'kill':
           case 'health':
@@ -529,7 +516,7 @@ describe('Security and Input Validation Tests', () => {
         { command: 'announce', args: ['$(whoami)'] },
         { command: 'loglevel', args: ['`id`'] },
         { command: 'announce', args: ['true|false'] },
-        { command: 'restart', args: ['--force', '../../../etc/passwd'] }
+        { command: 'restart', args: ['--force', '../../../etc/passwd'] },
       ];
 
       maliciousCommands.forEach(({ command, args }) => {
@@ -545,7 +532,7 @@ describe('Security and Input Validation Tests', () => {
         { command: 'announce', args: ['true'] },
         { command: 'announce', args: ['false'] },
         { command: 'loglevel', args: ['info'] },
-        { command: 'vxtwitter', args: ['true'] }
+        { command: 'vxtwitter', args: ['true'] },
       ];
 
       validCommands.forEach(({ command, args }) => {
@@ -563,18 +550,18 @@ describe('Security and Input Validation Tests', () => {
 
         // Normalize path and check for traversal attempts
         const normalizedPath = filePath.replace(/\\/g, '/').replace(/\/+/g, '/');
-        
+
         if (normalizedPath.includes('../') || normalizedPath.includes('..\\')) {
           return { valid: false, error: 'Path traversal not allowed' };
         }
 
-        if (normalizedPath.startsWith('/') && !allowedDirectories.some(dir => normalizedPath.startsWith(dir))) {
+        if (normalizedPath.startsWith('/') && !allowedDirectories.some((dir) => normalizedPath.startsWith(dir))) {
           return { valid: false, error: 'Absolute paths not allowed outside permitted directories' };
         }
 
         // Check for dangerous file extensions
         const dangerousExtensions = ['.exe', '.sh', '.bat', '.cmd', '.ps1', '.php', '.asp', '.jsp'];
-        if (dangerousExtensions.some(ext => normalizedPath.toLowerCase().endsWith(ext))) {
+        if (dangerousExtensions.some((ext) => normalizedPath.toLowerCase().endsWith(ext))) {
           return { valid: false, error: 'Dangerous file extension' };
         }
 
@@ -598,10 +585,10 @@ describe('Security and Input Validation Tests', () => {
         '/var/log/../../etc/passwd',
         'uploads/shell.php',
         'temp/script.sh',
-        '.htaccess'
+        '.htaccess',
       ];
 
-      maliciousPaths.forEach(path => {
+      maliciousPaths.forEach((path) => {
         const result = validateFilePath(path, ['/var/log/', '/tmp/']);
         expect(result.valid).toBe(false);
       });
@@ -612,10 +599,10 @@ describe('Security and Input Validation Tests', () => {
         'temp/data.json',
         'config/settings.yaml',
         '/var/log/app.log',
-        '/tmp/upload_123.tmp'
+        '/tmp/upload_123.tmp',
       ];
 
-      validPaths.forEach(path => {
+      validPaths.forEach((path) => {
         const result = validateFilePath(path, ['/var/log/', '/tmp/']);
         expect(result.valid).toBe(true);
       });
@@ -627,34 +614,37 @@ describe('Security and Input Validation Tests', () => {
       const redactSensitiveData = (data) => {
         if (typeof data === 'string') {
           return data
-            .replace(/bearer\s+([a-zA-Z0-9+/=]{8,})/gi,
-                     (match, token) => match.replace(token, '*'.repeat(8)))
-            .replace(/(?:password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi, 
-                     (match, value) => match.replace(value, '*'.repeat(Math.min(value.length, 8))))
-            .replace(/(?:api[_-]?key|access[_-]?token)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
-                     (match, token) => match.replace(token, '*'.repeat(8)))
-            .replace(/(?:key|token)\s*[:=]\s*['"]?([a-zA-Z0-9+/=]{8,})/gi,
-                     (match, token) => match.replace(token, '*'.repeat(8)))
-            .replace(/['"]([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})['"](?:\s+is\s+invalid)?/gi,
-                     (match, token) => match.replace(token, '*'.repeat(8)))
-            .replace(/(?:discord[_-]?token|bot[_-]?token)['"]?([a-zA-Z0-9._-]{50,})/gi,
-                     (match, token) => match.replace(token, '*'.repeat(8)))
+            .replace(/bearer\s+([a-zA-Z0-9+/=]{8,})/gi, (match, token) => match.replace(token, '*'.repeat(8)))
+            .replace(/(?:password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi, (match, value) =>
+              match.replace(value, '*'.repeat(Math.min(value.length, 8))),
+            )
+            .replace(/(?:api[_-]?key|access[_-]?token)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi, (match, token) =>
+              match.replace(token, '*'.repeat(8)),
+            )
+            .replace(/(?:key|token)\s*[:=]\s*['"]?([a-zA-Z0-9+/=]{8,})/gi, (match, token) =>
+              match.replace(token, '*'.repeat(8)),
+            )
+            .replace(/['"]([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})['"](?:\s+is\s+invalid)?/gi, (match, token) =>
+              match.replace(token, '*'.repeat(8)),
+            )
+            .replace(/(?:discord[_-]?token|bot[_-]?token)['"]?([a-zA-Z0-9._-]{50,})/gi, (match, token) =>
+              match.replace(token, '*'.repeat(8)),
+            )
             .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL_REDACTED]')
             .replace(/(?:\d{1,3}\.){3}\d{1,3}/g, '[IP_REDACTED]');
         }
 
         if (typeof data === 'object' && data !== null) {
           const redacted = Array.isArray(data) ? [] : {};
-          
+
           for (const [key, value] of Object.entries(data)) {
-            if (typeof key === 'string' && 
-                /(?:password|passwd|pwd|secret|key|token|auth|credential)/i.test(key)) {
+            if (typeof key === 'string' && /(?:password|passwd|pwd|secret|key|token|auth|credential)/i.test(key)) {
               redacted[key] = '*'.repeat(8);
             } else {
               redacted[key] = redactSensitiveData(value);
             }
           }
-          
+
           return redacted;
         }
 
@@ -670,13 +660,13 @@ describe('Security and Input Validation Tests', () => {
         server_ip: '192.168.1.100',
         config: {
           database_password: 'db-secret',
-          oauth_secret: 'oauth-key-123'
+          oauth_secret: 'oauth-key-123',
         },
         logs: [
           'User login: password=mypassword123',
           'API call with key=abc123456789',
-          'Bearer token: bearer eyJhbGciOiJIUzI1NiJ9'
-        ]
+          'Bearer token: bearer eyJhbGciOiJIUzI1NiJ9',
+        ],
       };
 
       const redacted = redactSensitiveData(sensitiveData);
@@ -688,8 +678,8 @@ describe('Security and Input Validation Tests', () => {
       expect(redacted.server_ip).toBe('[IP_REDACTED]');
       expect(redacted.config.database_password).toBe('********');
       expect(redacted.config.oauth_secret).toBe('********');
-      
-      redacted.logs.forEach(log => {
+
+      redacted.logs.forEach((log) => {
         expect(log).not.toContain('mypassword123');
         expect(log).not.toContain('abc123456789');
         expect(log).not.toContain('eyJhbGciOiJIUzI1NiJ9');
@@ -701,22 +691,14 @@ describe('Security and Input Validation Tests', () => {
 
     it('should prevent information disclosure in error messages', () => {
       const sanitizeError = (error, isProduction = false) => {
-        const sensitivePatterns = [
-          /password/i,
-          /secret/i,
-          /token/i,
-          /key/i,
-          /credential/i,
-          /auth/i,
-          /session/i
-        ];
+        const sensitivePatterns = [/password/i, /secret/i, /token/i, /key/i, /credential/i, /auth/i, /session/i];
 
         const systemPaths = [
           /[C-Z]:\\[^"\s]*/g, // Windows paths
           /\/[^"\s]*\/[^"\s]*/g, // Unix paths
           /node_modules\/[^"\s]*/g, // Node modules paths
           /\/home\/[^"\s]*/g, // Home directories
-          /\/app\/[^"\s]*/g // App directories
+          /\/app\/[^"\s]*/g, // App directories
         ];
 
         let sanitizedMessage = error.message || 'An error occurred';
@@ -728,15 +710,15 @@ describe('Security and Input Validation Tests', () => {
             'Not found',
             'Unauthorized',
             'Rate limit exceeded',
-            'Service unavailable'
+            'Service unavailable',
           ];
 
-          if (!allowedErrors.some(allowed => sanitizedMessage.includes(allowed))) {
+          if (!allowedErrors.some((allowed) => sanitizedMessage.includes(allowed))) {
             sanitizedMessage = 'Internal server error';
           }
         } else {
           // In development, sanitize but keep useful information
-          sensitivePatterns.forEach(pattern => {
+          sensitivePatterns.forEach((pattern) => {
             sanitizedMessage = sanitizedMessage.replace(pattern, '[SENSITIVE]');
           });
 
@@ -752,7 +734,7 @@ describe('Security and Input Validation Tests', () => {
               return match;
             });
 
-          systemPaths.forEach(pattern => {
+          systemPaths.forEach((pattern) => {
             sanitizedMessage = sanitizedMessage.replace(pattern, '[PATH_REDACTED]');
           });
         }
@@ -760,7 +742,7 @@ describe('Security and Input Validation Tests', () => {
         return {
           message: sanitizedMessage,
           code: error.code || 'UNKNOWN_ERROR',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
       };
 
@@ -770,10 +752,10 @@ describe('Security and Input Validation Tests', () => {
         new Error('Discord token verification failed'),
         new Error('Cannot read file /home/user/.env: permission denied'),
         new Error('Module not found: /app/node_modules/secret-package'),
-        new Error('Authentication failed: invalid session token abc123')
+        new Error('Authentication failed: invalid session token abc123'),
       ];
 
-      sensitiveErrors.forEach(error => {
+      sensitiveErrors.forEach((error) => {
         const prodResult = sanitizeError(error, true);
         const devResult = sanitizeError(error, false);
 
@@ -791,10 +773,10 @@ describe('Security and Input Validation Tests', () => {
         new Error('Invalid input'),
         new Error('Not found'),
         new Error('Unauthorized'),
-        new Error('Rate limit exceeded')
+        new Error('Rate limit exceeded'),
       ];
 
-      allowedErrors.forEach(error => {
+      allowedErrors.forEach((error) => {
         const result = sanitizeError(error, true);
         expect(result.message).toBe(error.message);
       });
@@ -837,7 +819,7 @@ describe('Security and Input Validation Tests', () => {
 
         return {
           secure: issues.length === 0,
-          issues
+          issues,
         };
       };
 
@@ -845,23 +827,23 @@ describe('Security and Input Validation Tests', () => {
         {
           callbackUrl: 'http://example.com/webhook',
           secret: 'weak',
-          verifySignatures: false
+          verifySignatures: false,
         },
         {
           callbackUrl: 'https://example.com/webhook',
           secret: 'password123',
           verifySignatures: true,
-          rateLimit: { max: 10000 }
+          rateLimit: { max: 10000 },
         },
         {
           callbackUrl: 'https://example.com/webhook',
           secret: 'a'.repeat(50),
           verifySignatures: true,
-          timeout: 60000
-        }
+          timeout: 60000,
+        },
       ];
 
-      insecureConfigs.forEach(config => {
+      insecureConfigs.forEach((config) => {
         const result = validateWebhookConfig(config);
         expect(result.secure).toBe(false);
         expect(result.issues.length).toBeGreaterThan(0);
@@ -872,7 +854,7 @@ describe('Security and Input Validation Tests', () => {
         secret: 'a'.repeat(64), // Strong 64-character secret
         verifySignatures: true,
         rateLimit: { max: 100 },
-        timeout: 10000
+        timeout: 10000,
       };
 
       const secureResult = validateWebhookConfig(secureConfig);
@@ -891,7 +873,7 @@ describe('Security and Input Validation Tests', () => {
 
         // Validate allowed origins
         if (Array.isArray(corsConfig.origin)) {
-          corsConfig.origin.forEach(origin => {
+          corsConfig.origin.forEach((origin) => {
             if (!origin.startsWith('https://') && origin !== 'http://localhost') {
               issues.push(`Insecure origin: ${origin}`);
             }
@@ -902,10 +884,8 @@ describe('Security and Input Validation Tests', () => {
         const dangerousHeaders = ['authorization', 'cookie', 'x-auth-token'];
         if (corsConfig.allowedHeaders) {
           const hasCredentials = corsConfig.credentials === true;
-          const hasDangerousHeaders = dangerousHeaders.some(header => 
-            corsConfig.allowedHeaders.includes(header)
-          );
-          
+          const hasDangerousHeaders = dangerousHeaders.some((header) => corsConfig.allowedHeaders.includes(header));
+
           if (hasCredentials && hasDangerousHeaders && corsConfig.origin === '*') {
             issues.push('Cannot use credentials with wildcard origin and sensitive headers');
           }
@@ -913,10 +893,8 @@ describe('Security and Input Validation Tests', () => {
 
         // Validate request origin
         if (request && request.origin) {
-          const allowedOrigins = Array.isArray(corsConfig.origin) 
-            ? corsConfig.origin 
-            : [corsConfig.origin];
-          
+          const allowedOrigins = Array.isArray(corsConfig.origin) ? corsConfig.origin : [corsConfig.origin];
+
           if (!allowedOrigins.includes(request.origin) && !allowedOrigins.includes('*')) {
             issues.push(`Origin ${request.origin} not in allowlist`);
           }
@@ -924,7 +902,7 @@ describe('Security and Input Validation Tests', () => {
 
         return {
           secure: issues.length === 0,
-          issues
+          issues,
         };
       };
 
@@ -932,17 +910,17 @@ describe('Security and Input Validation Tests', () => {
         {
           origin: '*',
           credentials: true,
-          allowedHeaders: ['authorization', 'content-type']
+          allowedHeaders: ['authorization', 'content-type'],
         },
         {
           origin: ['http://malicious.com', 'https://trusted.com'],
-          credentials: false
-        }
+          credentials: false,
+        },
       ];
 
       const mockRequest = { origin: 'https://evil.com' };
 
-      insecureCorsConfigs.forEach(config => {
+      insecureCorsConfigs.forEach((config) => {
         const result = validateCorsConfig(config, mockRequest);
         expect(result.secure).toBe(false);
       });
@@ -951,7 +929,7 @@ describe('Security and Input Validation Tests', () => {
         origin: ['https://trusted.com', 'https://app.example.com'],
         credentials: true,
         allowedHeaders: ['content-type', 'x-custom-header'],
-        maxAge: 86400
+        maxAge: 86400,
       };
 
       const trustedRequest = { origin: 'https://trusted.com' };

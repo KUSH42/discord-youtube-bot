@@ -66,7 +66,7 @@ describe('MonitorApplication', () => {
       const request = {
         body: '<xml>malformed</xml>',
         headers: { 'x-hub-signature': 'sha1=test' },
-        method: 'POST'
+        method: 'POST',
       };
 
       await monitorApp.handleWebhook(request);

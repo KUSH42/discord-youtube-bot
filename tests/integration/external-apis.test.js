@@ -1,29 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { 
-  mockYouTubeAPI, 
-  mockVideoDetails, 
+import {
+  mockYouTubeAPI,
+  mockVideoDetails,
   mockLiveStreamDetails,
   mockPubSubNotification,
   createMockVideoDetails,
   createMockPubSubNotification,
-  createMockSignature
+  createMockSignature,
 } from '../mocks/youtube.mock.js';
-import { 
-  mockTweetData, 
-  mockPage, 
+import {
+  mockTweetData,
+  mockPage,
   mockBrowser,
   mockXCookies,
   mockScraperResults,
   createMockTweet,
   createMockPage,
-  createMockBrowser
+  createMockBrowser,
 } from '../mocks/x-twitter.mock.js';
-import { 
-  mockRequest, 
-  mockResponse,
-  createMockRequest,
-  createMockResponse
-} from '../mocks/express.mock.js';
+import { mockRequest, mockResponse, createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 
 describe('External API Integration Tests', () => {
   beforeEach(() => {
@@ -40,16 +35,16 @@ describe('External API Integration Tests', () => {
       const videoId = 'dQw4w9WgXcQ';
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: [mockVideoDetails]
-        }
+          items: [mockVideoDetails],
+        },
       });
 
       const fetchVideoDetails = async (id) => {
         const response = await mockYouTubeAPI.videos.list({
           part: 'snippet,statistics,liveStreamingDetails',
-          id: id
+          id: id,
         });
-        
+
         return response.data.items[0];
       };
 
@@ -57,7 +52,7 @@ describe('External API Integration Tests', () => {
 
       expect(mockYouTubeAPI.videos.list).toHaveBeenCalledWith({
         part: 'snippet,statistics,liveStreamingDetails',
-        id: videoId
+        id: videoId,
       });
       expect(videoDetails).toEqual(mockVideoDetails);
       expect(videoDetails.id).toBe(videoId);
@@ -68,17 +63,15 @@ describe('External API Integration Tests', () => {
       rateLimitError.code = 403;
       rateLimitError.errors = [{ reason: 'quotaExceeded' }];
 
-      mockYouTubeAPI.videos.list
-        .mockRejectedValueOnce(rateLimitError)
-        .mockResolvedValue({
-          data: { items: [mockVideoDetails] }
-        });
+      mockYouTubeAPI.videos.list.mockRejectedValueOnce(rateLimitError).mockResolvedValue({
+        data: { items: [mockVideoDetails] },
+      });
 
       const fetchWithRetry = async (videoId, retries = 1) => {
         try {
           const response = await mockYouTubeAPI.videos.list({
             part: 'snippet,statistics',
-            id: videoId
+            id: videoId,
           });
           return response.data.items[0];
         } catch (error) {
@@ -99,20 +92,20 @@ describe('External API Integration Tests', () => {
     it('should detect live streams correctly', async () => {
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: [mockLiveStreamDetails]
-        }
+          items: [mockLiveStreamDetails],
+        },
       });
 
       const checkIfLiveStream = async (videoId) => {
         const response = await mockYouTubeAPI.videos.list({
           part: 'snippet,liveStreamingDetails',
-          id: videoId
+          id: videoId,
         });
-        
+
         const video = response.data.items[0];
         return {
           isLive: video.snippet.liveBroadcastContent === 'live',
-          liveDetails: video.liveStreamingDetails
+          liveDetails: video.liveStreamingDetails,
         };
       };
 
@@ -125,19 +118,19 @@ describe('External API Integration Tests', () => {
 
     it('should handle video not found errors', async () => {
       mockYouTubeAPI.videos.list.mockResolvedValue({
-        data: { items: [] }
+        data: { items: [] },
       });
 
       const fetchVideoDetails = async (videoId) => {
         const response = await mockYouTubeAPI.videos.list({
           part: 'snippet',
-          id: videoId
+          id: videoId,
         });
-        
+
         if (response.data.items.length === 0) {
           throw new Error('Video not found');
         }
-        
+
         return response.data.items[0];
       };
 
@@ -146,29 +139,29 @@ describe('External API Integration Tests', () => {
 
     it('should validate API responses', async () => {
       const invalidVideoData = createMockVideoDetails({
-        snippet: { title: null, channelTitle: undefined }
+        snippet: { title: null, channelTitle: undefined },
       });
 
       mockYouTubeAPI.videos.list.mockResolvedValue({
-        data: { items: [invalidVideoData] }
+        data: { items: [invalidVideoData] },
       });
 
       const validateVideoData = (video) => {
         const required = ['id', 'snippet'];
         const requiredSnippet = ['title', 'channelTitle', 'publishedAt'];
-        
+
         for (const field of required) {
           if (!video[field]) {
             throw new Error(`Missing required field: ${field}`);
           }
         }
-        
+
         for (const field of requiredSnippet) {
           if (!video.snippet[field]) {
             throw new Error(`Missing required snippet field: ${field}`);
           }
         }
-        
+
         return true;
       };
 
@@ -216,7 +209,7 @@ describe('External API Integration Tests', () => {
           videoId: videoIdMatch[1],
           channelId: channelIdMatch[1],
           title: titleMatch[1],
-          publishedAt: publishedMatch ? publishedMatch[1] : null
+          publishedAt: publishedMatch ? publishedMatch[1] : null,
         };
       };
 
@@ -231,7 +224,7 @@ describe('External API Integration Tests', () => {
       const subscriptionManager = {
         subscribe: jest.fn().mockResolvedValue({ status: 202 }),
         unsubscribe: jest.fn().mockResolvedValue({ status: 202 }),
-        verify: jest.fn().mockResolvedValue({ status: 200 })
+        verify: jest.fn().mockResolvedValue({ status: 200 }),
       };
 
       const callbackUrl = 'https://example.com/webhook/youtube';
@@ -270,8 +263,8 @@ describe('External API Integration Tests', () => {
           'hub.mode': 'subscribe',
           'hub.challenge': 'test-challenge-123',
           'hub.topic': 'https://www.youtube.com/xml/feeds/videos.xml?channel_id=UCtest',
-          'hub.verify_token': 'expected-token'
-        }
+          'hub.verify_token': 'expected-token',
+        },
       });
 
       const res = createMockResponse();
@@ -292,16 +285,16 @@ describe('External API Integration Tests', () => {
 
       const loginToTwitter = async (browser, username, password) => {
         const page = await browser.newPage();
-        
+
         await page.goto('https://x.com/login');
         await page.fill('input[name="text"]', username);
         await page.click('[role="button"]');
         await page.fill('input[name="password"]', password);
         await page.click('[data-testid="LoginForm_Login_Button"]');
-        
+
         // Wait for login to complete
         await page.waitForSelector('[data-testid="SideNav_AccountSwitcher_Button"]', { timeout: 10000 });
-        
+
         return { success: true, page };
       };
 
@@ -315,48 +308,48 @@ describe('External API Integration Tests', () => {
 
     it('should scrape posts from user timeline', async () => {
       const page = createMockPage();
-      
+
       // Mock scraped post elements
       const mockPostElements = [
         {
           textContent: () => Promise.resolve('This is a test post'),
-          getAttribute: jest.fn().mockResolvedValue('https://x.com/user/status/123')
+          getAttribute: jest.fn().mockResolvedValue('https://x.com/user/status/123'),
         },
         {
           textContent: () => Promise.resolve('Another test post'),
-          getAttribute: jest.fn().mockResolvedValue('https://x.com/user/status/456')
-        }
+          getAttribute: jest.fn().mockResolvedValue('https://x.com/user/status/456'),
+        },
       ];
 
       page.$$.mockResolvedValue(mockPostElements);
 
       const scrapePosts = async (page, username) => {
         const searchUrl = `https://x.com/search?q=(from%3A${username})+exclude%3Areplies+exclude%3Aretweets&src=typed_query&f=live`;
-        
+
         await page.goto(searchUrl);
         await page.waitForSelector('[data-testid="tweet"]');
-        
+
         const postElements = await page.$$('[data-testid="tweet"]');
         const posts = [];
-        
+
         for (const element of postElements) {
           const text = await element.textContent();
           const url = await element.getAttribute('href');
-          
+
           posts.push({
             text: text.trim(),
             url: url,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
-        
+
         return posts;
       };
 
       const posts = await scrapePosts(page, 'testuser');
 
       expect(page.goto).toHaveBeenCalledWith(
-        'https://x.com/search?q=(from%3Atestuser)+exclude%3Areplies+exclude%3Aretweets&src=typed_query&f=live'
+        'https://x.com/search?q=(from%3Atestuser)+exclude%3Areplies+exclude%3Aretweets&src=typed_query&f=live',
       );
       expect(posts).toHaveLength(2);
       expect(posts[0].text).toBe('This is a test post');
@@ -369,21 +362,21 @@ describe('External API Integration Tests', () => {
       const manageCookies = async (page) => {
         // Get current cookies
         const cookies = await page.cookies();
-        
+
         // Check if auth cookies are present
-        const authCookie = cookies.find(c => c.name === 'auth_token');
-        const csrfCookie = cookies.find(c => c.name === 'ct0');
-        
+        const authCookie = cookies.find((c) => c.name === 'auth_token');
+        const csrfCookie = cookies.find((c) => c.name === 'ct0');
+
         if (!authCookie || !csrfCookie) {
           throw new Error('Missing authentication cookies');
         }
-        
+
         // Check if cookies are expired
         const now = Date.now();
         if (authCookie.expires && authCookie.expires < now) {
           throw new Error('Authentication cookies expired');
         }
-        
+
         return { valid: true, cookies };
       };
 
@@ -400,10 +393,10 @@ describe('External API Integration Tests', () => {
           posts: [],
           replies: [],
           quotes: [],
-          retweets: []
+          retweets: [],
         };
 
-        posts.forEach(post => {
+        posts.forEach((post) => {
           if (post.text.startsWith('RT @')) {
             categorized.retweets.push(post);
           } else if (post.text.includes('Replying to @')) {
@@ -422,7 +415,7 @@ describe('External API Integration Tests', () => {
         createMockTweet({ text: 'Regular post' }),
         createMockTweet({ text: 'RT @user: Retweeted content' }),
         createMockTweet({ text: 'Replying to @user: This is a reply' }),
-        createMockTweet({ text: 'Quote tweet', quotedTweet: { id: '123' } })
+        createMockTweet({ text: 'Quote tweet', quotedTweet: { id: '123' } }),
       ];
 
       const categorized = categorizeContent(mixedPosts);
@@ -483,9 +476,9 @@ describe('External API Integration Tests', () => {
         url: '/webhook/youtube',
         headers: {
           'x-hub-signature': 'sha1=valid-signature',
-          'content-type': 'application/atom+xml'
+          'content-type': 'application/atom+xml',
         },
-        body: mockPubSubNotification
+        body: mockPubSubNotification,
       });
 
       const res = createMockResponse();
@@ -505,8 +498,8 @@ describe('External API Integration Tests', () => {
           components: {
             discord: 'connected',
             youtube: 'subscribed',
-            xScraper: 'running'
-          }
+            xScraper: 'running',
+          },
         };
 
         res.status(200).json(health);
@@ -521,8 +514,8 @@ describe('External API Integration Tests', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'healthy',
-          components: expect.any(Object)
-        })
+          components: expect.any(Object),
+        }),
       );
     });
 
@@ -531,7 +524,7 @@ describe('External API Integration Tests', () => {
         res.set({
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-Hub-Signature'
+          'Access-Control-Allow-Headers': 'Content-Type, X-Hub-Signature',
         });
 
         if (req.method === 'OPTIONS') {
@@ -547,9 +540,11 @@ describe('External API Integration Tests', () => {
 
       corsHandler(req, res, next);
 
-      expect(res.set).toHaveBeenCalledWith(expect.objectContaining({
-        'Access-Control-Allow-Origin': '*'
-      }));
+      expect(res.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'Access-Control-Allow-Origin': '*',
+        }),
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
   });
@@ -567,12 +562,13 @@ describe('External API Integration Tests', () => {
             reject(new Error('Request timeout'));
           }, timeout);
 
-          mockYouTubeAPI.videos.list({ id: videoId })
-            .then(result => {
+          mockYouTubeAPI.videos
+            .list({ id: videoId })
+            .then((result) => {
               clearTimeout(timer);
               resolve(result);
             })
-            .catch(error => {
+            .catch((error) => {
               clearTimeout(timer);
               reject(error);
             });
@@ -605,17 +601,17 @@ describe('External API Integration Tests', () => {
 
     it('should handle malformed API responses', async () => {
       mockYouTubeAPI.videos.list.mockResolvedValue({
-        data: null // Malformed response
+        data: null, // Malformed response
       });
 
       const safeApiCall = async (videoId) => {
         try {
           const response = await mockYouTubeAPI.videos.list({ id: videoId });
-          
+
           if (!response || !response.data || !Array.isArray(response.data.items)) {
             throw new Error('Malformed API response');
           }
-          
+
           return response.data.items;
         } catch (error) {
           console.error('API call failed:', error.message);

@@ -24,7 +24,7 @@ describe('Source Module Integration Tests', () => {
         DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345678',
         TWITTER_USERNAME: 'testuser',
         TWITTER_PASSWORD: 'testpass',
-        DISCORD_BOT_SUPPORT_LOG_CHANNEL: '123456789012345678'
+        DISCORD_BOT_SUPPORT_LOG_CHANNEL: '123456789012345678',
       };
 
       // Validate environment (function doesn't return result, just validates)
@@ -48,14 +48,14 @@ describe('Source Module Integration Tests', () => {
     it('should handle invalid environment and prevent module misuse', () => {
       // Test that config validation function exists and can be called
       expect(typeof validateEnvironmentVariables).toBe('function');
-      
+
       // Test that other modules can still be instantiated
       const rateLimiter = new CommandRateLimit(5, 60000);
       expect(rateLimiter.isAllowed('user1')).toBe(true);
-      
+
       const duplicateDetector = new DuplicateDetector();
       expect(duplicateDetector.isVideoIdKnown('test-id')).toBe(false);
-      
+
       // Clean up
       duplicateDetector.destroy();
     });
@@ -75,7 +75,7 @@ describe('Source Module Integration Tests', () => {
     it('should extract and track YouTube video IDs', () => {
       const testText = 'Check out this video: https://www.youtube.com/watch?v=dQw4w9WgXcQ';
       const matches = [...testText.matchAll(videoUrlRegex)];
-      
+
       expect(matches).toHaveLength(1);
       const videoId = matches[0][1];
       expect(videoId).toBe('dQw4w9WgXcQ');
@@ -89,7 +89,7 @@ describe('Source Module Integration Tests', () => {
     it('should extract and track Twitter/X post IDs', () => {
       const testText = 'Check out this tweet: https://x.com/user/status/1234567890123456789';
       const matches = [...testText.matchAll(tweetUrlRegex)];
-      
+
       expect(matches).toHaveLength(1);
       const tweetId = matches[0][1];
       expect(tweetId).toBe('1234567890123456789');
@@ -102,10 +102,10 @@ describe('Source Module Integration Tests', () => {
 
     it('should handle mixed content with both YouTube and Twitter URLs', () => {
       const testText = 'Video: https://youtu.be/dQw4w9WgXcQ and tweet: https://x.com/user/status/1234567890123456789';
-      
+
       const videoMatches = [...testText.matchAll(videoUrlRegex)];
       const tweetMatches = [...testText.matchAll(tweetUrlRegex)];
-      
+
       expect(videoMatches).toHaveLength(1);
       expect(tweetMatches).toHaveLength(1);
 
@@ -115,7 +115,7 @@ describe('Source Module Integration Tests', () => {
       // Both should be trackable
       duplicateDetector.addVideoId(videoId);
       duplicateDetector.addTweetId(tweetId);
-      
+
       expect(duplicateDetector.isVideoIdKnown(videoId)).toBe(true);
       expect(duplicateDetector.isTweetIdKnown(tweetId)).toBe(true);
     });
@@ -129,28 +129,28 @@ describe('Source Module Integration Tests', () => {
 
     beforeEach(() => {
       rateLimiter = new CommandRateLimit(3, 60000);
-      
+
       mockClient = {
         channels: {
           fetch: jest.fn().mockResolvedValue({
             id: 'channel123',
             name: 'test-channel',
             send: jest.fn().mockResolvedValue(true),
-            isTextBased: jest.fn().mockReturnValue(true)
-          })
-        }
+            isTextBased: jest.fn().mockReturnValue(true),
+          }),
+        },
       };
 
       mockLogger = {
         info: jest.fn(),
         error: jest.fn(),
-        warn: jest.fn()
+        warn: jest.fn(),
       };
 
       discordManager = new DiscordManager(mockClient, mockLogger, {
         isPostingEnabled: true,
         mirrorMessage: true,
-        supportChannelId: 'support123'
+        supportChannelId: 'support123',
       });
     });
 
@@ -159,7 +159,7 @@ describe('Source Module Integration Tests', () => {
       const mockChannel = {
         id: 'channel123',
         name: 'test-channel',
-        send: jest.fn().mockResolvedValue(true)
+        send: jest.fn().mockResolvedValue(true),
       };
 
       // Test rate limiting allows initial commands
@@ -181,7 +181,7 @@ describe('Source Module Integration Tests', () => {
       const mockChannel = {
         id: 'channel123',
         name: 'test-channel',
-        send: jest.fn().mockResolvedValue(true)
+        send: jest.fn().mockResolvedValue(true),
       };
 
       // Test that split message works
@@ -190,7 +190,7 @@ describe('Source Module Integration Tests', () => {
 
       // Test rate limiting still works
       expect(rateLimiter.isAllowed(userId)).toBe(true);
-      
+
       // Test Discord manager can handle the long message
       await discordManager.sendMirroredMessage(mockChannel, longMessage);
       expect(mockChannel.send).toHaveBeenCalledWith(longMessage);
@@ -206,21 +206,21 @@ describe('Source Module Integration Tests', () => {
       mockChannel = {
         id: 'channel123',
         send: jest.fn().mockResolvedValue(true),
-        isTextBased: jest.fn().mockReturnValue(true)
+        isTextBased: jest.fn().mockReturnValue(true),
       };
 
       mockClient = {
         isReady: jest.fn().mockReturnValue(true),
         channels: {
-          fetch: jest.fn().mockResolvedValue(mockChannel)
-        }
+          fetch: jest.fn().mockResolvedValue(mockChannel),
+        },
       };
 
       transport = new DiscordTransport({
         client: mockClient,
         channelId: 'channel123',
         flushInterval: 100,
-        maxBufferSize: 2
+        maxBufferSize: 2,
       });
     });
 
@@ -231,11 +231,14 @@ describe('Source Module Integration Tests', () => {
     it('should integrate logger with Discord message splitting', async () => {
       const longLogMessage = 'x'.repeat(3000);
       const callback = jest.fn();
-      
-      await transport.log({ 
-        level: 'info', 
-        message: longLogMessage 
-      }, callback);
+
+      await transport.log(
+        {
+          level: 'info',
+          message: longLogMessage,
+        },
+        callback,
+      );
 
       // Manually trigger flush since periodic flushing is disabled in test mode
       await transport.flush();
@@ -250,17 +253,17 @@ describe('Source Module Integration Tests', () => {
         level: 'error',
         message: 'Test error message',
         timestamp: '2023-01-01T00:00:00.000Z',
-        stack: 'Error stack trace'
+        stack: 'Error stack trace',
       };
 
       // The fileFormat is now a Winston format object, not a plain object
       expect(fileFormat).toBeDefined();
       expect(typeof fileFormat.transform).toBe('function');
-      
+
       // Test that it transforms log info correctly
       const transformed = fileFormat.transform(logInfo);
       expect(transformed).toBeDefined();
-      
+
       // Winston format transform returns the info object, potentially with Symbol.for('message')
       const message = transformed[Symbol.for('message')] || transformed.message;
       expect(message || transformed).toMatch(/Test error message/);
@@ -287,13 +290,14 @@ describe('Source Module Integration Tests', () => {
         DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345678',
         TWITTER_USERNAME: 'testuser',
         TWITTER_PASSWORD: 'testpass',
-        DISCORD_BOT_SUPPORT_LOG_CHANNEL: '123456789012345678'
+        DISCORD_BOT_SUPPORT_LOG_CHANNEL: '123456789012345678',
       };
 
       expect(() => validateEnvironmentVariables()).not.toThrow();
 
       // 2. Content processing
-      const content = 'New video: https://youtu.be/dQw4w9WgXcQ and tweet: https://x.com/user/status/1234567890123456789';
+      const content =
+        'New video: https://youtu.be/dQw4w9WgXcQ and tweet: https://x.com/user/status/1234567890123456789';
       const videoMatches = [...content.matchAll(videoUrlRegex)];
       const tweetMatches = [...content.matchAll(tweetUrlRegex)];
 
@@ -325,27 +329,27 @@ describe('Source Module Integration Tests', () => {
             id: 'channel123',
             name: 'test-channel',
             send: jest.fn().mockResolvedValue(true),
-            isTextBased: jest.fn().mockReturnValue(true)
-          })
-        }
+            isTextBased: jest.fn().mockReturnValue(true),
+          }),
+        },
       };
 
       const mockLogger = {
         info: jest.fn(),
         error: jest.fn(),
-        warn: jest.fn()
+        warn: jest.fn(),
       };
 
       const discordManager = new DiscordManager(mockClient, mockLogger, {
         isPostingEnabled: true,
         mirrorMessage: false,
-        supportChannelId: 'support123'
+        supportChannelId: 'support123',
       });
 
       const mockChannel = {
         id: 'channel123',
         name: 'test-channel',
-        send: jest.fn().mockResolvedValue(true)
+        send: jest.fn().mockResolvedValue(true),
       };
 
       await discordManager.sendMirroredMessage(mockChannel, content);
