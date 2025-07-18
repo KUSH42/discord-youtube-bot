@@ -871,8 +871,26 @@ export class ScraperApplication {
         metadata.retweetDetection = tweet.retweetMetadata;
       }
       
-      // Classify the tweet
-      const classification = this.classifier.classifyXContent(tweet.url, tweet.text, metadata);
+      // Check if this is a retweet based on author comparison (bypass classifier)
+      let classification;
+      if (tweet.tweetCategory === 'Retweet' && tweet.author !== this.xUser && tweet.author !== `@${this.xUser}` && tweet.author !== 'Unknown') {
+        // Bypass classifier for author-based retweets - send directly to retweet channel
+        this.logger.info(`Bypassing classifier for author-based retweet: ${tweet.author} != ${this.xUser}`);
+        classification = {
+          type: 'retweet',
+          confidence: 0.99,
+          platform: 'x',
+          details: {
+            statusId: tweet.tweetID,
+            author: tweet.author,
+            detectionMethod: 'author-based'
+          }
+        };
+      } else {
+        // Use classifier for other tweets
+        this.logger.info(`Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`);
+        classification = this.classifier.classifyXContent(tweet.url, tweet.text, metadata);
+      }
       
       // Create content object for announcement
       const content = {

@@ -285,6 +285,65 @@ describe('ScraperApplication', () => {
       expect(mockContentAnnouncer.announceContent).toHaveBeenCalled();
       expect(mockEventBus.emit).toHaveBeenCalledWith('scraper.tweet.processed', expect.any(Object));
     });
+
+    it('should bypass classifier for author-based retweets', async () => {
+      const mockRetweet = {
+        tweetID: '1234567890',
+        url: 'https://x.com/testuser/status/1234567890',
+        author: 'differentuser', // Different from xUser
+        text: 'Some retweet content',
+        timestamp: '2024-01-01T00:01:00Z',
+        tweetCategory: 'Retweet'
+      };
+
+      await scraperApp.processNewTweet(mockRetweet);
+
+      // Should NOT call the classifier since it's an author-based retweet
+      expect(mockContentClassifier.classifyXContent).not.toHaveBeenCalled();
+      
+      // Should still announce the content as a retweet
+      expect(mockContentAnnouncer.announceContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'retweet',
+          author: 'differentuser',
+          platform: 'x'
+        })
+      );
+    });
+
+    it('should use classifier for same-author tweets even if marked as retweet', async () => {
+      const mockTweet = {
+        tweetID: '1234567890',
+        url: 'https://x.com/testuser/status/1234567890',
+        author: 'testuser', // Same as xUser
+        text: 'Some tweet content',
+        timestamp: '2024-01-01T00:01:00Z',
+        tweetCategory: 'Retweet'
+      };
+
+      await scraperApp.processNewTweet(mockTweet);
+
+      // Should call the classifier since author matches xUser
+      expect(mockContentClassifier.classifyXContent).toHaveBeenCalled();
+      expect(mockContentAnnouncer.announceContent).toHaveBeenCalled();
+    });
+
+    it('should use classifier for Unknown author tweets', async () => {
+      const mockTweet = {
+        tweetID: '1234567890',
+        url: 'https://x.com/testuser/status/1234567890',
+        author: 'Unknown',
+        text: 'Some tweet content',
+        timestamp: '2024-01-01T00:01:00Z',
+        tweetCategory: 'Retweet'
+      };
+
+      await scraperApp.processNewTweet(mockTweet);
+
+      // Should call the classifier since author is Unknown
+      expect(mockContentClassifier.classifyXContent).toHaveBeenCalled();
+      expect(mockContentAnnouncer.announceContent).toHaveBeenCalled();
+    });
   });
 
   describe('Content Filtering Logic', () => {
