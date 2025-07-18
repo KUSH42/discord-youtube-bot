@@ -14,13 +14,16 @@ tests/
 │   ├── rate-limiting.test.js        # Rate limiting functionality
 │   ├── discord-utils.test.js        # Discord utilities (message splitting, management)
 │   ├── logger-utils.test.js         # Logger utilities (Discord transport, formatters)
-│   └── pubsubhubbub-failures.test.js # PubSubHubbub failure handling
+│   ├── pubsubhubbub-failures.test.js # PubSubHubbub failure handling
+│   ├── enhanced-retweet-detection.test.js # Enhanced retweet detection algorithms
+│   ├── tweet-classification.test.js # Tweet categorization logic
+│   └── persistent-cookie-storage.test.js # Cookie management and authentication
 ├── integration/             # Integration tests for component interactions
-│   ├── discord-integration.test.js  # Discord API integration
 │   ├── discord-integration.test.js  # Discord API integration
 │   ├── external-apis.test.js        # YouTube/Twitter API integration
 │   ├── src-modules.test.js          # Source module integration testing
 │   ├── pubsubhubbub-security.test.js # Cross-bot security scenarios
+│   ├── retweet-workflows.test.js    # End-to-end retweet detection and announcement
 │   └── setup/production-setup.test.js # Tests the production setup and dependency injection
 ├── e2e/                     # End-to-end workflow tests
 │   ├── announcement-workflows.test.js # Complete announcement flows
@@ -51,6 +54,9 @@ tests/
 - **Discord Utils**: Message splitting and Discord manager functionality
 - **Logger Utils**: Discord transport and logging formatter utilities
 - **PubSubHubbub Failures**: Comprehensive failure scenario testing
+- **Enhanced Retweet Detection**: Multi-strategy retweet identification algorithms (16+ tests)
+- **Tweet Classification**: Author-based tweet categorization logic (7+ tests)
+- **Persistent Cookie Storage**: Authentication state management and cookie handling (13+ tests)
 
 ### 2. Integration Tests (`tests/integration/`)
 **Purpose**: Test component interactions and external dependencies
@@ -58,6 +64,7 @@ tests/
 - **External APIs**: YouTube Data API, PubSubHubbub, X/Twitter scraping
 - **Source Module Integration**: Comprehensive testing of extracted src/ modules
 - **PubSubHubbub Security**: Cross-bot signature interference and security scenarios
+- **Retweet Workflows**: End-to-end retweet detection, classification, and announcement workflows (11+ tests)
 - **Error Handling**: API failures, rate limiting, reconnection logic
 
 ### 3. End-to-End Tests (`tests/e2e/`)

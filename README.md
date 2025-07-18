@@ -83,9 +83,10 @@ src/
 - **YouTube Activity Monitoring:** Real-time notifications via PubSubHubbub for uploads and livestreams
 - **YouTube Notification Fallback:** Intelligent retry system with API polling backup when PubSubHubbub fails
 - **X (Twitter) Activity Monitoring:** Automated scraping for posts, replies, quotes, and retweets
+- **Enhanced Retweet Detection:** Advanced multi-strategy retweet identification using author comparison, social context, and classic RT@ patterns
 - **Smart Content Filtering:** Only announces content created *after* bot startup
 - **Persistent Duplicate Detection:** Scans Discord channel history to prevent re-announcing content across bot restarts
-- **Multi-Channel Support:** Different Discord channels for different content types
+- **Multi-Channel Support:** Different Discord channels for different content types (including dedicated retweet channels)
 
 ### 🔐 Security & Reliability
 - **Credential Encryption:** Secure storage using dotenvx encryption
@@ -211,7 +212,7 @@ DISCORD_YOUTUBE_CHANNEL_ID=youtube_announcements_channel_id
 DISCORD_X_POSTS_CHANNEL_ID=x_posts_channel_id
 DISCORD_X_REPLIES_CHANNEL_ID=x_replies_channel_id
 DISCORD_X_QUOTES_CHANNEL_ID=x_quotes_channel_id
-DISCORD_X_RETWEETS_CHANNEL_ID=x_retweets_channel_id
+DISCORD_X_RETWEETS_CHANNEL_ID=x_retweets_channel_id  # Optional: dedicated retweet announcements
 
 # YouTube Configuration
 YOUTUBE_API_KEY=your_youtube_api_key_here
@@ -372,6 +373,14 @@ sudo systemctl start discord-bot.service
 4. **📝 Filtering:** Check against known tweet IDs and timestamps
 5. **📢 Categorization:** Sort by post type (original, reply, quote, retweet)
 6. **📡 Announcement:** Post to appropriate Discord channels if not previously announced
+
+**Enhanced Retweet Detection:**
+- **Multi-Strategy Detection:** Uses three methods for comprehensive retweet identification:
+  - **Author Comparison:** Primary method - if tweet author differs from monitored user, it's classified as a retweet
+  - **Social Context:** Secondary method - detects modern retweet indicators (`data-testid="socialContext"` containing "reposted")
+  - **Classic RT@ Pattern:** Tertiary method - traditional "RT @username" text pattern detection
+- **Intelligent Classification:** Non-retweet content found during enhanced detection uses existing classification mechanisms
+- **Dedicated Routing:** Retweets can be announced to separate Discord channels when configured
 
 ## 🧪 Testing Infrastructure
 

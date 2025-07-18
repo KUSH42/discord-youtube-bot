@@ -602,12 +602,12 @@ export class ScraperApplication {
 
       for (const tweet of newTweets) {
         this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
-        if (tweet.tweetCategory === 'Retweet' && this.isNewContent(tweet)) {
-          this.logger.info(`✅ Found new retweet to process: ${tweet.url}`);
+        if (this.isNewContent(tweet)) {
+          this.logger.info(`✅ Found new tweet to process: ${tweet.url} (${tweet.tweetCategory})`);
           await this.processNewTweet(tweet);
           this.stats.totalTweetsAnnounced++;
         } else {
-          this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is not a retweet or is old.`);
+          this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is old.`);
         }
       }
     } catch (error) {
@@ -728,9 +728,28 @@ export class ScraperApplication {
             tweetCategory = 'Quote';
           }
           
-          // Check for retweet, including the modern social context element
-          const socialContext = article.querySelector('[data-testid="socialContext"]');
-          if ((socialContext && socialContext.innerText.includes('reposted')) || text.startsWith('RT @')) {
+          // Check for retweet - enhanced detection with author comparison
+          let isRetweet = false;
+          
+          // Method 1: Check if author is different from monitored user
+          if (author !== this.xUser && author !== `@${this.xUser}` && author !== 'Unknown') {
+            isRetweet = true;
+          }
+          
+          // Method 2: Check for social context element (modern retweet indicator)
+          if (!isRetweet) {
+            const socialContext = article.querySelector('[data-testid="socialContext"]');
+            if (socialContext && socialContext.innerText.includes('reposted')) {
+              isRetweet = true;
+            }
+          }
+          
+          // Method 3: Check for classic RT @ pattern
+          if (!isRetweet && text.startsWith('RT @')) {
+            isRetweet = true;
+          }
+          
+          if (isRetweet) {
             tweetCategory = 'Retweet';
           }
           
