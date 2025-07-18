@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
-import { DuplicateDetector } from '../../src/duplicate-detector.js';
 
 describe('Search and Retweet Logic', () => {
   let scraperApp;
@@ -12,6 +11,7 @@ describe('Search and Retweet Logic', () => {
   let mockEventBus;
   let mockLogger;
   let mockDiscordService;
+  let mockDelay;
 
   beforeEach(() => {
     // Mock browser service
@@ -103,6 +103,8 @@ describe('Search and Retweet Logic', () => {
       isAuthenticated: jest.fn().mockResolvedValue(true),
     };
 
+    mockDelay = jest.fn().mockResolvedValue();
+
     // Create scraper application instance
     scraperApp = new ScraperApplication({
       browserService: mockBrowserService,
@@ -114,6 +116,7 @@ describe('Search and Retweet Logic', () => {
       logger: mockLogger,
       discord: mockDiscordService,
       authManager: mockAuthManager,
+      delay: mockDelay,
     });
 
     // Set up browser and other dependencies
@@ -126,6 +129,7 @@ describe('Search and Retweet Logic', () => {
     jest.spyOn(scraperApp, 'processNewTweet').mockResolvedValue();
     jest.spyOn(scraperApp, 'getNextInterval').mockReturnValue(300000);
     jest.spyOn(scraperApp, 'verifyAuthentication').mockResolvedValue();
+    jest.spyOn(scraperApp, 'navigateToProfileTimeline').mockResolvedValue();
 
     // Mock browser evaluate method for scrolling
     mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
@@ -176,7 +180,7 @@ describe('Search and Retweet Logic', () => {
 
   it('should prioritize search URL navigation over retweet processing', async () => {
     // Mock shouldProcessRetweets to return different values
-    jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
+    const shouldProcessRetweetsSpy = jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
 
     await scraperApp.pollXProfile();
 
@@ -186,7 +190,7 @@ describe('Search and Retweet Logic', () => {
     );
 
     // Should then check for retweet processing
-    expect(scraperApp.shouldProcessRetweets).toHaveBeenCalled();
+    expect(shouldProcessRetweetsSpy).toHaveBeenCalled();
   });
 
   it('should perform scrolling to load more content', async () => {

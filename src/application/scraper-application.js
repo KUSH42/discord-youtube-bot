@@ -1,4 +1,5 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
+import { delay } from '../utils/delay.js';
 
 /**
  * X (Twitter) scraping application orchestrator
@@ -15,6 +16,7 @@ export class ScraperApplication {
     this.eventBus = dependencies.eventBus;
     this.logger = dependencies.logger;
     this.authManager = dependencies.authManager;
+    this.delay = dependencies.delay || delay;
 
     // Scraper configuration
     this.xUser = this.config.getRequired('X_USER_HANDLE');
@@ -331,7 +333,7 @@ export class ScraperApplication {
         /* eslint-disable no-undef */
         await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         /* eslint-enable no-undef */
-        await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait for content to load
+        await this.delay(3000); // Wait for content to load
       }
 
       // Extract tweets
@@ -390,11 +392,10 @@ export class ScraperApplication {
    * @returns {Promise<void>}
    */
   async performEnhancedRetweetDetection() {
-    if (!this.shouldProcessRetweets()) {
-      return;
-    }
-
     try {
+      if (!this.shouldProcessRetweets()) {
+        return;
+      }
       this.logger.info('Performing enhanced retweet detection...');
       await this.navigateToProfileTimeline(this.xUser);
 
@@ -811,7 +812,7 @@ export class ScraperApplication {
       }
 
       // Wait a bit for the next screen to load
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await this.delay(3000);
     } catch (error) {
       this.logger.error('Error handling email verification:', error.message);
       throw error;
@@ -906,7 +907,7 @@ export class ScraperApplication {
       /* eslint-disable no-undef */
       await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       /* eslint-enable no-undef */
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Wait for content to load
+      await this.delay(1500); // Wait for content to load
     }
   }
 
