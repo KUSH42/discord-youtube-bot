@@ -241,15 +241,15 @@ export class BotApplication {
         return;
       }
       
+      // Parse command and get user info
+      const args = message.content.slice(this.commandPrefix.length).trim().split(/ +/);
+      const command = args.shift().toLowerCase();
+      const user = message.author;
+      
       // Only process messages in the support channel or from admin in any other channel
       if (!user && this.supportChannelId && message.channel.id !== this.supportChannelId) {
         return;
       }
-      
-      // Parse command
-      const args = message.content.slice(this.commandPrefix.length).trim().split(/ +/);
-      const command = args.shift().toLowerCase();
-      const user = message.author;
       
       // Validate user
       if (!user || !user.id) {
