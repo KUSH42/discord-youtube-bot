@@ -633,10 +633,9 @@ jobs:
               echo "---"
             done
             
-            # Simple approach: concatenate all coverage files
-            echo "Merging coverage files by concatenation..."
-            mkdir -p coverage/merged
-            cat "${COVERAGE_FILES[@]}" > coverage/merged/lcov.info
+            # Merge coverage reports properly by file instead of concatenating
+            echo "Merging coverage reports..."
+            python3 scripts/merge-coverage.py "${COVERAGE_FILES[@]}" -o coverage/merged/lcov.info
             
             # Validate merged file
             if [ ! -s coverage/merged/lcov.info ]; then
@@ -644,7 +643,7 @@ jobs:
               exit 1
             fi
             
-            echo "Merged coverage file created with $(wc -l < coverage/merged/lcov.info) lines"
+            echo "Proper file-by-file merge completed with $(wc -l < coverage/merged/lcov.info) lines"
             
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
