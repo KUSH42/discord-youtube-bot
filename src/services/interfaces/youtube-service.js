@@ -8,7 +8,8 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<Object>} Video details object
    */
-  async getVideoDetails(_videoId) {
+  // eslint-disable-next-line no-unused-vars
+  async getVideoDetails(videoId) {
     throw new Error('Abstract method: getVideoDetails must be implemented');
   }
 
@@ -17,7 +18,8 @@ export class YouTubeService {
    * @param {string} channelId - YouTube channel ID
    * @returns {Promise<Object>} Channel details object
    */
-  async getChannelDetails(_channelId) {
+  // eslint-disable-next-line no-unused-vars
+  async getChannelDetails(channelId) {
     throw new Error('Abstract method: getChannelDetails must be implemented');
   }
 
@@ -27,7 +29,8 @@ export class YouTubeService {
    * @param {number} maxResults - Maximum number of results
    * @returns {Promise<Array<Object>>} Array of video objects
    */
-  async getChannelVideos(_channelId) {
+  // eslint-disable-next-line no-unused-vars
+  async getChannelVideos(channelId) {
     throw new Error('Abstract method: getChannelVideos must be implemented');
   }
 
@@ -37,7 +40,8 @@ export class YouTubeService {
    * @param {Object} options - Search options
    * @returns {Promise<Array<Object>>} Array of video objects
    */
-  async searchVideos(_query) {
+  // eslint-disable-next-line no-unused-vars
+  async searchVideos(query) {
     throw new Error('Abstract method: searchVideos must be implemented');
   }
 
@@ -46,7 +50,8 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<Object>} Video statistics object
    */
-  async getVideoStatistics(_videoId) {
+  // eslint-disable-next-line no-unused-vars
+  async getVideoStatistics(videoId) {
     throw new Error('Abstract method: getVideoStatistics must be implemented');
   }
 
@@ -55,7 +60,8 @@ export class YouTubeService {
    * @param {string} playlistId - YouTube playlist ID
    * @returns {Promise<Object>} Playlist details object
    */
-  async getPlaylistDetails(_playlistId) {
+  // eslint-disable-next-line no-unused-vars
+  async getPlaylistDetails(playlistId) {
     throw new Error('Abstract method: getPlaylistDetails must be implemented');
   }
 
@@ -65,8 +71,9 @@ export class YouTubeService {
    * @param {number} maxResults - Maximum number of results
    * @returns {Promise<Array<Object>>} Array of video objects
    */
-  async getPlaylistVideos(_playlistId) {
-    throw new.Error('Abstract method: getPlaylistVideos must be implemented');
+  // eslint-disable-next-line no-unused-vars
+  async getPlaylistVideos(playlistId) {
+    throw new Error('Abstract method: getPlaylistVideos must be implemented');
   }
 
   /**
@@ -74,7 +81,8 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<boolean>} True if video is live
    */
-  async isVideoLive(_videoId) {
+  // eslint-disable-next-line no-unused-vars
+  async isVideoLive(videoId) {
     throw new Error('Abstract method: isVideoLive must be implemented');
   }
 
@@ -83,7 +91,8 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<Object|null>} Live streaming details or null
    */
-  async getLiveStreamDetails(_videoId) {
+  // eslint-disable-next-line no-unused-vars
+  async getLiveStreamDetails(videoId) {
     throw new Error('Abstract method: getLiveStreamDetails must be implemented');
   }
 
@@ -93,7 +102,8 @@ export class YouTubeService {
    * @param {number} maxResults - Maximum number of results
    * @returns {Promise<Array<Object>>} Array of comment objects
    */
-  async getVideoComments(_videoId) {
+  // eslint-disable-next-line no-unused-vars
+  async getVideoComments(videoId) {
     throw new Error('Abstract method: getVideoComments must be implemented');
   }
 
@@ -102,7 +112,8 @@ export class YouTubeService {
    * @param {string} channelId - YouTube channel ID
    * @returns {Promise<string>} Upload playlist ID
    */
-  async getChannelUploadPlaylist(_channelId) {
+  // eslint-disable-next-line no-unused-vars
+  async getChannelUploadPlaylist(channelId) {
     throw new Error('Abstract method: getChannelUploadPlaylist must be implemented');
   }
 

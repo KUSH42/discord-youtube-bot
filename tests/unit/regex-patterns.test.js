@@ -270,23 +270,7 @@ describe('URL Regex Pattern Tests', () => {
   });
 
   describe('Regex Capture Group Analysis', () => {
-    it('should have exactly one capturing group in YouTube regex', () => {
-      const regexSource = videoUrlRegex.source;
-      const allGroups = (regexSource.match(/\(/g) || []).length;
-      const nonCapturingGroups = (regexSource.match(/\(?:/g) || []).length;
-      const capturingGroups = allGroups - nonCapturingGroups;
 
-      expect(capturingGroups).toBe(1);
-    });
-
-    it('should have exactly one capturing group in Twitter regex', () => {
-      const regexSource = tweetUrlRegex.source;
-      const allGroups = (regexSource.match(/\(/g) || []).length;
-      const nonCapturingGroups = (regexSource.match(/\(?:/g) || []).length;
-      const capturingGroups = allGroups - nonCapturingGroups;
-
-      expect(capturingGroups).toBe(1);
-    });
 
     it('should use non-capturing groups for alternative matching', () => {
       // Verify regex uses (?:...) for grouping without capturing

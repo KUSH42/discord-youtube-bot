@@ -9,7 +9,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async get(_url) {
+  // eslint-disable-next-line no-unused-vars
+  async get(url) {
     throw new Error('Abstract method: get must be implemented');
   }
 
@@ -20,7 +21,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async post(_url, _data = null) {
+  // eslint-disable-next-line no-unused-vars
+  async post(url, data = null) {
     throw new Error('Abstract method: post must be implemented');
   }
 
@@ -31,7 +33,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async put(_url, _data = null) {
+  // eslint-disable-next-line no-unused-vars
+  async put(url, data = null) {
     throw new Error('Abstract method: put must be implemented');
   }
 
@@ -41,7 +44,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async delete(_url) {
+  // eslint-disable-next-line no-unused-vars
+  async delete(url) {
     throw new Error('Abstract method: delete must be implemented');
   }
 
@@ -52,7 +56,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async patch(_url, _data = null) {
+  // eslint-disable-next-line no-unused-vars
+  async patch(url, data = null) {
     throw new Error('Abstract method: patch must be implemented');
   }
 
@@ -62,7 +67,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async head(_url) {
+  // eslint-disable-next-line no-unused-vars
+  async head(url) {
     throw new Error('Abstract method: head must be implemented');
   }
 
@@ -74,7 +80,8 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async request(_method, _url, _data = null) {
+  // eslint-disable-next-line no-unused-vars
+  async request(method, url, data = null) {
     throw new Error('Abstract method: request must be implemented');
   }
 
@@ -85,7 +92,8 @@ export class HttpService {
    * @param {Object} options - Download options
    * @returns {Promise<string>} Path to downloaded file
    */
-  async downloadFile(_url, _destination) {
+  // eslint-disable-next-line no-unused-vars
+  async downloadFile(url, destination) {
     throw new Error('Abstract method: downloadFile must be implemented');
   }
 
@@ -96,7 +104,8 @@ export class HttpService {
    * @param {Object} options - Upload options
    * @returns {Promise<Object>} Response object
    */
-  async uploadFile(_url, _file) {
+  // eslint-disable-next-line no-unused-vars
+  async uploadFile(url, file) {
     throw new Error('Abstract method: uploadFile must be implemented');
   }
 

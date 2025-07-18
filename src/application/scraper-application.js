@@ -163,6 +163,25 @@ export class ScraperApplication {
    * Login to X (Twitter)
    * @returns {Promise<void>}
    */
+  async loginToX() {
+    return this.authManager.login();
+  }
+
+  /**
+   * Clicks the "Next" button during login
+   * @returns {Promise<boolean>}
+   */
+  async clickNextButton() {
+    return this.authManager.clickNextButton();
+  }
+
+  /**
+   * Clicks the "Log in" button
+   * @returns {Promise<boolean>}
+   */
+  async clickLoginButton() {
+    return this.authManager.clickLoginButton();
+  }
 
   /**
    * Start polling for new content
