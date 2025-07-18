@@ -306,7 +306,7 @@ export class BotApplication {
       // Send response message
       if (result.message) {
         if (result.healthData) {
-            if (command === 'health-detailed') {
+            if (command === 'health-detailed' || command === 'hd') {
                 const healthEmbed = this.createDetailedHealthEmbed(result.healthData);
                 await message.reply({ embeds: [healthEmbed] });
             } else if (command === 'health') {
