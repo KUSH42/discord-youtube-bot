@@ -32,9 +32,9 @@ describe('Performance and Load Tests', () => {
         const youtubeText = `Check out this video: https://youtube.com/watch?v=dQw4w9WgXc${i.toString().padStart(4, '0')}`;
         const twitterText = `Great post: https://x.com/user/status/123456789012345${i.toString().padStart(3, '0')}`;
         
-        // Use actual duplicate detection methods
-        duplicateDetector.isDuplicate(youtubeText);
-        duplicateDetector.isDuplicate(twitterText);
+        // Mark URLs as seen to add them to the known sets
+        duplicateDetector.markAsSeen(youtubeText);
+        duplicateDetector.markAsSeen(twitterText);
       }
 
       const endMemory = process.memoryUsage();
@@ -42,7 +42,7 @@ describe('Performance and Load Tests', () => {
 
       // Performance assertions using real duplicate detector
       const stats = duplicateDetector.getStats();
-      expect(stats.totalUrlsSeen).toBeGreaterThan(numEntries);
+      expect(stats.totalKnownIds).toBeGreaterThan(numEntries);
 
       // Memory usage should be reasonable (less than 50MB for 10k entries)
       expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024);
@@ -164,6 +164,10 @@ describe('Performance and Load Tests', () => {
   describe('Regex Performance at Scale', () => {
     it('should handle large text with many URLs efficiently', () => {
       const duplicateDetector = new DuplicateDetector();
+      
+      // Define regex patterns locally
+      const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+      const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
       
       // Generate large text with many URLs using real duplicate detection
       const numUrls = 10000;
@@ -436,8 +440,7 @@ describe('Performance and Load Tests', () => {
       const commandStart = performance.now();
       for (let i = 0; i < numRequests; i++) {
         const userId = `user${i % 100}`;
-        const command = 'health';
-        commandRateLimit.checkLimit(userId, command);
+        commandRateLimit.isAllowed(userId);
       }
       const commandEnd = performance.now();
       const commandDuration = commandEnd - commandStart;
