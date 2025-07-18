@@ -593,11 +593,19 @@ describe('ScraperApplication', () => {
 
       // Should navigate to search URL, not profile timeline
       expect(mockBrowserService.goto).toHaveBeenCalledWith(
-        expect.stringMatching(/https:\/\/x.com\/search\?q=\\(from%3Atestuser\\)/),
+        expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/),
       );
 
       // Clear mocks for next test
       jest.clearAllMocks();
+
+      // Re-mock dependencies for the second test case
+      jest.spyOn(scraperApp, 'extractTweets').mockResolvedValue([]);
+      jest.spyOn(scraperApp, 'filterNewTweets').mockReturnValue([]);
+      jest.spyOn(scraperApp, 'processNewTweet').mockResolvedValue();
+      jest.spyOn(scraperApp, 'getNextInterval').mockReturnValue(300000);
+      jest.spyOn(scraperApp, 'verifyAuthentication').mockResolvedValue();
+      mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
 
       // Test with retweet processing disabled
       jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(false);
