@@ -14,9 +14,9 @@
     "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
     "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
     "test:unit": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/unit",
-    "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/integration",
+    "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/integration --coverageThreshold={}",
     "test:e2e": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.e2e.config.js",
-    "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/performance",
+    "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/performance --coverageThreshold={}",
     "test:security": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.security.config.js",
     "prepare": "husky"
   },
