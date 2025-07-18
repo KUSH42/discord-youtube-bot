@@ -18,7 +18,14 @@
     "test:e2e": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.e2e.config.js",
     "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/performance --coverageThreshold={}",
     "test:security": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.security.config.js",
+    "lint": "eslint .",
     "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "keywords": [],
   "author": "Marco Keller",
@@ -48,9 +55,13 @@
   "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme",
   "devDependencies": {
     "@jest/globals": "^30.0.4",
+    "eslint": "^9.31.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.1",
     "husky": "^9.1.7",
     "jest": "^30.0.4",
     "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
     "test-exclude": "^7.0.1"
   },
   "overrides": {

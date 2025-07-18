@@ -1,32 +1,5 @@
-# Run syntax checks on JavaScript files
-echo "🔍 Running syntax checks..."
-node --check index.js
-if [ $? -ne 0 ]; then
-    echo "❌ Syntax check failed for index.js"
-    exit 1
-fi
 
-node --check x-scraper.js
-if [ $? -ne 0 ]; then
-    echo "❌ Syntax check failed for x-scraper.js"  
-    exit 1
-fi
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
-node --check youtube-monitor.js
-if [ $? -ne 0 ]; then
-    echo "❌ Syntax check failed for youtube-monitor.js"
-    exit 1
-fi
-
-node --check setup-encryption.js
-if [ $? -ne 0 ]; then
-    echo "❌ Syntax check failed for setup-encryption.js"
-    exit 1
-fi
-
-# Increment build number
-echo "🚀 Incrementing build number..."
-node scripts/increment-build.js
-git add build-version.json
-
-echo "✅ Pre-commit checks passed\!"
+npx lint-staged
