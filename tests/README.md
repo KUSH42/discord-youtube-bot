@@ -123,6 +123,9 @@ npm test
 
 # Run with coverage
 npm run test:coverage
+
+# Generate local coverage summary (for development)
+./scripts/generate-coverage-summary.sh
 ```
 
 ### Specific Test Categories
@@ -241,6 +244,14 @@ The codebase has been successfully transformed into a modern, testable architect
 - **Quality Gates**: Automated coverage validation with trend tracking
 - **Codecov Integration**: Accurate merged coverage reports uploaded
 
+### Local Coverage Generation
+✅ **Local Development Support**: Generate coverage reports without CI dependencies
+- **Local Script**: `./scripts/generate-coverage-summary.sh` creates `coverage-summary.json` from existing lcov.info files
+- **Automatic Detection**: Finds and uses the best available coverage data (main coverage, unit tests, integration tests)
+- **Quality Assessment**: Provides immediate feedback on coverage percentage and quality gates
+- **CI Compatibility**: Generated files work seamlessly with CI workflow scripts
+- **Fallback Support**: Graceful handling when no coverage data is available
+
 ✅ **Strategic Coverage Focus**: "Quality over Quantity" approach implemented
 - **Interface Exclusion**: Abstract contract definitions excluded from measurement
 - **Implementation Focus**: Only testable implementation code measured
@@ -253,7 +264,6 @@ The codebase has been successfully transformed into a modern, testable architect
 - Mock files (`tests/mocks/`)
 - Test utilities (`tests/fixtures/`)
 - Configuration files (`jest.config.js`, `setup-encryption.js`)
-- Development utilities (`test-duplicate-prevention.js`)
 
 ## 🔧 Configuration
 
@@ -304,6 +314,8 @@ COVERAGE_THRESHOLD=90           # Minimum coverage requirement
 2. **Memory Leaks**: Use `--detectOpenHandles` flag to identify issues
 3. **Timeout Failures**: Increase timeout for slow operations
 4. **Mock Issues**: Verify mock reset in beforeEach/afterEach
+5. **Coverage File Missing**: Run `./scripts/generate-coverage-summary.sh` to create missing `coverage-summary.json`
+6. **CI Script Failures**: When local scripts expect CI-generated files, use coverage generator to create them locally
 
 ### Debug Commands
 ```bash
@@ -318,6 +330,9 @@ npm test -- tests/unit/regex-patterns.test.js
 
 # Debug specific test
 npm test -- --testNamePattern="should extract video ID"
+
+# Fix missing coverage files for local development
+./scripts/generate-coverage-summary.sh
 ```
 
 ## 📋 CI/CD Integration
@@ -346,6 +361,8 @@ npm test -- --testNamePattern="should extract video ID"
 
 ### Tools
 - **Coverage Visualization**: For local development, an HTML report is available at `coverage/lcov-report/index.html` after running `npm run test:coverage`. In CI, merged coverage reports are uploaded to Codecov and available in the run summary.
+- **Local Coverage Generation**: Use `./scripts/generate-coverage-summary.sh` to create coverage summaries from existing test results without running tests
+- **Coverage Troubleshooting**: If CI scripts fail locally due to missing coverage files, run the coverage generator script to create the required files
 - **Performance Profiling**: Use `--expose-gc` flag for memory analysis
 - **Mock Debugging**: Enable verbose logging in test setup
 
