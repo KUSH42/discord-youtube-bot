@@ -42,7 +42,7 @@ describe('External API Integration Tests', () => {
       const fetchVideoDetails = async (id) => {
         const response = await mockYouTubeAPI.videos.list({
           part: 'snippet,statistics,liveStreamingDetails',
-          id: id,
+          id,
         });
 
         return response.data.items[0];
@@ -338,7 +338,7 @@ describe('External API Integration Tests', () => {
 
           posts.push({
             text: text.trim(),
-            url: url,
+            url,
             timestamp: new Date().toISOString(),
           });
         }

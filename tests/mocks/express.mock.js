@@ -40,7 +40,9 @@ export const mockApp = {
   put: jest.fn(),
   delete: jest.fn(),
   listen: jest.fn().mockImplementation((port, callback) => {
-    if (callback) callback();
+    if (callback) {
+      callback();
+    }
     return mockServer;
   }),
   set: jest.fn(),
@@ -50,7 +52,9 @@ export const mockApp = {
 // Mock Express server
 export const mockServer = {
   close: jest.fn().mockImplementation((callback) => {
-    if (callback) callback();
+    if (callback) {
+      callback();
+    }
   }),
   address: jest.fn().mockReturnValue({
     address: '::',
@@ -129,7 +133,9 @@ export const createMockApp = (overrides = {}) => ({
   get: jest.fn(),
   post: jest.fn(),
   listen: jest.fn().mockImplementation((port, callback) => {
-    if (callback) callback();
+    if (callback) {
+      callback();
+    }
     return { ...mockServer, ...(overrides.serverOverrides || {}) };
   }),
   ...overrides,

@@ -25,7 +25,7 @@ pids
 # Github Actions artifacts
 coverage
 reports
-test.results
+test-results
 coverage-metrics.json
 coverage-summary.json
 

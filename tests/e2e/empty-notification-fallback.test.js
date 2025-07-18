@@ -522,7 +522,7 @@ function setupMockImplementations(monitor) {
       let recoveredCount = 0;
 
       for (const video of videos) {
-        const videoId = video.id.videoId;
+        const { videoId } = video.id;
         if (!this.announcedVideos.has(videoId)) {
           await this.announceYouTubeContent({
             id: videoId,

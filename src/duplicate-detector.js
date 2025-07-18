@@ -5,13 +5,15 @@
  * Regular expression for matching YouTube video URLs
  * Matches various YouTube URL formats and extracts the 11-character video ID
  */
-export const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+export const videoUrlRegex =
+  /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
 
 /**
  * Regular expression for matching X/Twitter post URLs
  * Matches URLs from x.com, twitter.com, vxtwitter.com, fxtwitter.com, and nitter instances
  */
-export const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d{10,})/g;
+export const tweetUrlRegex =
+  /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d{10,})/g;
 /**
  * Duplicate detector class for managing known content IDs
  */

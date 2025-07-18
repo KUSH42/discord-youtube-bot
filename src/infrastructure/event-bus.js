@@ -229,7 +229,9 @@ export class EventBus {
       let timeoutId;
 
       const handler = (data) => {
-        if (timeoutId) clearTimeout(timeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         resolve(data);
       };
 

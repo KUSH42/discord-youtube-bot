@@ -487,7 +487,7 @@ export const testDatasets = {
   // Performance test data
   performance: {
     // Large dataset for memory and performance testing
-    largeUrlSet: function (size = 10000) {
+    largeUrlSet(size = 10000) {
       const urls = [];
       for (let i = 0; i < size; i++) {
         urls.push(`https://www.youtube.com/watch?v=test${i.toString().padStart(7, '0')}`);
@@ -497,7 +497,7 @@ export const testDatasets = {
     },
 
     // Complex duplicate detection test set
-    duplicateTestSet: function (uniqueCount = 1000, duplicatesPerUnique = 5) {
+    duplicateTestSet(uniqueCount = 1000, duplicatesPerUnique = 5) {
       const urls = [];
       for (let i = 0; i < uniqueCount; i++) {
         const videoId = `video${i.toString().padStart(7, '0')}`;
@@ -618,7 +618,7 @@ export const dataGenerators = {
     snippet: {
       title: `Test Video ${Math.floor(Math.random() * 10000)}`,
       description: 'Generated test video description',
-      channelId: 'UC' + dataGenerators.generateYouTubeId().substring(0, 22),
+      channelId: `UC${dataGenerators.generateYouTubeId().substring(0, 22)}`,
       channelTitle: `Test Channel ${Math.floor(Math.random() * 1000)}`,
       publishedAt: dataGenerators.generateTimestamp(),
       thumbnails: {

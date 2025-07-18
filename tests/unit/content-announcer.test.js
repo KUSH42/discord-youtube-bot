@@ -285,7 +285,9 @@ describe('ContentAnnouncer', () => {
 
     it('should announce old X content when ANNOUNCE_OLD_TWEETS is enabled', async () => {
       mockConfig.getBoolean.mockImplementation((key, defaultValue) => {
-        if (key === 'ANNOUNCE_OLD_TWEETS') return true;
+        if (key === 'ANNOUNCE_OLD_TWEETS') {
+          return true;
+        }
         return defaultValue;
       });
 

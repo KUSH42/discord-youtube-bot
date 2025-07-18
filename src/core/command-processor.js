@@ -117,7 +117,7 @@ export class CommandProcessor {
    * Process a Discord command
    * @param {string} command - Command name
    * @param {Array<string>} args - Command arguments
-   * @param {string} userId - User ID who issued the command
+   * @param {string} userId - UserID who issued the command
    * @returns {Promise<Object>} Command result object
    */
   async processCommand(command, args = [], userId, appStats = null) {

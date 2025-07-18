@@ -239,7 +239,7 @@ describe('PubSubHubbub Security Integration Tests', () => {
         .digest('hex');
 
       // Generate slightly different signatures to test timing-safe comparison
-      const almostCorrectSignature = correctSignature.substring(0, 39) + '0'; // Change last char
+      const almostCorrectSignature = `${correctSignature.substring(0, 39)}0`; // Change last char
       const completelyWrongSignature = 'a'.repeat(40);
 
       mockRequest.body = validNotification;
@@ -267,7 +267,7 @@ describe('PubSubHubbub Security Integration Tests', () => {
 
       // Timing-safe comparison should have similar execution times
       // (This is more of a conceptual test - actual timing analysis would be more complex)
-      expect(timings.length).toBe(3);
+      expect(timings).toHaveLength(3);
     });
   });
 

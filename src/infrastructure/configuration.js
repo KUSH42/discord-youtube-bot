@@ -37,7 +37,9 @@ export class Configuration {
    */
   getNumber(key, defaultValue = undefined) {
     const value = this.get(key, defaultValue);
-    if (value === undefined) return undefined;
+    if (value === undefined) {
+      return undefined;
+    }
 
     const parsed = parseInt(value, 10);
     if (isNaN(parsed)) {
@@ -51,11 +53,17 @@ export class Configuration {
    */
   getBoolean(key, defaultValue = undefined) {
     const value = this.get(key);
-    if (value === undefined) return defaultValue;
+    if (value === undefined) {
+      return defaultValue;
+    }
 
     const lower = value.toLowerCase();
-    if (lower === 'true' || lower === '1' || lower === 'yes') return true;
-    if (lower === 'false' || lower === '0' || lower === 'no') return false;
+    if (lower === 'true' || lower === '1' || lower === 'yes') {
+      return true;
+    }
+    if (lower === 'false' || lower === '0' || lower === 'no') {
+      return false;
+    }
 
     throw new Error(`Configuration key '${key}' must be a boolean value, got: ${value}`);
   }

@@ -150,7 +150,9 @@ describe('Tweet Processing and Duplicate Detection', () => {
 
   it('should respect ANNOUNCE_OLD_TWEETS configuration', async () => {
     mockConfig.getBoolean.mockImplementation((key, defaultValue) => {
-      if (key === 'ANNOUNCE_OLD_TWEETS') return true;
+      if (key === 'ANNOUNCE_OLD_TWEETS') {
+        return true;
+      }
       return defaultValue;
     });
 

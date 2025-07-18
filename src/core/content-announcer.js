@@ -285,7 +285,7 @@ export class ContentAnnouncer {
           {
             title: `🔴 ${channelTitle || 'Channel'} is now live!`,
             description: title,
-            url: url,
+            url,
             color: 0xff0000, // Red for live
             timestamp: new Date().toISOString(),
             fields: [
@@ -338,10 +338,10 @@ export class ContentAnnouncer {
     if (this.state.get('vxTwitterConversionEnabled', false)) {
       finalUrl = this.convertToVxTwitter(url);
     }
-    
+
     let message = `${emoji} **${author}** ${actionText}:\n${finalUrl}`;
     if (type === 'retweet' && retweetedBy) {
-        message = `${emoji} **${retweetedBy}** retweeted:\n**${author}**: ${finalUrl}`;
+      message = `${emoji} **${retweetedBy}** retweeted:\n**${author}**: ${finalUrl}`;
     }
 
     return message;

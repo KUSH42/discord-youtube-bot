@@ -460,14 +460,20 @@ export class ScraperApplication {
           let tweetLink = null;
           for (const selector of linkSelectors) {
             tweetLink = article.querySelector(selector);
-            if (tweetLink) break;
+            if (tweetLink) {
+              break;
+            }
           }
 
-          if (!tweetLink) continue;
+          if (!tweetLink) {
+            continue;
+          }
 
           const url = tweetLink.href;
           const tweetIdMatch = url.match(/status\/(\d+)/);
-          if (!tweetIdMatch) continue;
+          if (!tweetIdMatch) {
+            continue;
+          }
 
           const tweetID = tweetIdMatch[1];
 

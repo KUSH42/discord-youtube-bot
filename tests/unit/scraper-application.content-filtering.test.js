@@ -127,7 +127,9 @@ describe('Content Filtering Logic', () => {
 
     it('should return true when ANNOUNCE_OLD_TWEETS is enabled', () => {
       mockConfig.getBoolean.mockImplementation((key) => {
-        if (key === 'ANNOUNCE_OLD_TWEETS') return true;
+        if (key === 'ANNOUNCE_OLD_TWEETS') {
+          return true;
+        }
         return false;
       });
 

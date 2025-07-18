@@ -95,11 +95,13 @@ export const memory = {
 
   // Format memory size for display
   formatBytes: (bytes) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) {
+      return '0 B';
+    }
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   },
 };
 
@@ -113,7 +115,7 @@ export const mocks = {
     // Add helper methods
     mockFn.getCallCount = () => mockFn.mock.calls.length;
     mockFn.getCallArgs = (callIndex = -1) => {
-      const calls = mockFn.mock.calls;
+      const { calls } = mockFn.mock;
       return callIndex >= 0 ? calls[callIndex] : calls[calls.length - 1];
     };
     mockFn.wasCalledWith = (...args) => {
@@ -262,7 +264,9 @@ export const validation = {
 
   // Validate timestamp format
   isValidTimestamp: (timestamp) => {
-    if (typeof timestamp !== 'string') return false;
+    if (typeof timestamp !== 'string') {
+      return false;
+    }
     const date = new Date(timestamp);
     return !isNaN(date.getTime()) && date.toISOString() === timestamp;
   },

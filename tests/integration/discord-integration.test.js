@@ -184,7 +184,9 @@ describe('Discord Integration Tests', () => {
 
     it('should ignore bot messages', () => {
       const messageHandler = jest.fn((message) => {
-        if (message.author.bot) return; // Ignore bot messages
+        if (message.author.bot) {
+          return;
+        } // Ignore bot messages
         // Process user message
       });
 
@@ -207,8 +209,12 @@ describe('Discord Integration Tests', () => {
 
     const createCommandHandler = () => {
       return jest.fn((message) => {
-        if (message.author.bot) return;
-        if (!message.content.startsWith(commandPrefix)) return;
+        if (message.author.bot) {
+          return;
+        }
+        if (!message.content.startsWith(commandPrefix)) {
+          return;
+        }
 
         const args = message.content.slice(commandPrefix.length).trim().split(/ +/);
         const command = args.shift().toLowerCase();
@@ -301,9 +307,15 @@ describe('Discord Integration Tests', () => {
 
     it('should only process commands in support channel', () => {
       const commandHandler = jest.fn((message) => {
-        if (message.author.bot) return;
-        if (message.channel.id !== 'support-channel-id') return;
-        if (!message.content.startsWith(commandPrefix)) return;
+        if (message.author.bot) {
+          return;
+        }
+        if (message.channel.id !== 'support-channel-id') {
+          return;
+        }
+        if (!message.content.startsWith(commandPrefix)) {
+          return;
+        }
 
         message.reply('Command processed in support channel');
       });
@@ -379,7 +391,9 @@ describe('Discord Integration Tests', () => {
 
       const announceToChannel = async (channelType, data) => {
         const channel = channels[channelType];
-        if (!channel) return;
+        if (!channel) {
+          return;
+        }
 
         const message = `New ${channelType.slice(0, -1)}: ${data.text}\n${data.url}`;
         await channel.send(message);

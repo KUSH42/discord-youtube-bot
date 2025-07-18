@@ -19,7 +19,7 @@ describe('Discord Utils Tests', () => {
     it('should handle very long lines by breaking them', () => {
       const longLine = 'a'.repeat(100);
       const result = splitMessage(longLine, { maxLength: 50 });
-      expect(result.length).toBe(2);
+      expect(result).toHaveLength(2);
       expect(result[0]).toBe('a'.repeat(50));
       expect(result[1]).toBe('a'.repeat(50));
     });
@@ -36,7 +36,7 @@ describe('Discord Utils Tests', () => {
     });
 
     it('should handle mixed content with line breaks and long lines', () => {
-      const message = 'Short line\n' + 'a'.repeat(100) + '\nAnother short line';
+      const message = `Short line\n${'a'.repeat(100)}\nAnother short line`;
       const result = splitMessage(message, { maxLength: 50 });
       expect(result.length).toBeGreaterThan(2);
       expect(result[0]).toBe('Short line');
@@ -69,7 +69,9 @@ describe('Discord Utils Tests', () => {
       mockClient = {
         channels: {
           fetch: jest.fn().mockImplementation((id) => {
-            if (id === 'support123') return Promise.resolve(mockSupportChannel);
+            if (id === 'support123') {
+              return Promise.resolve(mockSupportChannel);
+            }
             return Promise.resolve(mockChannel);
           }),
         },

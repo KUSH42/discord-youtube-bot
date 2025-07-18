@@ -66,7 +66,9 @@ export class CommandRateLimit {
    */
   getRemainingTime(userId) {
     const userData = this.users.get(userId);
-    if (!userData) return 0;
+    if (!userData) {
+      return 0;
+    }
     return Math.max(0, userData.resetTime - Date.now());
   }
 
@@ -77,7 +79,9 @@ export class CommandRateLimit {
    */
   getUserCount(userId) {
     const userData = this.users.get(userId);
-    if (!userData) return 0;
+    if (!userData) {
+      return 0;
+    }
 
     const now = Date.now();
     if (now >= userData.resetTime) {

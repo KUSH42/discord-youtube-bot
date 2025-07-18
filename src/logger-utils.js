@@ -30,7 +30,9 @@ export class DiscordTransport extends Transport {
   }
 
   startFlushing() {
-    if (this.flushTimer) clearInterval(this.flushTimer);
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
     this.flushTimer = setInterval(() => {
       if (!this.isDestroyed) {
         this.flush();
@@ -58,9 +60,13 @@ export class DiscordTransport extends Transport {
   async log(info, callback) {
     setImmediate(() => this.emit('logged', info));
     // Don't log if transport is destroyed
-    if (this.isDestroyed) return callback();
+    if (this.isDestroyed) {
+      return callback();
+    }
     // Channel initialization logic
-    if (!this.client.isReady() || this.channel === 'errored') return callback();
+    if (!this.client.isReady() || this.channel === 'errored') {
+      return callback();
+    }
     if (this.channel === null) {
       try {
         const fetchedChannel = await this.client.channels.fetch(this.channelId);
@@ -79,19 +85,27 @@ export class DiscordTransport extends Transport {
         console.error(`[DiscordTransport] Failed to fetch channel ${this.channelId}:`, error);
       }
     }
-    if (!this.channel || this.channel === 'errored') return callback();
+    if (!this.channel || this.channel === 'errored') {
+      return callback();
+    }
 
     // Buffering logic
     const { level, message, stack } = info;
     let logMessage = `**[${level.toUpperCase()}]**: ${message}`;
-    if (stack) logMessage += `\n\`\`\`\n${stack}\n\`\`\``;
+    if (stack) {
+      logMessage += `\n\`\`\`\n${stack}\n\`\`\``;
+    }
     this.buffer.push(logMessage);
-    if (this.buffer.length >= this.maxBufferSize) await this.flush();
+    if (this.buffer.length >= this.maxBufferSize) {
+      await this.flush();
+    }
     callback();
   }
 
   async flush() {
-    if (this.buffer.length === 0 || !this.channel || this.channel === 'errored') return;
+    if (this.buffer.length === 0 || !this.channel || this.channel === 'errored') {
+      return;
+    }
     const messagesToFlush = [...this.buffer];
     this.buffer = [];
 
@@ -103,7 +117,9 @@ export class DiscordTransport extends Transport {
     const combinedMessage = messagesToFlush.join('\n');
     try {
       for (const part of splitMessage(combinedMessage, { maxLength: 1980 })) {
-        if (part) await this.channel.send(part);
+        if (part) {
+          await this.channel.send(part);
+        }
       }
     } catch (error) {
       // Only log the error if it's not related to Discord being unavailable during shutdown
