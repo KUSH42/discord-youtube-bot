@@ -562,4 +562,161 @@ describe('ScraperApplication', () => {
       );
     });
   });
+
+  describe('Search Logic - Always Run Normal Search', () => {
+    let mockDiscordService;
+
+    beforeEach(() => {
+      // Mock discord service
+      mockDiscordService = {
+        sendMessage: jest.fn()
+      };
+      
+      // Set up browser and other dependencies
+      scraperApp.browser = mockBrowserService;
+      scraperApp.discord = mockDiscordService;
+      
+      // Mock methods that pollXProfile depends on
+      jest.spyOn(scraperApp, 'extractTweets').mockResolvedValue([]);
+      jest.spyOn(scraperApp, 'filterNewTweets').mockReturnValue([]);
+      jest.spyOn(scraperApp, 'processNewTweet').mockResolvedValue();
+      jest.spyOn(scraperApp, 'getNextInterval').mockReturnValue(300000);
+      
+      // Mock browser evaluate method for scrolling
+      mockBrowserService.evaluate.mockResolvedValue();
+    });
+
+    it('should always navigate to search URL regardless of retweet processing setting', async () => {
+      // Test with retweet processing enabled
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
+      
+      await scraperApp.pollXProfile();
+      
+      // Should navigate to search URL, not profile timeline
+      expect(mockBrowserService.goto).toHaveBeenCalledWith(
+        expect.stringMatching(/https:\/\/x\.com\/search\?q=\(from%3Atestuser\)/)
+      );
+      
+      // Clear mocks for next test
+      jest.clearAllMocks();
+      
+      // Test with retweet processing disabled  
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(false);
+      
+      await scraperApp.pollXProfile();
+      
+      // Should still navigate to search URL
+      expect(mockBrowserService.goto).toHaveBeenCalledWith(
+        expect.stringMatching(/https:\/\/x\.com\/search\?q=\(from%3Atestuser\)/)
+      );
+    });
+
+    it('should generate correct search URL with date parameter', async () => {
+      const expectedDate = new Date();
+      expectedDate.setDate(expectedDate.getDate() - 1);
+      const expectedDateString = expectedDate.toISOString().split('T')[0];
+      
+      await scraperApp.pollXProfile();
+      
+      expect(mockBrowserService.goto).toHaveBeenCalledWith(
+        `https://x.com/search?q=(from%3Atestuser)%20since%3A${expectedDateString}&f=live&pf=on&src=typed_query`
+      );
+    });
+
+    it('should log appropriate message when enhanced retweet detection is enabled', async () => {
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
+      
+      await scraperApp.pollXProfile();
+      
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Enhanced retweet detection enabled (search-based approach)'
+      );
+    });
+
+    it('should not log enhanced retweet message when disabled', async () => {
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(false);
+      
+      await scraperApp.pollXProfile();
+      
+      expect(mockLogger.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Enhanced retweet detection')
+      );
+    });
+
+    it('should prioritize search URL navigation over retweet processing', async () => {
+      // Mock shouldProcessRetweets to return different values
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
+      
+      await scraperApp.pollXProfile();
+      
+      // Should navigate to search URL first, regardless of retweet processing setting
+      expect(mockBrowserService.goto).toHaveBeenCalledWith(
+        expect.stringMatching(/https:\/\/x\.com\/search\?q=\(from%3Atestuser\)/)
+      );
+      
+      // Should then check for retweet processing
+      expect(scraperApp.shouldProcessRetweets).toHaveBeenCalled();
+    });
+
+    it('should wait for content selectors after navigation', async () => {
+      await scraperApp.pollXProfile();
+      
+      // Should attempt to wait for content with multiple selectors
+      expect(mockBrowserService.waitForSelector).toHaveBeenCalledWith(
+        'article[data-testid="tweet"]',
+        { timeout: 5000 }
+      );
+    });
+
+    it('should perform scrolling to load more content', async () => {
+      await scraperApp.pollXProfile();
+      
+      // Should call evaluate 3 times for scrolling (as per the implementation)
+      expect(mockBrowserService.evaluate).toHaveBeenCalledTimes(3);
+      expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
+        expect.any(Function)
+      );
+    });
+
+    it('should extract and process tweets after navigation', async () => {
+      const mockTweets = [
+        {
+          tweetID: '1234567890',
+          url: 'https://x.com/testuser/status/1234567890',
+          author: 'testuser',
+          text: 'Test tweet',
+          timestamp: '2024-01-01T00:01:00Z'
+        }
+      ];
+      
+      scraperApp.extractTweets.mockResolvedValue(mockTweets);
+      scraperApp.filterNewTweets.mockReturnValue(mockTweets);
+      
+      await scraperApp.pollXProfile();
+      
+      expect(scraperApp.extractTweets).toHaveBeenCalled();
+      expect(scraperApp.filterNewTweets).toHaveBeenCalledWith(mockTweets);
+      expect(scraperApp.processNewTweet).toHaveBeenCalledWith(mockTweets[0]);
+    });
+
+    it('should emit poll completion event with correct data', async () => {
+      const mockTweets = [{ tweetID: '123' }];
+      const newTweets = [{ tweetID: '123' }];
+      
+      scraperApp.extractTweets.mockResolvedValue(mockTweets);
+      scraperApp.filterNewTweets.mockReturnValue(newTweets);
+      
+      await scraperApp.pollXProfile();
+      
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        'scraper.poll.completed',
+        expect.objectContaining({
+          timestamp: expect.any(Date),
+          tweetsFound: 1,
+          newTweets: 1,
+          stats: expect.any(Object)
+        })
+      );
+    });
+  });
 });

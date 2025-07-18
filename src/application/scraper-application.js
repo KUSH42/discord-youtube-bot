@@ -389,16 +389,15 @@ export class ScraperApplication {
       yesterday.setDate(yesterday.getDate() - 1);
       const sinceDate = yesterday.toISOString().split('T')[0];
 
-      // Use hybrid approach: search + profile timeline if retweet processing enabled
-      const shouldProcessRetweets = this.shouldProcessRetweets();
+      // Always use search for normal post detection
+      const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
+      await this.browser.goto(searchUrl);
       
+      // If enhanced retweet processing is enabled, we could add additional logic here
+      // but the primary search should always run for normal posts
+      const shouldProcessRetweets = this.shouldProcessRetweets();
       if (shouldProcessRetweets) {
-        this.logger.info('Enhanced retweet detection enabled, using profile timeline approach');
-        await this.navigateToProfileTimeline(this.xUser);
-      } else {
-        // Navigate to user's search results (standard approach)
-        const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
-        await this.browser.goto(searchUrl);
+        this.logger.info('Enhanced retweet detection enabled (search-based approach)');
       }
       
       // Wait for content to load - try multiple selectors
