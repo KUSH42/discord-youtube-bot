@@ -2,7 +2,7 @@ name: Comprehensive Test Suite
 
 # Add permissions for GitHub Actions
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
   checks: write
