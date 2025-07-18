@@ -1,6 +1,5 @@
 {
   "name": "discord-content-announcement-bot",
-
   "type": "module",
   "description": "This is a Node.js bot designed to automatically announce new video uploads and livestream starts from a specified YouTube channel and new posts from a specified X (formerly Twitter) profile to designated Discord text channels.",
   "version": "1.0.0",
@@ -38,7 +37,6 @@
     "body-parser": "^2.2.0",
     "discord.js": "^14.21.0",
     "dotenv": "^17.2.0",
-    "eslint-plugin-jest": "^29.0.1",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.1",
     "googleapis": "^152.0.0",
@@ -59,6 +57,10 @@
   "homepage": "https://github.com/KUSH42/discord-youtube-bot#readme",
   "devDependencies": {
     "@babel/core": "^7.28.0",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.18.6",
+    "@babel/plugin-proposal-optional-chaining": "^7.21.0",
+    "@babel/plugin-transform-nullish-coalescing-operator": "^7.27.1",
+    "@babel/plugin-transform-optional-chaining": "^7.27.1",
     "@babel/preset-env": "^7.28.0",
     "@eslint/css": "^0.10.0",
     "@eslint/js": "^9.31.0",
@@ -66,8 +68,10 @@
     "@eslint/markdown": "^7.0.0",
     "@jest/globals": "^30.0.4",
     "babel-jest": "^30.0.4",
+    "core-js": "^3.44.0",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-jest": "^29.0.1",
     "eslint-plugin-prettier": "^5.5.1",
     "globals": "^16.3.0",
     "husky": "^9.1.7",
