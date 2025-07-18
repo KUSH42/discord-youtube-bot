@@ -6,7 +6,7 @@ permissions:
   pull-requests: write
   issues: write
   checks: write
-  actions: read
+  actions: write
 
 on:
   push:
