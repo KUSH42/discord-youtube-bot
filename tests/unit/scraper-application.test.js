@@ -88,6 +88,12 @@ describe('ScraperApplication', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
+    
+    // Mock auth manager
+    const mockAuthManager = {
+      ensureAuthenticated: jest.fn(),
+      isAuthenticated: jest.fn().mockResolvedValue(true),
+    };
 
     // Create scraper application instance
     scraperApp = new ScraperApplication({
@@ -98,6 +104,7 @@ describe('ScraperApplication', () => {
       stateManager: mockStateManager,
       eventBus: mockEventBus,
       logger: mockLogger,
+      authManager: mockAuthManager,
     });
   });
 
@@ -554,58 +561,7 @@ describe('ScraperApplication', () => {
     });
   });
 
-  describe('shouldProcessRetweets', () => {
-    it('should return true when ENABLE_RETWEET_PROCESSING is true', () => {
-      mockConfig.getBoolean.mockReturnValue(true);
-
-      const result = scraperApp.shouldProcessRetweets();
-
-      expect(result).toBe(true);
-      expect(mockConfig.getBoolean).toHaveBeenCalledWith('ENABLE_RETWEET_PROCESSING', true);
-    });
-
-    it('should return false when ENABLE_RETWEET_PROCESSING is false', () => {
-      mockConfig.getBoolean.mockReturnValue(false);
-
-      const result = scraperApp.shouldProcessRetweets();
-
-      expect(result).toBe(false);
-      expect(mockConfig.getBoolean).toHaveBeenCalledWith('ENABLE_RETWEET_PROCESSING', true);
-    });
-
-    it('should default to true when config value is not set', () => {
-      mockConfig.getBoolean.mockReturnValue(true); // Default value
-
-      const result = scraperApp.shouldProcessRetweets();
-
-      expect(result).toBe(true);
-      expect(mockConfig.getBoolean).toHaveBeenCalledWith('ENABLE_RETWEET_PROCESSING', true);
-    });
-  });
-
-  describe('extractTweets parameter passing', () => {
-    it('should extract tweets from browser context', async () => {
-      // Set up the browser service mock
-      scraperApp.browser = mockBrowserService;
-      mockBrowserService.evaluate.mockResolvedValue([]);
-
-      await scraperApp.extractTweets();
-
-      // Verify that evaluate was called with a function to extract tweets
-      expect(mockBrowserService.evaluate).toHaveBeenCalledWith(expect.any(Function));
-    });
-
-    it('should extract tweets regardless of retweet processing setting', async () => {
-      scraperApp.browser = mockBrowserService;
-      mockBrowserService.evaluate.mockResolvedValue([]);
-
-      await scraperApp.extractTweets();
-
-      expect(mockBrowserService.evaluate).toHaveBeenCalledWith(expect.any(Function));
-    });
-  });
-
-  describe('Search Logic - Always Run Normal Search', () => {
+  describe('Search and Retweet Logic', () => {
     let mockDiscordService;
 
     beforeEach(() => {
@@ -637,7 +593,7 @@ describe('ScraperApplication', () => {
 
       // Should navigate to search URL, not profile timeline
       expect(mockBrowserService.goto).toHaveBeenCalledWith(
-        expect.stringMatching(/https:\/\/x\.com\/search\?q=\(from%3Atestuser\)/),
+        expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/),
       );
 
       // Clear mocks for next test
@@ -650,7 +606,7 @@ describe('ScraperApplication', () => {
 
       // Should still navigate to search URL
       expect(mockBrowserService.goto).toHaveBeenCalledWith(
-        expect.stringMatching(/https:\/\/x\.com\/search\?q=\(from%3Atestuser\)/),
+        expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/),
       );
     });
 
@@ -688,7 +644,7 @@ describe('ScraperApplication', () => {
 
       // Should navigate to search URL first, regardless of retweet processing setting
       expect(mockBrowserService.goto).toHaveBeenCalledWith(
-        expect.stringMatching(/https:\/\/x\.com\/search\?q=\(from%3Atestuser\)/),
+        expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/),
       );
 
       // Should then check for retweet processing

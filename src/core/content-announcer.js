@@ -310,7 +310,7 @@ export class ContentAnnouncer {
    * @returns {string} Formatted message
    */
   formatXMessage(content) {
-    const { author, url, type } = content;
+    const { author, url, type, retweetedBy } = content;
     let emoji = '🐦';
     let actionText = 'posted';
 
@@ -338,8 +338,11 @@ export class ContentAnnouncer {
     if (this.state.get('vxTwitterConversionEnabled', false)) {
       finalUrl = this.convertToVxTwitter(url);
     }
-
-    const message = `${emoji} **${author}** ${actionText}:\n${finalUrl}`;
+    
+    let message = `${emoji} **${author}** ${actionText}:\n${finalUrl}`;
+    if (type === 'retweet' && retweetedBy) {
+        message = `${emoji} **${retweetedBy}** retweeted:\n**${author}**: ${finalUrl}`;
+    }
 
     return message;
   }
