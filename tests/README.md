@@ -8,26 +8,55 @@ This directory contains a bulletproof testing infrastructure for the Discord Con
 ```bash
 tests/
 ├── unit/                    # Unit tests for individual components
-│   ├── regex-patterns.test.js       # URL pattern matching tests
-│   ├── duplicate-detection.test.js  # Duplicate prevention logic
-│   ├── config-validation.test.js    # Environment validation
-│   ├── rate-limiting.test.js        # Rate limiting functionality
+│   ├── bot-application.test.js       # Core bot application logic
+│   ├── browser-service-injection.test.js # Dependency injection for browser service
+│   ├── command-processor.test.js       # Command handling and routing
+│   ├── config-validation.test.js    # Environment variable validation
+│   ├── content-announcer.test.js       # Content announcement logic
+│   ├── content-classifier.test.js      # Content classification and routing
+│   ├── discord-transport-error-handling.test.js # Error handling for Discord transport
 │   ├── discord-utils.test.js        # Discord utilities (message splitting, management)
-│   ├── logger-utils.test.js         # Logger utilities (Discord transport, formatters)
-│   ├── pubsubhubbub-failures.test.js # PubSubHubbub failure handling
+│   ├── duplicate-detection.test.js  # Duplicate prevention logic
 │   ├── enhanced-retweet-detection.test.js # Enhanced retweet detection algorithms
-│   ├── tweet-classification.test.js # Tweet categorization logic
+│   ├── infrastructure-configuration.test.js # Infrastructure configuration and setup
+│   ├── logger-utils.test.js         # Logger utilities (Discord transport, formatters)
+│   ├── login-flow.test.js              # X/Twitter login flow
+│   ├── monitor-application.test.js   # Monitoring application logic
 │   ├── persistent-cookie-storage.test.js # Cookie management and authentication
-│   └── services/fetch-http-service.test.js # HTTP service implementation
+│   ├── playwright-browser-service.test.js # Playwright browser service implementation
+│   ├── pubsubhubbub-failures.test.js # PubSubHubbub failure handling
+│   ├── rate-limiting.test.js        # Rate limiting functionality
+│   ├── regex-patterns.test.js       # URL pattern matching tests
+│   ├── scraper-application.browser-initialization.test.js # Scraper browser initialization
+│   ├── scraper-application.content-filtering.test.js # Scraper content filtering
+│   ├── scraper-application.duplicate-detector.test.js # Scraper duplicate detection
+│   ├── scraper-application.enhanced-scrolling.test.js # Scraper enhanced scrolling
+│   ├── scraper-application.polling.test.js # Scraper polling mechanism
+│   ├── scraper-application.search-retweet.test.js # Scraper search and retweet logic
+│   ├── scraper-application.tweet-processing.test.js # Scraper tweet processing
+│   ├── services/                  # Service implementations
+│   │   ├── discord-client-service.test.js # Discord client service
+│   │   ├── fetch-http-service.test.js # Fetch HTTP service
+│   │   ├── playwright-browser-service.test.js # Playwright browser service
+│   │   └── youtube-api-service.test.js # YouTube API service
+│   ├── tweet-classification.test.js # Tweet categorization logic
+│   ├── utils/                     # Utility functions
+│   │   └── delay.test.js              # Delay utility
+│   ├── x-scraper.test.js          # X/Twitter scraper logic
+│   └── youtube-monitor.test.js    # YouTube monitor logic
 ├── integration/             # Integration tests for component interactions
 │   ├── discord-integration.test.js  # Discord API integration
 │   ├── external-apis.test.js        # YouTube/Twitter API integration
-│   ├── src-modules.test.js          # Source module integration testing
+│   ├── index.test.js                # Main entry point integration
+│   ├── production-setup-validation.test.js # Production setup validation
 │   ├── pubsubhubbub-security.test.js # Cross-bot security scenarios
 │   ├── retweet-workflows.test.js    # End-to-end retweet detection and announcement
-│   └── setup/production-setup.test.js # Tests the production setup and dependency injection
+│   ├── setup/production-setup.test.js # Tests the production setup and dependency injection
+│   ├── src-modules.test.js          # Source module integration testing
+│   └── startup.test.js              # Bot startup and initialization
 ├── e2e/                     # End-to-end workflow tests
 │   ├── announcement-workflows.test.js # Complete announcement flows
+│   ├── empty-notification-fallback.test.js # Empty notification fallback
 │   └── fallback-recovery.test.js     # Fallback system recovery workflows
 ├── performance/             # Performance and load testing
 │   └── load-tests.test.js           # Scalability and memory tests
