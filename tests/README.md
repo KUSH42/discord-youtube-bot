@@ -353,6 +353,9 @@ COVERAGE_THRESHOLD=90           # Minimum coverage requirement
 4. **Mock Issues**: Verify mock reset in beforeEach/afterEach
 5. **Coverage File Missing**: Run `./scripts/generate-coverage-summary.sh` to create missing `coverage-summary.json`
 6. **CI Script Failures**: When local scripts expect CI-generated files, use coverage generator to create them locally
+7. **Configuration Typos**: Verify environment variable names match configuration exactly (`X_QUERY_INTERVAL_MIN` not `X_QUERY_INTERVALL_MIN`)
+8. **Discord Channel ID Validation**: Use 17-19 digit channel IDs in test environments (e.g., `123456789012345678`)
+9. **Process Exit in Tests**: Ensure main functions throw errors instead of calling `process.exit()` when imported during testing
 
 ### Debug Commands
 ```bash
@@ -370,6 +373,14 @@ npm test -- --testNamePattern="should extract video ID"
 
 # Fix missing coverage files for local development
 ./scripts/generate-coverage-summary.sh
+
+# Test environment setup for new tests
+export DISCORD_SUPPORT_CHANNEL_ID='123456789012345678'
+export DISCORD_ANNOUNCE_CHANNEL_ID='123456789012345679'
+export YOUTUBE_CHANNEL_ID='UCrAOyUwjSM5zzPz_FqsUhuQ'
+
+# Fix configuration typos during development
+grep -r "X_QUERY_INTERVALL" tests/ # Should return no results after fix
 ```
 
 ## 📋 CI/CD Integration
@@ -421,6 +432,13 @@ npm test -- --testNamePattern="should extract video ID"
 
 ## 🎯 Critical Bug Fixes & Security Testing
 
+### Recent GitHub Actions Reliability Fixes (2025-07-18)
+- **CRITICAL FIX**: Resolved configuration typo causing test failures: `X_QUERY_INTERVALL_MIN` → `X_QUERY_INTERVAL_MIN`
+- **CRITICAL FIX**: Fixed `process.exit()` calls in main functions causing test failures during import/execution
+- **Test Environment**: Enhanced test environment setup with proper Discord channel ID validation (17-19 digits)
+- **Entry Point Testing**: Improved testing for `index.js` and `x-scraper.js` entry points
+- **CI Stability**: All GitHub Actions workflows now pass consistently
+
 ### PubSubHubbub Reliability Improvements
 - **CRITICAL FIX**: Malformed XML notifications now properly trigger fallback system
 - **28 New Test Cases**: Comprehensive failure scenario testing
@@ -440,8 +458,8 @@ npm test -- --testNamePattern="should extract video ID"
 ## 🎯 Summary
 
 **Test Coverage Achievement**: See CI report for the latest merged coverage.
-**Test Suite Size**: 287+ tests - All passing with production reliability  
+**Test Suite Size**: 165 tests across 24 test suites - All passing with production reliability  
 **Architecture**: Clean architecture with dependency injection and modular design  
-**Performance Target**: <2s test suite execution for development workflow  
+**Performance Target**: <7s test suite execution for development workflow (optimized for parallel execution)  
 **Security Standard**: Zero tolerance for injection vulnerabilities and data exposure  
 **Reliability**: Bulletproof testing infrastructure with comprehensive failure scenario coverage

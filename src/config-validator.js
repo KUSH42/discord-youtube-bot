@@ -32,8 +32,8 @@ export function validateEnvironmentVariables(env = process.env) {
     { name: 'PSH_VERIFY_TOKEN', defaultValue: 'your_optional_verify_token' },
     { name: 'ANNOUNCEMENT_ENABLED', defaultValue: 'false' },
     { name: 'X_VX_TWITTER_CONVERSION', defaultValue: 'false' },
-    { name: 'X_QUERY_INTERVALL_MIN', defaultValue: '300000' },
-    { name: 'X_QUERY_INTERVALL_MAX', defaultValue: '600000' },
+    { name: 'X_QUERY_INTERVAL_MIN', defaultValue: '300000' },
+    { name: 'X_QUERY_INTERVAL_MAX', defaultValue: '600000' },
     { name: 'ALLOWED_USER_IDS', defaultValue: null },
     { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' },
   ];

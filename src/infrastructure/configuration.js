@@ -128,7 +128,7 @@ export class Configuration {
       throw new Error('X_USER_HANDLE should be username without @ symbol and no spaces');
     }
 
-    const interval = this.getNumber('X_QUERY_INTERVALL_MIN');
+    const interval = this.getNumber('X_QUERY_INTERVAL_MIN');
     if (interval !== undefined && interval < 60000) {
       console.warn('X query interval less than 1 minute may cause rate limiting');
     }

@@ -7,8 +7,27 @@ import { setupProductionServices } from '../../src/setup/production-setup.js';
 describe('Application Startup Integration Test', () => {
   let container;
   let BotApplication, MonitorApplication, ScraperApplication;
+  let originalEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = process.env;
+
+    // Set required environment variables for tests
+    process.env = {
+      ...originalEnv,
+      X_USER_HANDLE: 'testuser',
+      TWITTER_USERNAME: 'testuser',
+      TWITTER_PASSWORD: 'testpass',
+      DISCORD_BOT_TOKEN: 'test-token',
+      DISCORD_SUPPORT_CHANNEL_ID: '123456789012345678',
+      DISCORD_ANNOUNCE_CHANNEL_ID: '123456789012345679',
+      YOUTUBE_API_KEY: 'test-key',
+      YOUTUBE_CHANNEL_ID: 'UCrAOyUwjSM5zzPz_FqsUhuQ',
+      PSH_CALLBACK_URL: 'https://example.com/webhook',
+      PSH_SECRET: 'test-secret',
+    };
+
     // Dynamically import and mock the classes
     const botAppModule = await import('../../src/application/bot-application.js');
     BotApplication = botAppModule.BotApplication;
@@ -30,6 +49,8 @@ describe('Application Startup Integration Test', () => {
     if (container) {
       await container.dispose();
     }
+    // Restore original environment
+    process.env = originalEnv;
     jest.restoreAllMocks();
   });
 

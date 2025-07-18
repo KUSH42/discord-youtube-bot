@@ -55,8 +55,8 @@ describe('Search and Retweet Logic', () => {
       }),
       get: jest.fn((key, defaultValue) => {
         const values = {
-          X_QUERY_INTERVALL_MIN: '300000',
-          X_QUERY_INTERVALL_MAX: '600000',
+          X_QUERY_INTERVAL_MIN: '300000',
+          X_QUERY_INTERVAL_MAX: '600000',
         };
         return values[key] || defaultValue;
       }),

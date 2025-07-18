@@ -21,7 +21,7 @@ describe('Configuration', () => {
       TWITTER_USERNAME: 'testuser',
       TWITTER_PASSWORD: 'testpass',
       PSH_CALLBACK_URL: 'https://example.com/webhook',
-      X_QUERY_INTERVALL_MIN: '300000',
+      X_QUERY_INTERVAL_MIN: '300000',
       ANNOUNCEMENT_ENABLED: 'true',
       X_VX_TWITTER_CONVERSION: 'false',
     };
@@ -59,13 +59,13 @@ describe('Configuration', () => {
     it('should get numeric configuration values', () => {
       const config = new Configuration(mockEnv);
 
-      expect(config.getNumber('X_QUERY_INTERVALL_MIN')).toBe(300000);
+      expect(config.getNumber('X_QUERY_INTERVAL_MIN')).toBe(300000);
       expect(config.getNumber('NON_EXISTENT', 500)).toBe(500);
       expect(config.getNumber('NON_EXISTENT')).toBeUndefined();
     });
 
     it('should validate numeric values', () => {
-      const invalidEnv = { ...mockEnv, X_QUERY_INTERVALL_MIN: 'not-a-number' };
+      const invalidEnv = { ...mockEnv, X_QUERY_INTERVAL_MIN: 'not-a-number' };
 
       expect(() => new Configuration(invalidEnv)).toThrow('Configuration validation failed');
     });

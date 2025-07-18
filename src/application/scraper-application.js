@@ -24,8 +24,8 @@ export class ScraperApplication {
     this.twitterPassword = this.config.getRequired('TWITTER_PASSWORD');
 
     // Polling configuration
-    this.minInterval = parseInt(this.config.get('X_QUERY_INTERVALL_MIN', '300000'), 10);
-    this.maxInterval = parseInt(this.config.get('X_QUERY_INTERVALL_MAX', '600000'), 10);
+    this.minInterval = parseInt(this.config.get('X_QUERY_INTERVAL_MIN', '300000'), 10);
+    this.maxInterval = parseInt(this.config.get('X_QUERY_INTERVAL_MAX', '600000'), 10);
 
     // State management
     this.duplicateDetector = new DuplicateDetector();

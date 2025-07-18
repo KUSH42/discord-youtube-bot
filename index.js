@@ -68,7 +68,8 @@ async function main() {
       }
     }
 
-    process.exit(1);
+    // Don't call process.exit here - let the caller handle it
+    throw error;
   }
 }
 

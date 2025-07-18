@@ -137,8 +137,8 @@ describe('Configuration Validation Tests', () => {
       { name: 'PSH_VERIFY_TOKEN', defaultValue: 'your_optional_verify_token' },
       { name: 'ANNOUNCEMENT_ENABLED', defaultValue: 'false' },
       { name: 'X_VX_TWITTER_CONVERSION', defaultValue: 'false' },
-      { name: 'X_QUERY_INTERVALL_MIN', defaultValue: '300000' },
-      { name: 'X_QUERY_INTERVALL_MAX', defaultValue: '600000' },
+      { name: 'X_QUERY_INTERVAL_MIN', defaultValue: '300000' },
+      { name: 'X_QUERY_INTERVAL_MAX', defaultValue: '600000' },
       { name: 'ALLOWED_USER_IDS', defaultValue: null },
       { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' },
     ];
@@ -164,8 +164,8 @@ describe('Configuration Validation Tests', () => {
         PSH_VERIFY_TOKEN: 'custom-token',
         ANNOUNCEMENT_ENABLED: 'true',
         X_VX_TWITTER_CONVERSION: 'true',
-        X_QUERY_INTERVALL_MIN: '120000',
-        X_QUERY_INTERVALL_MAX: '240000',
+        X_QUERY_INTERVAL_MIN: '120000',
+        X_QUERY_INTERVAL_MAX: '240000',
         ALLOWED_USER_IDS: '123,456,789',
         ANNOUNCE_OLD_TWEETS: 'true',
       };
@@ -281,7 +281,7 @@ describe('Configuration Validation Tests', () => {
     });
 
     it('should handle numeric environment variables', () => {
-      const numericVars = ['PSH_PORT', 'X_QUERY_INTERVALL_MIN', 'X_QUERY_INTERVALL_MAX'];
+      const numericVars = ['PSH_PORT', 'X_QUERY_INTERVAL_MIN', 'X_QUERY_INTERVAL_MAX'];
 
       numericVars.forEach((varName) => {
         process.env[varName] = '12345';
@@ -393,11 +393,11 @@ describe('Configuration Validation Tests', () => {
 
     it('should validate query interval ranges', () => {
       // Minimum should be less than maximum
-      process.env.X_QUERY_INTERVALL_MIN = '300000'; // 5 minutes
-      process.env.X_QUERY_INTERVALL_MAX = '600000'; // 10 minutes
+      process.env.X_QUERY_INTERVAL_MIN = '300000'; // 5 minutes
+      process.env.X_QUERY_INTERVAL_MAX = '600000'; // 10 minutes
 
-      const minInterval = parseInt(process.env.X_QUERY_INTERVALL_MIN, 10);
-      const maxInterval = parseInt(process.env.X_QUERY_INTERVALL_MAX, 10);
+      const minInterval = parseInt(process.env.X_QUERY_INTERVAL_MIN, 10);
+      const maxInterval = parseInt(process.env.X_QUERY_INTERVAL_MAX, 10);
 
       expect(minInterval).toBeLessThan(maxInterval);
       expect(minInterval).toBeGreaterThan(0);
