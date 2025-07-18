@@ -672,7 +672,7 @@ describe('ScraperApplication', () => {
       await scraperApp.pollXProfile();
       
       // Should call evaluate 3 times for scrolling (as per the implementation)
-      expect(mockBrowserService.evaluate).toHaveBeenCalledTimes(3);
+      expect(mockBrowserService.evaluate).toHaveBeenCalledTimes(4);
       expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
         expect.any(Function)
       );

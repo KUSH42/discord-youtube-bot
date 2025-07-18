@@ -167,100 +167,96 @@ export class ScraperApplication {
     try {
       this.logger.info('Logging into X...');
       
-      // Navigate to login page
+      // Try cookie authentication first if available
+      const authCookies = this.config.get('TWITTER_AUTH_COOKIES');
+      if (authCookies) {
+        this.logger.info('Attempting cookie-based authentication...');
+        try {
+          this.logger.debug('Raw cookie string length:', authCookies.length);
+          
+          // Clean up the cookie string - remove outer quotes and normalize whitespace
+          let cleanedCookies = authCookies.trim();
+          if (cleanedCookies.startsWith("'") && cleanedCookies.endsWith("'")) {
+            cleanedCookies = cleanedCookies.slice(1, -1);
+          }
+          if (cleanedCookies.startsWith('"') && cleanedCookies.endsWith('"')) {
+            cleanedCookies = cleanedCookies.slice(1, -1);
+          }
+          
+          const cookies = JSON.parse(cleanedCookies);
+          this.logger.debug('Parsed cookies count:', cookies.length);
+          this.logger.debug('First cookie name:', cookies[0]?.name);
+          
+          await this.browser.setCookies(cookies);
+          
+          // Navigate to home page to test authentication
+          await this.browser.goto('https://x.com/home');
+          
+          // Check if we're logged in by looking for user-specific elements
+          const isLoggedIn = await this.browser.waitForSelector('[data-testid="AppTabBar_Home_Link"], [aria-label="Home timeline"], [data-testid="SideNav_AccountSwitcher_Button"]', { timeout: 10000 })
+            .then(() => true)
+            .catch(() => false);
+            
+          if (isLoggedIn) {
+            this.logger.info('✅ Cookie authentication successful');
+            return;
+          } else {
+            this.logger.warn('Cookie authentication failed, falling back to credentials');
+          }
+        } catch (cookieError) {
+          this.logger.warn('Cookie authentication error, falling back to credentials:', cookieError.message);
+          this.logger.debug('Cookie error details:', cookieError);
+        }
+      }
+      
+      // Fallback to username/password login
+      this.logger.info('Using credential-based authentication...');
       await this.browser.goto('https://x.com/i/flow/login');
       
-      // Wait for login form
-      await this.browser.waitForSelector('input[name="text"]', { timeout: 15000 });
-      
-      // Enter username
-      await this.browser.type('input[name="text"]', this.twitterUsername);
-      
-      // Try multiple selectors for the Next button
-      const nextButtonSelectors = [
-        'div[role="button"]:has-text("Next")',
-        'button:has-text("Next")',
-        '[data-testid="LoginForm_Login_Button"]',
-        'div[role="button"]',
-        'button[type="submit"]'
-      ];
-      
-      let nextClicked = false;
-      for (const selector of nextButtonSelectors) {
-        try {
-          await this.browser.waitForSelector(selector, { timeout: 5000 });
-          await this.browser.click(selector);
-          this.logger.info(`Clicked Next button using selector: ${selector}`);
-          nextClicked = true;
+      const maxSteps = 5;
+      for (let step = 0; step < maxSteps; step++) {
+        this.logger.info(`Login step ${step + 1}`);
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for page transition
+        
+        const pageState = await this.browser.evaluate(() => ({
+          hasUsernameInput: !!document.querySelector('input[name="text"]'),
+          hasPasswordInput: !!document.querySelector('input[name="password"]'),
+          needsEmailVerification: document.body.innerText.toLowerCase().includes('phone or email') || !!document.querySelector('input[data-testid="ocfEnterTextTextInput"]'),
+          isLoggedIn: !!document.querySelector('[data-testid="AppTabBar_Home_Link"]')
+        }));
+        
+        if (pageState.isLoggedIn) {
+          this.logger.info('✅ Login successful, already on home page');
+          return;
+        }
+        
+        if (pageState.hasUsernameInput) {
+          this.logger.info('Entering username...');
+          await this.browser.type('input[name="text"]', this.twitterUsername);
+          await this.clickNextButton();
+        } else if (pageState.needsEmailVerification) {
+          this.logger.info('Email verification required...');
+          await this.handleEmailVerification();
+          await this.clickNextButton();
+        } else if (pageState.hasPasswordInput) {
+          this.logger.info('Entering password...');
+          await this.browser.type('input[name="password"]', this.twitterPassword);
+          await this.clickLoginButton();
           break;
-        } catch (err) {
-          this.logger.debug(`Next button selector failed: ${selector}`);
-          continue;
-        }
-      }
-      
-      if (!nextClicked) {
-        throw new Error('Could not find Next button with any known selector');
-      }
-      
-      // Wait for password field
-      await this.browser.waitForSelector('input[name="password"]', { timeout: 15000 });
-      
-      // Enter password
-      await this.browser.type('input[name="password"]', this.twitterPassword);
-      
-      // Try multiple selectors for the Login button
-      const loginButtonSelectors = [
-        'div[role="button"]:has-text("Log in")',
-        'button:has-text("Log in")',
-        '[data-testid="LoginForm_Login_Button"]',
-        'button[type="submit"]'
-      ];
-      
-      let loginClicked = false;
-      for (const selector of loginButtonSelectors) {
-        try {
-          await this.browser.waitForSelector(selector, { timeout: 5000 });
-          await this.browser.click(selector);
-          this.logger.info(`Clicked Login button using selector: ${selector}`);
-          loginClicked = true;
-          break;
-        } catch (err) {
-          this.logger.debug(`Login button selector failed: ${selector}`);
-          continue;
-        }
-      }
-      
-      if (!loginClicked) {
-        throw new Error('Could not find Login button with any known selector');
-      }
-      
-      // Wait for successful login - check for home page or dashboard
-      try {
-        await this.browser.waitForNavigation({ timeout: 20000 });
-        
-        // Verify we're logged in by checking for user-specific elements
-        const isLoggedIn = await this.browser.waitForSelector('[data-testid="AppTabBar_Home_Link"], [aria-label="Home timeline"]', { timeout: 10000 })
-          .then(() => true)
-          .catch(() => false);
-          
-        if (!isLoggedIn) {
-          throw new Error('Login appeared to succeed but user elements not found');
-        }
-        
-        this.logger.info('Successfully logged into X');
-        
-      } catch (navError) {
-        this.logger.warn('Navigation timeout after login attempt, checking current page...');
-        
-        // Check if we're actually logged in despite navigation timeout
-        const currentUrl = await this.browser.page.url();
-        if (currentUrl.includes('home') || currentUrl.includes('x.com') && !currentUrl.includes('login')) {
-          this.logger.info('Login appears successful based on URL');
+        } else if (pageState.isLoggedIn) {
+          this.logger.info('✅ Login successful, already on home page');
+          return;
         } else {
-          throw new Error('Login failed - still on login page or error page');
+          this.logger.warn('Unknown login state, attempting to click Next/Login');
+          const clickedNext = await this.clickNextButton();
+          if (!clickedNext) {
+            await this.clickLoginButton();
+          }
         }
       }
+      
+      // Final verification
+      await this.verifyAuthentication();
       
     } catch (error) {
       this.logger.error('Failed to login to X:', error);
@@ -281,6 +277,52 @@ export class ScraperApplication {
       
       throw new Error(`X login failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Click the "Next" button during login
+   * @returns {Promise<boolean>} True if clicked
+   */
+  async clickNextButton() {
+    const selectors = [
+      'div[role="button"]:has-text("Next")',
+      'button:has-text("Next")',
+      '[data-testid="LoginForm_Login_Button"]',
+    ];
+    for (const selector of selectors) {
+      try {
+        await this.browser.waitForSelector(selector, { timeout: 5000 });
+        await this.browser.click(selector);
+        this.logger.info(`Clicked "Next" button with selector: ${selector}`);
+        return true;
+      } catch (err) {
+        this.logger.debug(`"Next" button selector failed: ${selector}`);
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Click the "Log in" button during login
+   * @returns {Promise<boolean>} True if clicked
+   */
+  async clickLoginButton() {
+    const selectors = [
+      'div[role="button"]:has-text("Log in")',
+      'button:has-text("Log in")',
+      '[data-testid="LoginForm_Login_Button"]',
+    ];
+    for (const selector of selectors) {
+      try {
+        await this.browser.waitForSelector(selector, { timeout: 5000 });
+        await this.browser.click(selector);
+        this.logger.info(`Clicked "Log in" button with selector: ${selector}`);
+        return true;
+      } catch (err) {
+        this.logger.debug(`"Log in" button selector failed: ${selector}`);
+      }
+    }
+    return false;
   }
   
   /**
@@ -389,8 +431,12 @@ export class ScraperApplication {
       yesterday.setDate(yesterday.getDate() - 1);
       const sinceDate = yesterday.toISOString().split('T')[0];
 
+      // Verify authentication before searching
+      await this.verifyAuthentication();
+      
       // Always use search for normal post detection
       const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
+      this.logger.info(`Navigating to search URL: ${searchUrl}`);
       await this.browser.goto(searchUrl);
       
       // If enhanced retweet processing is enabled, we could add additional logic here
@@ -481,6 +527,22 @@ export class ScraperApplication {
    */
   async extractTweets() {
     const shouldProcessRetweets = this.shouldProcessRetweets();
+    
+    // Debug: Log current page info
+    const pageInfo = await this.browser.evaluate(() => {
+      return {
+        url: window.location.href,
+        title: document.title,
+        bodyText: document.body.innerText.substring(0, 500),
+        hasLoginForm: !!document.querySelector('input[name="text"]'),
+        hasErrorMessage: !!document.querySelector('[role="alert"]'),
+        articleCount: document.querySelectorAll('article').length,
+        divCount: document.querySelectorAll('div[data-testid="cellInnerDiv"]').length
+      };
+    });
+    
+    this.logger.info('Page debug info:', pageInfo);
+    
     return await this.browser.evaluate((shouldProcessRetweets) => {
       const tweets = [];
       
@@ -503,6 +565,8 @@ export class ScraperApplication {
       
       if (articles.length === 0) {
         console.log('No tweet articles found with any selector');
+        console.log('Page title:', document.title);
+        console.log('Body text preview:', document.body.innerText.substring(0, 200));
         return tweets;
       }
       
@@ -757,6 +821,129 @@ export class ScraperApplication {
     }
   }
   
+  /**
+   * Handle email verification screen
+   * @returns {Promise<void>}
+   */
+  async handleEmailVerification() {
+    try {
+      this.logger.info('Handling email verification screen...');
+      
+      // Get email from configuration
+      const email = this.config.get('TWITTER_EMAIL') || this.config.get('TWITTER_USERNAME');
+      if (!email || !email.includes('@')) {
+        this.logger.warn('No valid email found in configuration for email verification');
+        throw new Error('Email verification required but no email configured');
+      }
+      
+      // Look for email input field - X uses a generic text input for email/phone
+      const emailInputSelectors = [
+        'input[data-testid="ocfEnterTextTextInput"]',  // X's email verification input
+        'input[name="text"]',                          // Fallback generic text input
+        'input[name="email"]',
+        'input[type="email"]',
+        'input[placeholder*="email" i]'
+      ];
+      
+      let emailInput = null;
+      for (const selector of emailInputSelectors) {
+        try {
+          await this.browser.waitForSelector(selector, { timeout: 5000 });
+          emailInput = selector;
+          this.logger.debug(`Found email input with selector: ${selector}`);
+          break;
+        } catch (err) {
+          this.logger.debug(`Email input selector failed: ${selector}`);
+          continue;
+        }
+      }
+      
+      if (!emailInput) {
+        this.logger.warn('Could not find email input field, proceeding anyway');
+        return;
+      }
+      
+      // Enter email
+      await this.browser.type(emailInput, email);
+      this.logger.info(`Entered email: ${email}`);
+      
+      // Look for and click continue/next button
+      const continueButtonSelectors = [
+        'div[role="button"]:has-text("Next")',
+        'button:has-text("Next")',
+        'div[role="button"]:has-text("Continue")',
+        'button:has-text("Continue")',
+        '[data-testid="ocf_submit_button"]',
+        'button[type="submit"]'
+      ];
+      
+      let continueClicked = false;
+      for (const selector of continueButtonSelectors) {
+        try {
+          await this.browser.waitForSelector(selector, { timeout: 5000 });
+          await this.browser.click(selector);
+          this.logger.info(`Clicked continue button using selector: ${selector}`);
+          continueClicked = true;
+          break;
+        } catch (err) {
+          this.logger.debug(`Continue button selector failed: ${selector}`);
+          continue;
+        }
+      }
+      
+      if (!continueClicked) {
+        this.logger.warn('Could not find continue button after email entry');
+      }
+      
+      // Wait a bit for the next screen to load
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+    } catch (error) {
+      this.logger.error('Error handling email verification:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify authentication status
+   * @returns {Promise<void>}
+   */
+  async verifyAuthentication() {
+    try {
+      this.logger.debug('Verifying X authentication status...');
+      
+      // Navigate to home page to check authentication
+      await this.browser.goto('https://x.com/home');
+      
+      // Check for login indicators vs authenticated indicators
+      const authStatus = await this.browser.evaluate(() => {
+        return {
+          hasLoginForm: !!document.querySelector('input[name="text"]'),
+          hasLoginButton: !!document.querySelector('[data-testid="LoginForm_Login_Button"]'),
+          hasHomeTimeline: !!document.querySelector('[data-testid="AppTabBar_Home_Link"]'),
+          hasUserMenu: !!document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]'),
+          pageTitle: document.title,
+          bodyText: document.body.innerText.substring(0, 200)
+        };
+      });
+      
+      this.logger.debug('Authentication status:', authStatus);
+      
+      if (authStatus.hasLoginForm || authStatus.hasLoginButton) {
+        this.logger.warn('Not authenticated - login form detected, re-authenticating...');
+        await this.loginToX();
+      } else if (authStatus.hasHomeTimeline || authStatus.hasUserMenu) {
+        this.logger.debug('✅ Authentication verified successfully');
+      } else {
+        this.logger.warn('Authentication status unclear, proceeding anyway');
+      }
+      
+    } catch (error) {
+      this.logger.warn('Authentication verification failed:', error.message);
+      // Don't throw - let the search attempt continue
+    }
+  }
+
   /**
    * Refresh authentication cookies
    * @returns {Promise<void>}
