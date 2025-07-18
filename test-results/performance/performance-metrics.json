@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-07-17T23:00:03+00:00",
-  "node_version": "v18.20.8",
-  "platform": "Linux",
-  "cpu_cores": 4,
-  "memory_total": "15Gi",
-  "test_duration_seconds": 0
-}

@@ -646,7 +646,7 @@ jobs:
       - name: Generate comprehensive test report
         run: |
           mkdir -p reports
-          OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json | xargs printf "%.2f")
+          OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' || echo "0.00")
           
           cat > reports/test-summary.md << EOF
           # Test Summary Report
@@ -739,18 +739,19 @@ jobs:
             echo "## Merged Coverage Breakdown" >> reports/test-summary.md
             echo "" >> reports/test-summary.md
             
-            BRANCH_COVERAGE=$(jq -r '.total.branches.pct // 0' coverage-summary.json)
-            FUNCTION_COVERAGE=$(jq -r '.total.functions.pct // 0' coverage-summary.json)
+            BRANCH_COVERAGE=$(jq -r '.total.branches.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' || echo "0.00")
+            FUNCTION_COVERAGE=$(jq -r '.total.functions.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' || echo "0.00")
             
             echo "- **Lines:** ${OVERALL_COVERAGE}%" >> reports/test-summary.md
             echo "- **Branches:** ${BRANCH_COVERAGE}%" >> reports/test-summary.md  
             echo "- **Functions:** ${FUNCTION_COVERAGE}%" >> reports/test-summary.md
             echo "" >> reports/test-summary.md
             
-            # Coverage quality assessment
-            if (( $(echo "$OVERALL_COVERAGE >= 25" | bc -l) )); then
+            # Coverage quality assessment using integer comparison
+            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
+            if [ "$COVERAGE_INT" -ge 2500 ]; then
               echo "✅ **Coverage Quality:** Meets minimum standards (≥25%)" >> reports/test-summary.md
-            elif (( $(echo "$OVERALL_COVERAGE >= 15" | bc -l) )); then
+            elif [ "$COVERAGE_INT" -ge 1500 ]; then
               echo "⚠️ **Coverage Quality:** Below target but acceptable (≥15%)" >> reports/test-summary.md
             else
               echo "❌ **Coverage Quality:** Below minimum standards (<15%)" >> reports/test-summary.md
@@ -760,18 +761,21 @@ jobs:
       - name: Validate coverage quality
         run: |
           if [ "${{ steps.coverage.outputs.status }}" == "available" ]; then
-            COVERAGE=${{ steps.coverage.outputs.coverage_pct }}
+            COVERAGE="${{ steps.coverage.outputs.coverage_pct }}"
+            # Ensure COVERAGE is a valid number
+            COVERAGE=$(echo "$COVERAGE" | awk '{if($1 == "") print "0"; else printf "%.2f", $1}')
             
             echo "Current coverage: ${COVERAGE}%"
             
-            # Set coverage quality gates
-            if (( $(echo "$COVERAGE < 10" | bc -l) )); then
+            # Set coverage quality gates using integer comparison
+            COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
+            if [ "$COVERAGE_INT" -lt 1000 ]; then
               echo "❌ Coverage critically low: $COVERAGE%"
               echo "coverage_status=critical" >> $GITHUB_ENV
-            elif (( $(echo "$COVERAGE < 15" | bc -l) )); then
+            elif [ "$COVERAGE_INT" -lt 1500 ]; then
               echo "⚠️ Coverage below minimum: $COVERAGE%"
               echo "coverage_status=warning" >> $GITHUB_ENV
-            elif (( $(echo "$COVERAGE >= 25" | bc -l) )); then
+            elif [ "$COVERAGE_INT" -ge 2500 ]; then
               echo "✅ Coverage meets target: $COVERAGE%"
               echo "coverage_status=good" >> $GITHUB_ENV
             else
@@ -779,11 +783,11 @@ jobs:
               echo "coverage_status=progress" >> $GITHUB_ENV
             fi
             
-            # Create coverage metrics for tracking
-            BRANCHES_PCT=$(jq -r '.total.branches.pct // 0' coverage-summary.json)
-            FUNCTIONS_PCT=$(jq -r '.total.functions.pct // 0' coverage-summary.json)
-            STATEMENTS_PCT=$(jq -r '.total.statements.pct // 0' coverage-summary.json)
-            QUALITY_SCORE=$(echo "$COVERAGE * 0.4 + $BRANCHES_PCT * 0.3 + $FUNCTIONS_PCT * 0.3" | bc -l)
+            # Create coverage metrics for tracking - Ensure all values are valid numbers
+            BRANCHES_PCT=$(jq -r '.total.branches.pct // 0' coverage-summary.json 2>/dev/null | awk '{if($1 == "") print "0"; else printf "%.2f", $1}')
+            FUNCTIONS_PCT=$(jq -r '.total.functions.pct // 0' coverage-summary.json 2>/dev/null | awk '{if($1 == "") print "0"; else printf "%.2f", $1}')
+            STATEMENTS_PCT=$(jq -r '.total.statements.pct // 0' coverage-summary.json 2>/dev/null | awk '{if($1 == "") print "0"; else printf "%.2f", $1}')
+            QUALITY_SCORE=$(awk -v cov="$COVERAGE" -v br="$BRANCHES_PCT" -v fn="$FUNCTIONS_PCT" 'BEGIN {printf "%.2f", cov * 0.4 + br * 0.3 + fn * 0.3}')
             
             echo "{
               \"timestamp\": \"$(date -Iseconds)\",
