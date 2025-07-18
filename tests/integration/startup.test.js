@@ -22,6 +22,7 @@ describe('Application Startup Integration Test', () => {
       DISCORD_BOT_TOKEN: 'test-token',
       DISCORD_SUPPORT_CHANNEL_ID: '123456789012345678',
       DISCORD_ANNOUNCE_CHANNEL_ID: '123456789012345679',
+      DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345680',
       YOUTUBE_API_KEY: 'test-key',
       YOUTUBE_CHANNEL_ID: 'UCrAOyUwjSM5zzPz_FqsUhuQ',
       PSH_CALLBACK_URL: 'https://example.com/webhook',
