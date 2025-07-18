@@ -1,34 +1,37 @@
 // /home/xush/Documents/prog/discord-youtube-bot/tests/integration/startup.test.js
-import { jest } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { DependencyContainer } from '../../src/infrastructure/dependency-container.js';
 import { Configuration } from '../../src/infrastructure/configuration.js';
 import { setupProductionServices } from '../../src/setup/production-setup.js';
 
-// Mock the applications to prevent them from starting their long-running processes
-jest.mock('../src/application/bot-application.js', () => ({
-  BotApplication: jest.fn().mockImplementation(() => ({
-    start: jest.fn().mockResolvedValue(),
-    stop: jest.fn().mockResolvedValue(),
-  })),
-}));
-
-jest.mock('../src/application/monitor-application.js', () => ({
-  MonitorApplication: jest.fn().mockImplementation(() => ({
-    start: jest.fn().mockResolvedValue(),
-    stop: jest.fn().mockResolvedValue(),
-  })),
-}));
-
-jest.mock('../src/application/scraper-application.js', () => ({
-  ScraperApplication: jest.fn().mockImplementation(() => ({
-    start: jest.fn().mockResolvedValue(),
-    stop: jest.fn().mockResolvedValue(),
-    startNonBlocking: jest.fn(),
-  })),
-}));
-
 describe('Application Startup Integration Test', () => {
   let container;
+  let BotApplication, MonitorApplication, ScraperApplication;
+
+  beforeEach(async () => {
+    // Dynamically import and mock the classes
+    const botAppModule = await import('../../src/application/bot-application.js');
+    BotApplication = botAppModule.BotApplication;
+    jest.spyOn(BotApplication.prototype, 'start').mockResolvedValue();
+    jest.spyOn(BotApplication.prototype, 'stop').mockResolvedValue();
+
+    const monitorAppModule = await import('../../src/application/monitor-application.js');
+    MonitorApplication = monitorAppModule.MonitorApplication;
+    jest.spyOn(MonitorApplication.prototype, 'start').mockResolvedValue();
+    jest.spyOn(MonitorApplication.prototype, 'stop').mockResolvedValue();
+
+    const scraperAppModule = await import('../../src/application/scraper-application.js');
+    ScraperApplication = scraperAppModule.ScraperApplication;
+    jest.spyOn(ScraperApplication.prototype, 'start').mockResolvedValue();
+    jest.spyOn(ScraperApplication.prototype, 'stop').mockResolvedValue();
+  });
+
+  afterEach(async () => {
+    if (container) {
+      await container.dispose();
+    }
+    jest.restoreAllMocks();
+  });
 
   it('should initialize the dependency container and setup services without errors', async () => {
     let error;
@@ -48,9 +51,5 @@ describe('Application Startup Integration Test', () => {
     expect(container.isRegistered('logger')).toBe(true);
     expect(container.isRegistered('discordService')).toBe(true);
     expect(container.isRegistered('botApplication')).toBe(true);
-
-    if (container) {
-      await container.dispose();
-    }
   });
 });

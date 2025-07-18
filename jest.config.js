@@ -1,7 +1,7 @@
 export default {
   testEnvironment: 'node',
   transform: {
-    '^.+\.js$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }]] }],
+    '^.+.js$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }]] }],
   },
   collectCoverage: true,
   collectCoverageFrom: [
@@ -43,6 +43,8 @@ export default {
     '**/tests/unit/scraper-application.browser-initialization.test.js',
     '**/tests/unit/scraper-application.enhanced-scrolling.test.js',
     '**/tests/unit/scraper-application.search-retweet.test.js',
+    '**/tests/performance/**/*.test.js',
+    '**/tests/integration/**/*.test.js',
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,
