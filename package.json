@@ -50,6 +50,11 @@
     "@jest/globals": "^30.0.4",
     "husky": "^9.1.7",
     "jest": "^30.0.4",
-    "lint-staged": "^16.1.2"
+    "lint-staged": "^16.1.2",
+    "test-exclude": "^7.0.1"
+  },
+  "overrides": {
+    "glob": "^9.0.0",
+    "inflight": "latest"
   }
 }
