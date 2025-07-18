@@ -167,10 +167,18 @@ export class ScraperApplication {
     try {
       this.logger.info('Logging into X...');
       
-      // Try cookie authentication first if available
-      const authCookies = this.config.get('TWITTER_AUTH_COOKIES');
+      // Prioritize cookies from the state manager first
+      let authCookies = this.state.get('TWITTER_AUTH_COOKIES');
+      let cookieSource = 'state';
+
+      // Fallback to configuration if not in state
+      if (!authCookies) {
+        authCookies = this.config.get('TWITTER_AUTH_COOKIES');
+        cookieSource = 'config';
+      }
+      
       if (authCookies) {
-        this.logger.info('Attempting cookie-based authentication...');
+        this.logger.info(`Attempting cookie-based authentication from ${cookieSource}...`);
         try {
           this.logger.debug('Raw cookie string length:', authCookies.length);
           
@@ -255,8 +263,7 @@ export class ScraperApplication {
           }
         } else if (pageState.isLoggedIn) {
           this.logger.info('✅ Login successful, a new session has been established.');
-          const currentUrl = await this.browser.page.url();
-          this.logger.info(`Current page URL after login: ${currentUrl}`);
+          await this.saveAuthenticationState();
           await this.handleCookiePrompt();
           return;
         } else {
@@ -287,6 +294,25 @@ export class ScraperApplication {
       }
       
       throw new Error(`X login failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Saves authentication cookies to the state manager for future runs.
+   * @returns {Promise<void>}
+   */
+  async saveAuthenticationState() {
+    try {
+      this.logger.info('Saving authentication state (cookies)...');
+      const cookies = await this.browser.getCookies();
+      if (cookies && cookies.length > 0) {
+        this.state.set('TWITTER_AUTH_COOKIES', JSON.stringify(cookies));
+        this.logger.info('✅ Successfully saved authentication cookies to state.');
+      } else {
+        this.logger.warn('Could not find any cookies to save.');
+      }
+    } catch (error) {
+      this.logger.error('Failed to save authentication state:', error);
     }
   }
 
@@ -546,6 +572,9 @@ export class ScraperApplication {
       const nextRunTime = new Date(Date.now() + nextInterval);
       
       this.logger.info(`X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`);
+
+      // Perform the enhanced retweet detection as a separate, final step.
+      await this.performEnhancedRetweetDetection();
       
     } catch (error) {
       this.logger.error('Error polling X profile:', error);
@@ -553,6 +582,39 @@ export class ScraperApplication {
       // to avoid the scraper getting stuck in a failed state.
       this.scheduleNextPoll();
       throw error;
+    }
+  }
+
+  /**
+   * Performs a separate check for retweets by navigating to the user's profile.
+   * This is designed to catch retweets that might be missed by the standard search.
+   * @returns {Promise<void>}
+   */
+  async performEnhancedRetweetDetection() {
+    if (!this.shouldProcessRetweets()) {
+      return;
+    }
+
+    try {
+      this.logger.info('Performing enhanced retweet detection...');
+      await this.navigateToProfileTimeline(this.xUser);
+
+      const tweets = await this.extractTweets();
+      this.logger.info(`Found ${tweets.length} potential retweets on profile page.`);
+
+      const newTweets = this.filterNewTweets(tweets);
+      this.logger.info(`Found ${newTweets.length} new tweets during enhanced retweet detection.`);
+
+      for (const tweet of newTweets) {
+        if (tweet.tweetCategory === 'Retweet') {
+          this.logger.info(`Processing new retweet: ${tweet.tweetID}`);
+          await this.processNewTweet(tweet);
+          this.stats.totalTweetsAnnounced++;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error during enhanced retweet detection:', error);
+      // Do not rethrow, as a failure here should not stop the main polling cycle.
     }
   }
   
