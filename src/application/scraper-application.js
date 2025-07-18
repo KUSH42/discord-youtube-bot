@@ -236,6 +236,7 @@ export class ScraperApplication {
           await this.pollXProfile();
           this.scheduleNextPoll(); // Resume normal scheduling on success
         } catch (error) {
+          this.logger.error('Error during retry scheduling:', error);
           this.scheduleRetry(); // Continue retry on failure
         }
       }

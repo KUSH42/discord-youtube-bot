@@ -8,7 +8,7 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<Object>} Video details object
    */
-  async getVideoDetails() {
+  async getVideoDetails(_videoId) {
     throw new Error('Abstract method: getVideoDetails must be implemented');
   }
 
@@ -17,7 +17,7 @@ export class YouTubeService {
    * @param {string} channelId - YouTube channel ID
    * @returns {Promise<Object>} Channel details object
    */
-  async getChannelDetails() {
+  async getChannelDetails(_channelId) {
     throw new Error('Abstract method: getChannelDetails must be implemented');
   }
 
@@ -27,7 +27,7 @@ export class YouTubeService {
    * @param {number} maxResults - Maximum number of results
    * @returns {Promise<Array<Object>>} Array of video objects
    */
-  async getChannelVideos(channelId) {
+  async getChannelVideos(_channelId) {
     throw new Error('Abstract method: getChannelVideos must be implemented');
   }
 
@@ -37,7 +37,7 @@ export class YouTubeService {
    * @param {Object} options - Search options
    * @returns {Promise<Array<Object>>} Array of video objects
    */
-  async searchVideos(query) {
+  async searchVideos(_query) {
     throw new Error('Abstract method: searchVideos must be implemented');
   }
 
@@ -46,7 +46,7 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<Object>} Video statistics object
    */
-  async getVideoStatistics() {
+  async getVideoStatistics(_videoId) {
     throw new Error('Abstract method: getVideoStatistics must be implemented');
   }
 
@@ -55,7 +55,7 @@ export class YouTubeService {
    * @param {string} playlistId - YouTube playlist ID
    * @returns {Promise<Object>} Playlist details object
    */
-  async getPlaylistDetails() {
+  async getPlaylistDetails(_playlistId) {
     throw new Error('Abstract method: getPlaylistDetails must be implemented');
   }
 
@@ -65,8 +65,8 @@ export class YouTubeService {
    * @param {number} maxResults - Maximum number of results
    * @returns {Promise<Array<Object>>} Array of video objects
    */
-  async getPlaylistVideos(playlistId) {
-    throw new Error('Abstract method: getPlaylistVideos must be implemented');
+  async getPlaylistVideos(_playlistId) {
+    throw new.Error('Abstract method: getPlaylistVideos must be implemented');
   }
 
   /**
@@ -74,7 +74,7 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<boolean>} True if video is live
    */
-  async isVideoLive() {
+  async isVideoLive(_videoId) {
     throw new Error('Abstract method: isVideoLive must be implemented');
   }
 
@@ -83,7 +83,7 @@ export class YouTubeService {
    * @param {string} videoId - YouTube video ID
    * @returns {Promise<Object|null>} Live streaming details or null
    */
-  async getLiveStreamDetails() {
+  async getLiveStreamDetails(_videoId) {
     throw new Error('Abstract method: getLiveStreamDetails must be implemented');
   }
 
@@ -93,7 +93,7 @@ export class YouTubeService {
    * @param {number} maxResults - Maximum number of results
    * @returns {Promise<Array<Object>>} Array of comment objects
    */
-  async getVideoComments(videoId) {
+  async getVideoComments(_videoId) {
     throw new Error('Abstract method: getVideoComments must be implemented');
   }
 
@@ -102,7 +102,7 @@ export class YouTubeService {
    * @param {string} channelId - YouTube channel ID
    * @returns {Promise<string>} Upload playlist ID
    */
-  async getChannelUploadPlaylist() {
+  async getChannelUploadPlaylist(_channelId) {
     throw new Error('Abstract method: getChannelUploadPlaylist must be implemented');
   }
 

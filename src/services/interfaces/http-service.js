@@ -9,7 +9,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async get(url) {
+  async get(_url) {
     throw new Error('Abstract method: get must be implemented');
   }
 
@@ -20,7 +20,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async post(url, data = null) {
+  async post(_url, _data = null) {
     throw new Error('Abstract method: post must be implemented');
   }
 
@@ -31,7 +31,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async put(url, data = null) {
+  async put(_url, _data = null) {
     throw new Error('Abstract method: put must be implemented');
   }
 
@@ -41,7 +41,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async delete(url) {
+  async delete(_url) {
     throw new Error('Abstract method: delete must be implemented');
   }
 
@@ -52,7 +52,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async patch(url, data = null) {
+  async patch(_url, _data = null) {
     throw new Error('Abstract method: patch must be implemented');
   }
 
@@ -62,7 +62,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async head(url) {
+  async head(_url) {
     throw new Error('Abstract method: head must be implemented');
   }
 
@@ -74,7 +74,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async request(method, url, data = null) {
+  async request(_method, _url, _data = null) {
     throw new Error('Abstract method: request must be implemented');
   }
 
@@ -85,7 +85,7 @@ export class HttpService {
    * @param {Object} options - Download options
    * @returns {Promise<string>} Path to downloaded file
    */
-  async downloadFile(url, destination) {
+  async downloadFile(_url, _destination) {
     throw new Error('Abstract method: downloadFile must be implemented');
   }
 
@@ -96,7 +96,7 @@ export class HttpService {
    * @param {Object} options - Upload options
    * @returns {Promise<Object>} Response object
    */
-  async uploadFile(url, file) {
+  async uploadFile(_url, _file) {
     throw new Error('Abstract method: uploadFile must be implemented');
   }
 
