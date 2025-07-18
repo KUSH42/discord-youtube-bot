@@ -834,11 +834,7 @@ export class ScraperApplication {
     await this.browser.goto(profileUrl);
 
     // Wait for timeline to load
-    await this.browser.waitForSelector([
-      '[data-testid="primaryColumn"]',
-      '[role="main"]',
-      'article[data-testid="tweet"]'
-    ]);
+    await this.browser.waitForSelector('[data-testid="primaryColumn"]');
 
     // Perform deeper scrolling for retweets
     await this.performEnhancedScrolling();

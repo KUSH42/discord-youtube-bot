@@ -159,9 +159,7 @@ export class BotApplication {
         }
         return;
       }
-      
-      this.logger.info(`git pull successful: ${stdout}`);
-      
+           
       if (message) {
         const output = `**✅ Git pull successful:**\n\`\`\`${stdout || 'No new changes.'}\`\`\``;
         await message.reply(output);
@@ -243,8 +241,8 @@ export class BotApplication {
         return;
       }
       
-      // Only process messages in the support channel
-      if (this.supportChannelId && message.channel.id !== this.supportChannelId) {
+      // Only process messages in the support channel or from admin in any other channel
+      if (!user && this.supportChannelId && message.channel.id !== this.supportChannelId) {
         return;
       }
       
