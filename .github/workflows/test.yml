@@ -140,7 +140,8 @@ jobs:
     strategy:
       matrix:
         node-version: ['18', '20']
-      fail-fast: true
+        shard: [1, 2, 3, 4]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
@@ -159,12 +160,13 @@ jobs:
           set -e  # Exit on any command failure
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
+            --shard=${{ matrix.shard }}/4 \
             --coverage \
             --coverageDirectory=coverage/unit \
             --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover \
             --maxWorkers=2 \
             --forceExit \
-            --detectOpenHandles 2>&1 | tee coverage/unit/test-output-node${{ matrix.node-version }}.log
+            --detectOpenHandles 2>&1 | tee coverage/unit/test-output-node${{ matrix.node-version }}-${{ matrix.shard }}.log
           # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ Unit tests failed"
@@ -175,8 +177,8 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: coverage/unit/lcov.info
-          flags: unit-node${{ matrix.node-version }}
-          name: unit-tests-node${{ matrix.node-version }}
+          flags: unit-node${{ matrix.node-version }}-shard${{ matrix.shard }}
+          name: unit-tests-node${{ matrix.node-version }}-shard${{ matrix.shard }}
           fail_ci_if_error: false
           plugins: ''
 
@@ -184,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: unit-test-results-node${{ matrix.node-version }}
+          name: unit-test-results-node${{ matrix.node-version }}-shard${{ matrix.shard }}
           path: |
             coverage/unit/
             junit.xml
@@ -575,19 +577,10 @@ jobs:
         run: |
           npm install -g nyc
 
-      - name: Download Node 18 unit test coverage
+      - name: Download all unit test coverage artifacts
         uses: actions/download-artifact@v4
-        continue-on-error: ${{ needs.unit-tests.result == 'skipped' }}
         with:
-          name: unit-test-results-node18
-          path: test-results/unit/node18/
-
-      - name: Download Node 20 unit test coverage
-        uses: actions/download-artifact@v4
-        continue-on-error: ${{ needs.unit-tests.result == 'skipped' }}
-        with:
-          name: unit-test-results-node20
-          path: test-results/unit/node20/
+          path: test-results/unit/
 
       - name: Download integration test results
         uses: actions/download-artifact@v4
@@ -630,11 +623,14 @@ jobs:
           # Find all lcov.info files but prioritize Node 18 over Node 20 to avoid duplicates
           COVERAGE_FILES=()
           
-          # Add Node 18 unit coverage (primary)
-          if [ -f "test-results/unit/node18/coverage/unit/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/unit/node18/coverage/unit/lcov.info")
-            echo "Found Node 18 unit coverage"
-          fi
+          # Find all lcov.info files from the downloaded artifacts
+          shopt -s globstar
+          for file in test-results/unit/**/*.lcov.info; do
+            if [ -f "$file" ]; then
+              COVERAGE_FILES+=("$file")
+              echo "Found coverage file: $file"
+            fi
+          done
           
           # Add integration coverage if available
           if [ -f "test-results/integration/coverage/integration/lcov.info" ]; then
@@ -829,19 +825,15 @@ jobs:
             echo "" >> reports/test-summary.md
             echo "\`\`\`" >> reports/test-summary.md
             if [ "$test_type" == "unit" ]; then
-              if [ -f test-results/unit/node18/coverage/unit/test-output-node18.log ]; then
-                cat test-results/unit/node18/coverage/unit/test-output-node18.log >> reports/test-summary.md
-              else
-                echo "No output for Node 18" >> reports/test-summary.md
-              fi
-              echo "" >> reports/test-summary.md
-              echo "---" >> reports/test-summary.md
-              echo "" >> reports/test-summary.md
-              if [ -f test-results/unit/node20/coverage/unit/test-output-node20.log ]; then
-                cat test-results/unit/node20/coverage/unit/test-output-node20.log >> reports/test-summary.md
-              else
-                echo "No output for Node 20" >> reports/test-summary.md
-              fi
+              shopt -s globstar
+              for file in test-results/unit/**/*.log; do
+                if [ -f "$file" ]; then
+                  echo "---" >> reports/test-summary.md
+                  echo "### $(basename "$file")" >> reports/test-summary.md
+                  cat "$file" >> reports/test-summary.md
+                  echo "" >> reports/test-summary.md
+                fi
+              done
             else
               if [ -f test-results/$test_type/coverage/$test_type/test-output.log ]; then
                  cat test-results/$test_type/coverage/$test_type/test-output.log >> reports/test-summary.md
@@ -856,7 +848,7 @@ jobs:
           
           echo "" >> reports/test-summary.md
           echo "Detailed test results and coverage reports are available in the individual test artifacts:" >> reports/test-summary.md
-          echo "- \`unit-test-results-node18\`, \`unit-test-results-node20\`" >> reports/test-summary.md
+          echo "- \`unit-test-results-node18-shard1\`, \`unit-test-results-node18-shard2\`, ..." >> reports/test-summary.md
           echo "- \`integration-test-results\`" >> reports/test-summary.md
           echo "- \`e2e-test-results\`" >> reports/test-summary.md
           echo "- \`performance-test-results\`" >> reports/test-summary.md
