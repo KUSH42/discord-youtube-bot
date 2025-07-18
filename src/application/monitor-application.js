@@ -281,7 +281,7 @@ export class MonitorApplication {
   async performFallbackCheck() {
     try {
       this.stats.fallbackPolls++;
-      this.logger.debug('Performing fallback check for new videos...');
+      this.logger.warn('Performing fallback check for new videos...');
       
       // Get latest videos from the channel
       const videos = await this.youtube.getChannelVideos(this.youtubeChannelId, 5);
@@ -291,9 +291,12 @@ export class MonitorApplication {
         return;
       }
       
+      this.logger.warn(`Fallback check found ${videos.length} videos from YouTube API.`);
+      
       // Process each video
       for (const video of videos) {
         try {
+          this.logger.warn(`Processing video from fallback: ${video.snippet.title}`);
           await this.processVideo(video, 'fallback');
         } catch (error) {
           this.logger.error(`Error processing video ${video.id} in fallback:`, error);
@@ -412,6 +415,7 @@ export class MonitorApplication {
       // Process the video
       await this.processVideo(videoDetails, 'webhook');
       
+      this.logger.info(`Successfully processed webhook notification for video: ${videoDetails.snippet.title}`);
       return { status: 200, message: 'OK' };
       
     } catch (error) {
