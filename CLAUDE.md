@@ -163,13 +163,14 @@ npm run test:watch         # Watch mode for development
 - **Security Tests**: Automated security scans and dependency audits
 
 ### CI/CD Testing
-- Tests run automatically on GitHub Actions for all pushes and PRs
-- Multi-Node.js version testing (16, 18, 20)
-- **Fixed Coverage Reporting**: Industry-standard tools (`lcov-result-merger` + `nyc`)
-- **Strategic Coverage Focus**: ~70% source code coverage with smart CI merging (no triple-counting)
-- **Quality Gates**: Automated coverage validation with achievable thresholds (35% global, 85% core)
-- **Infrastructure Testing**: Comprehensive testing of dependency injection and configuration
-- **Comprehensive Artifacts**: Merged coverage reports and detailed test summaries
+- **Cached Docker Image**: Integration tests run in a cached Docker image to avoid reinstalling Playwright, significantly speeding up the CI process.
+- Tests run automatically on GitHub Actions for all pushes and PRs.
+- Multi-Node.js version testing (18, 20).
+- **Fixed Coverage Reporting**: Industry-standard tools (`lcov-result-merger` + `nyc`).
+- **Strategic Coverage Focus**: ~70% source code coverage with smart CI merging (no triple-counting).
+- **Quality Gates**: Automated coverage validation with achievable thresholds (25% global, 85% core).
+- **Infrastructure Testing**: Comprehensive testing of dependency injection and configuration.
+- **Comprehensive Artifacts**: Merged coverage reports and detailed test summaries.
 
 ### When Modifying Tests
 - Always maintain or improve test coverage

@@ -388,19 +388,20 @@ grep -r "X_QUERY_INTERVALL" tests/ # Should return no results after fix
 ## 📋 CI/CD Integration
 
 ### GitHub Actions Workflow (`.github/workflows/test.yml`)
-- **Multi-Node Testing**: Tests run on Node.js 18 and 20
-- **Parallel Execution**: Different test categories run concurrently
-- **Coverage Reporting**: Automatic coverage upload to Codecov
+- **Cached Docker Image**: Integration tests run in a cached Docker image to avoid reinstalling Playwright, significantly speeding up the CI process.
+- **Multi-Node Testing**: Tests run on Node.js 18 and 20.
+- **Parallel Execution**: Different test categories run concurrently.
+- **Coverage Reporting**: Automatic coverage upload to Codecov.
 - **Test Summary**: A detailed `test-summary.md` report is generated with the full output of each test suite and posted as a commit comment.
 - **Artifacts**: Detailed logs and coverage reports for each test suite are stored as downloadable artifacts.
-- **Performance Monitoring**: Historical performance tracking
-- **Security Scanning**: Automated vulnerability detection
+- **Performance Monitoring**: Historical performance tracking.
+- **Security Scanning**: Automated vulnerability detection.
 
 ### Quality Gates
-- **All Tests Pass**: No failing tests allowed in main branch
+- **All Tests Pass**: No failing tests allowed in main branch.
 - **Coverage Threshold**: Minimum 25% line coverage required to pass quality gate.
-- **Security Scan**: No critical vulnerabilities allowed
-- **Performance Regression**: Alerts on performance degradation
+- **Security Scan**: No critical vulnerabilities allowed.
+- **Performance Regression**: Alerts on performance degradation.
 
 ## 📚 Additional Resources
 

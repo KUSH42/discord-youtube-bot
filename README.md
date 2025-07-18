@@ -412,15 +412,16 @@ The bot includes a bulletproof testing infrastructure with **~70% source code co
 - **Critical Components:** Excellent coverage where it matters most ✅
 
 ### 🚀 CI/CD Features
-- **Parallel Execution:** Tests run concurrently for faster feedback.
-- **Fixed Coverage Reporting:** Industry-standard tools eliminate calculation errors and triple-counting.
-- **Smart Coverage Merging:** CI properly accumulates coverage from different test types.
+- **Cached Docker Image**: Integration tests run in a cached Docker image to avoid reinstalling Playwright, significantly speeding up the CI process.
+- **Parallel Execution**: Different test categories run concurrently for faster feedback.
+- **Fixed Coverage Reporting**: Industry-standard tools eliminate calculation errors and triple-counting.
+- **Smart Coverage Merging**: CI properly accumulates coverage from different test types.
 - **Test Summary Generation**: A `test-summary.md` file with the full output of all test suites is generated and uploaded as an artifact.
 - **Commit Commenting**: The test summary is automatically posted as a comment on the corresponding commit.
-- **Quality Gates:** Automated coverage validation with realistic thresholds focusing on implementation code.
-- **Smart Detection:** Automatically identifies test failures and provides detailed reporting.
-- **PR Integration:** Real-time test status in pull requests with accurate coverage summaries.
-- **Comprehensive Artifacts:** Merged coverage reports and detailed test metrics are preserved and available for download.
+- **Quality Gates**: Automated coverage validation with realistic thresholds focusing on implementation code.
+- **Smart Detection**: Automatically identifies test failures and provides detailed reporting.
+- **PR Integration**: Real-time test status in pull requests with accurate coverage summaries.
+- **Comprehensive Artifacts**: Merged coverage reports and detailed test metrics are preserved and available for download.
 
 ### 📊 Test Commands
 ```bash
