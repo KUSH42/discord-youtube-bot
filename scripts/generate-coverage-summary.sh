@@ -124,23 +124,29 @@ else
     echo "✅ coverage-summary.json already exists and looks valid"
 fi
 
-# Extract coverage percentage for display
-OVERALL_COVERAGE=$(grep '"pct": [0-9]' coverage-summary.json | head -1 | awk -F: '{print $2}' | tr -d ', ')
+# Extract coverage percentage for display - more robust extraction with fallback
+if command -v jq >/dev/null 2>&1; then
+    OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null | awk '{if($1 == "") print "0"; else printf "%.2f", $1}')
+else
+    # Fallback using grep and awk when jq is not available
+    OVERALL_COVERAGE=$(grep '"pct"' coverage-summary.json | head -1 | awk -F: '{gsub(/[, ]/, "", $2); printf "%.2f", $2}' 2>/dev/null || echo "0")
+fi
 
-if [ -n "$OVERALL_COVERAGE" ]; then
+if [ -n "$OVERALL_COVERAGE" ] && [ "$OVERALL_COVERAGE" != "0.00" ]; then
     echo ""
     echo "🎯 Current overall coverage: ${OVERALL_COVERAGE}%"
     
-    # Coverage quality assessment
-    if (( $(echo "$OVERALL_COVERAGE >= 25" | bc -l) )); then
+    # Coverage quality assessment using arithmetic comparison
+    COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
+    if [ "$COVERAGE_INT" -ge 2500 ]; then
         echo "✅ Coverage meets minimum standards (≥25%)"
-    elif (( $(echo "$OVERALL_COVERAGE >= 15" | bc -l) )); then
+    elif [ "$COVERAGE_INT" -ge 1500 ]; then
         echo "⚠️ Coverage below target but acceptable (≥15%)"
     else
         echo "❌ Coverage below minimum standards (<15%)"
     fi
 else
-    echo "⚠️ Could not extract coverage percentage"
+    echo "⚠️ Could not extract coverage percentage or coverage is 0%"
 fi
 
 echo ""
