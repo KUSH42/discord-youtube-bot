@@ -96,13 +96,16 @@ async function setupExternalServices(container, config) {
   });
 
   // YouTube API Service
-  container.registerSingleton('youtubeService', () => {
+  container.registerSingleton('youtubeService', (c) => {
     const youtube = google.youtube({
       version: 'v3',
       auth: config.getRequired('YOUTUBE_API_KEY'),
     });
 
-    return new YouTubeApiService(youtube);
+    return new YouTubeApiService({
+      logger: c.resolve('logger').child({ service: 'YouTubeApiService' }),
+      youtube: youtube,
+    });
   });
 
   // HTTP Service

@@ -64,7 +64,6 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       YOUTUBE_FALLBACK_DELAY_MS: 100, // Fast for testing
       YOUTUBE_FALLBACK_MAX_RETRIES: 3,
       YOUTUBE_API_POLL_INTERVAL_MS: 1000,
-      YOUTUBE_FALLBACK_BACKFILL_HOURS: 2,
       DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345678',
 
       // State
@@ -507,7 +506,7 @@ function setupMockImplementations(monitor) {
     this.fallbackMetrics.totalApiFallbackExecutions++;
 
     try {
-      const backfillStart = new Date(Date.now() - this.YOUTUBE_FALLBACK_BACKFILL_HOURS * 60 * 60 * 1000);
+      const backfillStart = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
       const publishedAfter = this.lastSuccessfulCheck > backfillStart ? this.lastSuccessfulCheck : backfillStart;
 
       const searchResponse = await this.youtube.search.list({

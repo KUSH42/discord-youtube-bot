@@ -67,8 +67,8 @@ export class MonitorApplication {
       // Subscribe to PubSubHubbub
       await this.subscribeToPubSubHubbub();
 
-      // Start fallback polling
-      this.startFallbackPolling();
+      // Start fallback polling with a delay to allow webhook system to work first
+      this.startFallbackPollingWithDelay();
 
       this.isRunning = true;
       this.logger.info('✅ YouTube monitor application started successfully');
@@ -240,6 +240,26 @@ export class MonitorApplication {
       },
       20 * 60 * 60 * 1000,
     ); // 20 hours
+  }
+
+  /**
+   * Start fallback polling with a delay to allow webhook system to work first
+   */
+  startFallbackPollingWithDelay() {
+    if (!this.fallbackEnabled) {
+      return;
+    }
+
+    // Wait 5 minutes before starting fallback polling to allow webhook system to work
+    const delayMs = 5 * 60 * 1000; // 5 minutes
+
+    this.logger.info(`Fallback polling will start in ${delayMs / 1000} seconds as backup to webhook system`);
+
+    setTimeout(() => {
+      if (this.isRunning) {
+        this.startFallbackPolling();
+      }
+    }, delayMs);
   }
 
   /**
