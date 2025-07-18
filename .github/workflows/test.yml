@@ -11,6 +11,8 @@ permissions:
 on:
   push:
     branches: [ main, master, dev, develop ]
+  pull_request:
+    branches: [ main, master, dev, develop ]
   schedule:
     # Run tests daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -53,9 +55,21 @@ jobs:
             echo "should-run=true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "should-run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Always run tests on PRs
+            echo "should-run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            # For push events, check if this commit is part of an open PR
+            PR_COUNT=$(gh pr list --state open --json number,headRefName,headRefOid --jq '.[] | select(.headRefOid == "${{ github.sha }}") | .number' | wc -l)
+            if [[ "$PR_COUNT" -gt 0 ]]; then
+              echo "Commit ${{ github.sha }} is part of an open PR, skipping duplicate tests"
+              echo "should-run=false" >> $GITHUB_OUTPUT
+            else
+              # Check if relevant files changed
+              git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(js|json|yml|yaml)$' && echo "should-run=true" >> $GITHUB_OUTPUT || echo "should-run=false" >> $GITHUB_OUTPUT
+            fi
           else
-            # Check if relevant files changed
-            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(js|json|yml|yaml)$' && echo "should-run=true" >> $GITHUB_OUTPUT || echo "should-run=false" >> $GITHUB_OUTPUT
+            echo "should-run=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Generate test matrix
