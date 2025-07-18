@@ -586,20 +586,20 @@ jobs:
           COVERAGE_FILES=()
           
           # Add Node 18 unit coverage (primary)
-          if [ -f "test-results/unit/node18/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/unit/node18/lcov.info")
+          if [ -f "test-results/unit/node18/coverage/unit/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/unit/node18/coverage/unit/lcov.info")
             echo "Found Node 18 unit coverage"
           fi
           
           # Add integration coverage if available
-          if [ -f "test-results/integration/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/integration/lcov.info")
+          if [ -f "test-results/integration/coverage/integration/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/integration/coverage/integration/lcov.info")
             echo "Found integration coverage"
           fi
           
           # Add performance coverage if available
-          if [ -f "test-results/performance/lcov.info" ]; then
-            COVERAGE_FILES+=("test-results/performance/lcov.info")
+          if [ -f "test-results/performance/coverage/performance/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/performance/coverage/performance/lcov.info")
             echo "Found performance coverage"
           fi
           
@@ -690,21 +690,23 @@ jobs:
             echo "" >> reports/test-summary.md
             echo "\`\`\`" >> reports/test-summary.md
             if [ "$test_type" == "unit" ]; then
-              if [ -f test-results/unit/node18/test-output-node18.log ]; then
-                cat test-results/unit/node18/test-output-node18.log >> reports/test-summary.md
+              if [ -f test-results/unit/node18/coverage/unit/test-output-node18.log ]; then
+                cat test-results/unit/node18/coverage/unit/test-output-node18.log >> reports/test-summary.md
               else
                 echo "No output for Node 18" >> reports/test-summary.md
               fi
               echo "" >> reports/test-summary.md
               echo "---" >> reports/test-summary.md
               echo "" >> reports/test-summary.md
-              if [ -f test-results/unit/node20/test-output-node20.log ]; then
-                cat test-results/unit/node20/test-output-node20.log >> reports/test-summary.md
+              if [ -f test-results/unit/node20/coverage/unit/test-output-node20.log ]; then
+                cat test-results/unit/node20/coverage/unit/test-output-node20.log >> reports/test-summary.md
               else
                 echo "No output for Node 20" >> reports/test-summary.md
               fi
             else
-              if [ -f test-results/$test_type/test-output.log ]; then
+              if [ -f test-results/$test_type/coverage/$test_type/test-output.log ]; then
+                 cat test-results/$test_type/coverage/$test_type/test-output.log >> reports/test-summary.md
+              elif [ -f test-results/$test_type/test-output.log ]; then
                 cat test-results/$test_type/test-output.log >> reports/test-summary.md
               else
                 echo "No output for $test_type tests" >> reports/test-summary.md
