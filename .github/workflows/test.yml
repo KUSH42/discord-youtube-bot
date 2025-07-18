@@ -623,13 +623,36 @@ jobs:
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
               
-              # Generate summary from merged coverage, explicitly including source files
-              npx nyc report --reporter=json-summary --temp-dir=.nyc_output --include='src/**/*.js' > coverage-summary.json
+              # Debug: Check what's in the merged coverage
+              echo "Merged coverage file size: $(wc -l < coverage/merged/lcov.info) lines"
+              echo "Sample of merged coverage:"
+              head -20 coverage/merged/lcov.info
+              echo ""
+              echo "NYC temp directory contents:"
+              ls -la .nyc_output/
+              echo "Sample of coverage.json:"
+              head -10 .nyc_output/coverage.json
               
-              # Set outputs for subsequent steps
-              LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
-              echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
-              echo "status=available" >> $GITHUB_OUTPUT
+              # Generate summary from merged coverage - try with and without include filter
+              npx nyc report --reporter=json-summary --temp-dir=.nyc_output > coverage-summary.json
+              echo "Generated coverage-summary.json:"
+              cat coverage-summary.json
+              
+              # Check if coverage summary was generated successfully
+              if [ -s coverage-summary.json ] && [ "$(jq -r '.total.lines.total // 0' coverage-summary.json)" != "0" ]; then
+                LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
+                echo "Successfully generated coverage summary with ${LINES_PCT}% coverage"
+                echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
+                echo "status=available" >> $GITHUB_OUTPUT
+              else
+                echo "Coverage summary is empty, trying with source file filter..."
+                npx nyc report --reporter=json-summary --temp-dir=.nyc_output --include='src/**/*.js' --include='*.js' > coverage-summary.json
+                
+                LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null || echo "0")
+                echo "Generated coverage with filter: ${LINES_PCT}% coverage"
+                echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
+                echo "status=available" >> $GITHUB_OUTPUT
+              fi
             else
               echo "Failed to merge coverage reports"
               echo '{"total":{"lines":{"pct":0},"statements":{"pct":0},"functions":{"pct":0},"branches":{"pct":0}}}' > coverage-summary.json
