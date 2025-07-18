@@ -44,7 +44,7 @@ This Node.js bot monitors designated YouTube channels and X profiles, delivering
 
 The bot follows clean architecture principles with clear separation of concerns and dependency injection:
 
-```
+```bash
 src/
 ├── 🎯 application/           # Application layer
 │   ├── auth-manager.js      # Authentication & session management
@@ -309,7 +309,7 @@ npm run validate            # ✅ Validate configuration only
 
 The `!update` command requires the bot's user to have passwordless `sudo` access to restart the systemd service. To set this up, run `sudo visudo` and add the following line, replacing `your_bot_user` with the actual username the bot runs under:
 
-```
+```bash
 your_bot_user ALL=(ALL) NOPASSWD: /bin/systemctl restart your_service_name.service
 ```
 

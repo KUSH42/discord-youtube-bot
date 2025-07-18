@@ -5,7 +5,7 @@ This directory contains a bulletproof testing infrastructure for the Discord Con
 ## 🏗️ Test Architecture
 
 ### Directory Structure
-```
+```bash
 tests/
 ├── unit/                    # Unit tests for individual components
 │   ├── regex-patterns.test.js       # URL pattern matching tests
@@ -199,7 +199,7 @@ The test suite achieves realistic and meaningful coverage through comprehensive 
 The codebase has been successfully transformed into a modern, testable architecture:
 
 1. **Modular Architecture** ✅:
-   ```javascript
+```javascript
    // Clean architecture with dependency injection
    src/
    ├── application/           # Application layer
@@ -210,7 +210,7 @@ The codebase has been successfully transformed into a modern, testable architect
    ```
 
 2. **Testable Service Interfaces** ✅:
-   ```javascript
+```javascript
    // src/services/interfaces/discord-service.js
    export class DiscordService { /* ... */ }
    
@@ -222,7 +222,7 @@ The codebase has been successfully transformed into a modern, testable architect
    ```
 
 3. **Comprehensive Test Coverage** ✅:
-   ```javascript
+```javascript
    // tests/unit/ - Direct module testing
    import { validateEnvironmentVariables } from '../../src/config-validator.js';
    

@@ -9,7 +9,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async get(url, options = {}) {
+  async get(url) {
     throw new Error('Abstract method: get must be implemented');
   }
 
@@ -20,7 +20,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async post(url, data = null, options = {}) {
+  async post(url, data = null) {
     throw new Error('Abstract method: post must be implemented');
   }
 
@@ -31,7 +31,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async put(url, data = null, options = {}) {
+  async put(url, data = null) {
     throw new Error('Abstract method: put must be implemented');
   }
 
@@ -41,7 +41,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async delete(url, options = {}) {
+  async delete(url) {
     throw new Error('Abstract method: delete must be implemented');
   }
 
@@ -52,7 +52,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async patch(url, data = null, options = {}) {
+  async patch(url, data = null) {
     throw new Error('Abstract method: patch must be implemented');
   }
 
@@ -62,7 +62,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async head(url, options = {}) {
+  async head(url) {
     throw new Error('Abstract method: head must be implemented');
   }
 
@@ -74,7 +74,7 @@ export class HttpService {
    * @param {Object} options - Request options
    * @returns {Promise<Object>} Response object
    */
-  async request(method, url, data = null, options = {}) {
+  async request(method, url, data = null) {
     throw new Error('Abstract method: request must be implemented');
   }
 
@@ -85,7 +85,7 @@ export class HttpService {
    * @param {Object} options - Download options
    * @returns {Promise<string>} Path to downloaded file
    */
-  async downloadFile(url, destination, options = {}) {
+  async downloadFile(url, destination) {
     throw new Error('Abstract method: downloadFile must be implemented');
   }
 
@@ -96,7 +96,7 @@ export class HttpService {
    * @param {Object} options - Upload options
    * @returns {Promise<Object>} Response object
    */
-  async uploadFile(url, file, options = {}) {
+  async uploadFile(url, file) {
     throw new Error('Abstract method: uploadFile must be implemented');
   }
 
@@ -104,7 +104,7 @@ export class HttpService {
    * Set default headers for all requests
    * @param {Object} headers - Default headers
    */
-  setDefaultHeaders(headers) {
+  setDefaultHeaders() {
     throw new Error('Abstract method: setDefaultHeaders must be implemented');
   }
 
@@ -112,7 +112,7 @@ export class HttpService {
    * Set default timeout for all requests
    * @param {number} timeout - Timeout in milliseconds
    */
-  setTimeout(timeout) {
+  setTimeout() {
     throw new Error('Abstract method: setTimeout must be implemented');
   }
 
@@ -120,7 +120,7 @@ export class HttpService {
    * Set base URL for relative requests
    * @param {string} baseUrl - Base URL
    */
-  setBaseUrl(baseUrl) {
+  setBaseUrl() {
     throw new Error('Abstract method: setBaseUrl must be implemented');
   }
 
@@ -129,7 +129,7 @@ export class HttpService {
    * @param {Function} interceptor - Request interceptor function
    * @returns {Function} Remove interceptor function
    */
-  addRequestInterceptor(interceptor) {
+  addRequestInterceptor() {
     throw new Error('Abstract method: addRequestInterceptor must be implemented');
   }
 
@@ -138,7 +138,7 @@ export class HttpService {
    * @param {Function} interceptor - Response interceptor function
    * @returns {Function} Remove interceptor function
    */
-  addResponseInterceptor(interceptor) {
+  addResponseInterceptor() {
     throw new Error('Abstract method: addResponseInterceptor must be implemented');
   }
 
@@ -147,7 +147,7 @@ export class HttpService {
    * @param {Object} config - Client configuration
    * @returns {HttpService} New HTTP service instance
    */
-  createInstance(config = {}) {
+  createInstance() {
     throw new Error('Abstract method: createInstance must be implemented');
   }
 

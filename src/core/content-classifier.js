@@ -290,7 +290,7 @@ export class ContentClassifier {
       const text = socialContext.textContent;
       const match = text.match(/(.+?)\s+(?:reposted|retweeted)/i);
       return match ? match[1].trim() : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -313,7 +313,7 @@ export class ContentClassifier {
           };
         }
       }
-    } catch (error) {
+    } catch {
       // Ignore errors in fallback detection
     }
     return { isRetweet: false };
@@ -335,7 +335,7 @@ export class ContentClassifier {
           method: 'multipleAuthors',
         };
       }
-    } catch (error) {
+    } catch {
       // Ignore errors in fallback detection
     }
     return { isRetweet: false };
@@ -357,7 +357,7 @@ export class ContentClassifier {
           method: 'contextualText',
         };
       }
-    } catch (error) {
+    } catch {
       // Ignore errors in fallback detection
     }
     return { isRetweet: false };

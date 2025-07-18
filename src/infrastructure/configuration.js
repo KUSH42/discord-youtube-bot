@@ -166,7 +166,7 @@ export class Configuration {
     try {
       this.validateAll();
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

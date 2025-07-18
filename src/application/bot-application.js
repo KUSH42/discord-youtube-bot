@@ -130,8 +130,8 @@ export class BotApplication {
       this.eventBus.emit('bot.stopped', {
         stopTime: new Date(),
       });
-    } catch (error) {
-      this.logger.error('Error stopping bot application:', error);
+    } catch (err) {
+      this.logger.error('Error stopping bot application:', err);
     }
   }
 
@@ -149,7 +149,7 @@ export class BotApplication {
       return;
     }
 
-    this.exec('git pull', async (error, stdout, stderr) => {
+    this.exec('git pull', async (error, stdout) => {
       if (error) {
         this.logger.error(`git pull failed: ${error}`);
         if (message) {
@@ -591,8 +591,8 @@ export class BotApplication {
       }
 
       this.logger.info(`Log level changed to: ${newLevel}`);
-    } catch (error) {
-      this.logger.error('Error changing log level:', error);
+    } catch (err) {
+      this.logger.error('Error changing log level:', err);
     }
   }
 
@@ -625,7 +625,7 @@ export class BotApplication {
     try {
       const user = await this.discord.getCurrentUser();
       return user.tag || user.username || 'Unknown';
-    } catch (error) {
+    } catch {
       return 'Unknown';
     }
   }

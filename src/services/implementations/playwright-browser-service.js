@@ -259,7 +259,7 @@ export class PlaywrightBrowserService extends BrowserService {
     try {
       await this.page.waitForSelector(selector, { timeout: 1000 });
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

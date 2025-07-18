@@ -139,7 +139,7 @@ export const LoggerUtils = {
    * @returns {winston.Logform.Format} Winston log format
    */
   createConsoleLogFormat() {
-    return winston.format.printf(({ level, message, timestamp, stack, service }) => {
+    return winston.format.printf(({ level, message, stack, service }) => {
       const serviceLabel = service ? `[${service}]` : '';
       const baseMessage = `${serviceLabel} [${level.toUpperCase()}]: ${message}`;
       return stack ? `${baseMessage}\n${stack}` : baseMessage;

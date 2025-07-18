@@ -185,7 +185,7 @@ export class YouTubeApiService extends YouTubeService {
       if (!video) return false;
 
       return video.snippet.liveBroadcastContent === 'live';
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -201,7 +201,7 @@ export class YouTubeApiService extends YouTubeService {
       }
 
       return video.liveStreamingDetails;
-    } catch (error) {
+    } catch {
       return null;
     }
   }

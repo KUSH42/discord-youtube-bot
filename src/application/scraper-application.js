@@ -296,7 +296,7 @@ export class ScraperApplication {
           this.logger.debug(`Content loaded, found selector: ${selector}`);
           contentLoaded = true;
           break;
-        } catch (err) {
+        } catch {
           this.logger.debug(`Selector not found: ${selector}`);
           continue;
         }
@@ -539,8 +539,8 @@ export class ScraperApplication {
           });
 
           console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
-        } catch (error) {
-          console.error('Error extracting tweet:', error);
+        } catch (err) {
+          console.error('Error extracting tweet:', err);
         }
       }
 
@@ -747,7 +747,7 @@ export class ScraperApplication {
           emailInput = selector;
           this.logger.debug(`Found email input with selector: ${selector}`);
           break;
-        } catch (err) {
+        } catch {
           this.logger.debug(`Email input selector failed: ${selector}`);
           continue;
         }
@@ -780,7 +780,7 @@ export class ScraperApplication {
           this.logger.info(`Clicked continue button using selector: ${selector}`);
           continueClicked = true;
           break;
-        } catch (err) {
+        } catch {
           this.logger.debug(`Continue button selector failed: ${selector}`);
           continue;
         }
@@ -913,9 +913,9 @@ export class ScraperApplication {
   async ensureAuthenticated() {
     try {
       await this.authManager.ensureAuthenticated();
-    } catch (error) {
-      this.logger.error('Authentication failed:', error);
-      throw error;
+    } catch (err) {
+      this.logger.error('Authentication failed:', err);
+      throw err;
     }
   }
 

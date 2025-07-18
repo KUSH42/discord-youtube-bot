@@ -49,7 +49,7 @@ export function validateEnvironmentVariables(env = process.env) {
   }
 
   // Check optional variables and warn about security defaults
-  for (const { name, defaultValue } of optionalVars) {
+  for (const { name } of optionalVars) {
     if (!env[name]) {
       if (name === 'PSH_SECRET' || name === 'PSH_VERIFY_TOKEN') {
         warnings.push(`${name} not set - using default value (consider setting for security)`);

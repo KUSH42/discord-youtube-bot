@@ -157,7 +157,7 @@ export class ContentAnnouncer {
    * @param {Object} options - Options
    * @returns {boolean} True if should announce
    */
-  shouldAnnounceYouTubeContent(content, options) {
+  shouldAnnounceYouTubeContent(content) {
     // Check if content is new enough
     if (content.publishedAt && this.state.get('botStartTime')) {
       const publishedTime = new Date(content.publishedAt);
@@ -177,7 +177,7 @@ export class ContentAnnouncer {
    * @param {Object} options - Options
    * @returns {boolean} True if should announce
    */
-  shouldAnnounceXContent(content, options) {
+  shouldAnnounceXContent(content) {
     // Check if old tweets should be announced
     const announceOldTweets = this.config.getBoolean('ANNOUNCE_OLD_TWEETS', false);
     if (!announceOldTweets && content.isOld) {
@@ -193,7 +193,7 @@ export class ContentAnnouncer {
    * @param {Object} options - Options
    * @returns {string} Skip reason
    */
-  getSkipReason(content, options) {
+  getSkipReason(content) {
     if (!this.state.get('postingEnabled', true)) {
       return 'Bot posting is disabled';
     }
@@ -309,8 +309,8 @@ export class ContentAnnouncer {
    * @param {Object} options - Options
    * @returns {string} Formatted message
    */
-  formatXMessage(content, options) {
-    const { author, url, type, text } = content;
+  formatXMessage(content) {
+    const { author, url, type } = content;
     let emoji = '🐦';
     let actionText = 'posted';
 
@@ -350,7 +350,7 @@ export class ContentAnnouncer {
    * @param {Object} options - Options
    * @returns {string} Formatted message
    */
-  formatGenericMessage(content, options) {
+  formatGenericMessage(content) {
     const { title, url, author, platform, type } = content;
 
     let message = `📎 **New ${platform} ${type}**`;
@@ -411,7 +411,7 @@ export class ContentAnnouncer {
    * @param {Object} options - Options
    * @returns {Promise<void>}
    */
-  async sendMirrorMessage(originalChannelId, originalMessage, options) {
+  async sendMirrorMessage(originalChannelId, originalMessage) {
     try {
       const channel = await this.discord.fetchChannel(originalChannelId);
       const channelName = channel?.name || 'unknown-channel';
