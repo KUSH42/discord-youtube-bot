@@ -527,7 +527,6 @@ jobs:
 
       - name: Install coverage tools
         run: |
-          npm install -g lcov-result-merger
           npm install -g nyc
 
       - name: Download Node 18 unit test coverage
@@ -607,8 +606,19 @@ jobs:
             echo "Merging the following coverage files:"
             printf '%s\n' "${COVERAGE_FILES[@]}"
             
-            # Use correct lcov-result-merger syntax
-            lcov-result-merger --debug "${COVERAGE_FILES[@]}" coverage/merged/lcov.info
+            # Use nyc to merge coverage reports
+            mkdir -p .nyc_output
+            
+            # Copy all lcov files into a temporary directory for nyc to find
+            for file in "${COVERAGE_FILES[@]}"; do
+              cp "$file" "coverage/merged/$(basename "$file" .info)-$(uuidgen).info"
+            done
+            
+            # Run the merge
+            npx nyc merge coverage/merged .nyc_output/coverage.json
+            
+            # Generate the final lcov report from the merged data
+            npx nyc report --reporter=lcov --report-dir=coverage/merged --temp-dir=.nyc_output
             
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
