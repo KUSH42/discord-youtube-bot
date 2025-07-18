@@ -30,7 +30,7 @@ on:
           - security
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   CACHE_KEY_PREFIX: 'discord-bot-test'
 
 jobs:
