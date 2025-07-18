@@ -1,6 +1,8 @@
 export default {
   testEnvironment: 'node',
-  transform: {},
+  transform: {
+    '^.+\.js$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }]] }],
+  },
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.js',
@@ -31,7 +33,17 @@ export default {
   //     lines: 4,
   //   },
   // },
-  testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js', '**/__tests__/**/*.js'],
+  testMatch: [
+    '**/tests/**/*.spec.js',
+    '**/__tests__/**/*.js',
+    '**/tests/unit/scraper-application.tweet-processing.test.js',
+    '**/tests/unit/scraper-application.content-filtering.test.js',
+    '**/tests/unit/scraper-application.polling.test.js',
+    '**/tests/unit/scraper-application.duplicate-detector.test.js',
+    '**/tests/unit/scraper-application.browser-initialization.test.js',
+    '**/tests/unit/scraper-application.enhanced-scrolling.test.js',
+    '**/tests/unit/scraper-application.search-retweet.test.js',
+  ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,
   verbose: false,

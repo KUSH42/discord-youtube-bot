@@ -162,3 +162,4 @@ enforcer.env
 
 # Debugging artifacts
 *.png
+bot-*.log.*
