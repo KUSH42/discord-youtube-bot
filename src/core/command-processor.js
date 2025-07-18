@@ -161,6 +161,8 @@ const restrictedCommands = ['restart', 'kill', 'update'];
         return await this.handleHealth();
       
       case 'health-detailed':
+        return await this.handleHealthDetailed(appStats);
+
       case 'hd':
         return await this.handleHealthDetailed(appStats);
         
