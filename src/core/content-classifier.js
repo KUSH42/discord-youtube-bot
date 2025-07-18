@@ -140,6 +140,17 @@ export class ContentClassifier {
    * @returns {boolean} True if content is a retweet
    */
   isRetweet(text, metadata) {
+    // Primary check: Author-based detection (most reliable)
+    if (metadata && metadata.author && metadata.monitoredUser) {
+      const author = metadata.author;
+      const monitoredUser = metadata.monitoredUser;
+      
+      // If author differs from monitored user, it's a retweet
+      if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
+        return true;
+      }
+    }
+    
     // Use enhanced detection if DOM element is available
     if (metadata && metadata.domElement) {
       const enhancedResult = this.enhancedRetweetDetection(metadata.domElement);

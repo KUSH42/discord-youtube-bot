@@ -142,6 +142,94 @@ describe('ContentClassifier', () => {
         expect(result.type).toBe('quote');
       });
     });
+
+    describe('Author-based Retweet Detection', () => {
+      it('should detect retweet when author differs from monitored user', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'Some tweet content',
+          { 
+            author: 'differentuser',
+            monitoredUser: 'testuser'
+          }
+        );
+        
+        expect(result.type).toBe('retweet');
+        expect(result.confidence).toBeGreaterThan(0.9);
+      });
+      
+      it('should detect retweet when author differs from monitored user with @ prefix', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'Some tweet content',
+          { 
+            author: 'differentuser',
+            monitoredUser: '@testuser'
+          }
+        );
+        
+        expect(result.type).toBe('retweet');
+        expect(result.confidence).toBeGreaterThan(0.9);
+      });
+      
+      it('should NOT detect retweet when author matches monitored user', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'Some tweet content',
+          { 
+            author: 'testuser',
+            monitoredUser: 'testuser'
+          }
+        );
+        
+        expect(result.type).toBe('post');
+      });
+      
+      it('should NOT detect retweet when author matches monitored user with @ prefix', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'Some tweet content',
+          { 
+            author: '@testuser',
+            monitoredUser: 'testuser'
+          }
+        );
+        
+        expect(result.type).toBe('post');
+      });
+      
+      it('should ignore Unknown authors', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'Some tweet content',
+          { 
+            author: 'Unknown',
+            monitoredUser: 'testuser'
+          }
+        );
+        
+        expect(result.type).toBe('post');
+      });
+      
+      it('should fallback to text-based detection when author metadata is missing', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'RT @someone This is a retweet'
+        );
+        
+        expect(result.type).toBe('retweet');
+      });
+      
+      it('should fallback to text-based detection when monitoredUser metadata is missing', () => {
+        const result = classifier.classifyXContent(
+          'https://x.com/user/status/1234567890',
+          'RT @someone This is a retweet',
+          { author: 'differentuser' }
+        );
+        
+        expect(result.type).toBe('retweet');
+      });
+    });
   });
   
   describe('YouTube Content Classification', () => {

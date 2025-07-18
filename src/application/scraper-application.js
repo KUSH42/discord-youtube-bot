@@ -861,7 +861,8 @@ export class ScraperApplication {
       // Prepare metadata for classification
       const metadata = {
         timestamp: tweet.timestamp,
-        author: tweet.author
+        author: tweet.author,
+        monitoredUser: this.xUser
       };
       
       // Add retweet metadata if available from enhanced detection
