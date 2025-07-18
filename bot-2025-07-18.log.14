@@ -1,0 +1,5 @@
+[2025-07-18T10:19:16.802Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T10:19:16.811Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T10:19:16.950Z]  [INFO]: Test log message

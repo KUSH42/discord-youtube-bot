@@ -28,6 +28,10 @@ describe('Retweet Workflows Integration', () => {
     return {
       get: jest.fn((key) => defaultValues[key]),
       getRequired: jest.fn((key) => defaultValues[key]),
+      getBoolean: jest.fn((key, defaultValue) => {
+        const value = defaultValues[key];
+        return value !== undefined ? value : defaultValue;
+      }),
       isRetweetChannelConfigured: jest.fn(() => !!defaultValues['DISCORD_X_RETWEETS_CHANNEL_ID'])
     };
   };
@@ -93,9 +97,9 @@ describe('Retweet Workflows Integration', () => {
       // Test announcement routing
       const result = await announcer.announceContent(content);
       
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
       expect(result.success).toBe(true);
       expect(result.channelId).toBe('987654321');
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
     });
 
     it('should fallback to regular channel when retweet channel not configured', async () => {

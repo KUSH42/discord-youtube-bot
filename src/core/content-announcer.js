@@ -22,7 +22,7 @@ export class ContentAnnouncer {
         post: config.getRequired('DISCORD_X_POSTS_CHANNEL_ID'),
         reply: config.getRequired('DISCORD_X_REPLIES_CHANNEL_ID'),
         quote: config.getRequired('DISCORD_X_QUOTES_CHANNEL_ID'),
-        retweet: config.getRequired('DISCORD_X_RETWEETS_CHANNEL_ID')
+        retweet: config.get('DISCORD_X_RETWEETS_CHANNEL_ID') || config.getRequired('DISCORD_X_POSTS_CHANNEL_ID')
       }
     };
     
@@ -199,7 +199,7 @@ export class ContentAnnouncer {
       return 'Bot posting is disabled';
     }
     
-    if (!this.state.get('announcementEnabled', false)) {
+    if (!this.state.get('announcementEnabled', true)) {
       return 'Announcements are disabled';
     }
     

@@ -263,6 +263,10 @@ export class ContentClassifier {
    * @returns {Object} Detection result
    */
   detectBySocialContext(tweetElement) {
+    if (!tweetElement || typeof tweetElement.querySelector !== 'function') {
+      return { isRetweet: false, confidence: 0, method: 'no-element' };
+    }
+    
     const socialContext = tweetElement.querySelector('[data-testid="socialContext"]');
     if (socialContext && /reposted|retweeted/i.test(socialContext.textContent)) {
       const retweetedBy = this.extractRetweetAuthor(socialContext);
@@ -273,7 +277,7 @@ export class ContentClassifier {
         retweetedBy
       };
     }
-    return { isRetweet: false };
+    return { isRetweet: false, confidence: 0, method: 'no-match' };
   }
   
   /**
