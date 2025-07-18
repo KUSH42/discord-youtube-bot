@@ -126,7 +126,7 @@ jobs:
     strategy:
       matrix:
         node-version: ['18', '20']
-      fail-fast: false
+      fail-fast: true
     steps:
       - uses: actions/checkout@v4
 
@@ -142,6 +142,7 @@ jobs:
       - name: Run unit tests
         run: |
           mkdir -p coverage/unit
+          set -e  # Exit on any command failure
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
             --coverage \
@@ -150,6 +151,11 @@ jobs:
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles 2>&1 | tee coverage/unit/test-output-node${{ matrix.node-version }}.log
+          # Explicitly check test exit code
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ Unit tests failed"
+            exit 1
+          fi
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -230,6 +236,7 @@ jobs:
           NODE_ENV: test
         run: |
           mkdir -p coverage/integration
+          set -e  # Exit on any command failure
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
             --coverage \
@@ -239,6 +246,11 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --testTimeout=30000 2>&1 | tee coverage/integration/test-output.log
+          # Explicitly check test exit code
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -308,12 +320,18 @@ jobs:
           NODE_ENV: test
         run: |
           mkdir -p test-results/e2e
+          set -e  # Exit on any command failure
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config jest.e2e.config.js \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
             --testTimeout=60000 2>&1 | tee test-results/e2e/test-output.log
+          # Explicitly check test exit code
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ E2E tests failed"
+            exit 1
+          fi
 
       # E2E tests don't generate source code coverage since they focus on behavior testing
 
@@ -353,6 +371,7 @@ jobs:
       - name: Run performance tests
         run: |
           mkdir -p coverage/performance
+          set -e  # Exit on any command failure
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" \
           npm run test:performance -- \
             --coverage \
@@ -363,6 +382,11 @@ jobs:
             --detectOpenHandles \
             --testTimeout=120000 \
             --verbose 2>&1 | tee coverage/performance/test-output.log
+          # Explicitly check test exit code
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ Performance tests failed"
+            exit 1
+          fi
 
       - name: Generate performance report
         run: |
@@ -448,12 +472,18 @@ jobs:
       - name: Run security tests
         run: |
           mkdir -p test-results/security
+          set -e  # Exit on any command failure
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config jest.security.config.js \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles \
             --testTimeout=45000 2>&1 | tee test-results/security/test-output.log
+          # Explicitly check test exit code
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ Security tests failed"
+            exit 1
+          fi
 
       - name: Run security audit
         run: |
@@ -534,14 +564,14 @@ jobs:
 
       - name: Download Node 18 unit test coverage
         uses: actions/download-artifact@v4
-        continue-on-error: true
+        continue-on-error: ${{ needs.unit-tests.result == 'skipped' }}
         with:
           name: unit-test-results-node18
           path: test-results/unit/node18/
 
       - name: Download Node 20 unit test coverage
         uses: actions/download-artifact@v4
-        continue-on-error: true
+        continue-on-error: ${{ needs.unit-tests.result == 'skipped' }}
         with:
           name: unit-test-results-node20
           path: test-results/unit/node20/
@@ -944,11 +974,27 @@ jobs:
       - name: Update status check
         if: always()
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ All tests completed successfully"
-          else
-            echo "❌ Some tests failed or were skipped"
+          # Check individual job statuses and fail if any critical test failed
+          UNIT_STATUS="${{ needs.unit-tests.result }}"
+          INTEGRATION_STATUS="${{ needs.integration-tests.result }}"
+          E2E_STATUS="${{ needs.e2e-tests.result }}"
+          PERFORMANCE_STATUS="${{ needs.performance-tests.result }}"
+          SECURITY_STATUS="${{ needs.security-tests.result }}"
+          
+          echo "Unit tests: $UNIT_STATUS"
+          echo "Integration tests: $INTEGRATION_STATUS" 
+          echo "E2E tests: $E2E_STATUS"
+          echo "Performance tests: $PERFORMANCE_STATUS"
+          echo "Security tests: $SECURITY_STATUS"
+          
+          # Fail if any test job failed (not skipped)
+          if [[ "$UNIT_STATUS" == "failure" || "$INTEGRATION_STATUS" == "failure" || "$E2E_STATUS" == "failure" || "$PERFORMANCE_STATUS" == "failure" || "$SECURITY_STATUS" == "failure" ]]; then
+            echo "❌ One or more test suites failed"
             exit 1
+          elif [[ "$UNIT_STATUS" == "success" || "$INTEGRATION_STATUS" == "success" || "$E2E_STATUS" == "success" || "$PERFORMANCE_STATUS" == "success" || "$SECURITY_STATUS" == "success" ]]; then
+            echo "✅ All executed tests completed successfully"
+          else
+            echo "⚠️ All tests were skipped"
           fi
 
 # Cleanup job to remove old artifacts

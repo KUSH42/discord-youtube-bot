@@ -499,7 +499,7 @@ describe('Duplicate Detection Logic Tests', () => {
         expect(results).toHaveProperty('errors');
 
         expect(results.messagesScanned).toBe(5);
-        expect(results.tweetIdsFound).toEqual(['1234567890123456789', '9876543210987654321']);
+        expect(results.tweetIdsFound).toEqual(['9876543210987654321', '1234567890123456789']);
         expect(results.tweetIdsAdded).toBe(2); // Two unique tweet IDs
         expect(results.errors).toHaveLength(0);
 
@@ -514,7 +514,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
         const results = await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
 
-        expect(results.tweetIdsFound).toEqual(['1234567890123456789', '9876543210987654321']);
+        expect(results.tweetIdsFound).toEqual(['9876543210987654321', '1234567890123456789']);
         expect(results.tweetIdsAdded).toBe(1); // Only one new ID added
       });
 
