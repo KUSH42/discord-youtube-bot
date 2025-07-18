@@ -618,122 +618,86 @@ jobs:
               echo "---"
             done
             
-            # Try direct lcov merging first (more reliable than nyc)
-            if command -v lcov >/dev/null 2>&1; then
-              echo "Using lcov to merge coverage files..."
-              lcov_merge_args=""
-              for file in "${COVERAGE_FILES[@]}"; do
-                lcov_merge_args="$lcov_merge_args -a $file"
-              done
-              lcov $lcov_merge_args -o coverage/merged/lcov.info
-            else
-              echo "lcov not available, using manual merge..."
-              # Manual merge by concatenating and deduplicating
-              cat "${COVERAGE_FILES[@]}" > coverage/merged/lcov.info
+            # Simple approach: concatenate all coverage files
+            echo "Merging coverage files by concatenation..."
+            mkdir -p coverage/merged
+            cat "${COVERAGE_FILES[@]}" > coverage/merged/lcov.info
+            
+            # Validate merged file
+            if [ ! -s coverage/merged/lcov.info ]; then
+              echo "ERROR: Merged coverage file is empty"
+              exit 1
             fi
             
-            # Fallback: Use nyc merge if lcov merge failed
-            if [ ! -s coverage/merged/lcov.info ]; then
-              echo "Fallback to nyc merge..."
-              mkdir -p .nyc_output
-              
-              # Copy all lcov files into a temporary directory for nyc to find
-              for file in "${COVERAGE_FILES[@]}"; do
-                cp "$file" "coverage/merged/$(basename "$file" .info)-$(uuidgen).info"
-              done
-              
-              # Run the merge
-              npx nyc merge coverage/merged .nyc_output/coverage.json
-              
-              # Generate the final lcov report from the merged data
-              npx nyc report --reporter=lcov --report-dir=coverage/merged --temp-dir=.nyc_output
-            fi
+            echo "Merged coverage file created with $(wc -l < coverage/merged/lcov.info) lines"
             
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
               
-              # Debug: Check what's in the merged coverage
+              # Check merged coverage file
               echo "Merged coverage file size: $(wc -l < coverage/merged/lcov.info) lines"
-              echo "Sample of merged coverage:"
-              head -20 coverage/merged/lcov.info
-              echo ""
-              echo "NYC temp directory contents:"
-              ls -la .nyc_output/
-              echo "Sample of coverage.json:"
-              head -10 .nyc_output/coverage.json
               
-              # Extract coverage directly from lcov file (more reliable)
-              echo "Extracting coverage directly from merged lcov.info..."
-              LINES_FOUND=$(grep -E "^LF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
-              LINES_HIT=$(grep -E "^LH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
-              FUNCTIONS_FOUND=$(grep -E "^FNF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
-              FUNCTIONS_HIT=$(grep -E "^FNH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
-              BRANCHES_FOUND=$(grep -E "^BRF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
-              BRANCHES_HIT=$(grep -E "^BRH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}')
+              # Extract coverage directly from lcov file
+              echo "Extracting coverage from merged lcov.info..."
+              
+              # Extract with error checking
+              LINES_FOUND=$(grep -E "^LF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}' || echo "0")
+              LINES_HIT=$(grep -E "^LH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}' || echo "0")
+              FUNCTIONS_FOUND=$(grep -E "^FNF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}' || echo "0")
+              FUNCTIONS_HIT=$(grep -E "^FNH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}' || echo "0")
+              BRANCHES_FOUND=$(grep -E "^BRF:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}' || echo "0")
+              BRANCHES_HIT=$(grep -E "^BRH:" coverage/merged/lcov.info | awk -F: '{sum+=$2} END {print sum+0}' || echo "0")
               
               echo "Coverage totals: Lines $LINES_HIT/$LINES_FOUND, Functions $FUNCTIONS_HIT/$FUNCTIONS_FOUND, Branches $BRANCHES_HIT/$BRANCHES_FOUND"
               
-              # Calculate percentages
-              LINES_PCT=0
-              FUNCTIONS_PCT=0  
-              BRANCHES_PCT=0
+              # Calculate percentages with defaults
+              LINES_PCT="0.00"
+              FUNCTIONS_PCT="0.00"
+              BRANCHES_PCT="0.00"
               
-              if [ "$LINES_FOUND" -gt 0 ]; then
-                LINES_PCT=$(awk "BEGIN {printf \"%.2f\", $LINES_HIT * 100 / $LINES_FOUND}")
+              if [ "$LINES_FOUND" -gt 0 ] 2>/dev/null; then
+                LINES_PCT=$(awk -v hit="$LINES_HIT" -v found="$LINES_FOUND" 'BEGIN {printf "%.2f", hit * 100 / found}' || echo "0.00")
               fi
               
-              if [ "$FUNCTIONS_FOUND" -gt 0 ]; then
-                FUNCTIONS_PCT=$(awk "BEGIN {printf \"%.2f\", $FUNCTIONS_HIT * 100 / $FUNCTIONS_FOUND}")
+              if [ "$FUNCTIONS_FOUND" -gt 0 ] 2>/dev/null; then
+                FUNCTIONS_PCT=$(awk -v hit="$FUNCTIONS_HIT" -v found="$FUNCTIONS_FOUND" 'BEGIN {printf "%.2f", hit * 100 / found}' || echo "0.00")
               fi
               
-              if [ "$BRANCHES_FOUND" -gt 0 ]; then
-                BRANCHES_PCT=$(awk "BEGIN {printf \"%.2f\", $BRANCHES_HIT * 100 / $BRANCHES_FOUND}")
+              if [ "$BRANCHES_FOUND" -gt 0 ] 2>/dev/null; then
+                BRANCHES_PCT=$(awk -v hit="$BRANCHES_HIT" -v found="$BRANCHES_FOUND" 'BEGIN {printf "%.2f", hit * 100 / found}' || echo "0.00")
               fi
               
               echo "Calculated coverage: Lines ${LINES_PCT}%, Functions ${FUNCTIONS_PCT}%, Branches ${BRANCHES_PCT}%"
               
-              # Create coverage-summary.json manually
-              cat > coverage-summary.json << 'COVERAGE_EOF'
-              {
-                "total": {
-                  "lines": {
-                    "total": LINES_FOUND_VAL,
-                    "covered": LINES_HIT_VAL,
-                    "skipped": 0,
-                    "pct": LINES_PCT_VAL
+              # Create coverage-summary.json using echo to avoid heredoc issues
+              echo "{
+                \"total\": {
+                  \"lines\": {
+                    \"total\": ${LINES_FOUND},
+                    \"covered\": ${LINES_HIT},
+                    \"skipped\": 0,
+                    \"pct\": ${LINES_PCT}
                   },
-                  "statements": {
-                    "total": LINES_FOUND_VAL,
-                    "covered": LINES_HIT_VAL,
-                    "skipped": 0,
-                    "pct": LINES_PCT_VAL
+                  \"statements\": {
+                    \"total\": ${LINES_FOUND},
+                    \"covered\": ${LINES_HIT},
+                    \"skipped\": 0,
+                    \"pct\": ${LINES_PCT}
                   },
-                  "functions": {
-                    "total": FUNCTIONS_FOUND_VAL,
-                    "covered": FUNCTIONS_HIT_VAL,
-                    "skipped": 0,
-                    "pct": FUNCTIONS_PCT_VAL
+                  \"functions\": {
+                    \"total\": ${FUNCTIONS_FOUND},
+                    \"covered\": ${FUNCTIONS_HIT},
+                    \"skipped\": 0,
+                    \"pct\": ${FUNCTIONS_PCT}
                   },
-                  "branches": {
-                    "total": BRANCHES_FOUND_VAL,
-                    "covered": BRANCHES_HIT_VAL,
-                    "skipped": 0,
-                    "pct": BRANCHES_PCT_VAL
+                  \"branches\": {
+                    \"total\": ${BRANCHES_FOUND},
+                    \"covered\": ${BRANCHES_HIT},
+                    \"skipped\": 0,
+                    \"pct\": ${BRANCHES_PCT}
                   }
                 }
-              }
-              COVERAGE_EOF
-              
-              # Replace placeholders with actual values
-              sed -i "s/LINES_FOUND_VAL/$LINES_FOUND/g" coverage-summary.json
-              sed -i "s/LINES_HIT_VAL/$LINES_HIT/g" coverage-summary.json
-              sed -i "s/LINES_PCT_VAL/$LINES_PCT/g" coverage-summary.json
-              sed -i "s/FUNCTIONS_FOUND_VAL/$FUNCTIONS_FOUND/g" coverage-summary.json
-              sed -i "s/FUNCTIONS_HIT_VAL/$FUNCTIONS_HIT/g" coverage-summary.json
-              sed -i "s/FUNCTIONS_PCT_VAL/$FUNCTIONS_PCT/g" coverage-summary.json
-              sed -i "s/BRANCHES_FOUND_VAL/$BRANCHES_FOUND/g" coverage-summary.json
-              sed -i "s/BRANCHES_HIT_VAL/$BRANCHES_HIT/g" coverage-summary.json
-              sed -i "s/BRANCHES_PCT_VAL/$BRANCHES_PCT/g" coverage-summary.json
+              }" > coverage-summary.json
               
               echo "Generated coverage-summary.json with ${LINES_PCT}% line coverage"
               echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
