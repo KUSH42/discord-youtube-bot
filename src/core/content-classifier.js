@@ -134,18 +134,26 @@ export class ContentClassifier {
   }
   
   /**
-   * Check if content is a retweet
+   * Check if content is a retweet using enhanced detection
    * @param {string} text - Tweet text
    * @param {Object} metadata - Additional metadata
    * @returns {boolean} True if content is a retweet
    */
   isRetweet(text, metadata) {
-    // Check metadata first
+    // Use enhanced detection if DOM element is available
+    if (metadata && metadata.domElement) {
+      const enhancedResult = this.enhancedRetweetDetection(metadata.domElement);
+      if (enhancedResult.isRetweet) {
+        return true;
+      }
+    }
+    
+    // Fallback to existing metadata checks
     if (metadata && (metadata.isRetweet === true || metadata.retweetedStatus)) {
       return true;
     }
     
-    // Check text patterns
+    // Fallback to text pattern checks
     if (typeof text === 'string') {
       // Starts with RT @ pattern
       if (/^RT @\w+/.test(text.trim())) {
@@ -153,7 +161,7 @@ export class ContentClassifier {
       }
       
       // Contains retweet indicators
-      if (text.includes('retweeted') || text.includes('RT @')) {
+      if (text.includes('retweeted') || text.includes('RT @') || text.includes('reposted')) {
         return true;
       }
     }
@@ -212,21 +220,164 @@ export class ContentClassifier {
   }
   
   /**
+   * Enhanced retweet detection using multiple strategies
+   * @param {Element} tweetElement - Tweet DOM element
+   * @returns {Object} Detection result with confidence and metadata
+   */
+  enhancedRetweetDetection(tweetElement) {
+    if (!tweetElement) {
+      return { isRetweet: false, confidence: 0, method: 'no-element' };
+    }
+    
+    const strategies = [
+      this.detectBySocialContext.bind(this),
+      this.detectByRetweetText.bind(this),
+      this.detectByAuthorLink.bind(this),
+      this.detectByTimelineContext.bind(this)
+    ];
+    
+    for (const strategy of strategies) {
+      const result = strategy(tweetElement);
+      if (result.isRetweet) {
+        return result;
+      }
+    }
+    
+    return { isRetweet: false, confidence: 0, method: 'no-match' };
+  }
+  
+  /**
+   * Detect retweet using socialContext testid (primary method)
+   * @param {Element} tweetElement - Tweet DOM element
+   * @returns {Object} Detection result
+   */
+  detectBySocialContext(tweetElement) {
+    const socialContext = tweetElement.querySelector('[data-testid="socialContext"]');
+    if (socialContext && /reposted|retweeted/i.test(socialContext.textContent)) {
+      const retweetedBy = this.extractRetweetAuthor(socialContext);
+      return {
+        isRetweet: true,
+        confidence: 0.95,
+        method: 'socialContext',
+        retweetedBy
+      };
+    }
+    return { isRetweet: false };
+  }
+  
+  /**
+   * Extract retweet author from social context
+   * @param {Element} socialContext - Social context element
+   * @returns {string|null} Retweeted by username
+   */
+  extractRetweetAuthor(socialContext) {
+    try {
+      const text = socialContext.textContent;
+      const match = text.match(/(.+?)\s+(?:reposted|retweeted)/i);
+      return match ? match[1].trim() : null;
+    } catch (error) {
+      return null;
+    }
+  }
+  
+  /**
+   * Detect retweet using text patterns (fallback)
+   * @param {Element} tweetElement - Tweet DOM element
+   * @returns {Object} Detection result
+   */
+  detectByRetweetText(tweetElement) {
+    try {
+      const textElement = tweetElement.querySelector('[data-testid="tweetText"], [lang] span, div[dir="ltr"]');
+      if (textElement) {
+        const text = textElement.textContent || textElement.innerText;
+        if (/^RT @\w+/.test(text.trim())) {
+          return {
+            isRetweet: true,
+            confidence: 0.85,
+            method: 'textPattern'
+          };
+        }
+      }
+    } catch (error) {
+      // Ignore errors in fallback detection
+    }
+    return { isRetweet: false };
+  }
+  
+  /**
+   * Detect retweet using author link patterns
+   * @param {Element} tweetElement - Tweet DOM element
+   * @returns {Object} Detection result
+   */
+  detectByAuthorLink(tweetElement) {
+    try {
+      // Look for multiple author links which can indicate retweets
+      const authorLinks = tweetElement.querySelectorAll('[data-testid="User-Name"] a, [data-testid="User-Names"] a');
+      if (authorLinks.length > 1) {
+        return {
+          isRetweet: true,
+          confidence: 0.7,
+          method: 'multipleAuthors'
+        };
+      }
+    } catch (error) {
+      // Ignore errors in fallback detection
+    }
+    return { isRetweet: false };
+  }
+  
+  /**
+   * Detect retweet using timeline context
+   * @param {Element} tweetElement - Tweet DOM element
+   * @returns {Object} Detection result
+   */
+  detectByTimelineContext(tweetElement) {
+    try {
+      // Look for retweet indicators in the broader context
+      const allText = tweetElement.textContent || tweetElement.innerText || '';
+      if (/\b(?:reposted|retweeted)\b/i.test(allText)) {
+        return {
+          isRetweet: true,
+          confidence: 0.6,
+          method: 'contextualText'
+        };
+      }
+    } catch (error) {
+      // Ignore errors in fallback detection
+    }
+    return { isRetweet: false };
+  }
+  
+  /**
    * Get retweet indicators from content
    * @param {string} text - Tweet text
    * @param {Object} metadata - Additional metadata
    * @returns {Array} Array of retweet indicators
    */
-  getRetweetIndicators(text, metadata) {
+  getRetweetIndicators(text, metadata = {}) {
     const indicators = [];
     
     if (metadata.retweetedStatus) {
       indicators.push('Has retweeted status metadata');
     }
     
+    // Enhanced detection indicators
+    if (metadata.domElement) {
+      const enhancedResult = this.enhancedRetweetDetection(metadata.domElement);
+      if (enhancedResult.isRetweet) {
+        indicators.push(`Enhanced detection: ${enhancedResult.method} (confidence: ${enhancedResult.confidence})`);
+        if (enhancedResult.retweetedBy) {
+          indicators.push(`Retweeted by: ${enhancedResult.retweetedBy}`);
+        }
+      }
+    }
+    
     if (typeof text === 'string') {
       if (/^RT @\w+/.test(text.trim())) {
         indicators.push('Starts with RT @');
+      }
+      if (text.includes('reposted')) {
+        indicators.push('Contains "reposted" text');
       }
     }
     

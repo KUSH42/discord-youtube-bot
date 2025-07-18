@@ -389,9 +389,17 @@ export class ScraperApplication {
       yesterday.setDate(yesterday.getDate() - 1);
       const sinceDate = yesterday.toISOString().split('T')[0];
 
-      // Navigate to user's search results
-      const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
-      await this.browser.goto(searchUrl);
+      // Use hybrid approach: search + profile timeline if retweet processing enabled
+      const shouldProcessRetweets = this.shouldProcessRetweets();
+      
+      if (shouldProcessRetweets) {
+        this.logger.info('Enhanced retweet detection enabled, using profile timeline approach');
+        await this.navigateToProfileTimeline(this.xUser);
+      } else {
+        // Navigate to user's search results (standard approach)
+        const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
+        await this.browser.goto(searchUrl);
+      }
       
       // Wait for content to load - try multiple selectors
       const contentSelectors = [
@@ -585,14 +593,21 @@ export class ScraperApplication {
             tweetCategory = 'Retweet';
           }
           
-          tweets.push({
+          const tweetData = {
             tweetID,
             url,
             author,
             text,
             timestamp,
             tweetCategory
-          });
+          };
+          
+          // Add retweet metadata if available
+          if (retweetMetadata) {
+            tweetData.retweetMetadata = retweetMetadata;
+          }
+          
+          tweets.push(tweetData);
           
           console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
           
@@ -603,7 +618,7 @@ export class ScraperApplication {
       
       console.log(`Total tweets extracted: ${tweets.length}`);
       return tweets;
-    });
+    }, shouldProcessRetweets);
   }
   
   /**
@@ -682,11 +697,20 @@ export class ScraperApplication {
    */
   async processNewTweet(tweet) {
     try {
-      // Classify the tweet
-      const classification = this.classifier.classifyXContent(tweet.url, tweet.text, {
+      // Prepare metadata for classification
+      const metadata = {
         timestamp: tweet.timestamp,
         author: tweet.author
-      });
+      };
+      
+      // Add retweet metadata if available from enhanced detection
+      if (tweet.retweetMetadata) {
+        metadata.isRetweet = tweet.tweetCategory === 'Retweet';
+        metadata.retweetDetection = tweet.retweetMetadata;
+      }
+      
+      // Classify the tweet
+      const classification = this.classifier.classifyXContent(tweet.url, tweet.text, metadata);
       
       // Create content object for announcement
       const content = {
