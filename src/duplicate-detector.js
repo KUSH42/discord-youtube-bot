@@ -196,6 +196,146 @@ export class DuplicateDetector {
     }
 
     /**
+     * Scan Discord channel history for YouTube video IDs and populate known set
+     * @param {Object} discordChannel - Discord channel object to scan
+     * @param {number} limit - Maximum number of messages to scan (default: 1000)
+     * @returns {Promise<Object>} - Object containing scan results
+     */
+    async scanDiscordChannelForVideos(discordChannel, limit = 1000) {
+        if (!discordChannel || typeof discordChannel.messages?.fetch !== 'function') {
+            throw new Error('Invalid Discord channel provided');
+        }
+
+        const results = {
+            messagesScanned: 0,
+            videoIdsFound: [],
+            videoIdsAdded: 0,
+            errors: []
+        };
+
+        try {
+            let lastMessageId = null;
+            let totalScanned = 0;
+            const batchSize = 100; // Discord API limit per request
+
+            while (totalScanned < limit) {
+                const fetchOptions = { limit: Math.min(batchSize, limit - totalScanned) };
+                if (lastMessageId) {
+                    fetchOptions.before = lastMessageId;
+                }
+
+                const messages = await discordChannel.messages.fetch(fetchOptions);
+                
+                if (messages.size === 0) {
+                    break; // No more messages
+                }
+
+                for (const message of messages.values()) {
+                    const videoIds = this.extractVideoIds(message.content);
+                    
+                    if (videoIds.length > 0) {
+                        results.videoIdsFound.push(...videoIds);
+                        
+                        // Add to known set
+                        videoIds.forEach(id => {
+                            if (!this.isVideoIdKnown(id)) {
+                                this.addVideoId(id);
+                                results.videoIdsAdded++;
+                            }
+                        });
+                    }
+                    
+                    lastMessageId = message.id;
+                    totalScanned++;
+                    results.messagesScanned++;
+                }
+
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+        } catch (error) {
+            results.errors.push({
+                type: 'fetch_error',
+                message: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        return results;
+    }
+
+    /**
+     * Scan Discord channel history for tweet IDs and populate known set
+     * @param {Object} discordChannel - Discord channel object to scan
+     * @param {number} limit - Maximum number of messages to scan (default: 1000)
+     * @returns {Promise<Object>} - Object containing scan results
+     */
+    async scanDiscordChannelForTweets(discordChannel, limit = 1000) {
+        if (!discordChannel || typeof discordChannel.messages?.fetch !== 'function') {
+            throw new Error('Invalid Discord channel provided');
+        }
+
+        const results = {
+            messagesScanned: 0,
+            tweetIdsFound: [],
+            tweetIdsAdded: 0,
+            errors: []
+        };
+
+        try {
+            let lastMessageId = null;
+            let totalScanned = 0;
+            const batchSize = 100; // Discord API limit per request
+
+            while (totalScanned < limit) {
+                const fetchOptions = { limit: Math.min(batchSize, limit - totalScanned) };
+                if (lastMessageId) {
+                    fetchOptions.before = lastMessageId;
+                }
+
+                const messages = await discordChannel.messages.fetch(fetchOptions);
+                
+                if (messages.size === 0) {
+                    break; // No more messages
+                }
+
+                for (const message of messages.values()) {
+                    const tweetIds = this.extractTweetIds(message.content);
+                    
+                    if (tweetIds.length > 0) {
+                        results.tweetIdsFound.push(...tweetIds);
+                        
+                        // Add to known set
+                        tweetIds.forEach(id => {
+                            if (!this.isTweetIdKnown(id)) {
+                                this.addTweetId(id);
+                                results.tweetIdsAdded++;
+                            }
+                        });
+                    }
+                    
+                    lastMessageId = message.id;
+                    totalScanned++;
+                    results.messagesScanned++;
+                }
+
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+        } catch (error) {
+            results.errors.push({
+                type: 'fetch_error',
+                message: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        return results;
+    }
+
+    /**
      * Clear all known IDs
      */
     reset() {
