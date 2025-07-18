@@ -33,6 +33,7 @@ on:
 env:
   NODE_VERSION: '20'
   CACHE_KEY_PREFIX: 'discord-bot-test'
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   # Pre-flight checks
