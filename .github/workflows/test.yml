@@ -84,6 +84,7 @@ jobs:
             else
               # Check if relevant files changed
               git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(js|json|yml|yaml)$' && echo "should-run=true" >> $GITHUB_OUTPUT || echo "should-run=false" >> $GITHUB_OUTPUT
+              echo "should-run=true" >> $GITHUB_OUTPUT
             fi
            else
              echo "should-run=false" >> $GITHUB_OUTPUT
