@@ -242,9 +242,13 @@ export class ScraperApplication {
           this.logger.info('Entering password...');
           await this.browser.type('input[name="password"]', this.twitterPassword);
           await this.clickLoginButton();
-          break;
+          try {
+            await this.browser.waitForNavigation({ timeout: 15000 });
+          } catch (e) {
+            this.logger.warn('Navigation timed out after login click, but will continue to check status.');
+          }
         } else if (pageState.isLoggedIn) {
-          this.logger.info('✅ Login successful, already on home page');
+          this.logger.info('✅ Login successful, a new session has been established.');
           return;
         } else {
           this.logger.warn('Unknown login state, attempting to click Next/Login');
@@ -254,9 +258,6 @@ export class ScraperApplication {
           }
         }
       }
-      
-      // Final verification
-      await this.verifyAuthentication();
       
     } catch (error) {
       this.logger.error('Failed to login to X:', error);

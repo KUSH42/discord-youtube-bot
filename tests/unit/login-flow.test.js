@@ -74,7 +74,6 @@ describe('Login Flow', () => {
     expect(scraperApp.handleEmailVerification).toHaveBeenCalled();
     expect(mockBrowserService.type).toHaveBeenCalledWith('input[name="password"]', 'testpass');
     expect(scraperApp.clickLoginButton).toHaveBeenCalled();
-    expect(scraperApp.verifyAuthentication).toHaveBeenCalled();
   });
 
   it('should use cookies for authentication if available', async () => {
@@ -123,6 +122,5 @@ describe('Login Flow', () => {
 
     expect(mockLogger.warn).toHaveBeenCalledWith('Cookie authentication failed, falling back to credentials');
     expect(mockLogger.info).toHaveBeenCalledWith('Using credential-based authentication...');
-    expect(scraperApp.verifyAuthentication).toHaveBeenCalled();
   });
 });
