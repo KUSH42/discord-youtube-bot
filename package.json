@@ -55,6 +55,7 @@
   },
   "overrides": {
     "glob": "^9.0.0",
-    "inflight": "latest"
+    "inflight": "latest",
+    "node-domexception": "latest"
   }
 }
