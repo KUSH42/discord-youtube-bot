@@ -813,6 +813,38 @@ export class ScraperApplication {
   }
   
   /**
+   * Perform enhanced scrolling for comprehensive content loading
+   * @returns {Promise<void>}
+   */
+  async performEnhancedScrolling() {
+    // Scroll down multiple times to load more content for retweet detection
+    for (let i = 0; i < 5; i++) {
+      await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for content to load
+    }
+  }
+
+  /**
+   * Navigate to user profile timeline for retweet detection
+   * @param {string} username - X username
+   * @returns {Promise<void>}
+   */
+  async navigateToProfileTimeline(username) {
+    const profileUrl = `https://x.com/${username}`;
+    await this.browser.goto(profileUrl);
+
+    // Wait for timeline to load
+    await this.browser.waitForSelector([
+      '[data-testid="primaryColumn"]',
+      '[role="main"]',
+      'article[data-testid="tweet"]'
+    ]);
+
+    // Perform deeper scrolling for retweets
+    await this.performEnhancedScrolling();
+  }
+
+  /**
    * Dispose of resources
    * @returns {Promise<void>}
    */
