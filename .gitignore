@@ -158,3 +158,6 @@ enforcer.env
 
 # npm audit files
 *-audit.json
+
+# Debugging artifacts
+*.png

@@ -199,6 +199,8 @@ export class ScraperApplication {
             
           if (isLoggedIn) {
             this.logger.info('✅ Cookie authentication successful');
+            const currentUrl = await this.browser.page.url();
+            this.logger.info(`Current page URL after cookie auth: ${currentUrl}`);
             return;
           } else {
             this.logger.warn('Cookie authentication failed, falling back to credentials');
@@ -216,7 +218,8 @@ export class ScraperApplication {
       const maxSteps = 5;
       for (let step = 0; step < maxSteps; step++) {
         this.logger.info(`Login step ${step + 1}`);
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for page transition
+        const loginAttemptDelay = 4000 + Math.random() * 2000; // 4-6 seconds
+        await new Promise(resolve => setTimeout(resolve, loginAttemptDelay));
         
         const pageState = await this.browser.evaluate(() => ({
           hasUsernameInput: !!document.querySelector('input[name="text"]'),
@@ -227,6 +230,8 @@ export class ScraperApplication {
         
         if (pageState.isLoggedIn) {
           this.logger.info('✅ Login successful, already on home page');
+          const currentUrl = await this.browser.page.url();
+          this.logger.info(`Current page URL after login: ${currentUrl}`);
           return;
         }
         
@@ -234,6 +239,7 @@ export class ScraperApplication {
           this.logger.info('Entering username...');
           await this.browser.type('input[name="text"]', this.twitterUsername);
           await this.clickNextButton();
+          await new Promise(resolve => setTimeout(resolve, 5000 + Math.random() * 2000)); // Wait 5-7s for next page
         } else if (pageState.needsEmailVerification) {
           this.logger.info('Email verification required...');
           await this.handleEmailVerification();
@@ -249,6 +255,9 @@ export class ScraperApplication {
           }
         } else if (pageState.isLoggedIn) {
           this.logger.info('✅ Login successful, a new session has been established.');
+          const currentUrl = await this.browser.page.url();
+          this.logger.info(`Current page URL after login: ${currentUrl}`);
+          await this.handleCookiePrompt();
           return;
         } else {
           this.logger.warn('Unknown login state, attempting to click Next/Login');
@@ -258,6 +267,7 @@ export class ScraperApplication {
           }
         }
       }
+
       
     } catch (error) {
       this.logger.error('Failed to login to X:', error);
@@ -277,6 +287,32 @@ export class ScraperApplication {
       }
       
       throw new Error(`X login failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handles the cookie consent dialog that may appear after login.
+   * @returns {Promise<boolean>} True if the prompt was handled, false otherwise.
+   */
+  async handleCookiePrompt() {
+    try {
+      const refuseButtonSelector = 'button:has-text("Refuse non-essential cookies")';
+      this.logger.debug('Checking for cookie consent prompt...');
+      
+      // Wait for the selector, but with a reasonable timeout.
+      await this.browser.waitForSelector(refuseButtonSelector, { timeout: 7000 });
+      
+      this.logger.info('Cookie consent prompt detected. Clicking "Refuse non-essential cookies".');
+      await this.browser.click(refuseButtonSelector);
+      this.logger.info('✅ Successfully clicked "Refuse non-essential cookies".');
+      
+      // Wait a moment for the banner to disappear
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return true;
+    } catch (error) {
+      // This is expected if the prompt doesn't appear.
+      this.logger.debug('Cookie consent prompt not found.');
+      return false;
     }
   }
 
@@ -440,12 +476,8 @@ export class ScraperApplication {
       this.logger.info(`Navigating to search URL: ${searchUrl}`);
       await this.browser.goto(searchUrl);
       
-      // If enhanced retweet processing is enabled, we could add additional logic here
-      // but the primary search should always run for normal posts
-      const shouldProcessRetweets = this.shouldProcessRetweets();
-      if (shouldProcessRetweets) {
-        this.logger.info('Enhanced retweet detection enabled (search-based approach)');
-      }
+      // This is the search for normal tweets. Retweet logic should not be invoked here.
+      this.logger.info('Executing search for new tweets.');
       
       // Wait for content to load - try multiple selectors
       const contentSelectors = [
@@ -475,7 +507,7 @@ export class ScraperApplication {
       // Scroll down to load more tweets
       for (let i = 0; i < 3; i++) {
         await this.browser.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for content to load
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for content to load
       }
       
       // Extract tweets
@@ -489,12 +521,14 @@ export class ScraperApplication {
       
       this.logger.info(`After filtering: ${newTweets.length} new tweets out of ${tweets.length} total tweets`);
       
-      for (const tweet of newTweets) {
-        try {
-          await this.processNewTweet(tweet);
-          this.stats.totalTweetsAnnounced++;
-        } catch (error) {
-          this.logger.error(`Error processing tweet ${tweet.tweetID}:`, error);
+      if (newTweets.length > 0) {
+        for (const tweet of newTweets) {
+          try {
+            await this.processNewTweet(tweet);
+            this.stats.totalTweetsAnnounced++;
+          } catch (error) {
+            this.logger.error(`Error processing tweet ${tweet.tweetID}:`, error);
+          }
         }
       }
       
@@ -511,13 +545,13 @@ export class ScraperApplication {
       const nextInterval = this.getNextInterval();
       const nextRunTime = new Date(Date.now() + nextInterval);
       
-      const supportChannelId = this.config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
-      if (supportChannelId) {
-        this.discord.sendMessage(supportChannelId, `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`);
-      }
+      this.logger.info(`X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`);
       
     } catch (error) {
       this.logger.error('Error polling X profile:', error);
+      // In case of a major failure, we still want to schedule the next poll
+      // to avoid the scraper getting stuck in a failed state.
+      this.scheduleNextPoll();
       throw error;
     }
   }
@@ -527,24 +561,7 @@ export class ScraperApplication {
    * @returns {Promise<Array>} Array of tweet objects
    */
   async extractTweets() {
-    const shouldProcessRetweets = this.shouldProcessRetweets();
-    
-    // Debug: Log current page info
-    const pageInfo = await this.browser.evaluate(() => {
-      return {
-        url: window.location.href,
-        title: document.title,
-        bodyText: document.body.innerText.substring(0, 500),
-        hasLoginForm: !!document.querySelector('input[name="text"]'),
-        hasErrorMessage: !!document.querySelector('[role="alert"]'),
-        articleCount: document.querySelectorAll('article').length,
-        divCount: document.querySelectorAll('div[data-testid="cellInnerDiv"]').length
-      };
-    });
-    
-    this.logger.info('Page debug info:', pageInfo);
-    
-    return await this.browser.evaluate((shouldProcessRetweets) => {
+    return await this.browser.evaluate(() => {
       const tweets = [];
       
       // Try multiple selectors for tweet articles (X keeps changing these)
@@ -566,8 +583,6 @@ export class ScraperApplication {
       
       if (articles.length === 0) {
         console.log('No tweet articles found with any selector');
-        console.log('Page title:', document.title);
-        console.log('Body text preview:', document.body.innerText.substring(0, 200));
         return tweets;
       }
       
@@ -658,21 +673,14 @@ export class ScraperApplication {
             tweetCategory = 'Retweet';
           }
           
-          const tweetData = {
+          tweets.push({
             tweetID,
             url,
             author,
             text,
             timestamp,
             tweetCategory
-          };
-          
-          // Add retweet metadata if available
-          if (retweetMetadata) {
-            tweetData.retweetMetadata = retweetMetadata;
-          }
-          
-          tweets.push(tweetData);
+          });
           
           console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
           
@@ -683,7 +691,7 @@ export class ScraperApplication {
       
       console.log(`Total tweets extracted: ${tweets.length}`);
       return tweets;
-    }, shouldProcessRetweets);
+    });
   }
   
   /**
@@ -913,15 +921,23 @@ export class ScraperApplication {
     try {
       this.logger.debug('Verifying X authentication status...');
       await this.browser.goto('https://x.com/home');
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for page to load
 
       const isLoggedIn = await this.browser.evaluate(() => {
         const loggedInSelectors = [
-          '[data-testid="AppTabBar_Home_Link"]',
-          '[data-testid="SideNav_AccountSwitcher_Button"]',
-          'main[role="main"]',
+          '[data-testid="AppTabBar_Home_Link"]',    // Home button in the main app bar
+          '[data-testid="SideNav_AccountSwitcher_Button"]', // Account switcher button in the side nav
+          'a[href="/home"][role="link"]',           // Link to the home timeline
+          'div[aria-label="Timeline: Your Home Timeline"]', // The home timeline itself
+          'main[role="main"]',                        // The main content area
+          'div[data-testid="primaryColumn"]',          // The primary column containing the timeline
+          'a[data-testid="AppTabBar_Profile_Link"]' // The profile link in the app tab bar
         ];
-        return loggedInSelectors.some(selector => document.querySelector(selector));
+        const foundSelector = loggedInSelectors.find(selector => document.querySelector(selector));
+        return !!foundSelector;
       });
+
+      this.logger.debug(`isLoggedIn check result: ${isLoggedIn}`);
 
       if (isLoggedIn) {
         this.logger.debug('✅ Authentication verified successfully');
@@ -931,12 +947,18 @@ export class ScraperApplication {
       // If not logged in, check for logged-out indicators to be sure
       const isLoggedOut = await this.browser.evaluate(() => {
         const loggedOutSelectors = [
-          'input[name="text"]',
-          '[data-testid="LoginForm_Login_Button"]',
-          'a[href="/i/flow/login"]',
+          'a[href="/i/flow/login"]',                // Login button in the logged-out view
+          'a[data-testid="loginButton"]',             // Another potential login button
+          'div[role="dialog"]',                       // The login dialog itself
+          'input[name="text"]',                     // Username input on the login page
+          '[data-testid="LoginForm_Login_Button"]', // The main login button in the form
+          'body[style*="overflow: hidden"]'          // The body style is often changed for login dialogs
         ];
-        return loggedOutSelectors.some(selector => document.querySelector(selector));
+        const foundSelector = loggedOutSelectors.find(selector => document.querySelector(selector));
+        return !!foundSelector;
       });
+
+      this.logger.debug(`isLoggedOut check result: ${isLoggedOut}`);
 
       if (isLoggedOut) {
         this.logger.warn('Not authenticated - login page detected, re-authenticating...');
