@@ -199,8 +199,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [pre-flight]
     if: needs.pre-flight.outputs.should-run-tests == 'true'
+    outputs:
+      image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set repo to lowercase
+        id: string
+        run: echo "repo_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
@@ -214,13 +220,13 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/${{ steps.string.outputs.repo_lc }}:latest
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository }}:latest
+      image: ${{ needs.build-and-push-docker.outputs.image_name }}:latest
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     needs: [pre-flight, lint, build-and-push-docker]
