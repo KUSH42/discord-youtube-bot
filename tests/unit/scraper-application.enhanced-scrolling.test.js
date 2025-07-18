@@ -12,6 +12,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
     let mockStateManager;
     let mockEventBus;
     let mockLogger;
+    let mockAuthManager;
   
     beforeEach(() => {
       // Mock browser service
@@ -91,7 +92,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       };
   
           // Mock auth manager
-    const mockAuthManager = {
+    mockAuthManager = {
       ensureAuthenticated: jest.fn(),
       isAuthenticated: jest.fn().mockResolvedValue(true),
     };
@@ -114,41 +115,11 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
     });
 
     describe('performEnhancedScrolling', () => {
-        let scraperApp;
-        let mockBrowserService;
-
         beforeEach(() => {
           // Mock setTimeout to resolve immediately
           jest.spyOn(global, 'setTimeout').mockImplementation((callback) => {
             callback();
             return 123; // Return a mock timer ID
-          });
-
-           // Mock browser service
-          mockBrowserService = {
-            launch: jest.fn(),
-            close: jest.fn(),
-            isRunning: jest.fn(() => true),
-            goto: jest.fn(),
-            waitForSelector: jest.fn(),
-            type: jest.fn(),
-            click: jest.fn(),
-            waitForNavigation: jest.fn(),
-            evaluate: jest.fn(),
-            page: {
-              url: jest.fn(() => 'https://x.com/home'),
-              screenshot: jest.fn(),
-            },
-          };
-          scraperApp = new ScraperApplication({
-            browserService: mockBrowserService,
-            contentClassifier: mockContentClassifier,
-            contentAnnouncer: mockContentAnnouncer,
-            config: mockConfig,
-            stateManager: mockStateManager,
-            eventBus: mockEventBus,
-            logger: mockLogger,
-            authManager: mockAuthManager,
           });
         });
 
@@ -186,36 +157,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       });
 
       describe('navigateToProfileTimeline', () => {
-        let scraperApp;
-        let mockBrowserService;
-
         beforeEach(() => {
-             // Mock browser service
-          mockBrowserService = {
-            launch: jest.fn(),
-            close: jest.fn(),
-            isRunning: jest.fn(() => true),
-            goto: jest.fn(),
-            waitForSelector: jest.fn(),
-            type: jest.fn(),
-            click: jest.fn(),
-            waitForNavigation: jest.fn(),
-            evaluate: jest.fn(),
-            page: {
-              url: jest.fn(() => 'https://x.com/home'),
-              screenshot: jest.fn(),
-            },
-          };
-          scraperApp = new ScraperApplication({
-            browserService: mockBrowserService,
-            contentClassifier: mockContentClassifier,
-            contentAnnouncer: mockContentAnnouncer,
-            config: mockConfig,
-            stateManager: mockStateManager,
-            eventBus: mockEventBus,
-            logger: mockLogger,
-            authManager: mockAuthManager,
-          });
           scraperApp.browser = mockBrowserService;
           scraperApp.performEnhancedScrolling = jest.fn().mockResolvedValue();
         });
