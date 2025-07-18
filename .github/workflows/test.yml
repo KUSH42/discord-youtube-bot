@@ -158,7 +158,6 @@ jobs:
           flags: unit,node${{ matrix.node-version }}
           name: unit-tests-node${{ matrix.node-version }}
           fail_ci_if_error: false
-          verbose: true
 
       - name: Store unit test results
         uses: actions/upload-artifact@v4
@@ -244,7 +243,6 @@ jobs:
           flags: integration
           name: integration-tests
           fail_ci_if_error: false
-          verbose: true
 
       - name: Store integration test results
         uses: actions/upload-artifact@v4
@@ -411,7 +409,6 @@ jobs:
           flags: performance
           name: performance-tests
           fail_ci_if_error: false
-          verbose: true
 
       - name: Store performance test results
         uses: actions/upload-artifact@v4
@@ -798,7 +795,6 @@ jobs:
           flags: merged,overall
           name: merged-coverage
           fail_ci_if_error: false
-          verbose: true
 
       - name: Comment commit with test results
         if: github.event_name == 'push'
