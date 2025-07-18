@@ -294,7 +294,7 @@ export class ScraperApplication {
       await this.verifyAuthentication();
 
       // Always use search for normal post detection
-      const searchUrl = `https://x.com/search?q=(from%3A${this.xUser})%20since%3A${sinceDate}&f=live&pf=on&src=typed_query`;
+      const searchUrl = this.generateSearchUrl(true);
       this.logger.info(`Navigating to search URL: ${searchUrl}`);
       await this.browser.goto(searchUrl);
 
@@ -960,6 +960,23 @@ export class ScraperApplication {
    * Dispose of resources
    * @returns {Promise<void>}
    */
+  /**
+   * Generate X search URL
+   * @param {boolean} includeDate - Whether to include the since date parameter
+   * @returns {string} The search URL
+   */
+  generateSearchUrl(includeDate = true) {
+    let searchUrl = `https://x.com/search?q=(from%3A${this.xUser})`;
+    if (includeDate) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const sinceDate = yesterday.toISOString().split('T')[0];
+      searchUrl += `%20since%3A${sinceDate}`;
+    }
+    searchUrl += '&f=live&pf=on&src=typed_query';
+    return searchUrl;
+  }
+
   async dispose() {
     await this.stop();
   }
