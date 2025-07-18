@@ -9,9 +9,9 @@ permissions:
 
 on:
   push:
-    branches: [ main, master, dev, develop ]
+    branches: [ main, master, dev, develop, retweet-feature ]
   pull_request:
-    branches: [ main, master, dev, develop ]
+    branches: [ main, master, dev, develop, retweet-feature ]
   schedule:
     # Run tests daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -46,6 +46,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
+      - name: Install required tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          if ! command -v gh &> /dev/null; then
+            echo "GitHub CLI not found, installing..."
+            (type -p wget >/dev/null || (sudo apt-get update && sudo apt-get install -y wget)) \
+            && sudo mkdir -p -m 755 /etc/apt/keyrings \
+            && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+            && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+            && sudo apt-get update \
+            && sudo apt-get install -y gh
+          else
+            echo "GitHub CLI is already installed."
+          fi
 
       - name: Check if tests should run
         id: check
@@ -67,10 +84,10 @@ jobs:
               # Check if relevant files changed
               git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(js|json|yml|yaml)$' && echo "should-run=true" >> $GITHUB_OUTPUT || echo "should-run=false" >> $GITHUB_OUTPUT
             fi
-          else
-            echo "should-run=false" >> $GITHUB_OUTPUT
-          fi
-
+           else
+             echo "should-run=false" >> $GITHUB_OUTPUT
+           fi
+      
       - name: Generate test matrix
         id: matrix
         run: |
@@ -156,7 +173,7 @@ jobs:
       - name: Run unit tests
         run: |
           mkdir -p coverage/unit
-          set -e  # Exit on any command failure
+          set -e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
             --shard=${{ matrix.shard }}/4 \
@@ -167,7 +184,6 @@ jobs:
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles 2>&1 | tee coverage/unit/test-output-node${{ matrix.node-version }}-${{ matrix.shard }}.log
-          # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ Unit tests failed"
             exit 1
@@ -199,7 +215,7 @@ jobs:
     needs: [pre-flight]
     if: needs.pre-flight.outputs.should-run-tests == 'true'
     outputs:
-      image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}
+      image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}:latest
     steps:
       - uses: actions/checkout@v4
 
@@ -208,13 +224,17 @@ jobs:
         run: echo "repo_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: docker/login-action@v2
         with:
+          password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -228,6 +248,7 @@ jobs:
       image: ${{ needs.build-and-push-docker.outputs.image_name }}:latest
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     needs: [pre-flight, lint, build-and-push-docker]
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'integration')
     services:
@@ -254,7 +275,6 @@ jobs:
 
       - name: Set up test environment
         run: |
-          # Create test configuration
           cat > .env.test << EOF
           NODE_ENV=test
           DISCORD_BOT_TOKEN=test-token-${{ github.run_id }}
@@ -279,7 +299,7 @@ jobs:
           NODE_ENV: test
         run: |
           mkdir -p coverage/integration
-          set -e  # Exit on any command failure
+          set -e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
             --coverage \
@@ -289,7 +309,6 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --testTimeout=30000 2>&1 | tee coverage/integration/test-output.log
-          # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ Integration tests failed"
             exit 1
@@ -334,7 +353,6 @@ jobs:
 
       - name: Set up E2E test environment
         run: |
-          # Create comprehensive test environment
           cat > .env.e2e << EOF
           NODE_ENV=test
           LOG_LEVEL=error
@@ -363,20 +381,17 @@ jobs:
           NODE_ENV: test
         run: |
           mkdir -p test-results/e2e
-          set -e  # Exit on any command failure
+          set -e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config jest.e2e.config.js \
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
             --testTimeout=60000 2>&1 | tee test-results/e2e/test-output.log
-          # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ E2E tests failed"
             exit 1
           fi
-
-      # E2E tests don't generate source code coverage since they focus on behavior testing
 
       - name: Store E2E test results
         uses: actions/upload-artifact@v4
@@ -414,7 +429,7 @@ jobs:
       - name: Run performance tests
         run: |
           mkdir -p coverage/performance
-          set -e  # Exit on any command failure
+          set -e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" \
           npm run test:performance -- \
             --coverage \
@@ -424,7 +439,6 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --testTimeout=120000 2>&1 | tee coverage/performance/test-output.log
-          # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ Performance tests failed"
             exit 1
@@ -514,14 +528,13 @@ jobs:
       - name: Run security tests
         run: |
           mkdir -p test-results/security
-          set -e  # Exit on any command failure
+          set -e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config jest.security.config.js \
             --maxWorkers=2 \
             --forceExit \
             --detectOpenHandles \
             --testTimeout=45000 2>&1 | tee test-results/security/test-output.log
-          # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ Security tests failed"
             exit 1
@@ -543,7 +556,6 @@ jobs:
             exit 1
           elif [ "$HIGH_VULNS" -gt 0 ]; then
             echo "⚠️ High vulnerabilities found!"
-            # Don't fail the build for high vulns, but warn
           fi
 
       - name: Check for secrets
@@ -566,8 +578,6 @@ jobs:
               echo "⚠️ Potential secret found: $pattern"
             fi
           done
-
-      # Security tests don't generate source code coverage since they focus on input validation
 
       - name: Store security test results
         uses: actions/upload-artifact@v4
@@ -604,10 +614,19 @@ jobs:
         run: |
           npm install -g nyc
 
-      - name: Download all unit test coverage artifacts
+      - name: Download Node 18 unit test coverage
         uses: actions/download-artifact@v4
+        continue-on-error: ${{ needs.unit-tests.result == 'skipped' }}
         with:
-          path: test-results/unit/
+          name: unit-test-results-node18
+          path: test-results/unit/node18/
+
+      - name: Download Node 20 unit test coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: ${{ needs.unit-tests.result == 'skipped' }}
+        with:
+          name: unit-test-results-node20
+          path: test-results/unit/node20/
 
       - name: Download integration test results
         uses: actions/download-artifact@v4
@@ -650,14 +669,11 @@ jobs:
           # Find all lcov.info files but prioritize Node 18 over Node 20 to avoid duplicates
           COVERAGE_FILES=()
           
-          # Find all lcov.info files from the downloaded artifacts
-          shopt -s globstar
-          for file in test-results/unit/**/*.lcov.info; do
-            if [ -f "$file" ]; then
-              COVERAGE_FILES+=("$file")
-              echo "Found coverage file: $file"
-            fi
-          done
+          # Add Node 18 unit coverage (primary)
+          if [ -f "test-results/unit/node18/coverage/unit/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/unit/node18/coverage/unit/lcov.info")
+            echo "Found Node 18 unit coverage"
+          fi
           
           # Add integration coverage if available
           if [ -f "test-results/integration/coverage/integration/lcov.info" ]; then
@@ -852,15 +868,19 @@ jobs:
             echo "" >> reports/test-summary.md
             echo "\`\`\`" >> reports/test-summary.md
             if [ "$test_type" == "unit" ]; then
-              shopt -s globstar
-              for file in test-results/unit/**/*.log; do
-                if [ -f "$file" ]; then
-                  echo "---" >> reports/test-summary.md
-                  echo "### $(basename "$file")" >> reports/test-summary.md
-                  cat "$file" >> reports/test-summary.md
-                  echo "" >> reports/test-summary.md
-                fi
-              done
+              if [ -f test-results/unit/node18/coverage/unit/test-output-node18.log ]; then
+                cat test-results/unit/node18/coverage/unit/test-output-node18.log >> reports/test-summary.md
+              else
+                echo "No output for Node 18" >> reports/test-summary.md
+              fi
+              echo "" >> reports/test-summary.md
+              echo "---" >> reports/test-summary.md
+              echo "" >> reports/test-summary.md
+              if [ -f test-results/unit/node20/coverage/unit/test-output-node20.log ]; then
+                cat test-results/unit/node20/coverage/unit/test-output-node20.log >> reports/test-summary.md
+              else
+                echo "No output for Node 20" >> reports/test-summary.md
+              fi
             else
               if [ -f test-results/$test_type/coverage/$test_type/test-output.log ]; then
                  cat test-results/$test_type/coverage/$test_type/test-output.log >> reports/test-summary.md
@@ -875,7 +895,7 @@ jobs:
           
           echo "" >> reports/test-summary.md
           echo "Detailed test results and coverage reports are available in the individual test artifacts:" >> reports/test-summary.md
-          echo "- \`unit-test-results-node18-shard1\`, \`unit-test-results-node18-shard2\`, ..." >> reports/test-summary.md
+          echo "- \`unit-test-results-node18\`, \`unit-test-results-node20\`" >> reports/test-summary.md
           echo "- \`integration-test-results\`" >> reports/test-summary.md
           echo "- \`e2e-test-results\`" >> reports/test-summary.md
           echo "- \`performance-test-results\`" >> reports/test-summary.md
