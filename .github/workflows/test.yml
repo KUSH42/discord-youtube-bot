@@ -602,6 +602,18 @@ jobs:
             echo "Found performance coverage"
           fi
           
+          # Add e2e coverage if available (not typically expected but check anyway)
+          if [ -f "test-results/e2e/coverage/e2e/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/e2e/coverage/e2e/lcov.info")
+            echo "Found e2e coverage"
+          fi
+          
+          # Add security coverage if available (not typically expected but check anyway)
+          if [ -f "test-results/security/coverage/security/lcov.info" ]; then
+            COVERAGE_FILES+=("test-results/security/coverage/security/lcov.info")
+            echo "Found security coverage"
+          fi
+          
           if [ ${#COVERAGE_FILES[@]} -gt 0 ]; then
             echo "Merging the following coverage files:"
             printf '%s\n' "${COVERAGE_FILES[@]}"
