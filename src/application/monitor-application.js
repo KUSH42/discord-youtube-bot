@@ -25,8 +25,7 @@ export class MonitorApplication {
     this.webhookSecret = this.config.get('PSH_SECRET', 'your_super_secret_string_here');
     this.verifyToken = this.config.get('PSH_VERIFY_TOKEN', 'your_optional_verify_token');
 
-    // Fallback polling configuration
-    this.fallbackPollingInterval = this.config.getNumber('YOUTUBE_API_POLL_INTERVAL_MS', 300000); // Default 5 minutes
+    // API fallback configuration (triggered only on notification failures)
     this.fallbackEnabled = true;
 
     // State management
@@ -67,8 +66,7 @@ export class MonitorApplication {
       // Subscribe to PubSubHubbub
       await this.subscribeToPubSubHubbub();
 
-      // Start fallback polling with a delay to allow webhook system to work first
-      this.startFallbackPollingWithDelay();
+      // Fallback system is only triggered on notification processing failures
 
       this.isRunning = true;
       this.logger.info('✅ YouTube monitor application started successfully');
@@ -243,85 +241,77 @@ export class MonitorApplication {
   }
 
   /**
-   * Start fallback polling with a delay to allow webhook system to work first
+   * Schedule API fallback check when notification processing fails
+   * This replaces the old automatic polling system
    */
-  startFallbackPollingWithDelay() {
+  scheduleApiFallback() {
     if (!this.fallbackEnabled) {
+      this.logger.warn('API fallback is disabled');
       return;
     }
 
-    // Wait 5 minutes before starting fallback polling to allow webhook system to work
-    const delayMs = 5 * 60 * 1000; // 5 minutes
-
-    this.logger.info(`Fallback polling will start in ${delayMs / 1000} seconds as backup to webhook system`);
-
-    setTimeout(() => {
-      if (this.isRunning) {
-        this.startFallbackPolling();
-      }
-    }, delayMs);
-  }
-
-  /**
-   * Start fallback polling for missed notifications
-   */
-  startFallbackPolling() {
-    if (!this.fallbackEnabled) {
-      return;
-    }
-
-    this.fallbackTimerId = setInterval(async () => {
-      try {
-        await this.performFallbackCheck();
-      } catch (error) {
-        this.logger.error('Fallback polling error:', error);
-      }
-    }, this.fallbackPollingInterval);
-
-    this.logger.info(`Fallback polling started with ${this.fallbackPollingInterval}ms interval`);
-  }
-
-  /**
-   * Stop fallback polling
-   */
-  stopFallbackPolling() {
     if (this.fallbackTimerId) {
-      clearInterval(this.fallbackTimerId);
-      this.fallbackTimerId = null;
-      this.logger.info('Fallback polling stopped');
+      this.logger.debug('API fallback already scheduled, skipping');
+      return;
     }
+
+    this.logger.warn('Scheduling API fallback due to notification processing failure');
+
+    this.fallbackTimerId = setTimeout(async () => {
+      try {
+        await this.performApiFallback();
+      } catch (error) {
+        this.logger.error('API fallback execution failed:', error);
+      } finally {
+        this.fallbackTimerId = null;
+      }
+    }, 30000); // 30 second delay to allow for temporary issues
   }
 
   /**
-   * Perform fallback check for new videos
-   * @returns {Promise<void>}
+   * Perform API fallback check for new videos
+   * This is only called when notification processing fails
    */
-  async performFallbackCheck() {
+  async performApiFallback() {
     try {
       this.stats.fallbackPolls++;
-      this.logger.warn('Performing fallback check for new videos...');
+      this.logger.warn('Performing API fallback check due to notification failure...');
 
       // Get latest videos from the channel
       const videos = await this.youtube.getChannelVideos(this.youtubeChannelId, 5);
 
       if (!videos || videos.length === 0) {
-        this.logger.debug('No videos found in fallback check');
+        this.logger.debug('No videos found in API fallback check');
         return;
       }
 
-      this.logger.warn(`Fallback check found ${videos.length} videos from YouTube API.`);
+      this.logger.warn(`API fallback found ${videos.length} videos from YouTube API.`);
 
       // Process each video
       for (const video of videos) {
         try {
-          this.logger.warn(`Processing video from fallback: ${video.snippet.title}`);
-          await this.processVideo(video, 'fallback');
+          this.logger.warn(`Processing video from API fallback: ${video.snippet.title}`);
+          await this.processVideo(video, 'api-fallback');
         } catch (error) {
-          this.logger.error(`Error processing video ${video.id} in fallback:`, error);
+          this.logger.error(`Error processing video ${video.id} in API fallback:`, error);
         }
       }
+
+      this.logger.info('API fallback check completed successfully');
     } catch (error) {
-      this.logger.error('Fallback check failed:', error);
+      this.logger.error('API fallback check failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop and clear any scheduled fallback
+   */
+  stopFallbackPolling() {
+    if (this.fallbackTimerId) {
+      clearTimeout(this.fallbackTimerId);
+      this.fallbackTimerId = null;
+      this.logger.info('Scheduled API fallback cleared');
     }
   }
 
@@ -430,9 +420,9 @@ export class MonitorApplication {
     } catch (error) {
       this.logger.error('Notification processing error:', error);
 
-      // Trigger fallback check on error
+      // Trigger API fallback on notification processing error
       if (this.fallbackEnabled) {
-        setImmediate(() => this.performFallbackCheck());
+        this.scheduleApiFallback();
       }
 
       return { status: 200, message: 'OK' }; // Always return 200 to prevent retry spam
@@ -573,7 +563,6 @@ export class MonitorApplication {
       youtubeChannelId: this.youtubeChannelId,
       callbackUrl: this.callbackUrl,
       fallbackEnabled: this.fallbackEnabled,
-      fallbackInterval: this.fallbackPollingInterval,
       ...this.stats,
       duplicateDetectorStats: this.duplicateDetector.getStats(),
     };

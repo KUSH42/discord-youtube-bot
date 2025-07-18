@@ -49,6 +49,7 @@ export default {
     '**/tests/unit/index.test.js',
     '**/tests/unit/x-scraper.test.js',
     '**/tests/unit/youtube-monitor.test.js',
+    '**/tests/unit/monitor-application.test.js',
     '**/tests/unit/services/youtube-api-service.test.js',
     '**/tests/unit/utils/delay.test.js',
     '**/tests/unit/services/playwright-browser-service.test.js',
