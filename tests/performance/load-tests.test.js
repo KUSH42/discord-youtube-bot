@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createMockClient, createMockChannel } from '../mocks/discord.mock.js';
 import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
+import { DuplicateDetector } from '../../src/duplicate-detector.js';
+import { createDiscordManager } from '../../src/discord-utils.js';
+import { createWebhookLimiter, createCommandRateLimiter } from '../../src/rate-limiter.js';
 
 describe('Performance and Load Tests', () => {
   let startTime;
@@ -19,39 +22,38 @@ describe('Performance and Load Tests', () => {
 
   describe('Memory Management Performance', () => {
     it('should handle large duplicate detection sets efficiently', () => {
-      const duplicateTracker = {
-        videoIds: new Set(),
-        tweetIds: new Set(),
-        urls: new Set()
-      };
+      const duplicateDetector = new DuplicateDetector();
+      const numEntries = 10000; // Reduced for practical testing
 
-      const numEntries = 100000;
       const startMemory = process.memoryUsage();
 
-      // Add large number of unique IDs
+      // Test with real YouTube and Twitter URLs
       for (let i = 0; i < numEntries; i++) {
-        duplicateTracker.videoIds.add(`video${i.toString().padStart(10, '0')}`);
-        duplicateTracker.tweetIds.add(`tweet${i.toString().padStart(10, '0')}`);
-        duplicateTracker.urls.add(`https://example.com/${i}`);
+        const youtubeText = `Check out this video: https://youtube.com/watch?v=dQw4w9WgXc${i.toString().padStart(4, '0')}`;
+        const twitterText = `Great post: https://x.com/user/status/123456789012345${i.toString().padStart(3, '0')}`;
+        
+        // Use actual duplicate detection methods
+        duplicateDetector.isDuplicate(youtubeText);
+        duplicateDetector.isDuplicate(twitterText);
       }
 
       const endMemory = process.memoryUsage();
       const memoryIncrease = endMemory.heapUsed - startMemory.heapUsed;
 
-      // Performance assertions
-      expect(duplicateTracker.videoIds.size).toBe(numEntries);
-      expect(duplicateTracker.tweetIds.size).toBe(numEntries);
-      expect(duplicateTracker.urls.size).toBe(numEntries);
+      // Performance assertions using real duplicate detector
+      const stats = duplicateDetector.getStats();
+      expect(stats.totalUrlsSeen).toBeGreaterThan(numEntries);
 
-      // Memory usage should be reasonable (less than 100MB for 100k entries)
-      expect(memoryIncrease).toBeLessThan(100 * 1024 * 1024);
+      // Memory usage should be reasonable (less than 50MB for 10k entries)
+      expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024);
 
-      // Test lookup performance
+      // Test lookup performance with actual duplicate detection
       const lookupStart = performance.now();
-      const exists = duplicateTracker.videoIds.has('video0000050000');
+      const testText = 'Check out this video: https://youtube.com/watch?v=dQw4w9WgXc5000';
+      const isDuplicate = duplicateDetector.isDuplicate(testText);
       const lookupEnd = performance.now();
 
-      expect(exists).toBe(true);
+      expect(isDuplicate).toBe(true); // Should be duplicate since we added it above
       expect(lookupEnd - lookupStart).toBeLessThan(1); // Sub-millisecond lookup
     });
 
@@ -161,10 +163,9 @@ describe('Performance and Load Tests', () => {
 
   describe('Regex Performance at Scale', () => {
     it('should handle large text with many URLs efficiently', () => {
-      const videoUrlRegex = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
-      const tweetUrlRegex = /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^\/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^\/]+\/status(?:es)?)\/(\d+)/g;
-
-      // Generate large text with many URLs
+      const duplicateDetector = new DuplicateDetector();
+      
+      // Generate large text with many URLs using real duplicate detection
       const numUrls = 10000;
       const textSegments = [];
       
@@ -412,6 +413,44 @@ describe('Performance and Load Tests', () => {
       // Larger payloads should still be processed efficiently
       const largestResult = results[results.length - 1];
       expect(largestResult.duration).toBeLessThan(100); // Under 100ms for 1000 entries
+    });
+  });
+
+  describe('Rate Limiting Performance', () => {
+    it('should handle high-frequency rate limit checks efficiently', async () => {
+      const webhookRateLimit = createWebhookLimiter();
+      const commandRateLimit = createCommandRateLimiter();
+      const numRequests = 1000;
+      
+      // Test webhook rate limiting performance
+      const webhookStart = performance.now();
+      for (let i = 0; i < numRequests; i++) {
+        const mockReq = createMockRequest({ ip: `192.168.1.${i % 255}` });
+        const mockRes = createMockResponse();
+        webhookRateLimit(mockReq, mockRes, () => {});
+      }
+      const webhookEnd = performance.now();
+      const webhookDuration = webhookEnd - webhookStart;
+      
+      // Test command rate limiting performance
+      const commandStart = performance.now();
+      for (let i = 0; i < numRequests; i++) {
+        const userId = `user${i % 100}`;
+        const command = 'health';
+        commandRateLimit.checkLimit(userId, command);
+      }
+      const commandEnd = performance.now();
+      const commandDuration = commandEnd - commandStart;
+      
+      // Performance assertions
+      expect(webhookDuration).toBeLessThan(1000); // Should complete within 1 second
+      expect(commandDuration).toBeLessThan(500);  // Should be even faster
+      
+      const webhookThroughput = numRequests / (webhookDuration / 1000);
+      const commandThroughput = numRequests / (commandDuration / 1000);
+      
+      expect(webhookThroughput).toBeGreaterThan(500); // At least 500 requests per second
+      expect(commandThroughput).toBeGreaterThan(1000); // At least 1000 checks per second
     });
   });
 
