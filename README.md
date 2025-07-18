@@ -84,6 +84,7 @@ src/
 - **YouTube Notification Fallback:** Intelligent retry system with API polling backup when PubSubHubbub fails
 - **X (Twitter) Activity Monitoring:** Automated scraping for posts, replies, quotes, and retweets
 - **Smart Content Filtering:** Only announces content created *after* bot startup
+- **Persistent Duplicate Detection:** Scans Discord channel history to prevent re-announcing content across bot restarts
 - **Multi-Channel Support:** Different Discord channels for different content types
 
 ### 🔐 Security & Reliability
@@ -345,11 +346,18 @@ sudo systemctl start discord-bot.service
 ### 📺 YouTube Monitoring (PubSubHubbub + Fallback)
 1. **🔗 Subscription:** Bot subscribes to YouTube's PubSubHubbub hub
 2. **✅ Verification:** Hub sends verification challenge to bot's webhook
-3. **📡 Notifications:** Real-time POST requests for new videos/streams
-4. **🔐 Verification:** HMAC-SHA1 signature validation
-5. **📊 Processing:** Extract video details and check publish time
-6. **🛡️ Fallback Protection:** If notifications fail, automatic retry with API polling backup
-7. **📢 Announcement:** Post to Discord if content is new
+3. **🏁 Startup Scanning:** Bot scans Discord channel history for previously announced videos
+4. **📡 Notifications:** Real-time POST requests for new videos/streams
+5. **🔐 Verification:** HMAC-SHA1 signature validation
+6. **📊 Processing:** Extract video details and check against known content
+7. **🛡️ Fallback Protection:** If notifications fail, automatic retry with API polling backup
+8. **📢 Announcement:** Post to Discord if content is new and not previously announced
+
+**Persistent Duplicate Detection:**
+- **History Scanning:** Scans up to 1000 recent messages in Discord channels on startup
+- **Video ID Extraction:** Uses regex patterns to extract YouTube video IDs from message content
+- **Memory Persistence:** Maintains in-memory cache of known content for O(1) duplicate checking
+- **Cross-Restart Protection:** Prevents re-announcing videos after bot restarts or crashes
 
 **Fallback System Features:**
 - **Retry Queue:** Failed notifications queued with exponential backoff (5s, 15s, 45s)
@@ -360,9 +368,10 @@ sudo systemctl start discord-bot.service
 ### 🐦 X (Twitter) Monitoring (Scraping)
 1. **🔄 Polling:** Periodic scraping of user's profile
 2. **🔐 Authentication:** Automated cookie management with Playwright
-3. **📝 Filtering:** Check against known tweet IDs and timestamps
-4. **📢 Categorization:** Sort by post type (original, reply, quote, retweet)
-5. **📡 Announcement:** Post to appropriate Discord channels
+3. **🏁 Startup Scanning:** Bot scans Discord channel history for previously announced tweets (all channels)
+4. **📝 Filtering:** Check against known tweet IDs and timestamps
+5. **📢 Categorization:** Sort by post type (original, reply, quote, retweet)
+6. **📡 Announcement:** Post to appropriate Discord channels if not previously announced
 
 ## 🧪 Testing Infrastructure
 

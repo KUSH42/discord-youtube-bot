@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { DuplicateDetector, videoUrlRegex, tweetUrlRegex, createDuplicateDetector } from '../../src/duplicate-detector.js';
 
 describe('Duplicate Detection Logic Tests', () => {
@@ -355,6 +355,236 @@ describe('Duplicate Detection Logic Tests', () => {
       const maxTime = Math.max(...lookupTimes);
       const minTime = Math.min(...lookupTimes);
       expect(maxTime - minTime).toBeLessThan(1); // Difference should be minimal
+    });
+  });
+
+  describe('Discord Channel History Scanning', () => {
+    let mockDiscordChannel;
+    let mockMessages;
+
+    beforeEach(() => {
+      // Mock Discord channel with message history
+      mockMessages = new Map();
+      
+      // Create mock messages with YouTube and Twitter content
+      mockMessages.set('msg1', {
+        id: 'msg1',
+        content: 'Check out this video: https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+      });
+      mockMessages.set('msg2', {
+        id: 'msg2',
+        content: 'Another video: https://youtu.be/oHg5SJYRHA0'
+      });
+      mockMessages.set('msg3', {
+        id: 'msg3',
+        content: 'Tweet: https://x.com/user/status/1234567890123456789'
+      });
+      mockMessages.set('msg4', {
+        id: 'msg4',
+        content: 'Multiple links: https://www.youtube.com/watch?v=dQw4w9WgXcQ and https://x.com/user/status/9876543210987654321'
+      });
+      mockMessages.set('msg5', {
+        id: 'msg5',
+        content: 'No links here, just text'
+      });
+
+      // Mock Discord channel
+      mockDiscordChannel = {
+        messages: {
+          fetch: jest.fn().mockImplementation(async (options = {}) => {
+            const { limit = 100, before } = options;
+            
+            // Simulate Discord API pagination
+            const allMessages = Array.from(mockMessages.values()).reverse(); // Newest first
+            let startIndex = 0;
+            
+            if (before) {
+              const beforeIndex = allMessages.findIndex(msg => msg.id === before);
+              if (beforeIndex !== -1) {
+                startIndex = beforeIndex + 1;
+              }
+            }
+            
+            const messagesToReturn = allMessages.slice(startIndex, startIndex + limit);
+            
+            // Return a Map-like object similar to Discord.js Collection
+            const resultMap = new Map();
+            messagesToReturn.forEach(msg => resultMap.set(msg.id, msg));
+            
+            return {
+              size: resultMap.size,
+              values: () => resultMap.values()
+            };
+          })
+        }
+      };
+    });
+
+    describe('scanDiscordChannelForVideos', () => {
+      it('should scan channel and extract YouTube video IDs', async () => {
+        const results = await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
+
+        expect(results).toHaveProperty('messagesScanned');
+        expect(results).toHaveProperty('videoIdsFound');
+        expect(results).toHaveProperty('videoIdsAdded');
+        expect(results).toHaveProperty('errors');
+
+        expect(results.messagesScanned).toBe(5);
+        expect(results.videoIdsFound).toEqual(['dQw4w9WgXcQ', 'oHg5SJYRHA0', 'dQw4w9WgXcQ']);
+        expect(results.videoIdsAdded).toBe(2); // Two unique video IDs
+        expect(results.errors).toHaveLength(0);
+
+        // Verify IDs were added to known set
+        expect(duplicateDetector.isVideoIdKnown('dQw4w9WgXcQ')).toBe(true);
+        expect(duplicateDetector.isVideoIdKnown('oHg5SJYRHA0')).toBe(true);
+      });
+
+      it('should handle pagination correctly', async () => {
+        // Test with a limit smaller than total messages
+        const results = await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 3);
+
+        expect(results.messagesScanned).toBe(3);
+        expect(mockDiscordChannel.messages.fetch).toHaveBeenCalled();
+      });
+
+      it('should handle empty channel gracefully', async () => {
+        const emptyChannel = {
+          messages: {
+            fetch: jest.fn().mockResolvedValue({
+              size: 0,
+              values: () => [].values()
+            })
+          }
+        };
+
+        const results = await duplicateDetector.scanDiscordChannelForVideos(emptyChannel, 100);
+
+        expect(results.messagesScanned).toBe(0);
+        expect(results.videoIdsFound).toHaveLength(0);
+        expect(results.videoIdsAdded).toBe(0);
+        expect(results.errors).toHaveLength(0);
+      });
+
+      it('should handle API errors gracefully', async () => {
+        const errorChannel = {
+          messages: {
+            fetch: jest.fn().mockRejectedValue(new Error('Discord API error'))
+          }
+        };
+
+        const results = await duplicateDetector.scanDiscordChannelForVideos(errorChannel, 100);
+
+        expect(results.messagesScanned).toBe(0);
+        expect(results.errors).toHaveLength(1);
+        expect(results.errors[0]).toHaveProperty('type', 'fetch_error');
+        expect(results.errors[0]).toHaveProperty('message', 'Discord API error');
+      });
+
+      it('should throw error for invalid channel', async () => {
+        await expect(duplicateDetector.scanDiscordChannelForVideos(null))
+          .rejects.toThrow('Invalid Discord channel provided');
+
+        await expect(duplicateDetector.scanDiscordChannelForVideos({}))
+          .rejects.toThrow('Invalid Discord channel provided');
+      });
+    });
+
+    describe('scanDiscordChannelForTweets', () => {
+      it('should scan channel and extract tweet IDs', async () => {
+        const results = await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
+
+        expect(results).toHaveProperty('messagesScanned');
+        expect(results).toHaveProperty('tweetIdsFound');
+        expect(results).toHaveProperty('tweetIdsAdded');
+        expect(results).toHaveProperty('errors');
+
+        expect(results.messagesScanned).toBe(5);
+        expect(results.tweetIdsFound).toEqual(['1234567890123456789', '9876543210987654321']);
+        expect(results.tweetIdsAdded).toBe(2); // Two unique tweet IDs
+        expect(results.errors).toHaveLength(0);
+
+        // Verify IDs were added to known set
+        expect(duplicateDetector.isTweetIdKnown('1234567890123456789')).toBe(true);
+        expect(duplicateDetector.isTweetIdKnown('9876543210987654321')).toBe(true);
+      });
+
+      it('should not add duplicate tweet IDs', async () => {
+        // Pre-add one tweet ID
+        duplicateDetector.addTweetId('1234567890123456789');
+
+        const results = await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
+
+        expect(results.tweetIdsFound).toEqual(['1234567890123456789', '9876543210987654321']);
+        expect(results.tweetIdsAdded).toBe(1); // Only one new ID added
+      });
+
+      it('should handle rate limiting with delays', async () => {
+        const startTime = Date.now();
+        
+        // Mock a channel with multiple batches
+        const largeMockChannel = {
+          messages: {
+            fetch: jest.fn()
+              .mockResolvedValueOnce({
+                size: 2,
+                values: () => [mockMessages.get('msg1'), mockMessages.get('msg2')].values()
+              })
+              .mockResolvedValueOnce({
+                size: 2,
+                values: () => [mockMessages.get('msg3'), mockMessages.get('msg4')].values()
+              })
+              .mockResolvedValueOnce({
+                size: 0,
+                values: () => [].values()
+              })
+          }
+        };
+
+        await duplicateDetector.scanDiscordChannelForTweets(largeMockChannel, 200);
+        
+        const elapsed = Date.now() - startTime;
+        
+        // Should have included delays between batches (at least 200ms total)
+        expect(elapsed).toBeGreaterThan(150);
+        expect(largeMockChannel.messages.fetch).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    describe('Integration with existing duplicate detection', () => {
+      it('should work with existing isDuplicate method', async () => {
+        // Scan channel first
+        await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
+
+        // Test duplicate detection
+        expect(duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
+        expect(duplicateDetector.isDuplicate('https://youtu.be/oHg5SJYRHA0')).toBe(true);
+        expect(duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=newVideoId123')).toBe(false);
+      });
+
+      it('should work with existing markAsSeen method', async () => {
+        // Scan channel first
+        await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
+
+        // Add a new video
+        const newVideoUrl = 'https://www.youtube.com/watch?v=newVideoId123';
+        expect(duplicateDetector.isDuplicate(newVideoUrl)).toBe(false);
+
+        duplicateDetector.markAsSeen(newVideoUrl);
+        expect(duplicateDetector.isDuplicate(newVideoUrl)).toBe(true);
+      });
+
+      it('should maintain statistics correctly after scanning', async () => {
+        const initialStats = duplicateDetector.getStats();
+        
+        await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
+        await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
+
+        const finalStats = duplicateDetector.getStats();
+
+        expect(finalStats.knownVideoIds).toBeGreaterThan(initialStats.knownVideoIds);
+        expect(finalStats.knownTweetIds).toBeGreaterThan(initialStats.knownTweetIds);
+        expect(finalStats.totalKnownIds).toBeGreaterThan(initialStats.totalKnownIds);
+      });
     });
   });
 });
