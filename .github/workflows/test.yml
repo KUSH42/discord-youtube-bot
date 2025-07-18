@@ -693,36 +693,47 @@ jobs:
               echo "Calculated coverage: Lines ${LINES_PCT}%, Functions ${FUNCTIONS_PCT}%, Branches ${BRANCHES_PCT}%"
               
               # Create coverage-summary.json manually
-              cat > coverage-summary.json << EOF
-{
-  "total": {
-    "lines": {
-      "total": $LINES_FOUND,
-      "covered": $LINES_HIT,
-      "skipped": 0,
-      "pct": $LINES_PCT
-    },
-    "statements": {
-      "total": $LINES_FOUND,
-      "covered": $LINES_HIT,
-      "skipped": 0,
-      "pct": $LINES_PCT
-    },
-    "functions": {
-      "total": $FUNCTIONS_FOUND,
-      "covered": $FUNCTIONS_HIT,
-      "skipped": 0,
-      "pct": $FUNCTIONS_PCT
-    },
-    "branches": {
-      "total": $BRANCHES_FOUND,
-      "covered": $BRANCHES_HIT,
-      "skipped": 0,
-      "pct": $BRANCHES_PCT
-    }
-  }
-}
-EOF
+              cat > coverage-summary.json << 'COVERAGE_EOF'
+              {
+                "total": {
+                  "lines": {
+                    "total": LINES_FOUND_VAL,
+                    "covered": LINES_HIT_VAL,
+                    "skipped": 0,
+                    "pct": LINES_PCT_VAL
+                  },
+                  "statements": {
+                    "total": LINES_FOUND_VAL,
+                    "covered": LINES_HIT_VAL,
+                    "skipped": 0,
+                    "pct": LINES_PCT_VAL
+                  },
+                  "functions": {
+                    "total": FUNCTIONS_FOUND_VAL,
+                    "covered": FUNCTIONS_HIT_VAL,
+                    "skipped": 0,
+                    "pct": FUNCTIONS_PCT_VAL
+                  },
+                  "branches": {
+                    "total": BRANCHES_FOUND_VAL,
+                    "covered": BRANCHES_HIT_VAL,
+                    "skipped": 0,
+                    "pct": BRANCHES_PCT_VAL
+                  }
+                }
+              }
+              COVERAGE_EOF
+              
+              # Replace placeholders with actual values
+              sed -i "s/LINES_FOUND_VAL/$LINES_FOUND/g" coverage-summary.json
+              sed -i "s/LINES_HIT_VAL/$LINES_HIT/g" coverage-summary.json
+              sed -i "s/LINES_PCT_VAL/$LINES_PCT/g" coverage-summary.json
+              sed -i "s/FUNCTIONS_FOUND_VAL/$FUNCTIONS_FOUND/g" coverage-summary.json
+              sed -i "s/FUNCTIONS_HIT_VAL/$FUNCTIONS_HIT/g" coverage-summary.json
+              sed -i "s/FUNCTIONS_PCT_VAL/$FUNCTIONS_PCT/g" coverage-summary.json
+              sed -i "s/BRANCHES_FOUND_VAL/$BRANCHES_FOUND/g" coverage-summary.json
+              sed -i "s/BRANCHES_HIT_VAL/$BRANCHES_HIT/g" coverage-summary.json
+              sed -i "s/BRANCHES_PCT_VAL/$BRANCHES_PCT/g" coverage-summary.json
               
               echo "Generated coverage-summary.json with ${LINES_PCT}% line coverage"
               echo "coverage_pct=${LINES_PCT}" >> $GITHUB_OUTPUT
