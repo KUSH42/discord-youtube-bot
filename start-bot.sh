@@ -5,6 +5,14 @@
 sleep 2
 # Change to the project directory (assuming script is in project root)
 cd "$(dirname "$0")"
+# Install dependencies
+if command -v npm &> /dev/null; then
+    npm install
+elif [ -s "$HOME/.nvm/nvm.sh" ]; then
+    source "$HOME/.nvm/nvm.sh"
+    npm install
+fi
+
 # Start the Node.js bot using system node or nvm if available
 if command -v node &> /dev/null; then
     node index.js
