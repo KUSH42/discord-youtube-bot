@@ -240,3 +240,115 @@ Error: Browser launch failed
 Error: Browser launch failed
     at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
 [2025-07-18T13:38:00.937Z]  [INFO]: Test log message
+[2025-07-18T13:40:05.104Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:40:05.111Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:40:05.255Z]  [INFO]: Test log message
+[2025-07-18T13:41:23.322Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:41:23.329Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:41:23.472Z]  [INFO]: Test log message
+[2025-07-18T13:41:56.707Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:41:56.712Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:41:56.846Z]  [INFO]: Test log message
+[2025-07-18T13:42:29.387Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:42:29.395Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:42:29.531Z]  [INFO]: Test log message
+[2025-07-18T13:43:51.934Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:43:51.939Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:43:52.084Z]  [INFO]: Test log message
+[2025-07-18T13:44:25.200Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:44:25.206Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:44:25.349Z]  [INFO]: Test log message
+[2025-07-18T13:45:19.232Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:45:19.237Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:45:19.374Z]  [INFO]: Test log message
+[2025-07-18T13:46:11.940Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:46:11.945Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:46:12.087Z]  [INFO]: Test log message
+[2025-07-18T13:48:35.301Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:48:35.307Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:453:9)
+[2025-07-18T13:48:35.454Z]  [INFO]: Test log message
+[2025-07-18T13:49:19.896Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:49:19.904Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:49:20.054Z]  [INFO]: Test log message
+[2025-07-18T13:50:24.174Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:50:24.180Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:50:24.340Z]  [INFO]: Test log message
+[2025-07-18T13:50:55.449Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:50:55.454Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:50:55.593Z]  [INFO]: Test log message
+[2025-07-18T13:51:29.446Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:51:29.453Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:51:29.600Z]  [INFO]: Test log message
+[2025-07-18T13:52:01.792Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:52:01.797Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:52:01.935Z]  [INFO]: Test log message
+[2025-07-18T13:52:35.265Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:52:35.270Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:52:35.410Z]  [INFO]: Test log message
+[2025-07-18T13:53:08.832Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:53:08.837Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:53:08.973Z]  [INFO]: Test log message
+[2025-07-18T13:53:43.536Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:53:43.541Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:53:43.679Z]  [INFO]: Test log message
+[2025-07-18T13:54:16.681Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:54:16.687Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:54:16.826Z]  [INFO]: Test log message
+[2025-07-18T13:54:52.494Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:54:52.500Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:54:52.644Z]  [INFO]: Test log message
+[2025-07-18T13:55:25.737Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:55:25.742Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:55:25.888Z]  [INFO]: Test log message
+[2025-07-18T13:56:23.678Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T13:56:23.683Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T13:56:23.818Z]  [INFO]: Test log message
+[2025-07-18T14:15:10.837Z] [ScraperApplication] [INFO]: Starting X scraper application...
+[2025-07-18T14:15:10.844Z] [ScraperApplication] [ERROR]: Failed to start scraper application: Browser launch failed
+Error: Browser launch failed
+    at Object.<anonymous> (/home/xush/Documents/prog/discord-youtube-bot/tests/integration/production-setup-validation.test.js:277:61)
+[2025-07-18T14:15:10.983Z]  [INFO]: Test log message

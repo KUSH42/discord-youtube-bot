@@ -1,0 +1,17 @@
+import { jest } from '@jest/globals';
+import { delay } from '../../../src/utils/delay.js';
+
+describe('Delay Utility', () => {
+  jest.useFakeTimers();
+
+  it('should wait for the specified duration', async () => {
+    const duration = 1000;
+    const promise = delay(duration);
+
+    // Fast-forward time
+    jest.advanceTimersByTime(duration);
+
+    // The promise should resolve after the delay
+    await expect(promise).resolves.toBeUndefined();
+  });
+});

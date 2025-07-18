@@ -17,7 +17,8 @@ tests/
 │   ├── pubsubhubbub-failures.test.js # PubSubHubbub failure handling
 │   ├── enhanced-retweet-detection.test.js # Enhanced retweet detection algorithms
 │   ├── tweet-classification.test.js # Tweet categorization logic
-│   └── persistent-cookie-storage.test.js # Cookie management and authentication
+│   ├── persistent-cookie-storage.test.js # Cookie management and authentication
+│   └── services/fetch-http-service.test.js # HTTP service implementation
 ├── integration/             # Integration tests for component interactions
 │   ├── discord-integration.test.js  # Discord API integration
 │   ├── external-apis.test.js        # YouTube/Twitter API integration
