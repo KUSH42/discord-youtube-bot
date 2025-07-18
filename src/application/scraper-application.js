@@ -691,6 +691,14 @@ export class ScraperApplication {
   }
   
   /**
+   * Check if enhanced retweet processing should be enabled
+   * @returns {boolean} True if retweet processing is enabled
+   */
+  shouldProcessRetweets() {
+    return this.config.getBoolean('ENABLE_RETWEET_PROCESSING', true);
+  }
+  
+  /**
    * Process a new tweet
    * @param {Object} tweet - Tweet object
    * @returns {Promise<void>}
