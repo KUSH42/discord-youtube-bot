@@ -1,4 +1,8 @@
 {
   "version": "1.0.0",
+<<<<<<< HEAD
   "build": 76
+=======
+  "build": 78
+>>>>>>> 0462897 (feat: improve X login flow and add tests)
 }
