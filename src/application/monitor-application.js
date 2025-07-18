@@ -26,7 +26,7 @@ export class MonitorApplication {
     this.verifyToken = this.config.get('PSH_VERIFY_TOKEN', 'your_optional_verify_token');
     
     // Fallback polling configuration
-    this.fallbackPollingInterval = this.config.getInteger('YOUTUBE_API_POLL_INTERVAL_MS', 300000); // Default 5 minutes
+    this.fallbackPollingInterval = this.config.getNumber('YOUTUBE_API_POLL_INTERVAL_MS', 300000); // Default 5 minutes
     this.fallbackEnabled = true;
     
     // State management
