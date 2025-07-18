@@ -481,7 +481,8 @@ export class ScraperApplication {
    * @returns {Promise<Array>} Array of tweet objects
    */
   async extractTweets() {
-    return await this.browser.evaluate(() => {
+    const shouldProcessRetweets = this.shouldProcessRetweets();
+    return await this.browser.evaluate((shouldProcessRetweets) => {
       const tweets = [];
       
       // Try multiple selectors for tweet articles (X keeps changing these)
