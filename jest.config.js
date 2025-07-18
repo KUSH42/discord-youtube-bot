@@ -3,6 +3,9 @@ export default {
   transform: {
     '^.+.js$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }]] }],
   },
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.js',
@@ -43,8 +46,13 @@ export default {
     '**/tests/unit/scraper-application.browser-initialization.test.js',
     '**/tests/unit/scraper-application.enhanced-scrolling.test.js',
     '**/tests/unit/scraper-application.search-retweet.test.js',
+    '**/tests/unit/index.test.js',
+    '**/tests/unit/x-scraper.test.js',
+    '**/tests/unit/youtube-monitor.test.js',
+    '**/tests/unit/services/youtube-api-service.test.js',
     '**/tests/performance/**/*.test.js',
     '**/tests/integration/**/*.test.js',
+    '**/tests/integration/index.test.js',
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,

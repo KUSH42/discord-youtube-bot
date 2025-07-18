@@ -1,12 +1,19 @@
+import { google } from 'googleapis';
 import { YouTubeService } from '../interfaces/youtube-service.js';
 
 /**
  * YouTube Data API implementation of YouTubeService
  */
 export class YouTubeApiService extends YouTubeService {
-  constructor(youtube) {
+  constructor({ logger, youtube }) {
     super();
-    this.youtube = youtube;
+    this.logger = logger;
+    this.youtube =
+      youtube ||
+      google.youtube({
+        version: 'v3',
+        auth: process.env.YOUTUBE_API_KEY,
+      });
   }
 
   /**

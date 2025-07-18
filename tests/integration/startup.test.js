@@ -52,4 +52,15 @@ describe('Application Startup Integration Test', () => {
     expect(container.isRegistered('discordService')).toBe(true);
     expect(container.isRegistered('botApplication')).toBe(true);
   });
+
+  it('should start all application modules', async () => {
+    // Dynamically import main after mocks are set up
+    const { main } = await import('../../index.js');
+    await main();
+
+    // Verify that start methods are called
+    expect(BotApplication.prototype.start).toHaveBeenCalledTimes(1);
+    expect(MonitorApplication.prototype.start).toHaveBeenCalledTimes(1);
+    expect(ScraperApplication.prototype.start).toHaveBeenCalledTimes(1);
+  });
 });
