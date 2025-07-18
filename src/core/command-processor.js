@@ -161,6 +161,7 @@ const restrictedCommands = ['restart', 'kill', 'update'];
         return await this.handleHealth();
       
       case 'health-detailed':
+      case 'hd':
         return await this.handleHealthDetailed(appStats);
         
       case 'readme':
@@ -378,7 +379,7 @@ const restrictedCommands = ['restart', 'kill', 'update'];
 
   getStats() {
     return {
-      availableCommands: ['restart', 'kill', 'announce', 'vxtwitter', 'loglevel', 'health', 'health-detailed', 'readme', 'update'],
+      availableCommands: ['restart', 'kill', 'announce', 'vxtwitter', 'loglevel', 'health', 'health-detailed', 'hd', 'readme', 'update'],
       restrictedCommands: ['restart', 'kill', 'update'],
       allowedUsers: this.getAllowedUserIds().length,
       commandPrefix: this.commandPrefix

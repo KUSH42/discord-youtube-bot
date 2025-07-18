@@ -201,6 +201,14 @@ describe('CommandProcessor', () => {
       expect(result.success).toBe(true);
       expect(result.healthData).toEqual(appStats);
     });
+
+    it('should process hd command as alias for health-detailed', async () => {
+      const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
+      const result = await processor.processCommand('hd', [], 'user1', appStats);
+      
+      expect(result.success).toBe(true);
+      expect(result.healthData).toEqual(appStats);
+    });
     
     it('should process readme command', async () => {
       const result = await processor.processCommand('readme', [], 'user1');
