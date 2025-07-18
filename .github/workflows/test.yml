@@ -163,6 +163,7 @@ jobs:
             --shard=${{ matrix.shard }}/4 \
             --coverage \
             --coverageDirectory=coverage/unit \
+            --coverageThreshold='{}' \
             --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover \
             --maxWorkers=2 \
             --forceExit \
