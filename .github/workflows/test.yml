@@ -155,7 +155,7 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: coverage/unit/lcov.info
-          flags: unit,node${{ matrix.node-version }}
+          flags: unit-node${{ matrix.node-version }}
           name: unit-tests-node${{ matrix.node-version }}
           fail_ci_if_error: false
 
@@ -792,7 +792,7 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: coverage/merged/lcov.info
-          flags: merged,overall
+          flags: merged
           name: merged-coverage
           fail_ci_if_error: false
 
