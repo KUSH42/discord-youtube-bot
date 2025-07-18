@@ -261,7 +261,7 @@ All commands work in the configured support channel with your chosen prefix (def
 | `!loglevel <level>` | 📝 Change logging level | Anyone |
 | `!health` | 🏥 Show bot health status | Anyone |
 | `!health-detailed` | 📊 Show detailed component health | Anyone |
-| `!update` | 🚀 Pulls latest changes and restarts the bot | Authorized users only |
+| `!update` | 🚀 Pulls latest changes, updates dependencies, and restarts the bot | Authorized users only |
 | `!readme` | 📖 Display command help | Anyone |
 
 ## 📊 Monitoring & Health
