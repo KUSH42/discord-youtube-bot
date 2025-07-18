@@ -22,6 +22,7 @@ describe('YouTube Monitor Entry Point', () => {
       DISCORD_SUPPORT_CHANNEL_ID: '123456789012345678',
       DISCORD_ANNOUNCE_CHANNEL_ID: '123456789012345679',
       DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345680',
+      DISCORD_X_POSTS_CHANNEL_ID: '123456789012345681',
     };
 
     const { main: mainFunc } = await import('../../youtube-monitor.js');

@@ -24,6 +24,8 @@ describe('X Scraper Entry Point', () => {
       YOUTUBE_CHANNEL_ID: 'UCrAOyUwjSM5zzPz_FqsUhuQ',
       PSH_CALLBACK_URL: 'https://example.com/webhook',
       PSH_SECRET: 'test-secret',
+      DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345680',
+      DISCORD_X_POSTS_CHANNEL_ID: '123456789012345681',
     };
 
     const { main: mainFunc } = await import('../../x-scraper.js');
