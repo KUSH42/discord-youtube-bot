@@ -38,7 +38,7 @@ export default {
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,
-  verbose: true,
+  verbose: false,
   forceExit: true,
   detectOpenHandles: true,
   moduleFileExtensions: ['js', 'json'],

@@ -380,8 +380,7 @@ jobs:
             --maxWorkers=1 \
             --forceExit \
             --detectOpenHandles \
-            --testTimeout=120000 \
-            --verbose 2>&1 | tee coverage/performance/test-output.log
+            --testTimeout=120000 2>&1 | tee coverage/performance/test-output.log
           # Explicitly check test exit code
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo "❌ Performance tests failed"
