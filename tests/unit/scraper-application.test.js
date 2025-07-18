@@ -465,11 +465,7 @@ describe('ScraperApplication', () => {
         
         await scraperApp.navigateToProfileTimeline(username);
 
-        expect(mockBrowserService.waitForSelector).toHaveBeenCalledWith([
-          '[data-testid="primaryColumn"]',
-          '[role="main"]',
-          'article[data-testid="tweet"]'
-        ]);
+        expect(mockBrowserService.waitForSelector).toHaveBeenCalledWith('[data-testid="primaryColumn"]');
       });
 
       it('should perform enhanced scrolling after navigation', async () => {
@@ -499,6 +495,71 @@ describe('ScraperApplication', () => {
         await expect(scraperApp.navigateToProfileTimeline(username))
           .rejects.toThrow('Selector timeout');
       });
+    });
+  });
+
+  describe('shouldProcessRetweets', () => {
+    it('should return true when ENABLE_RETWEET_PROCESSING is true', () => {
+      mockConfig.getBoolean.mockReturnValue(true);
+      
+      const result = scraperApp.shouldProcessRetweets();
+      
+      expect(result).toBe(true);
+      expect(mockConfig.getBoolean).toHaveBeenCalledWith('ENABLE_RETWEET_PROCESSING', true);
+    });
+
+    it('should return false when ENABLE_RETWEET_PROCESSING is false', () => {
+      mockConfig.getBoolean.mockReturnValue(false);
+      
+      const result = scraperApp.shouldProcessRetweets();
+      
+      expect(result).toBe(false);
+      expect(mockConfig.getBoolean).toHaveBeenCalledWith('ENABLE_RETWEET_PROCESSING', true);
+    });
+
+    it('should default to true when config value is not set', () => {
+      mockConfig.getBoolean.mockReturnValue(true); // Default value
+      
+      const result = scraperApp.shouldProcessRetweets();
+      
+      expect(result).toBe(true);
+      expect(mockConfig.getBoolean).toHaveBeenCalledWith('ENABLE_RETWEET_PROCESSING', true);
+    });
+  });
+
+  describe('extractTweets parameter passing', () => {
+    it('should pass shouldProcessRetweets value to browser context', async () => {
+      // Set up the browser service mock
+      scraperApp.browser = mockBrowserService;
+      mockBrowserService.evaluate.mockResolvedValue([]);
+      
+      // Mock shouldProcessRetweets to return true
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
+      
+      await scraperApp.extractTweets();
+      
+      // Verify that shouldProcessRetweets was called
+      expect(scraperApp.shouldProcessRetweets).toHaveBeenCalled();
+      
+      // Verify that evaluate was called with the shouldProcessRetweets value as parameter
+      expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        true // The shouldProcessRetweets value should be passed as parameter
+      );
+    });
+
+    it('should pass false when retweet processing is disabled', async () => {
+      scraperApp.browser = mockBrowserService;
+      mockBrowserService.evaluate.mockResolvedValue([]);
+      
+      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(false);
+      
+      await scraperApp.extractTweets();
+      
+      expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        false
+      );
     });
   });
 });

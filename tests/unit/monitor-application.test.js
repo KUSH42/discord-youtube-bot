@@ -30,6 +30,7 @@ describe('MonitorApplication', () => {
     mockConfig = {
       getRequired: jest.fn(),
       get: jest.fn(),
+      getNumber: jest.fn(),
     };
     mockStateManager = {
       get: jest.fn(),

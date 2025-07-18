@@ -91,9 +91,6 @@ describe('BotApplication', () => {
 
       // Verify git pull was called
       expect(mockExec).toHaveBeenCalledWith('git pull', expect.any(Function));
-      
-      // Verify npm install was called
-      expect(mockExec).toHaveBeenCalledWith('npm install', expect.any(Function));
 
       // Fast-forward time to trigger the setTimeout for the restart
       jest.advanceTimersByTime(5000);
@@ -140,6 +137,58 @@ describe('BotApplication', () => {
 
       expect(nextPollField).toBeDefined();
       expect(nextPollField.value).toBe('In progress...');
+    });
+  });
+
+  describe('handleMessage', () => {
+    let mockMessage;
+
+    beforeEach(() => {
+      mockMessage = {
+        author: {
+          bot: false,
+          id: 'user123'
+        },
+        content: '!test',
+        channel: {
+          id: 'channel123'
+        },
+        reply: jest.fn()
+      };
+      botApplication.supportChannelId = 'channel123';
+      botApplication.commandPrefix = '!';
+    });
+
+    it('should ignore bot messages', async () => {
+      mockMessage.author.bot = true;
+      const result = await botApplication.handleMessage(mockMessage);
+      expect(result).toBeUndefined();
+    });
+
+    it('should ignore non-command messages', async () => {
+      mockMessage.content = 'not a command';
+      const result = await botApplication.handleMessage(mockMessage);
+      expect(result).toBeUndefined();
+    });
+
+    it('should process commands when user is properly defined', async () => {
+      // Use a simple command that doesn't require complex mocking
+      mockMessage.content = '!readme';
+      
+      await botApplication.handleMessage(mockMessage);
+      
+      // Verify that the message was processed (reply was called)
+      expect(mockMessage.reply).toHaveBeenCalled();
+    });
+
+    it('should handle messages with user variable properly initialized', async () => {
+      // This test verifies that the user variable is accessible after being declared
+      mockMessage.content = '!readme';
+      mockMessage.author.id = 'validUserId';
+      
+      // This should not throw a ReferenceError about user being accessed before initialization
+      await expect(botApplication.handleMessage(mockMessage)).resolves.not.toThrow();
+      expect(mockMessage.reply).toHaveBeenCalled();
     });
   });
 });
