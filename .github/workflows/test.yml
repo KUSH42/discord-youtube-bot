@@ -623,8 +623,8 @@ jobs:
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
               
-              # Generate summary from merged coverage, indicating the project root
-              npx nyc report --reporter=json-summary --temp-dir=.nyc_output . > coverage-summary.json
+              # Generate summary from merged coverage, explicitly including source files
+              npx nyc report --reporter=json-summary --temp-dir=.nyc_output --include='src/**/*.js' > coverage-summary.json
               
               # Set outputs for subsequent steps
               LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
