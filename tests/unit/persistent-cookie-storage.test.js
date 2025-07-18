@@ -100,7 +100,7 @@ describe('Persistent Cookie Storage', () => {
 
       // Mock successful login
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
@@ -120,7 +120,7 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
@@ -129,7 +129,7 @@ describe('Persistent Cookie Storage', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Attempting to use saved session cookies');
       
       // Login should not be called since cookies worked
-      expect(scraperApp.performLogin).not.toHaveBeenCalled();
+      expect(scraperApp.loginToX).not.toHaveBeenCalled();
     });
 
     it('should fallback to login when saved cookies fail', async () => {
@@ -143,7 +143,7 @@ describe('Persistent Cookie Storage', () => {
         .mockResolvedValueOnce({ isLoggedIn: true }); // After login succeeds
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
@@ -152,7 +152,7 @@ describe('Persistent Cookie Storage', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Saved cookies failed, attempting login');
       
       // Login should be called as fallback
-      expect(scraperApp.performLogin).toHaveBeenCalled();
+      expect(scraperApp.loginToX).toHaveBeenCalled();
     });
 
     it('should handle missing saved cookies gracefully', async () => {
@@ -160,7 +160,7 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
@@ -169,7 +169,7 @@ describe('Persistent Cookie Storage', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('No saved cookies found, performing login');
       
       // Should perform login directly
-      expect(scraperApp.performLogin).toHaveBeenCalled();
+      expect(scraperApp.loginToX).toHaveBeenCalled();
     });
 
     it('should handle invalid saved cookies gracefully', async () => {
@@ -179,7 +179,7 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
@@ -188,7 +188,7 @@ describe('Persistent Cookie Storage', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith('Invalid saved cookies format, performing login');
       
       // Should perform login directly
-      expect(scraperApp.performLogin).toHaveBeenCalled();
+      expect(scraperApp.loginToX).toHaveBeenCalled();
     });
   });
 
@@ -235,7 +235,7 @@ describe('Persistent Cookie Storage', () => {
       const loginAttempts = [];
 
       // Mock successful login with credentials
-      jest.spyOn(scraperApp, 'performLogin').mockImplementation(() => {
+      jest.spyOn(scraperApp, 'loginToX').mockImplementation(() => {
         loginAttempts.push('credentials');
         return Promise.resolve(true);
       });
@@ -264,7 +264,7 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.getCookies.mockResolvedValue(newCookies);
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
@@ -280,7 +280,7 @@ describe('Persistent Cookie Storage', () => {
 
       mockStateManager.get.mockReturnValue(expiredCookies);
       mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: false });
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(false);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(false);
 
       scraperApp.browser = mockBrowserService;
 
@@ -303,13 +303,13 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
       // Should log error and fallback to login
       expect(mockLogger.error).toHaveBeenCalledWith('Error setting saved cookies:', expect.any(Error));
-      expect(scraperApp.performLogin).toHaveBeenCalled();
+      expect(scraperApp.loginToX).toHaveBeenCalled();
     });
 
     it('should handle cookie retrieval errors gracefully', async () => {
@@ -318,13 +318,13 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.getCookies.mockRejectedValue(new Error('Cookie retrieval failed'));
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
       // Should log error but continue
       expect(mockLogger.error).toHaveBeenCalledWith('Error saving session cookies:', expect.any(Error));
-      expect(scraperApp.performLogin).toHaveBeenCalled();
+      expect(scraperApp.loginToX).toHaveBeenCalled();
     });
 
     it('should handle state manager errors gracefully', async () => {
@@ -334,13 +334,13 @@ describe('Persistent Cookie Storage', () => {
       mockBrowserService.evaluate.mockResolvedValue({ isLoggedIn: true });
 
       scraperApp.browser = mockBrowserService;
-      jest.spyOn(scraperApp, 'performLogin').mockResolvedValue(true);
+      jest.spyOn(scraperApp, 'loginToX').mockResolvedValue(true);
 
       await scraperApp.ensureAuthenticated();
 
       // Should log error and fallback to login
       expect(mockLogger.error).toHaveBeenCalledWith('Error retrieving saved cookies:', expect.any(Error));
-      expect(scraperApp.performLogin).toHaveBeenCalled();
+      expect(scraperApp.loginToX).toHaveBeenCalled();
     });
   });
 });

@@ -1158,6 +1158,32 @@ export class ScraperApplication {
   }
 
   /**
+   * Ensure user is authenticated (alias for loginToX)
+   * @returns {Promise<void>}
+   */
+  async ensureAuthenticated() {
+    await this.loginToX();
+  }
+
+  /**
+   * Validate cookie format
+   * @param {Array} cookies - Array of cookie objects
+   * @returns {boolean} True if cookies are valid
+   */
+  validateCookieFormat(cookies) {
+    if (!cookies || !Array.isArray(cookies) || cookies.length === 0) {
+      return false;
+    }
+    
+    return cookies.every(cookie => {
+      return cookie && 
+             typeof cookie === 'object' && 
+             typeof cookie.name === 'string' && 
+             typeof cookie.value === 'string';
+    });
+  }
+
+  /**
    * Dispose of resources
    * @returns {Promise<void>}
    */

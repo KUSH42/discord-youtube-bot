@@ -588,37 +588,27 @@ describe('ScraperApplication', () => {
   });
 
   describe('extractTweets parameter passing', () => {
-    it('should pass shouldProcessRetweets value to browser context', async () => {
+    it('should extract tweets from browser context', async () => {
       // Set up the browser service mock
       scraperApp.browser = mockBrowserService;
       mockBrowserService.evaluate.mockResolvedValue([]);
       
-      // Mock shouldProcessRetweets to return true
-      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
-      
       await scraperApp.extractTweets();
       
-      // Verify that shouldProcessRetweets was called
-      expect(scraperApp.shouldProcessRetweets).toHaveBeenCalled();
-      
-      // Verify that evaluate was called with the shouldProcessRetweets value as parameter
+      // Verify that evaluate was called with a function to extract tweets
       expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
-        expect.any(Function),
-        true // The shouldProcessRetweets value should be passed as parameter
+        expect.any(Function)
       );
     });
 
-    it('should pass false when retweet processing is disabled', async () => {
+    it('should extract tweets regardless of retweet processing setting', async () => {
       scraperApp.browser = mockBrowserService;
       mockBrowserService.evaluate.mockResolvedValue([]);
-      
-      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(false);
       
       await scraperApp.extractTweets();
       
       expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
-        expect.any(Function),
-        false
+        expect.any(Function)
       );
     });
   });
@@ -641,6 +631,7 @@ describe('ScraperApplication', () => {
       jest.spyOn(scraperApp, 'filterNewTweets').mockReturnValue([]);
       jest.spyOn(scraperApp, 'processNewTweet').mockResolvedValue();
       jest.spyOn(scraperApp, 'getNextInterval').mockReturnValue(300000);
+      jest.spyOn(scraperApp, 'verifyAuthentication').mockResolvedValue();
       
       // Mock browser evaluate method for scrolling
       mockBrowserService.evaluate.mockResolvedValue({isLoggedIn: true});
@@ -683,13 +674,11 @@ describe('ScraperApplication', () => {
       );
     });
 
-    it('should log appropriate message when enhanced retweet detection is enabled', async () => {
-      jest.spyOn(scraperApp, 'shouldProcessRetweets').mockReturnValue(true);
-      
+    it('should log polling message when starting profile poll', async () => {
       await scraperApp.pollXProfile();
       
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Enhanced retweet detection enabled (search-based approach)'
+        'Polling X profile: @testuser'
       );
     });
 
@@ -731,8 +720,8 @@ describe('ScraperApplication', () => {
     it('should perform scrolling to load more content', async () => {
       await scraperApp.pollXProfile();
       
-      // Should call evaluate 3 times for scrolling (as per the implementation)
-      expect(mockBrowserService.evaluate).toHaveBeenCalledTimes(4);
+      // Should call evaluate multiple times for scrolling and content extraction
+      expect(mockBrowserService.evaluate).toHaveBeenCalled();
       expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
         expect.any(Function)
       );

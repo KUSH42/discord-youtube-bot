@@ -28,7 +28,8 @@ describe('ContentAnnouncer', () => {
       }),
       get: jest.fn((key, defaultValue) => {
         const values = {
-          'DISCORD_BOT_SUPPORT_LOG_CHANNEL': 'support-channel-123'
+          'DISCORD_BOT_SUPPORT_LOG_CHANNEL': 'support-channel-123',
+          'DISCORD_X_RETWEETS_CHANNEL_ID': 'x-retweets-channel-123'
         };
         return values[key] || defaultValue;
       }),
