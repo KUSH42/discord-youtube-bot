@@ -2,7 +2,7 @@
   "name": "discord-content-announcement-bot",
   "type": "module",
   "description": "This is a Node.js bot designed to automatically announce new video uploads and livestream starts from a specified YouTube channel and new posts from a specified X (formerly Twitter) profile to designated Discord text channels.",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -29,7 +29,7 @@
       "prettier --write"
     ]
   },
-  "keywords": [],
+  "keywords": ["Discord", "Twitter", "X", "X.com", "YouTube"],
   "author": "Marco Keller",
   "license": "MIT",
   "dependencies": {

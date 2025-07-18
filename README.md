@@ -1,11 +1,11 @@
 
 # Discord Content Announcement Bot
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/KUSH42/discord-youtube-bot/test.yml?branch=main&style=for-the-badge)
-![Codecov](https://img.shields.io/codecov/c/github/KUSH42/discord-youtube-bot?style=for-the-badge&token=YOUR_CODECOV_TOKEN_IF_PRIVATE)
-![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen?style=for-the-badge)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/KUSH42/discord-bot/test.yml?branch=master&style=for-the-badge)
+![Codecov](https://img.shields.io/codecov/c/github/KUSH42/discord-bot?style=for-the-badge)
+![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=for-the-badge)
 ![Discord.js](https://img.shields.io/badge/discord.js-v14-7289DA?style=for-the-badge)
-![License](https://img.shields.io/github/license/KUSH42/discord-youtube-bot?style=for-the-badge)
+![License](https://img.shields.io/github/license/KUSH42/discord-bot?style=for-the-badge)
 
 A robust, production-ready Discord bot for real-time content announcements from YouTube and X (formerly Twitter), built with Clean Architecture and a comprehensive testing suite.
 
