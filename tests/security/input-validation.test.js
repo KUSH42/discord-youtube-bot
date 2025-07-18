@@ -88,7 +88,7 @@ describe('Security and Input Validation Tests', () => {
           }
 
           // Block internal IP ranges
-          const hostname = parsedUrl.hostname;
+          const { hostname } = parsedUrl;
           const blockedPatterns = [
             /^localhost$/i,
             /^127\./,
@@ -109,7 +109,7 @@ describe('Security and Input Validation Tests', () => {
           const allowedDomains = ['youtube.com', 'youtu.be', 'x.com', 'twitter.com', 'vxtwitter.com', 'fxtwitter.com'];
 
           const isAllowedDomain = allowedDomains.some(
-            (domain) => hostname === domain || hostname.endsWith('.' + domain),
+            (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
           );
 
           if (!isAllowedDomain) {
@@ -183,7 +183,7 @@ describe('Security and Input Validation Tests', () => {
         }
 
         // Verify signature
-        const expectedSignature = 'sha1=' + crypto.createHmac('sha1', secret).update(payload).digest('hex');
+        const expectedSignature = `sha1=${crypto.createHmac('sha1', secret).update(payload).digest('hex')}`;
 
         const receivedSignature = signature;
 
@@ -373,7 +373,7 @@ describe('Security and Input Validation Tests', () => {
         ipRequests: new Map(),
         suspiciousActivity: new Set(),
 
-        checkForDistributedAttack: function (ip, threshold = 10, timeWindow = 60000) {
+        checkForDistributedAttack(ip, threshold = 10, timeWindow = 60000) {
           const now = Date.now();
           const windowStart = now - timeWindow;
 

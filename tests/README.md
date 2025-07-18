@@ -98,8 +98,10 @@ Our testing strategy is guided by the following core principles:
 
 - **[Jest](https://jestjs.io/):** The primary testing framework for unit, integration, E2E, performance, and security tests.
 - **[Playwright](https://playwright.dev/):** Used for browser automation in E2E tests.
-- **[ESLint](https://eslint.org/):** For static code analysis and enforcing code style.
-- **[Prettier](https://prettier.io/):** For consistent code formatting.
+- **[ESLint](https://eslint.org/):** Modern flat configuration with Jest integration, comprehensive rules for code quality, security, and performance.
+- **[Prettier](https://prettier.io/):** Consistent code formatting with file-specific rules and integration with ESLint.
+- **[Babel](https://babeljs.io/):** JavaScript transpilation with Node.js 18+ targeting and modern transform plugins.
+- **[Husky](https://typicode.github.io/husky/):** Pre-commit hooks for automated quality checks and build incrementing.
 - **[Codecov](https://about.codecov.io/):** Used for tracking code coverage.
 
 ## 5. Test Structure & Code Conventions
@@ -125,13 +127,16 @@ Our testing strategy is guided by the following core principles:
     - **E2E Tests:** `npm run test:e2e`
     - **Performance Tests:** `npm run test:performance`
     - **Security Tests:** `npm run test:security`
-    - **Linting:** `npm run lint`
+    - **Code Quality:** `npm run lint` (ESLint with Jest integration and comprehensive rules)
+    - **Formatting:** `npm run format` (Prettier with file-specific configurations)
 - **Reporting:**
     - **Code Coverage:** Coverage is collected using Jest's `--coverage` flag and uploaded to [Codecov](https://app.codecov.io/gh/KUSH42/discord-youtube-bot). Merged reports are generated in CI.
     - **Test Results:** Test results and artifacts are uploaded to GitHub Actions for each run.
 - **Quality Gates & Checks:**
     - All tests must pass before a pull request can be merged.
-    - The `lint` job must pass.
+    - ESLint code quality checks must pass (enhanced with security and performance rules).
+    - Prettier formatting validation must pass.
+    - Pre-commit hooks automatically enforce code quality standards.
     - A minimum code coverage threshold is enforced by Codecov (see Codecov settings for specifics, currently aiming for >25%).
 
 ## 7. Local Development Workflow

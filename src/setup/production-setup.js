@@ -104,7 +104,7 @@ async function setupExternalServices(container, config) {
 
     return new YouTubeApiService({
       logger: c.resolve('logger').child({ service: 'YouTubeApiService' }),
-      youtube: youtube,
+      youtube,
     });
   });
 

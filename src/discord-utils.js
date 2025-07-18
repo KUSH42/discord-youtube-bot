@@ -9,14 +9,18 @@
  * @returns {string[]} Array of text chunks
  */
 export function splitMessage(text, { maxLength = 2000 } = {}) {
-  if (text.length <= maxLength) return [text];
+  if (text.length <= maxLength) {
+    return [text];
+  }
   const char = '\n';
-  let chunks = [];
+  const chunks = [];
   const lines = text.split(char);
   let currentChunk = '';
   for (const line of lines) {
     if (line.length > maxLength) {
-      if (currentChunk.length > 0) chunks.push(currentChunk.trim());
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+      }
       const lineChunks = line.match(new RegExp(`.{1,${maxLength}}`, 'g')) || [];
       chunks.push(...lineChunks);
       currentChunk = '';
@@ -28,7 +32,9 @@ export function splitMessage(text, { maxLength = 2000 } = {}) {
     }
     currentChunk += line + char;
   }
-  if (currentChunk.length > 0) chunks.push(currentChunk.trim());
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk.trim());
+  }
   return chunks;
 }
 

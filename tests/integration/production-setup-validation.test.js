@@ -148,7 +148,7 @@ describe('Production Setup Validation', () => {
       expect(logger.transports.length).toBeGreaterThanOrEqual(2);
 
       // Should have Discord transport since DISCORD_BOT_SUPPORT_LOG_CHANNEL is set
-      expect(logger.transports.length).toBe(3);
+      expect(logger.transports).toHaveLength(3);
     });
 
     it('should ensure Discord service is properly configured', async () => {

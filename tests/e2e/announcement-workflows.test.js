@@ -100,7 +100,7 @@ describe('End-to-End Announcement Workflows', () => {
           name: video.snippet.channelTitle,
           icon_url: 'https://www.youtube.com/favicon.ico',
         },
-        description: video.snippet.description.substring(0, 200) + '...',
+        description: `${video.snippet.description.substring(0, 200)}...`,
         thumbnail: { url: video.snippet.thumbnails.high.url },
         color: 0xff0000,
         timestamp: video.snippet.publishedAt,
@@ -506,7 +506,7 @@ describe('End-to-End Announcement Workflows', () => {
     it('should log all announcement activities', async () => {
       const activityLogger = {
         logs: [],
-        log: function (level, message, data = {}) {
+        log(level, message, data = {}) {
           this.logs.push({
             level,
             message,
@@ -634,7 +634,7 @@ describe('End-to-End Announcement Workflows', () => {
           duplicateRate: 80, // Alert if duplicate rate > 80%
         },
 
-        checkAnomaly: function (metrics) {
+        checkAnomaly(metrics) {
           const alerts = [];
 
           if (metrics.failureRate > this.thresholds.failureRate) {

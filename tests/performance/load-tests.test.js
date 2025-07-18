@@ -63,7 +63,7 @@ describe('Performance and Load Tests', () => {
         maxSize: 10000,
         maxAge: 3600000, // 1 hour
 
-        add: function (key, value) {
+        add(key, value) {
           this.cleanup();
 
           if (this.entries.size >= this.maxSize) {
@@ -78,7 +78,7 @@ describe('Performance and Load Tests', () => {
           });
         },
 
-        cleanup: function () {
+        cleanup() {
           const now = Date.now();
           for (const [key, entry] of this.entries) {
             if (now - entry.timestamp > this.maxAge) {
@@ -87,9 +87,11 @@ describe('Performance and Load Tests', () => {
           }
         },
 
-        get: function (key) {
+        get(key) {
           const entry = this.entries.get(key);
-          if (!entry) return null;
+          if (!entry) {
+            return null;
+          }
 
           if (Date.now() - entry.timestamp > this.maxAge) {
             this.entries.delete(key);
@@ -613,7 +615,9 @@ describe('Performance and Load Tests', () => {
         const videoIds = new Set();
         urls.forEach((url) => {
           const match = url.match(/watch\?v=([a-zA-Z0-9_-]+)/);
-          if (match) videoIds.add(match[1]);
+          if (match) {
+            videoIds.add(match[1]);
+          }
         });
 
         const iterationEnd = performance.now();

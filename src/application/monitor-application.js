@@ -364,7 +364,7 @@ export class MonitorApplication {
       return false;
     }
 
-    const expectedSignature = 'sha1=' + crypto.createHmac('sha1', this.webhookSecret).update(body).digest('hex');
+    const expectedSignature = `sha1=${crypto.createHmac('sha1', this.webhookSecret).update(body).digest('hex')}`;
 
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   }
@@ -490,8 +490,8 @@ export class MonitorApplication {
         platform: 'youtube',
         type: classification.type,
         id: videoId,
-        url: url,
-        title: title,
+        url,
+        title,
         channelTitle: video.snippet?.channelTitle,
         publishedAt: video.snippet?.publishedAt,
         ...classification.details,

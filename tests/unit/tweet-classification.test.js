@@ -217,7 +217,7 @@ describe('Tweet Category Classification', () => {
       const text = '@testuser This is a reply'; // Reply pattern
 
       // Simulate the classification logic (simplified)
-      let isReply = text.startsWith('@');
+      const isReply = text.startsWith('@');
       let isRetweet = false;
 
       if (!isReply && author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
@@ -248,7 +248,7 @@ describe('Tweet Category Classification', () => {
 
       testScenarios.forEach(({ author, text, expected }) => {
         // Simulate the classification logic
-        let isReply = text.startsWith('@');
+        const isReply = text.startsWith('@');
         let isRetweet = false;
 
         if (!isReply) {

@@ -173,7 +173,7 @@ export class YouTubeApiService extends YouTubeService {
     try {
       const response = await this.youtube.playlistItems.list({
         part: 'snippet',
-        playlistId: playlistId,
+        playlistId,
         maxResults: Math.min(maxResults, 50),
       });
 
@@ -189,7 +189,9 @@ export class YouTubeApiService extends YouTubeService {
   async isVideoLive(videoId) {
     try {
       const video = await this.getVideoDetails(videoId);
-      if (!video) return false;
+      if (!video) {
+        return false;
+      }
 
       return video.snippet.liveBroadcastContent === 'live';
     } catch {
@@ -224,7 +226,7 @@ export class YouTubeApiService extends YouTubeService {
     try {
       const response = await this.youtube.commentThreads.list({
         part: 'snippet',
-        videoId: videoId,
+        videoId,
         maxResults: Math.min(maxResults, 100),
         order: 'time',
       });

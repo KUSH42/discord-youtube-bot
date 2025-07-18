@@ -168,7 +168,7 @@ export class FetchHttpService extends HttpService {
    */
   async uploadFile(url, file, options = {}) {
     try {
-      let formData = new FormData();
+      const formData = new FormData();
 
       if (typeof file === 'string') {
         // File path

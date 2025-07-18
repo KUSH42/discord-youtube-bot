@@ -21,7 +21,9 @@ describe('BotApplication', () => {
     };
     mockConfig = {
       get: jest.fn((key, defaultValue) => {
-        if (key === 'SYSTEMD_SERVICE_NAME') return 'test-service';
+        if (key === 'SYSTEMD_SERVICE_NAME') {
+          return 'test-service';
+        }
         return defaultValue;
       }),
       getBoolean: jest.fn(),
@@ -140,7 +142,7 @@ describe('BotApplication', () => {
       const embed = botApplication.createDetailedHealthEmbed(healthData);
 
       expect(embed.title).toBe('📊 Detailed Bot Health Status');
-      expect(embed.fields.length).toBe(12);
+      expect(embed.fields).toHaveLength(12);
     });
 
     it('should display "In progress..." for next X poll when scraper is running but no next poll time is set', () => {

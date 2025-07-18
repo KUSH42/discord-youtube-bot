@@ -142,8 +142,8 @@ export class ContentClassifier {
   isRetweet(text, metadata) {
     // Primary check: Author-based detection (most reliable)
     if (metadata && metadata.author && metadata.monitoredUser) {
-      const author = metadata.author;
-      const monitoredUser = metadata.monitoredUser;
+      const { author } = metadata;
+      const { monitoredUser } = metadata;
 
       // If author differs from monitored user, it's a retweet
       if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
@@ -547,7 +547,9 @@ export class ContentClassifier {
    */
   getYouTubeDuration(video) {
     const duration = video.contentDetails?.duration;
-    if (!duration) return null;
+    if (!duration) {
+      return null;
+    }
 
     return {
       raw: duration,
@@ -561,10 +563,14 @@ export class ContentClassifier {
    * @returns {number} Duration in seconds
    */
   parseYouTubeDuration(duration) {
-    if (!duration || typeof duration !== 'string') return 0;
+    if (!duration || typeof duration !== 'string') {
+      return 0;
+    }
 
     const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (!match) return 0;
+    if (!match) {
+      return 0;
+    }
 
     const hours = parseInt(match[1] || '0', 10);
     const minutes = parseInt(match[2] || '0', 10);

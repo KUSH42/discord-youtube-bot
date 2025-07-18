@@ -38,7 +38,9 @@ async function startBot() {
     } else {
       console.error('❌ Failed to start bot:', error);
     }
-    if (container) await container.dispose();
+    if (container) {
+      await container.dispose();
+    }
     throw error;
   }
 }

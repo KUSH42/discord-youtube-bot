@@ -243,9 +243,50 @@ Our testing philosophy emphasizes fast feedback, high confidence in critical pat
 -   **No X Announcements**: Double-check your X account credentials and ensure they are not locked or requiring a CAPTCHA. Review logs for scraping errors.
 -   **Commands Not Working**: Confirm you are using the correct `COMMAND_PREFIX` in the designated support channel. Ensure your user ID is in `ALLOWED_USER_IDS` for admin commands.
 
+## Development & Code Quality
+
+This project maintains high code quality standards through automated tooling and comprehensive testing:
+
+### Code Quality Tools
+- **ESLint**: Modern flat configuration with comprehensive rules for code quality, security, and performance
+- **Prettier**: Consistent code formatting with file-specific rules for `.js`, `.md`, `.json`, and `.yml` files  
+- **Babel**: Modern JavaScript transpilation with Node.js 18+ targeting and polyfill management
+- **Husky**: Pre-commit hooks for automated code quality checks
+
+### Development Commands
+```bash
+# Code quality
+npm run lint              # Run ESLint checks
+npm run lint:fix          # Auto-fix ESLint issues
+npm run format            # Check Prettier formatting
+
+# Development workflow
+npm run test:watch        # Run tests in watch mode
+npm run test:coverage     # Generate detailed coverage reports
+```
+
+### Pre-commit Workflow
+The project uses automated pre-commit hooks that:
+1. Run ESLint with auto-fix for code quality
+2. Apply Prettier formatting consistently
+3. Validate environment configuration
+4. Increment build numbers automatically
+5. Run syntax validation
+
+All commits automatically trigger these quality checks to maintain code standards.
+
 ## Contributing
 
-Contributions are welcome! Please fork the repository, create a feature branch, and submit a pull request with a clear description of your changes. Ensure all tests pass before submitting.
+Contributions are welcome! Please follow this process:
+
+1. **Fork the repository** and create a feature branch
+2. **Make your changes** following the established patterns in the codebase
+3. **Run quality checks**: `npm run lint:fix && npm run format`
+4. **Add tests** for new functionality (see [Testing README](./tests/README.md))
+5. **Commit your changes** - pre-commit hooks will run automatically
+6. **Submit a pull request** with a clear description of your changes
+
+The automated CI/CD pipeline will validate your changes across multiple Node.js versions with comprehensive testing.
 
 ## License
 

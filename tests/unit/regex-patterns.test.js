@@ -270,8 +270,6 @@ describe('URL Regex Pattern Tests', () => {
   });
 
   describe('Regex Capture Group Analysis', () => {
-
-
     it('should use non-capturing groups for alternative matching', () => {
       // Verify regex uses (?:...) for grouping without capturing
       expect(videoUrlRegex.source).toContain('(?:');
