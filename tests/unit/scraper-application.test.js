@@ -583,7 +583,7 @@ describe('ScraperApplication', () => {
       jest.spyOn(scraperApp, 'getNextInterval').mockReturnValue(300000);
       
       // Mock browser evaluate method for scrolling
-      mockBrowserService.evaluate.mockResolvedValue();
+      mockBrowserService.evaluate.mockResolvedValue({isLoggedIn: true});
     });
 
     it('should always navigate to search URL regardless of retweet processing setting', async () => {

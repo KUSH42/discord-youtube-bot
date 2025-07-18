@@ -911,36 +911,43 @@ export class ScraperApplication {
   async verifyAuthentication() {
     try {
       this.logger.debug('Verifying X authentication status...');
-      
-      // Navigate to home page to check authentication
       await this.browser.goto('https://x.com/home');
-      
-      // Check for login indicators vs authenticated indicators
-      const authStatus = await this.browser.evaluate(() => {
-        return {
-          hasLoginForm: !!document.querySelector('input[name="text"]'),
-          hasLoginButton: !!document.querySelector('[data-testid="LoginForm_Login_Button"]'),
-          hasHomeTimeline: !!document.querySelector('[data-testid="AppTabBar_Home_Link"]'),
-          hasUserMenu: !!document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]'),
-          pageTitle: document.title,
-          bodyText: document.body.innerText.substring(0, 200)
-        };
+
+      const isLoggedIn = await this.browser.evaluate(() => {
+        const loggedInSelectors = [
+          '[data-testid="AppTabBar_Home_Link"]',
+          '[data-testid="SideNav_AccountSwitcher_Button"]',
+          'main[role="main"]',
+        ];
+        return loggedInSelectors.some(selector => document.querySelector(selector));
       });
-      
-      this.logger.debug('Authentication status:', authStatus);
-      
-      if (authStatus.hasLoginForm || authStatus.hasLoginButton) {
-        this.logger.warn('Not authenticated - login form detected, re-authenticating...');
-        await this.loginToX();
-      } else if (authStatus.hasHomeTimeline || authStatus.hasUserMenu) {
+
+      if (isLoggedIn) {
         this.logger.debug('✅ Authentication verified successfully');
-      } else {
-        this.logger.warn('Authentication status unclear, proceeding anyway');
+        return;
       }
-      
+
+      // If not logged in, check for logged-out indicators to be sure
+      const isLoggedOut = await this.browser.evaluate(() => {
+        const loggedOutSelectors = [
+          'input[name="text"]',
+          '[data-testid="LoginForm_Login_Button"]',
+          'a[href="/i/flow/login"]',
+        ];
+        return loggedOutSelectors.some(selector => document.querySelector(selector));
+      });
+
+      if (isLoggedOut) {
+        this.logger.warn('Not authenticated - login page detected, re-authenticating...');
+        await this.loginToX();
+      } else {
+        this.logger.warn('Authentication status unclear, forcing re-authentication...');
+        await this.loginToX();
+      }
     } catch (error) {
-      this.logger.warn('Authentication verification failed:', error.message);
-      // Don't throw - let the search attempt continue
+      this.logger.error('Authentication verification failed:', error.message);
+      this.logger.info('Attempting to re-login after verification failure...');
+      await this.loginToX();
     }
   }
 
