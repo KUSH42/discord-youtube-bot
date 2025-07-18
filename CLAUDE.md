@@ -36,6 +36,15 @@ sudo journalctl -u discord-bot.service -f
 tail -f bot.log
 ```
 
+**Generate coverage reports locally:**
+```bash
+# Generate coverage-summary.json from existing lcov.info files
+./scripts/generate-coverage-summary.sh
+
+# View coverage report
+open coverage/lcov-report/index.html
+```
+
 ## Architecture Overview
 
 This is a Discord bot that monitors YouTube channels and X (Twitter) profiles for new content and announces it to Discord channels. The bot uses:

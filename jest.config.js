@@ -9,7 +9,6 @@ export default {
     '!jest.config.js',
     '!setup-encryption.js',
     '!tests/**',
-    '!test-duplicate-prevention.js',
     '!src/services/interfaces/**',
     '!src/setup/**',
     '!index.js',
