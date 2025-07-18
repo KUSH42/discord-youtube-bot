@@ -5,7 +5,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-  package: write
+  packages: write
 
 on:
   push:
