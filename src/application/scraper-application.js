@@ -237,9 +237,9 @@ export class ScraperApplication {
         }));
         
         if (pageState.isLoggedIn) {
-          this.logger.info('✅ Login successful, already on home page');
-          const currentUrl = await this.browser.page.url();
-          this.logger.info(`Current page URL after login: ${currentUrl}`);
+          this.logger.info('✅ Login successful, a new session has been established.');
+          await this.saveAuthenticationState();
+          await this.handleCookiePrompt();
           return;
         }
         
@@ -261,11 +261,6 @@ export class ScraperApplication {
           } catch (e) {
             this.logger.warn('Navigation timed out after login click, but will continue to check status.');
           }
-        } else if (pageState.isLoggedIn) {
-          this.logger.info('✅ Login successful, a new session has been established.');
-          await this.saveAuthenticationState();
-          await this.handleCookiePrompt();
-          return;
         } else {
           this.logger.warn('Unknown login state, attempting to click Next/Login');
           const clickedNext = await this.clickNextButton();
@@ -606,10 +601,13 @@ export class ScraperApplication {
       this.logger.info(`Found ${newTweets.length} new tweets during enhanced retweet detection.`);
 
       for (const tweet of newTweets) {
-        if (tweet.tweetCategory === 'Retweet') {
-          this.logger.info(`Processing new retweet: ${tweet.tweetID}`);
+        this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
+        if (tweet.tweetCategory === 'Retweet' && this.isNewContent(tweet)) {
+          this.logger.info(`✅ Found new retweet to process: ${tweet.url}`);
           await this.processNewTweet(tweet);
           this.stats.totalTweetsAnnounced++;
+        } else {
+          this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is not a retweet or is old.`);
         }
       }
     } catch (error) {
@@ -730,8 +728,9 @@ export class ScraperApplication {
             tweetCategory = 'Quote';
           }
           
-          // Check for retweet
-          if (text.includes('RT @') || text.startsWith('RT @')) {
+          // Check for retweet, including the modern social context element
+          const socialContext = article.querySelector('[data-testid="socialContext"]');
+          if ((socialContext && socialContext.innerText.includes('reposted')) || text.startsWith('RT @')) {
             tweetCategory = 'Retweet';
           }
           
