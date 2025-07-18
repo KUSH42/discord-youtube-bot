@@ -56,7 +56,7 @@ tests/
 - **PubSubHubbub Failures**: Comprehensive failure scenario testing
 - **Enhanced Retweet Detection**: Multi-strategy retweet identification algorithms (16+ tests)
 - **Tweet Classification**: Author-based tweet categorization logic (7+ tests)
-- **Persistent Cookie Storage**: Authentication state management and cookie handling (13+ tests)
+- **Persistent Cookie Storage**: `AuthManager` state and cookie handling (9 tests)
 
 ### 2. Integration Tests (`tests/integration/`)
 **Purpose**: Test component interactions and external dependencies

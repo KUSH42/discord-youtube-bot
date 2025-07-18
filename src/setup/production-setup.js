@@ -23,6 +23,7 @@ import { ContentClassifier } from '../core/content-classifier.js';
 import { ContentAnnouncer } from '../core/content-announcer.js';
 
 // Applications
+import { AuthManager } from '../application/auth-manager.js';
 import { BotApplication } from '../application/bot-application.js';
 import { ScraperApplication } from '../application/scraper-application.js';
 import { MonitorApplication } from '../application/monitor-application.js';
@@ -186,6 +187,16 @@ async function setupApplicationServices(container, config) {
     return botApp;
   });
   
+  // Auth Manager
+  container.registerSingleton('authManager', (c) => {
+    return new AuthManager({
+      browserService: c.resolve('browserService'),
+      config: c.resolve('config'),
+      stateManager: c.resolve('stateManager'),
+      logger: c.resolve('logger').child({ service: 'AuthManager' })
+    });
+  });
+
   // Scraper Application (X/Twitter monitoring)
   container.registerSingleton('scraperApplication', (c) => {
     return new ScraperApplication({
@@ -196,7 +207,8 @@ async function setupApplicationServices(container, config) {
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
       eventBus: c.resolve('eventBus'),
-      logger: c.resolve('logger').child({ service: 'ScraperApplication' })
+      logger: c.resolve('logger').child({ service: 'ScraperApplication' }),
+      authManager: c.resolve('authManager')
     });
   });
   

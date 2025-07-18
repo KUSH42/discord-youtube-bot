@@ -14,6 +14,7 @@ export class ScraperApplication {
     this.discord = dependencies.discordService;
     this.eventBus = dependencies.eventBus;
     this.logger = dependencies.logger;
+    this.authManager = dependencies.authManager;
     
     // Scraper configuration
     this.xUser = this.config.getRequired('X_USER_HANDLE');
@@ -59,7 +60,7 @@ export class ScraperApplication {
       await this.initializeBrowser();
       
       // Perform initial login
-      await this.loginToX();
+      await this.ensureAuthenticated();
       
       // Start polling
       this.startPolling();
@@ -163,225 +164,7 @@ export class ScraperApplication {
    * Login to X (Twitter)
    * @returns {Promise<void>}
    */
-  async loginToX() {
-    try {
-      this.logger.info('Logging into X...');
-      
-      // Prioritize cookies from the state manager first
-      let authCookies = this.state.get('TWITTER_AUTH_COOKIES');
-      let cookieSource = 'state';
 
-      // Fallback to configuration if not in state
-      if (!authCookies) {
-        authCookies = this.config.get('TWITTER_AUTH_COOKIES');
-        cookieSource = 'config';
-      }
-      
-      if (authCookies) {
-        this.logger.info(`Attempting cookie-based authentication from ${cookieSource}...`);
-        try {
-          this.logger.debug('Raw cookie string length:', authCookies.length);
-          
-          // Clean up the cookie string - remove outer quotes and normalize whitespace
-          let cleanedCookies = authCookies.trim();
-          if (cleanedCookies.startsWith("'") && cleanedCookies.endsWith("'")) {
-            cleanedCookies = cleanedCookies.slice(1, -1);
-          }
-          if (cleanedCookies.startsWith('"') && cleanedCookies.endsWith('"')) {
-            cleanedCookies = cleanedCookies.slice(1, -1);
-          }
-          
-          const cookies = JSON.parse(cleanedCookies);
-          this.logger.debug('Parsed cookies count:', cookies.length);
-          this.logger.debug('First cookie name:', cookies[0]?.name);
-          
-          await this.browser.setCookies(cookies);
-          
-          // Navigate to home page to test authentication
-          await this.browser.goto('https://x.com/home');
-          
-          // Check if we're logged in by looking for user-specific elements
-          const isLoggedIn = await this.browser.waitForSelector('[data-testid="AppTabBar_Home_Link"], [aria-label="Home timeline"], [data-testid="SideNav_AccountSwitcher_Button"]', { timeout: 10000 })
-            .then(() => true)
-            .catch(() => false);
-            
-          if (isLoggedIn) {
-            this.logger.info('✅ Cookie authentication successful');
-            const currentUrl = await this.browser.page.url();
-            this.logger.info(`Current page URL after cookie auth: ${currentUrl}`);
-            return;
-          } else {
-            this.logger.warn('Cookie authentication failed, falling back to credentials');
-          }
-        } catch (cookieError) {
-          this.logger.warn('Cookie authentication error, falling back to credentials:', cookieError.message);
-          this.logger.debug('Cookie error details:', cookieError);
-        }
-      }
-      
-      // Fallback to username/password login
-      this.logger.info('Using credential-based authentication...');
-      await this.browser.goto('https://x.com/i/flow/login');
-      
-      const maxSteps = 5;
-      for (let step = 0; step < maxSteps; step++) {
-        this.logger.info(`Login step ${step + 1}`);
-        const loginAttemptDelay = 4000 + Math.random() * 2000; // 4-6 seconds
-        await new Promise(resolve => setTimeout(resolve, loginAttemptDelay));
-        
-        const pageState = await this.browser.evaluate(() => ({
-          hasUsernameInput: !!document.querySelector('input[name="text"]'),
-          hasPasswordInput: !!document.querySelector('input[name="password"]'),
-          needsEmailVerification: document.body.innerText.toLowerCase().includes('phone or email') || !!document.querySelector('input[data-testid="ocfEnterTextTextInput"]'),
-          isLoggedIn: !!document.querySelector('[data-testid="AppTabBar_Home_Link"]')
-        }));
-        
-        if (pageState.isLoggedIn) {
-          this.logger.info('✅ Login successful, a new session has been established.');
-          await this.saveAuthenticationState();
-          await this.handleCookiePrompt();
-          return;
-        }
-        
-        if (pageState.hasUsernameInput) {
-          this.logger.info('Entering username...');
-          await this.browser.type('input[name="text"]', this.twitterUsername);
-          await this.clickNextButton();
-          await new Promise(resolve => setTimeout(resolve, 5000 + Math.random() * 2000)); // Wait 5-7s for next page
-        } else if (pageState.needsEmailVerification) {
-          this.logger.info('Email verification required...');
-          await this.handleEmailVerification();
-          await this.clickNextButton();
-        } else if (pageState.hasPasswordInput) {
-          this.logger.info('Entering password...');
-          await this.browser.type('input[name="password"]', this.twitterPassword);
-          await this.clickLoginButton();
-          try {
-            await this.browser.waitForNavigation({ timeout: 15000 });
-          } catch (e) {
-            this.logger.warn('Navigation timed out after login click, but will continue to check status.');
-          }
-        } else {
-          this.logger.warn('Unknown login state, attempting to click Next/Login');
-          const clickedNext = await this.clickNextButton();
-          if (!clickedNext) {
-            await this.clickLoginButton();
-          }
-        }
-      }
-
-      
-    } catch (error) {
-      this.logger.error('Failed to login to X:', error);
-      
-      // Take a screenshot for debugging if possible
-      try {
-        const currentUrl = await this.browser.page.url();
-        this.logger.info(`Current page URL: ${currentUrl}`);
-        
-        // Don't take screenshot in production/CI to avoid issues
-        if (process.env.NODE_ENV === 'development') {
-          await this.browser.page.screenshot({ path: 'x-login-error.png' });
-          this.logger.info('Screenshot saved as x-login-error.png');
-        }
-      } catch (debugError) {
-        this.logger.debug('Could not capture debug info:', debugError.message);
-      }
-      
-      throw new Error(`X login failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Saves authentication cookies to the state manager for future runs.
-   * @returns {Promise<void>}
-   */
-  async saveAuthenticationState() {
-    try {
-      this.logger.info('Saving authentication state (cookies)...');
-      const cookies = await this.browser.getCookies();
-      if (cookies && cookies.length > 0) {
-        this.state.set('TWITTER_AUTH_COOKIES', JSON.stringify(cookies));
-        this.logger.info('✅ Successfully saved authentication cookies to state.');
-      } else {
-        this.logger.warn('Could not find any cookies to save.');
-      }
-    } catch (error) {
-      this.logger.error('Failed to save authentication state:', error);
-    }
-  }
-
-  /**
-   * Handles the cookie consent dialog that may appear after login.
-   * @returns {Promise<boolean>} True if the prompt was handled, false otherwise.
-   */
-  async handleCookiePrompt() {
-    try {
-      const refuseButtonSelector = 'button:has-text("Refuse non-essential cookies")';
-      this.logger.debug('Checking for cookie consent prompt...');
-      
-      // Wait for the selector, but with a reasonable timeout.
-      await this.browser.waitForSelector(refuseButtonSelector, { timeout: 7000 });
-      
-      this.logger.info('Cookie consent prompt detected. Clicking "Refuse non-essential cookies".');
-      await this.browser.click(refuseButtonSelector);
-      this.logger.info('✅ Successfully clicked "Refuse non-essential cookies".');
-      
-      // Wait a moment for the banner to disappear
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return true;
-    } catch (error) {
-      // This is expected if the prompt doesn't appear.
-      this.logger.debug('Cookie consent prompt not found.');
-      return false;
-    }
-  }
-
-  /**
-   * Click the "Next" button during login
-   * @returns {Promise<boolean>} True if clicked
-   */
-  async clickNextButton() {
-    const selectors = [
-      'div[role="button"]:has-text("Next")',
-      'button:has-text("Next")',
-      '[data-testid="LoginForm_Login_Button"]',
-    ];
-    for (const selector of selectors) {
-      try {
-        await this.browser.waitForSelector(selector, { timeout: 5000 });
-        await this.browser.click(selector);
-        this.logger.info(`Clicked "Next" button with selector: ${selector}`);
-        return true;
-      } catch (err) {
-        this.logger.debug(`"Next" button selector failed: ${selector}`);
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Click the "Log in" button during login
-   * @returns {Promise<boolean>} True if clicked
-   */
-  async clickLoginButton() {
-    const selectors = [
-      'div[role="button"]:has-text("Log in")',
-      'button:has-text("Log in")',
-      '[data-testid="LoginForm_Login_Button"]',
-    ];
-    for (const selector of selectors) {
-      try {
-        await this.browser.waitForSelector(selector, { timeout: 5000 });
-        await this.browser.click(selector);
-        this.logger.info(`Clicked "Log in" button with selector: ${selector}`);
-        return true;
-      } catch (err) {
-        this.logger.debug(`"Log in" button selector failed: ${selector}`);
-      }
-    }
-    return false;
-  }
   
   /**
    * Start polling for new content
@@ -1020,57 +803,18 @@ export class ScraperApplication {
   async verifyAuthentication() {
     try {
       this.logger.debug('Verifying X authentication status...');
-      await this.browser.goto('https://x.com/home');
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for page to load
-
-      const isLoggedIn = await this.browser.evaluate(() => {
-        const loggedInSelectors = [
-          '[data-testid="AppTabBar_Home_Link"]',    // Home button in the main app bar
-          '[data-testid="SideNav_AccountSwitcher_Button"]', // Account switcher button in the side nav
-          'a[href="/home"][role="link"]',           // Link to the home timeline
-          'div[aria-label="Timeline: Your Home Timeline"]', // The home timeline itself
-          'main[role="main"]',                        // The main content area
-          'div[data-testid="primaryColumn"]',          // The primary column containing the timeline
-          'a[data-testid="AppTabBar_Profile_Link"]' // The profile link in the app tab bar
-        ];
-        const foundSelector = loggedInSelectors.find(selector => document.querySelector(selector));
-        return !!foundSelector;
-      });
-
-      this.logger.debug(`isLoggedIn check result: ${isLoggedIn}`);
-
-      if (isLoggedIn) {
+      const isAuthenticated = await this.authManager.isAuthenticated();
+      if (isAuthenticated) {
         this.logger.debug('✅ Authentication verified successfully');
         return;
       }
 
-      // If not logged in, check for logged-out indicators to be sure
-      const isLoggedOut = await this.browser.evaluate(() => {
-        const loggedOutSelectors = [
-          'a[href="/i/flow/login"]',                // Login button in the logged-out view
-          'a[data-testid="loginButton"]',             // Another potential login button
-          'div[role="dialog"]',                       // The login dialog itself
-          'input[name="text"]',                     // Username input on the login page
-          '[data-testid="LoginForm_Login_Button"]', // The main login button in the form
-          'body[style*="overflow: hidden"]'          // The body style is often changed for login dialogs
-        ];
-        const foundSelector = loggedOutSelectors.find(selector => document.querySelector(selector));
-        return !!foundSelector;
-      });
-
-      this.logger.debug(`isLoggedOut check result: ${isLoggedOut}`);
-
-      if (isLoggedOut) {
-        this.logger.warn('Not authenticated - login page detected, re-authenticating...');
-        await this.loginToX();
-      } else {
-        this.logger.warn('Authentication status unclear, forcing re-authentication...');
-        await this.loginToX();
-      }
+      this.logger.warn('Authentication check failed, re-authenticating...');
+      await this.ensureAuthenticated();
     } catch (error) {
-      this.logger.error('Authentication verification failed:', error.message);
-      this.logger.info('Attempting to re-login after verification failure...');
-      await this.loginToX();
+      this.logger.error('Authentication verification failed:', error);
+      this.logger.info('Attempting to re-authenticate after verification failure...');
+      await this.ensureAuthenticated();
     }
   }
 
@@ -1162,7 +906,12 @@ export class ScraperApplication {
    * @returns {Promise<void>}
    */
   async ensureAuthenticated() {
-    await this.loginToX();
+    try {
+      await this.authManager.ensureAuthenticated();
+    } catch (error) {
+      this.logger.error('Authentication failed:', error);
+      throw error;
+    }
   }
 
   /**

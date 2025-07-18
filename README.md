@@ -47,9 +47,10 @@ The bot follows clean architecture principles with clear separation of concerns 
 ```
 src/
 ├── 🎯 application/           # Application layer
+│   ├── auth-manager.js      # Authentication & session management
 │   ├── bot-application.js     # Main bot orchestration
 │   ├── monitor-application.js # YouTube monitoring app
-│   └── scraper-application.js # X/Twitter scraping app
+│   └── scraper-application.js # X/Twitter scraping coordination
 ├── 💼 core/                  # Business logic layer
 │   ├── command-processor.js   # Discord command handling
 │   ├── content-announcer.js   # Content posting logic
@@ -73,7 +74,7 @@ src/
 ```
 
 ### Key Architectural Benefits
-- **🧪 Testability:** 74.72% code coverage with isolated, mockable components
+- **🧪 Testability:** ~70% source code coverage with isolated, mockable components
 - **🔧 Maintainability:** Clear separation of concerns and single responsibility
 - **🚀 Extensibility:** Easy to add new content sources or announcement targets
 - **🛡️ Reliability:** Robust error handling and fallback mechanisms
@@ -369,7 +370,7 @@ sudo systemctl start discord-bot.service
 
 ### 🐦 X (Twitter) Monitoring (Scraping)
 1. **🔄 Polling:** Periodic scraping of user's profile
-2. **🔐 Authentication:** Automated cookie management with Playwright
+2. **🔐 Authentication:** Persistent session management via `AuthManager`, with automated cookie handling and login fallback
 3. **🏁 Startup Scanning:** Bot scans Discord channel history for previously announced tweets (all channels)
 4. **📝 Filtering:** Check against known tweet IDs and timestamps
 5. **📢 Categorization:** Sort by post type (original, reply, quote, retweet)
@@ -385,7 +386,7 @@ sudo systemctl start discord-bot.service
 
 ## 🧪 Testing Infrastructure
 
-The bot includes a bulletproof testing infrastructure with **~70% source code coverage** and **400+ comprehensive tests**:
+The bot includes a bulletproof testing infrastructure with **~70% source code coverage** and **350+ comprehensive tests**:
 
 ### 🧪 Testing Framework
 - **Comprehensive Test Suite:** Multi-tier testing with Unit, Integration, E2E, Performance, and Security tests
@@ -396,15 +397,13 @@ The bot includes a bulletproof testing infrastructure with **~70% source code co
 
 ### 🎯 Test Types & Coverage
 
-| Test Type | Count | Purpose | Current Coverage |
-|-----------|-------|---------|------------------|
-| Test Type | Count | Purpose | Current Coverage |
-|-----------|-------|---------|------------------|
-| **Unit** | 220+ | Component testing with mocking | Individual functions and modules |
-| **Integration** | 80+ | Service interaction testing | API endpoints, service integration |
-| **E2E** | 35+ | Full workflow testing | Complete user scenarios |
-| **Performance** | 15+ | Load and response testing | Resource usage, timing metrics |
-| **Security** | 10+ | Vulnerability scanning | Input validation, auth testing |
+| Test Type | Count | Purpose |
+|-----------|-------|---------|
+| **Unit** | 220+ | Component testing with mocking |
+| **Integration** | 80+ | Service interaction testing |
+| **E2E** | 35+ | Full workflow testing |
+| **Performance** | 15+ | Load and response testing |
+| **Security** | 10+ | Vulnerability scanning |
 
 ### 📊 Coverage Breakdown
 - **Source Code Coverage:** ~70% (excellent implementation coverage) ✅

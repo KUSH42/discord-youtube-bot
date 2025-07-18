@@ -72,7 +72,8 @@ This is a Discord bot that monitors YouTube channels and X (Twitter) profiles fo
 - Content filtering (only new content after bot startup)
 
 **X Scraper (`x-scraper.js`):**
-- Automated login and cookie management
+- Coordinates scraping tasks
+- Relies on `AuthManager` for session handling
 - Advanced search scraping with categorization (posts, replies, quotes, retweets)
 - Content deduplication and timestamp filtering
 - Configurable polling intervals with jitter
@@ -115,7 +116,7 @@ All commands use the configured prefix (default `!`) and must be sent in the sup
 ### Development Notes
 
 - The bot requires a publicly accessible webhook URL for PubSubHubbub
-- X scraping requires valid authentication cookies (auto-refreshed)
+- X scraping requires valid authentication, which is handled by the `AuthManager`
 - Uses Xvfb for headless browser operations in production
 - Implements proper error handling and graceful degradation
 - All state is reset on soft restart, not just bot restart
