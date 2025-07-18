@@ -227,6 +227,7 @@ PSH_VERIFY_TOKEN=your_optional_verify_token
 # X (Twitter) Configuration
 X_USER_HANDLE=target_x_username
 TWITTER_USERNAME=your_twitter_username
+TWITTER_EMAIL=your_twitter_email
 TWITTER_PASSWORD=your_twitter_password
 X_QUERY_INTERVALL_MIN=300000
 X_QUERY_INTERVALL_MAX=600000
