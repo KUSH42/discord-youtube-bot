@@ -276,7 +276,10 @@ export class BotApplication {
               timestamp: new Date().toISOString()
           }
       };
+      
+      this.logger.info(`Processing command: "${command}" from user ${user.tag}`);
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
+      this.logger.info(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`);
       
       // Handle command result
       await this.handleCommandResult(message, result, command, user);
