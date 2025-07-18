@@ -607,8 +607,8 @@ jobs:
             echo "Merging the following coverage files:"
             printf '%s\n' "${COVERAGE_FILES[@]}"
             
-            # Use correct lcov-result-merger syntax with --output parameter
-            lcov-result-merger "${COVERAGE_FILES[@]}" --output coverage/merged/lcov.info
+            # Use correct lcov-result-merger syntax
+            lcov-result-merger --debug "${COVERAGE_FILES[@]}" coverage/merged/lcov.info
             
             if [ -f coverage/merged/lcov.info ]; then
               echo "Successfully merged coverage reports"
