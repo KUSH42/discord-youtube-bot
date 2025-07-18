@@ -624,7 +624,7 @@ jobs:
               echo "Successfully merged coverage reports"
               
               # Generate summary from merged coverage
-              npx nyc report --reporter=json-summary --report-dir=coverage/merged --temp-dir=coverage/merged > coverage-summary.json
+              npx nyc report --reporter=json-summary --temp-dir=.nyc_output > coverage-summary.json
               
               # Set outputs for subsequent steps
               LINES_PCT=$(jq -r '.total.lines.pct // 0' coverage-summary.json)
