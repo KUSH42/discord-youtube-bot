@@ -26,6 +26,9 @@ describe('X Scraper Entry Point', () => {
       PSH_SECRET: 'test-secret',
       DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345680',
       DISCORD_X_POSTS_CHANNEL_ID: '123456789012345681',
+      DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345682',
+      DISCORD_X_QUOTES_CHANNEL_ID: '123456789012345683',
+      DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345684',
     };
 
     const { main: mainFunc } = await import('../../x-scraper.js');
