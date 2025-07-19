@@ -290,7 +290,7 @@ jobs:
         run: |
           # Try to pull the latest image to use as fallback
           LATEST_TAG="ghcr.io/${{ steps.string.outputs.repo_lc }}:${{ github.ref_name }}-${{ github.sha }}"
-          FALLBACK_TAG="ghcr.io/${{ steps.string.outputs.repo_lc }}:latest"
+          FALLBACK_TAG="ghcr.io/${{ steps.string.outputs.repo_lc }}"
           
           # Check if the exact SHA-based image exists
           if docker manifest inspect "$LATEST_TAG" >/dev/null 2>&1; then
