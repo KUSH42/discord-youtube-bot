@@ -108,9 +108,6 @@ jobs:
     needs: pre-flight
     if: needs.pre-flight.outputs.should-run-tests == 'true'
     steps:
-      - name: Set user to root
-        run: docker exec -u root ${{ github.job }} whoami
-
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
