@@ -39,7 +39,9 @@ describe('YouTube Monitor Entry Point', () => {
   });
 
   it('should initialize and start the monitor application', async () => {
+    const startSpy = jest.spyOn(MonitorApplication.prototype, 'start').mockResolvedValue();
     await main();
-    expect(MonitorApplication.prototype.start).toHaveBeenCalledTimes(1);
+    expect(startSpy).toHaveBeenCalledTimes(1);
+    startSpy.mockRestore();
   });
 });

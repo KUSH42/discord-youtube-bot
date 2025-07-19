@@ -88,13 +88,16 @@ export class EventBus {
       throw new Error('Event name must be a string');
     }
 
-    const eventHandlers = this.handlers.get(event);
-    if (!eventHandlers || eventHandlers.length === 0) {
+    const eventHandlers = this.handlers.get(event) || [];
+    const wildcardHandlers = this.handlers.get('*') || [];
+    const allHandlers = [...eventHandlers, ...wildcardHandlers];
+
+    if (allHandlers.length === 0) {
       return [];
     }
 
     // Create a copy to avoid issues if handlers modify the array
-    const handlers = [...eventHandlers];
+    const handlers = [...allHandlers];
     const results = [];
     const errors = [];
 
@@ -112,12 +115,12 @@ export class EventBus {
     await Promise.all(promises);
 
     // If there were errors, emit an error event
-    if (errors.some((error) => error)) {
+    if (errors.some(error => error)) {
       setImmediate(() => {
         this.emit('error', {
           event,
           data,
-          errors: errors.filter((error) => error),
+          errors: errors.filter(error => error),
         });
       });
     }
@@ -136,13 +139,16 @@ export class EventBus {
       throw new Error('Event name must be a string');
     }
 
-    const eventHandlers = this.handlers.get(event);
-    if (!eventHandlers || eventHandlers.length === 0) {
+    const eventHandlers = this.handlers.get(event) || [];
+    const wildcardHandlers = this.handlers.get('*') || [];
+    const allHandlers = [...eventHandlers, ...wildcardHandlers];
+
+    if (allHandlers.length === 0) {
       return [];
     }
 
     // Create a copy to avoid issues if handlers modify the array
-    const handlers = [...eventHandlers];
+    const handlers = [...allHandlers];
     const results = [];
 
     for (let i = 0; i < handlers.length; i++) {
@@ -228,7 +234,7 @@ export class EventBus {
     return new Promise((resolve, reject) => {
       let timeoutId;
 
-      const handler = (data) => {
+      const handler = data => {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
@@ -257,7 +263,7 @@ export class EventBus {
       eventCount: events.length,
       totalHandlers,
       maxListeners: this.maxListeners,
-      events: events.map((event) => ({
+      events: events.map(event => ({
         name: event,
         handlerCount: this.getHandlerCount(event),
       })),

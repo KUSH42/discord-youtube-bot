@@ -1,6 +1,12 @@
 import { jest } from '@jest/globals';
 import { StateManager } from '../../src/infrastructure/state-manager.js';
 
+const flushPromises = async () => {
+  await Promise.resolve();
+  // Also wait for setImmediate callbacks
+  await new Promise(resolve => setImmediate(resolve));
+};
+
 describe('StateManager', () => {
   let stateManager;
   let mockCallback1;
@@ -88,31 +94,23 @@ describe('StateManager', () => {
       expect(validator).toHaveBeenCalledWith('validString', undefined);
     });
 
-    it('should not notify subscribers when value unchanged', () => {
+    it('should not notify subscribers when value unchanged', async () => {
       stateManager.subscribe('testKey', mockCallback1);
       stateManager.set('testKey', 'value');
       stateManager.set('testKey', 'value'); // Same value
 
       // Wait for async callbacks
-      return new Promise(resolve =>
-        setImmediate(() => {
-          expect(mockCallback1).toHaveBeenCalledTimes(1);
-          resolve();
-        })
-      );
+      await flushPromises();
+      expect(mockCallback1).toHaveBeenCalledTimes(1);
     });
 
-    it('should notify subscribers when value changes', () => {
+    it('should notify subscribers when value changes', async () => {
       stateManager.set('testKey', 'oldValue');
       stateManager.subscribe('testKey', mockCallback1);
       stateManager.set('testKey', 'newValue');
 
-      return new Promise(resolve =>
-        setImmediate(() => {
-          expect(mockCallback1).toHaveBeenCalledWith('newValue', 'oldValue', 'testKey');
-          resolve();
-        })
-      );
+      await flushPromises();
+      expect(mockCallback1).toHaveBeenCalledWith('newValue', 'oldValue', 'testKey');
     });
   });
 
@@ -212,16 +210,12 @@ describe('StateManager', () => {
       expect(() => stateManager.delete('initialKey')).toThrow('StateManager is locked and cannot be modified');
     });
 
-    it('should notify subscribers when key is deleted', () => {
+    it('should notify subscribers when key is deleted', async () => {
       stateManager.subscribe('initialKey', mockCallback1);
       stateManager.delete('initialKey');
 
-      return new Promise(resolve =>
-        setImmediate(() => {
-          expect(mockCallback1).toHaveBeenCalledWith(undefined, 'initialValue', 'initialKey');
-          resolve();
-        })
-      );
+      await flushPromises();
+      expect(mockCallback1).toHaveBeenCalledWith(undefined, 'initialValue', 'initialKey');
     });
   });
 
@@ -252,19 +246,20 @@ describe('StateManager', () => {
       expect(subscribers).toContain(mockCallback2);
     });
 
-    it('should return working unsubscribe function', () => {
+    it('should return working unsubscribe function', async () => {
       const unsubscribe = stateManager.subscribe('testKey', mockCallback1);
       stateManager.set('testKey', 'value1');
+      await flushPromises();
+
+      // Verify first call happened
+      expect(mockCallback1).toHaveBeenCalledTimes(1);
 
       unsubscribe();
       stateManager.set('testKey', 'value2');
+      await flushPromises();
 
-      return new Promise(resolve =>
-        setImmediate(() => {
-          expect(mockCallback1).toHaveBeenCalledTimes(1);
-          resolve();
-        })
-      );
+      // Should still be 1 (no new calls after unsubscribe)
+      expect(mockCallback1).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -553,7 +548,7 @@ describe('StateManager', () => {
       expect(validator).toHaveBeenCalledWith('value1', 'value1');
     });
 
-    it('should handle rapid state changes', () => {
+    it('should handle rapid state changes', async () => {
       let changeCount = 0;
       const callback = jest.fn(() => changeCount++);
 
@@ -563,15 +558,12 @@ describe('StateManager', () => {
         stateManager.set('rapidKey', `value-${i}`);
       }
 
-      return new Promise(resolve =>
-        setImmediate(() => {
-          expect(callback).toHaveBeenCalledTimes(100);
-          resolve();
-        })
-      );
+      await flushPromises();
+      await flushPromises();
+      expect(callback).toHaveBeenCalledTimes(100);
     });
 
-    it('should handle callbacks that unsubscribe themselves', () => {
+    it('should handle callbacks that unsubscribe themselves', async () => {
       let unsubscribe;
       const selfUnsubscribingCallback = jest.fn(() => {
         unsubscribe();
@@ -583,13 +575,11 @@ describe('StateManager', () => {
       stateManager.set('testKey', 'value1');
       stateManager.set('testKey', 'value2');
 
-      return new Promise(resolve =>
-        setImmediate(() => {
-          expect(selfUnsubscribingCallback).toHaveBeenCalledTimes(1);
-          expect(mockCallback1).toHaveBeenCalledTimes(2);
-          resolve();
-        })
-      );
+      // Wait for async callbacks to execute
+      await flushPromises();
+
+      expect(selfUnsubscribingCallback).toHaveBeenCalledTimes(1);
+      expect(mockCallback1).toHaveBeenCalledTimes(2);
     });
   });
 });

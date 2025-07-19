@@ -339,6 +339,9 @@ describe('EventBus', () => {
       // This should not be forwarded
       await eventBus.emit('blocked-event', 'data2');
 
+      // Wait for the next event loop to ensure the event has been processed
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(filteredHandler).toHaveBeenCalledTimes(1);
       expect(filteredHandler).toHaveBeenCalledWith('data1', 'allowed-event');
     });

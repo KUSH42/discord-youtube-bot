@@ -311,10 +311,13 @@ export class StateManager {
     // Execute callbacks asynchronously to avoid blocking
     setImmediate(() => {
       for (const callback of callbacksCopy) {
-        try {
-          callback(newValue, oldValue, key);
-        } catch (error) {
-          console.error(`StateManager: Subscriber error for key '${key}':`, error);
+        // Check if the callback is still subscribed before invoking
+        if (this.subscribers.has(key) && this.subscribers.get(key).includes(callback)) {
+          try {
+            callback(newValue, oldValue, key);
+          } catch (error) {
+            console.error(`StateManager: Subscriber error for key '${key}':`, error);
+          }
         }
       }
     });

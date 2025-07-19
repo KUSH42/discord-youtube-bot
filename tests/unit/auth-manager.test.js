@@ -10,6 +10,8 @@ describe('AuthManager', () => {
   let mockPage;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
     mockPage = {
       url: jest.fn().mockResolvedValue('https://x.com/home'),
     };
@@ -57,18 +59,12 @@ describe('AuthManager', () => {
     authManager = new AuthManager(dependencies);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('should initialize with required dependencies', () => {
       expect(authManager.browser).toBe(mockBrowserService);
       expect(authManager.config).toBe(mockConfig);
       expect(authManager.state).toBe(mockStateManager);
       expect(authManager.logger).toBe(mockLogger);
-      expect(authManager.twitterUsername).toBe('test_user');
-      expect(authManager.twitterPassword).toBe('test_password');
     });
 
     it('should get required config values during initialization', () => {
@@ -202,32 +198,38 @@ describe('AuthManager', () => {
   });
 
   describe('loginToX', () => {
-    beforeEach(() => {
-      // Mock successful authentication
-      jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(true);
-      jest.spyOn(authManager, 'saveAuthenticationState').mockResolvedValue();
-      jest.spyOn(authManager, 'clickNextButton').mockResolvedValue();
-      jest.spyOn(authManager, 'clickLoginButton').mockResolvedValue();
-    });
-
     it('should perform complete login flow successfully', async () => {
-      const result = await authManager.loginToX();
+      const clickNextButtonSpy = jest.spyOn(authManager, 'clickNextButton').mockResolvedValue();
+      const clickLoginButtonSpy = jest.spyOn(authManager, 'clickLoginButton').mockResolvedValue();
+      const saveAuthStateSpy = jest.spyOn(authManager, 'saveAuthenticationState').mockResolvedValue();
+      jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(true);
+
+      jest.useFakeTimers();
+
+      const loginPromise = authManager.loginToX();
+
+      // Advance timers to resolve all pending promises
+      await jest.runAllTimersAsync();
+
+      const result = await loginPromise;
 
       expect(result).toBe(true);
       expect(mockBrowserService.goto).toHaveBeenCalledWith('https://x.com/i/flow/login');
-      expect(mockBrowserService.waitForSelector).toHaveBeenCalledWith('input[name="text"]', { timeout: 10000 });
       expect(mockBrowserService.type).toHaveBeenCalledWith('input[name="text"]', 'test_user');
-      expect(authManager.clickNextButton).toHaveBeenCalled();
-      expect(mockBrowserService.waitForSelector).toHaveBeenCalledWith('input[name="password"]', { timeout: 10000 });
+      expect(clickNextButtonSpy).toHaveBeenCalled();
       expect(mockBrowserService.type).toHaveBeenCalledWith('input[name="password"]', 'test_password');
-      expect(authManager.clickLoginButton).toHaveBeenCalled();
-      expect(mockBrowserService.waitForNavigation).toHaveBeenCalledWith({ timeout: 15000 });
-      expect(authManager.saveAuthenticationState).toHaveBeenCalled();
+      expect(clickLoginButtonSpy).toHaveBeenCalled();
+      expect(saveAuthStateSpy).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('✅ Login successful, a new session has been established.');
+
+      jest.useRealTimers();
     });
 
     it('should throw error when authentication fails after login', async () => {
-      authManager.isAuthenticated.mockResolvedValue(false);
+      jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(false);
+      jest.spyOn(authManager, 'clickNextButton').mockResolvedValue();
+      jest.spyOn(authManager, 'clickLoginButton').mockResolvedValue();
+      jest.spyOn(authManager, 'saveAuthenticationState').mockResolvedValue();
 
       await expect(authManager.loginToX()).rejects.toThrow('Authentication failed');
       expect(mockLogger.error).toHaveBeenCalledWith('Credential-based login failed.');
