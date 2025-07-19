@@ -333,14 +333,12 @@ jobs:
       - name: Set final image tag
         id: final-image
         run: |
-          if [[ "${{ steps.docker-changes.outputs.docker_changed }}" == "true" ]]; then
-            # Use newly built image
-            echo "image_tag=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ steps.existing-image.outputs.force_rebuild }}" == "true" ]]; then
-            # Use force-rebuilt image
-            echo "image_tag=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
+          if [[ "${{ steps.docker-changes.outputs.docker_changed }}" == "true" ]] || [[ "${{ steps.existing-image.outputs.force_rebuild }}" == "true" ]]; then
+            # Use newly built or force-rebuilt image. Format the first tag as a JSON array string.
+            FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+            echo "image_tag=[\"${FIRST_TAG}\"]" >> $GITHUB_OUTPUT
           else
-            # Use existing cached image
+            # Use existing cached image. It is already formatted as a JSON array string.
             echo "image_tag=${{ steps.existing-image.outputs.image_tag }}" >> $GITHUB_OUTPUT
           fi
 
