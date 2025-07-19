@@ -16,7 +16,7 @@
     "test:unit": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/unit",
     "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/integration",
     "test:e2e": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.e2e.config.js",
-    "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest tests/performance",
+    "test:performance": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.performance.config.js",
     "test:security": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --config jest.security.config.js",
     "test:parallel": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --maxWorkers=50%",
     "test:changed": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --onlyChanged",
