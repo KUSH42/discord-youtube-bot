@@ -1,4 +1,5 @@
-// This file runs before all your tests, thanks to the setupFiles config.
-// It configures dotenvx to use your specific test environment file.
+// This script runs before your tests, loading the correct environment file.
+// Note: I'm putting this in a `scripts` directory for organization.
 
-require('dotenvx').config({ path: 'tests/test.env' });
+const dotenvx = require('@dotenvx/dotenvx');
+dotenvx.config({ path: './tests/test.env' });
