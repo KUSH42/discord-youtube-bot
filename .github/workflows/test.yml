@@ -145,6 +145,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     needs: [pre-flight, lint]
@@ -338,6 +339,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     #container:
     #  image: ${{ needs.build-and-push-docker.outputs.image_tag }}
     env:
@@ -390,6 +392,7 @@ jobs:
           EOF
 
       - name: Run integration tests
+        timeout-minutes: 15
         env:
           NODE_ENV: test
         run: |
@@ -398,7 +401,9 @@ jobs:
           set -o pipefail
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=2048" \
           npm run test:integration -- \
-            --testTimeout=${{ vars.TEST_TIMEOUT || '30000' }} 2>&1 | tee coverage/integration/test-output.log
+            --testTimeout=${{ vars.TEST_TIMEOUT || '30000' }} \
+            --forceExit \
+            --detectOpenHandles 2>&1 | tee coverage/integration/test-output.log
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -423,6 +428,7 @@ jobs:
   e2e-tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [pre-flight, lint]
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'e2e')
     steps:
@@ -493,6 +499,7 @@ jobs:
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     needs: [pre-flight, lint]
@@ -591,6 +598,7 @@ jobs:
   security-tests:
     name: Security Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [pre-flight, lint]
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'security')
     steps:
@@ -671,6 +679,7 @@ jobs:
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     needs: [unit-tests, integration-tests, e2e-tests, performance-tests, security-tests]

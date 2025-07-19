@@ -79,6 +79,8 @@ export default {
   // Test execution
   verbose: true,
   bail: false,
+  forceExit: true,
+  detectOpenHandles: true,
 
   // Clear mocks between tests
   clearMocks: true,
