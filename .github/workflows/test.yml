@@ -72,7 +72,7 @@ jobs:
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             # For push events, check if this commit is part of an open PR
             set +e  # Don't exit on command failure
-            PR_COUNT=$(gh pr list --state open --json number,headRefName,headRefOid --jq '.[] | select(.headRefOid == "${{ github.sha }}") | .number' | wc -l)
+            PR_COUNT=$(gh pr list --state open --json number,headRefName,headRefOid --jq ".[] | select(.headRefOid == \"${{ github.sha }}\") | .number" | wc -l)
             gh_exit_code=$?
             set -e
             
@@ -219,36 +219,135 @@ jobs:
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'integration')
     outputs:
       image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}
+      image_tag: ${{ steps.final-image.outputs.image_tag }}
+      image_digest: ${{ steps.build.outputs.digest || steps.force-build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set repo to lowercase
         id: string
         run: echo "repo_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
+      - name: Check if Docker build is needed
+        id: docker-changes
+        run: |
+          # For PRs and first push, always build
+          if [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            echo "docker_changed=true" >> $GITHUB_OUTPUT
+            echo "Building Docker image for PR or initial push"
+            exit 0
+          fi
+          
+          # Check if Docker-related files changed since last commit
+          if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -E '^(Dockerfile|\.dockerignore|package\.json|package-lock\.json|src/|tests/)$'; then
+            echo "docker_changed=true" >> $GITHUB_OUTPUT
+            echo "Docker-related files changed, will build new image"
+          else
+            echo "docker_changed=false" >> $GITHUB_OUTPUT
+            echo "No Docker-related changes detected, will try to use cached image"
+          fi
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.string.outputs.repo_lc }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=Discord YouTube Bot
+            org.opencontainers.image.description=Integration test environment
+            org.opencontainers.image.vendor=discord-youtube-bot
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+
       - name: Log in to GitHub Container Registry
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: docker/login-action@v3
         with:
-          password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
           username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Docker image
+        id: build
+        if: steps.docker-changes.outputs.docker_changed == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64
+          target: test-runner
           push: true
-          tags: ghcr.io/${{ steps.string.outputs.repo_lc }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Use existing image if no changes
+        id: existing-image
+        if: steps.docker-changes.outputs.docker_changed == 'false'
+        run: |
+          # Try to pull the latest image to use as fallback
+          LATEST_TAG="ghcr.io/${{ steps.string.outputs.repo_lc }}:${{ github.ref_name }}-${{ github.sha }}"
+          FALLBACK_TAG="ghcr.io/${{ steps.string.outputs.repo_lc }}:latest"
+          
+          # Check if the exact SHA-based image exists
+          if docker manifest inspect "$LATEST_TAG" >/dev/null 2>&1; then
+            echo "Using existing image: $LATEST_TAG"
+            echo "image_tag=[\"$LATEST_TAG\"]" >> $GITHUB_OUTPUT
+          elif docker manifest inspect "$FALLBACK_TAG" >/dev/null 2>&1; then
+            echo "Using fallback image: $FALLBACK_TAG"
+            echo "image_tag=[\"$FALLBACK_TAG\"]" >> $GITHUB_OUTPUT
+          else
+            echo "No existing image found, forcing rebuild"
+            echo "force_rebuild=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Force rebuild if no cached image available
+        id: force-build
+        if: steps.docker-changes.outputs.docker_changed == 'false' && steps.existing-image.outputs.force_rebuild == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          target: test-runner
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Set final image tag
+        id: final-image
+        run: |
+          if [[ "${{ steps.docker-changes.outputs.docker_changed }}" == "true" ]]; then
+            # Use newly built image
+            echo "image_tag=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ steps.existing-image.outputs.force_rebuild }}" == "true" ]]; then
+            # Use force-rebuilt image
+            echo "image_tag=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
+          else
+            # Use existing cached image
+            echo "image_tag=${{ steps.existing-image.outputs.image_tag }}" >> $GITHUB_OUTPUT
+          fi
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-and-push-docker.outputs.image_name }}:latest
+      image: ${{ fromJSON(needs.build-and-push-docker.outputs.image_tag)[0] }}
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

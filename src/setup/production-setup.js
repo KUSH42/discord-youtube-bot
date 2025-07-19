@@ -96,7 +96,7 @@ async function setupExternalServices(container, config) {
   });
 
   // YouTube API Service
-  container.registerSingleton('youtubeService', (c) => {
+  container.registerSingleton('youtubeService', c => {
     const youtube = google.youtube({
       version: 'v3',
       auth: config.getRequired('YOUTUBE_API_KEY'),
@@ -141,7 +141,7 @@ async function setupExternalServices(container, config) {
  */
 async function setupCoreServices(container, config) {
   // Command Processor
-  container.registerSingleton('commandProcessor', (c) => {
+  container.registerSingleton('commandProcessor', c => {
     return new CommandProcessor(c.resolve('config'), c.resolve('stateManager'));
   });
 
@@ -151,7 +151,7 @@ async function setupCoreServices(container, config) {
   });
 
   // Content Announcer
-  container.registerSingleton('contentAnnouncer', (c) => {
+  container.registerSingleton('contentAnnouncer', c => {
     return new ContentAnnouncer(c.resolve('discordService'), c.resolve('config'), c.resolve('stateManager'));
   });
 }
@@ -161,7 +161,7 @@ async function setupCoreServices(container, config) {
  */
 async function setupApplicationServices(container, config) {
   // Bot Application
-  container.registerSingleton('botApplication', (c) => {
+  container.registerSingleton('botApplication', c => {
     const botApp = new BotApplication({
       exec,
       discordService: c.resolve('discordService'),
@@ -180,7 +180,7 @@ async function setupApplicationServices(container, config) {
   });
 
   // Auth Manager
-  container.registerSingleton('authManager', (c) => {
+  container.registerSingleton('authManager', c => {
     return new AuthManager({
       browserService: c.resolve('browserService'),
       config: c.resolve('config'),
@@ -190,7 +190,7 @@ async function setupApplicationServices(container, config) {
   });
 
   // Scraper Application (X/Twitter monitoring)
-  container.registerSingleton('scraperApplication', (c) => {
+  container.registerSingleton('scraperApplication', c => {
     return new ScraperApplication({
       browserService: c.resolve('browserService'),
       contentClassifier: c.resolve('contentClassifier'),
@@ -205,7 +205,7 @@ async function setupApplicationServices(container, config) {
   });
 
   // Monitor Application (YouTube monitoring)
-  container.registerSingleton('monitorApplication', (c) => {
+  container.registerSingleton('monitorApplication', c => {
     return new MonitorApplication({
       youtubeService: c.resolve('youtubeService'),
       httpService: c.resolve('httpService'),
@@ -223,7 +223,7 @@ async function setupApplicationServices(container, config) {
  * Set up logging infrastructure
  */
 async function setupLogging(container, config) {
-  container.registerSingleton('logger', (c) => {
+  container.registerSingleton('logger', c => {
     const logLevel = config.get('LOG_LEVEL', 'info');
     const logFilePath = config.get('LOG_FILE_PATH', 'bot.log');
 
@@ -258,7 +258,7 @@ async function setupLogging(container, config) {
           channelId: supportChannelId,
           flushInterval: 2000,
           maxBufferSize: 20,
-        }),
+        })
       );
     }
 
@@ -281,12 +281,37 @@ export function setupWebhookEndpoints(app, container) {
 
   // YouTube PubSubHubbub webhook
   app.all('/youtube-webhook', async (req, res) => {
+    const requestStart = Date.now();
+    const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
     try {
+      // Log incoming webhook request details
+      logger.info('[WEBHOOK-ENDPOINT] Incoming request', {
+        requestId,
+        method: req.method,
+        url: req.url,
+        userAgent: req.headers['user-agent'],
+        contentType: req.headers['content-type'],
+        contentLength: req.headers['content-length'],
+        remoteAddress: req.ip || req.connection.remoteAddress,
+        forwardedFor: req.headers['x-forwarded-for'],
+        hasSignature: !!req.headers['x-hub-signature'],
+      });
+
       const result = await monitorApplication.handleWebhook({
         method: req.method,
         headers: req.headers,
         query: req.query,
         body: req.body,
+      });
+
+      const processingTime = Date.now() - requestStart;
+
+      logger.info('[WEBHOOK-ENDPOINT] Request processed', {
+        requestId,
+        status: result.status,
+        processingTime,
+        responseMessage: result.message,
       });
 
       res.status(result.status);
@@ -296,7 +321,17 @@ export function setupWebhookEndpoints(app, container) {
         res.send(result.message || 'OK');
       }
     } catch (error) {
-      logger.error('Webhook error:', error);
+      const processingTime = Date.now() - requestStart;
+
+      logger.error('[WEBHOOK-ENDPOINT] Webhook error:', {
+        requestId,
+        error: error.message,
+        stack: error.stack,
+        processingTime,
+        method: req.method,
+        url: req.url,
+      });
+
       res.status(500).send('Internal Server Error');
     }
   });
@@ -348,7 +383,7 @@ export function setupWebhookEndpoints(app, container) {
  * @returns {Function} Shutdown function
  */
 export function createShutdownHandler(container) {
-  return async (signal) => {
+  return async signal => {
     const logger = container.resolve('logger');
     logger.info(`Received ${signal}, starting graceful shutdown...`);
 
