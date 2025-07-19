@@ -99,7 +99,7 @@ function printUsage() {
   log('');
   log('Examples:', 'green');
   log('  node tests/test-runner.js unit');
-  log('  node tests/test-runner.js watch --testPathPatterns="command-processor"');
+  log('  node tests/test-runner.js watch command-processor');
   log('  node tests/test-runner.js coverage --verbose');
   log('  node tests/test-runner.js dev --bail');
   log('');

@@ -333,7 +333,7 @@ it('should handle delayed operations', async () => {
   ```
 - **Specific Test Files:**
   ```shell
-  npm run test:file -- --testPathPatterns="command-processor"
+  npm run test:file -- command-processor
   ```
 - **Debug Mode (with breakpoints):**
   ```shell
@@ -343,7 +343,7 @@ it('should handle delayed operations', async () => {
   ```shell
   npm run test:runner unit
   npm run test:runner coverage --verbose
-  npm run test:runner watch --testPathPatterns="fallback"
+  npm run test:runner watch fallback
   ```
 
 ### 7.4. Coverage and Reporting
@@ -377,7 +377,7 @@ it('should handle delayed operations', async () => {
 - **Debugging Specific Tests:**
   ```shell
   # Run with Node.js debugger
-  npm run test:debug -- --testPathPatterns="monitor-application"
+  npm run test:debug -- monitor-application
   ```
 
 ### 7.6. Interactive Test Runner

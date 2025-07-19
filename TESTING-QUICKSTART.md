@@ -25,8 +25,8 @@ npm run test:integration   # Integration tests
 npm run test:e2e           # End-to-end tests
 
 # Test specific files/patterns
-npm run test:file -- --testPathPatterns="command-processor"
-npm run test:file -- --testPathPatterns="fallback"
+npm run test:file -- command-processor
+npm run test:file -- fallback
 ```
 
 ## 🚀 Performance & Debugging
@@ -70,13 +70,13 @@ npm run test:coverage      # Creates coverage/ directory
 npm run test:dev -- --watch
 
 # 2. Run specific test types as you work
-npm run test:unit -- --testPathPatterns="your-component"
+npm run test:unit -- your-component
 
 # 3. Before committing, run all tests
 npm test
 
 # 4. Debug if needed
-npm run test:debug -- --testPathPatterns="failing-test"
+npm run test:debug -- failing-test
 ```
 
 ## 🏗️ Test Structure
