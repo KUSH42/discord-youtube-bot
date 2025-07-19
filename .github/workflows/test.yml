@@ -70,12 +70,22 @@ jobs:
             # Always run tests on PRs
             echo "should-run=true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "push" ]]; then
-            # For push events, always run tests if relevant files changed
-            # We don't skip tests for PR commits anymore - PRs need CI validation
-            if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -E '\.(js|json|yml|yaml)$' >/dev/null 2>&1; then
-              echo "should-run=true" >> $GITHUB_OUTPUT
-            else
+            # For push events, check if this push will be covered by a PR
+            set +e  # Don't exit on command failure
+            PR_COUNT=$(gh pr list --state open --json number,headRefName,headRefOid --jq ".[] | select(.headRefOid == \"${{ github.sha }}\") | .number" | wc -l)
+            gh_exit_code=$?
+            set -e
+            
+            if [[ $gh_exit_code -eq 0 ]] && [[ "$PR_COUNT" -gt 0 ]]; then
+              echo "Commit ${{ github.sha }} is part of an open PR, will be tested via pull_request trigger"
               echo "should-run=false" >> $GITHUB_OUTPUT
+            else
+              # Check if relevant files changed for direct pushes to main branches
+              if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -E '\.(js|json|yml|yaml)$' >/dev/null 2>&1; then
+                echo "should-run=true" >> $GITHUB_OUTPUT
+              else
+                echo "should-run=false" >> $GITHUB_OUTPUT
+              fi
             fi
           else
             echo "should-run=false" >> $GITHUB_OUTPUT
