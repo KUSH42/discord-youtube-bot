@@ -175,6 +175,71 @@ These thresholds ensure code quality while being realistic and achievable.
 - **Assertion Style:** The `expect` assertion style from Jest is used (`expect(value).toBe(expected)`).
 - **Readability & Maintainability:** Tests should follow the **Arrange-Act-Assert** pattern. Each test should have a single, clear responsibility.
 
+## 5.1. Async Handling & Mock Implementation Best Practices
+
+### Async Callback Testing
+When testing code that uses `setImmediate` or other async callback mechanisms:
+
+```javascript
+// ✅ Correct: Wait for both promises and setImmediate callbacks
+const flushPromises = async () => {
+  await Promise.resolve();
+  await new Promise(resolve => setImmediate(resolve));
+};
+
+// Usage in tests
+it('should notify subscribers of state changes', async () => {
+  stateManager.subscribe('key', mockCallback);
+  stateManager.set('key', 'value');
+  
+  await flushPromises(); // Wait for async callbacks
+  expect(mockCallback).toHaveBeenCalledWith('value', undefined, 'key');
+});
+```
+
+### Proper Mock Setup
+For classes with complex constructor behavior:
+
+```javascript
+// ✅ Correct: Use jest.spyOn for methods after instantiation
+beforeEach(() => {
+  const dependencies = { /* mock dependencies */ };
+  instance = new MyClass(dependencies);
+  
+  // Spy on methods that need mocking
+  jest.spyOn(instance, 'methodName').mockResolvedValue(expectedValue);
+});
+
+// ❌ Incorrect: Don't use Class.mockImplementation in tests
+// This won't work as expected
+MyClass.mockImplementation(() => ({ /* mock */ }));
+```
+
+### Timer Handling
+When testing code with delays or timeouts:
+
+```javascript
+// ✅ Correct: Use async timer advancement
+it('should handle delayed operations', async () => {
+  jest.useFakeTimers();
+  
+  const promise = myFunction();
+  await jest.runAllTimersAsync(); // Wait for timers AND promises
+  
+  const result = await promise;
+  expect(result).toBe(expected);
+  
+  jest.useRealTimers();
+});
+```
+
+### Common Pitfalls to Avoid
+- **Don't** use duplicate `beforeEach` blocks - this causes test interference
+- **Don't** mock class constructors directly in test files
+- **Don't** forget to wait for `setImmediate` callbacks in async tests
+- **Do** use `jest.clearAllMocks()` in `beforeEach` to ensure clean test state
+- **Do** restore timers with `jest.useRealTimers()` after fake timer tests
+
 ## 6. Continuous Integration (CI) Framework
 
 - **CI/CD Platform:** [GitHub Actions](https://github.com/features/actions)

@@ -208,6 +208,53 @@ describe('CommandProcessor', () => {
 });
 ```
 
+### Async Testing & Mock Implementation Guidelines
+When working with async code and complex mocks, follow these proven patterns:
+
+**Async Callback Handling:**
+```javascript
+// For code using setImmediate (like StateManager notifications)
+const flushPromises = async () => {
+  await Promise.resolve();
+  await new Promise(resolve => setImmediate(resolve));
+};
+
+it('should handle async callbacks', async () => {
+  stateManager.subscribe('key', mockCallback);
+  stateManager.set('key', 'value');
+  
+  await flushPromises(); // Wait for async notifications
+  expect(mockCallback).toHaveBeenCalled();
+});
+```
+
+**Proper Mock Setup:**
+```javascript
+// ✅ Correct: Use spies after instantiation
+beforeEach(() => {
+  authManager = new AuthManager(dependencies);
+  jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(true);
+});
+
+// ❌ Avoid: Class.mockImplementation in tests
+// This pattern should not be used in test files
+```
+
+**Timer Testing:**
+```javascript
+// Use async timer advancement for proper Promise handling
+it('should handle delays', async () => {
+  jest.useFakeTimers();
+  const promise = authManager.loginToX();
+  
+  await jest.runAllTimersAsync(); // Handles both timers and promises
+  
+  const result = await promise;
+  expect(result).toBe(true);
+  jest.useRealTimers();
+});
+```
+
 ### CI/CD Test Execution
 - **Automated Testing**: All tests run on GitHub Actions for every push and PR
 - **Parallel Execution**: Tests run with 50% worker utilization for optimal performance
