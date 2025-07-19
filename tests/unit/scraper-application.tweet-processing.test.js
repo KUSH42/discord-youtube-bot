@@ -42,7 +42,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -67,7 +67,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
           botStartTime: new Date('2024-01-01T00:00:00Z'),
         };
@@ -262,7 +262,7 @@ describe('Tweet Processing Pipeline', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -287,7 +287,7 @@ describe('Tweet Processing Pipeline', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
           botStartTime: new Date('2024-01-01T00:00:00Z'),
         };
@@ -351,7 +351,7 @@ describe('Tweet Processing Pipeline', () => {
       expect.objectContaining({
         timestamp: mockTweet.timestamp,
         author: mockTweet.author,
-      }),
+      })
     );
 
     // Should announce the content
@@ -365,7 +365,7 @@ describe('Tweet Processing Pipeline', () => {
         text: mockTweet.text,
         timestamp: mockTweet.timestamp,
         isOld: false,
-      }),
+      })
     );
 
     // Should emit event
@@ -376,7 +376,7 @@ describe('Tweet Processing Pipeline', () => {
         classification: expect.any(Object),
         result: expect.any(Object),
         timestamp: expect.any(Date),
-      }),
+      })
     );
   });
 
@@ -425,7 +425,7 @@ describe('Tweet Processing Pipeline', () => {
         author: 'testuser', // Should be the monitored user, not the original author
         originalAuthor: 'differentuser', // Original author stored separately
         platform: 'x',
-      }),
+      })
     );
   });
 
@@ -444,6 +444,81 @@ describe('Tweet Processing Pipeline', () => {
     // Should call the classifier since author matches xUser
     expect(mockContentClassifier.classifyXContent).toHaveBeenCalled();
     expect(mockContentAnnouncer.announceContent).toHaveBeenCalled();
+
+    // Verify classifier was called with correct metadata
+    expect(mockContentClassifier.classifyXContent).toHaveBeenCalledWith(
+      'https://x.com/testuser/status/1234567890',
+      'Some tweet content',
+      expect.objectContaining({
+        author: 'testuser',
+        monitoredUser: 'testuser',
+      })
+    );
+
+    // Should announce as a 'post' (based on our mock classifier returning { type: 'post' })
+    expect(mockContentAnnouncer.announceContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'post', // Should be 'post', not 'retweet'
+        author: 'testuser',
+        platform: 'x',
+      })
+    );
+  });
+
+  it('should correctly classify monitored user quotes as quotes, not retweets', async () => {
+    // Configure classifier to return quote type
+    mockContentClassifier.classifyXContent.mockReturnValue({ type: 'quote', confidence: 0.9 });
+
+    const mockQuote = {
+      tweetID: '1234567890',
+      url: 'https://x.com/testuser/status/1234567890',
+      author: 'testuser', // Same as xUser
+      text: 'My comment on this tweet https://x.com/other/status/123',
+      timestamp: '2024-01-01T00:01:00Z',
+      tweetCategory: 'Quote', // This might be misidentified somewhere
+    };
+
+    await scraperApp.processNewTweet(mockQuote);
+
+    // Should call the classifier since author matches xUser
+    expect(mockContentClassifier.classifyXContent).toHaveBeenCalled();
+
+    // Should announce as a 'quote', not 'retweet'
+    expect(mockContentAnnouncer.announceContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'quote',
+        author: 'testuser',
+        platform: 'x',
+      })
+    );
+  });
+
+  it('should correctly classify monitored user replies as replies, not retweets', async () => {
+    // Configure classifier to return reply type
+    mockContentClassifier.classifyXContent.mockReturnValue({ type: 'reply', confidence: 0.9 });
+
+    const mockReply = {
+      tweetID: '1234567890',
+      url: 'https://x.com/testuser/status/1234567890',
+      author: 'testuser', // Same as xUser
+      text: '@someone This is my reply',
+      timestamp: '2024-01-01T00:01:00Z',
+      tweetCategory: 'Reply', // This might be misidentified somewhere
+    };
+
+    await scraperApp.processNewTweet(mockReply);
+
+    // Should call the classifier since author matches xUser
+    expect(mockContentClassifier.classifyXContent).toHaveBeenCalled();
+
+    // Should announce as a 'reply', not 'retweet'
+    expect(mockContentAnnouncer.announceContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'reply',
+        author: 'testuser',
+        platform: 'x',
+      })
+    );
   });
 
   it('should use classifier for Unknown author tweets', async () => {
@@ -461,5 +536,49 @@ describe('Tweet Processing Pipeline', () => {
     // Should call the classifier since author is Unknown
     expect(mockContentClassifier.classifyXContent).toHaveBeenCalled();
     expect(mockContentAnnouncer.announceContent).toHaveBeenCalled();
+  });
+
+  it('should correctly categorize monitored user tweets in extractTweets', async () => {
+    // Mock browser.evaluate to simulate extractTweets behavior
+    mockBrowserService.evaluate.mockImplementation((fn, monitoredUser) => {
+      // Simulate the extracted tweets - one from monitored user, one retweet
+      return Promise.resolve([
+        {
+          tweetID: '1111111111',
+          url: 'https://x.com/testuser/status/1111111111',
+          author: 'testuser', // Same as monitored user
+          text: 'This is my own post',
+          timestamp: '2024-01-01T00:01:00Z',
+          tweetCategory: 'Post', // Should be Post, not Retweet
+        },
+        {
+          tweetID: '2222222222',
+          url: 'https://x.com/testuser/status/2222222222',
+          author: 'differentuser', // Different from monitored user
+          text: 'This is a retweet',
+          timestamp: '2024-01-01T00:02:00Z',
+          tweetCategory: 'Retweet', // Should be Retweet
+        },
+      ]);
+    });
+
+    // Call extractTweets directly
+    const extractedTweets = await scraperApp.extractTweets();
+
+    expect(extractedTweets).toHaveLength(2);
+
+    // First tweet should be categorized as Post (author matches monitored user)
+    expect(extractedTweets[0].tweetCategory).toBe('Post');
+    expect(extractedTweets[0].author).toBe('testuser');
+
+    // Second tweet should be categorized as Retweet (author differs from monitored user)
+    expect(extractedTweets[1].tweetCategory).toBe('Retweet');
+    expect(extractedTweets[1].author).toBe('differentuser');
+
+    // Verify that monitoredUser was passed to the evaluate function
+    expect(mockBrowserService.evaluate).toHaveBeenCalledWith(
+      expect.any(Function),
+      'testuser' // monitoredUser parameter
+    );
   });
 });
