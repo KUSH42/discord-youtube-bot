@@ -1,0 +1,100 @@
+# Version control
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Test coverage
+coverage/
+lcov-report/
+
+# Test results  
+test-results/
+junit.xml
+
+# Log files
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Environment variables
+.env*
+!.env.example
+
+# Build artifacts
+build/
+dist/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Documentation files (not needed in container)
+*.md
+!README.md
+
+# Local development files
+start-bot.sh
+setup-encryption.js
+discord-bot.service
+
+# Screenshots and media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# Configuration files not needed in container
+.prettierrc*
+.eslintrc*
+eslint.config.*
+babel.config.*
+jest.config.*
+prettier.config.*
+
+# Scripts directory (build-time only)
+scripts/
+
+# Backup files
+*.bak
+*.backup
+
+# Performance and profiling
+*.cpuprofile
+*.heaprofile
+
+# Security scan results
+security-audit.json
+security-report.json
+
+# Docker files themselves
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# GitHub Actions
+.github/
