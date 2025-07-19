@@ -36,6 +36,7 @@ export function validateEnvironmentVariables(env = process.env) {
     { name: 'X_QUERY_INTERVAL_MAX', defaultValue: '600000' },
     { name: 'ALLOWED_USER_IDS', defaultValue: null },
     { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' },
+    { name: 'WEBHOOK_DEBUG_LOGGING', defaultValue: 'false' },
   ];
 
   const missing = [];
