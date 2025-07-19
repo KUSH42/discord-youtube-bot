@@ -23,8 +23,28 @@ export default {
   testTimeout: 120000, // 2 minutes for performance tests
   maxWorkers: 1, // Run performance tests sequentially for accurate timing
 
-  // Disable coverage collection for performance tests
-  collectCoverage: false,
+  // Enable coverage collection for performance tests
+  collectCoverage: true,
+  collectCoverageFrom: [
+    'src/**/*.js',
+    'index.js',
+    'x-scraper.js',
+    'youtube-monitor.js',
+    '!node_modules/**',
+    '!coverage/**',
+    '!jest.*.config.js',
+    '!setup-encryption.js',
+    '!tests/**',
+    '!src/services/interfaces/**',
+    '!src/setup/**',
+  ],
+
+  coverageDirectory: 'coverage/performance',
+  coverageReporters: ['text', 'lcov', 'html', 'clover'],
+
+  // No coverage thresholds for performance tests
+  // They contribute to overall coverage but don't enforce minimums
+  coverageThreshold: {},
 
   // Test execution
   verbose: true,
