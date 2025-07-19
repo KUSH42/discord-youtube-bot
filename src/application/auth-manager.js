@@ -31,8 +31,12 @@ export class AuthManager {
             return;
           } else {
             this.logger.warn('Saved cookies failed, attempting login');
-            this.state.delete('x_session_cookies');
-            this.logger.warn('Clearing expired session cookies');
+            try {
+              this.state.delete('x_session_cookies');
+              this.logger.warn('Clearing expired session cookies');
+            } catch (deleteError) {
+              this.logger.error('Failed to delete session cookies from state:', deleteError);
+            }
             await this.loginToX();
           }
         } catch (error) {
@@ -41,7 +45,11 @@ export class AuthManager {
         }
       } else if (savedCookies) {
         this.logger.warn('Invalid saved cookies format, performing login');
-        this.state.delete('x_session_cookies');
+        try {
+          this.state.delete('x_session_cookies');
+        } catch (deleteError) {
+          this.logger.error('Failed to delete session cookies from state:', deleteError);
+        }
         await this.loginToX();
       } else {
         this.logger.info('No saved cookies found, performing login');
@@ -66,7 +74,7 @@ export class AuthManager {
     await this.browser.waitForSelector('input[name="text"]', { timeout: 10000 });
     await this.browser.type('input[name="text"]', this.twitterUsername);
     await this.clickNextButton();
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
     // Step 2: Enter password
     this.logger.info('Entering password...');
@@ -127,6 +135,9 @@ export class AuthManager {
    * @returns {Promise<boolean>}
    */
   async isAuthenticated() {
+    if (!this.browser || !this.browser.page) {
+      throw new Error('Browser service is not available.');
+    }
     try {
       const currentUrl = await this.browser.page.url();
       return currentUrl.includes('/home');
@@ -145,6 +156,6 @@ export class AuthManager {
     if (!Array.isArray(cookies) || cookies.length === 0) {
       return false;
     }
-    return cookies.every((c) => c && typeof c.name === 'string' && typeof c.value === 'string');
+    return cookies.every(c => c && typeof c.name === 'string' && typeof c.value === 'string');
   }
 }

@@ -404,4 +404,85 @@ describe('AuthManager', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('✅ Successfully authenticated using saved cookies.');
     });
   });
+
+  describe('recovery scenarios', () => {
+    it('should recover when browser is disconnected during cookie validation', async () => {
+      const validCookies = [{ name: 'session', value: 'abc123' }];
+      mockStateManager.get.mockReturnValue(validCookies);
+      mockBrowserService.setCookies.mockRejectedValue(new Error('Browser disconnected'));
+      jest.spyOn(authManager, 'loginToX').mockResolvedValue(true);
+
+      await authManager.ensureAuthenticated();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error validating saved cookies, falling back to login:',
+        expect.any(Error)
+      );
+      expect(authManager.loginToX).toHaveBeenCalled();
+    });
+
+    it('should handle login page taking too long to load', async () => {
+      mockBrowserService.goto.mockRejectedValue(new Error('Timeout waiting for navigation'));
+      jest.spyOn(authManager, 'loginToX').mockRejectedValueOnce(new Error('Timeout error'));
+
+      await expect(authManager.loginToX()).rejects.toThrow('Timeout error');
+    });
+
+    it('should retry login if authentication fails mid-process', async () => {
+      const validCookies = [{ name: 'session', value: 'abc123' }];
+      mockStateManager.get.mockReturnValue(validCookies);
+      authManager.isAuthenticated = jest
+        .fn()
+        .mockResolvedValueOnce(true) // Initial check passes
+        .mockResolvedValueOnce(false); // Second check fails
+
+      jest.spyOn(authManager, 'loginToX').mockResolvedValue(true);
+
+      await authManager.ensureAuthenticated(); // Should pass with cookies
+      await authManager.ensureAuthenticated(); // Should fail and trigger login
+
+      expect(authManager.loginToX).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('State manager failure scenarios', () => {
+    beforeEach(() => {
+      jest.spyOn(authManager, 'loginToX').mockResolvedValue(true);
+    });
+
+    it('should fall back to login if stateManager.get throws an error', async () => {
+      mockStateManager.get.mockImplementation(() => {
+        throw new Error('State read error');
+      });
+
+      await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
+
+      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', expect.any(Error));
+    });
+
+    it('should log an error but still attempt to login if stateManager.delete fails', async () => {
+      const invalidCookies = [{ name: 'invalid' }];
+      mockStateManager.get.mockReturnValue(invalidCookies);
+      mockStateManager.delete.mockImplementation(() => {
+        throw new Error('State delete error');
+      });
+
+      await authManager.ensureAuthenticated();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith('Invalid saved cookies format, performing login');
+      expect(authManager.loginToX).toHaveBeenCalled();
+    });
+
+    it('should log an error if stateManager.set fails during cookie save', async () => {
+      const validCookies = [{ name: 'session', value: 'abc123' }];
+      mockBrowserService.getCookies.mockResolvedValue(validCookies);
+      mockStateManager.set.mockImplementation(() => {
+        throw new Error('State write error');
+      });
+
+      await authManager.saveAuthenticationState();
+
+      expect(mockLogger.error).toHaveBeenCalledWith('Error saving session cookies:', expect.any(Error));
+    });
+  });
 });
