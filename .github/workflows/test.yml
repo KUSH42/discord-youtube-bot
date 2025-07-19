@@ -219,7 +219,7 @@ jobs:
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'integration')
     outputs:
       image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}
-      image_tag: ${{ steps.final-image.outputs.image_tag }}
+      image_tag: ${{ steps.final-image.outputs.image_tag_final }}
       image_digest: ${{ steps.build.outputs.digest || steps.force-build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
@@ -305,10 +305,10 @@ jobs:
           # Check if the exact SHA-based image exists
           if docker manifest inspect "$LATEST_TAG" >/dev/null 2>&1; then
             echo "Using existing image: $LATEST_TAG"
-            echo "image_tag=[\"$LATEST_TAG\"]" >> $GITHUB_OUTPUT
+            echo "image_tag_raw=$LATEST_TAG" >> $GITHUB_OUTPUT
           elif docker manifest inspect "$FALLBACK_TAG" >/dev/null 2>&1; then
             echo "Using fallback image: $FALLBACK_TAG"
-            echo "image_tag=[\"$FALLBACK_TAG\"]" >> $GITHUB_OUTPUT
+            echo "image_tag_raw=$FALLBACK_TAG" >> $GITHUB_OUTPUT
           else
             echo "No existing image found, forcing rebuild"
             echo "force_rebuild=true" >> $GITHUB_OUTPUT
@@ -333,20 +333,21 @@ jobs:
       - name: Set final image tag
         id: final-image
         run: |
+          FINAL_TAG=""
           if [[ "${{ steps.docker-changes.outputs.docker_changed }}" == "true" ]] || [[ "${{ steps.existing-image.outputs.force_rebuild }}" == "true" ]]; then
-            # Use newly built or force-rebuilt image. Format the first tag as a JSON array string.
-            FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-            echo "image_tag=[\"${FIRST_TAG}\"]" >> $GITHUB_OUTPUT
+            # A new image was built (or force-rebuilt). Use the first tag from the metadata action.
+            FINAL_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
           else
-            # Use existing cached image. It is already formatted as a JSON array string.
-            echo "image_tag=${{ steps.existing-image.outputs.image_tag }}" >> $GITHUB_OUTPUT
+            # Use the tag for the existing image.
+            FINAL_TAG="${{ steps.existing-image.outputs.image_tag_raw }}"
           fi
+          echo "image_tag_final=${FINAL_TAG}" >> $GITHUB_OUTPUT
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
     container:
-      image: ${{ fromJSON(needs.build-and-push-docker.outputs.image_tag)[0] }}
+      image: ${{ needs.build-and-push-docker.outputs.image_tag }}
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
