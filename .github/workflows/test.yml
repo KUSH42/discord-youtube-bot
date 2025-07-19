@@ -397,12 +397,6 @@ jobs:
           set -o pipefail
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=2048" \
           npm run test:integration -- \
-            --coverage \
-            --coverageDirectory=coverage/integration \
-            --coverageReporters=text --coverageReporters=lcov || true
-            --maxWorkers=1 \
-            --forceExit \
-            --detectOpenHandles \
             --testTimeout=${{ vars.TEST_TIMEOUT || '30000' }} 2>&1 | tee coverage/integration/test-output.log
 
       - name: Upload integration test coverage
