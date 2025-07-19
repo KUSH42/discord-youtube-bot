@@ -56,6 +56,7 @@ export default {
     '**/tests/unit/services/discord-client-service.test.js',
     '**/tests/unit/services/fetch-http-service.test.js',
     '**/tests/unit/services/fetch-http-service.test.js',
+    '**/tests/unit/content-classifier.test.js',
     '**/tests/performance/**/*.test.js',
     '**/tests/integration/**/*.test.js',
     '**/tests/integration/index.test.js',

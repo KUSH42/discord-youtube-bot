@@ -372,7 +372,7 @@ export class ScraperApplication {
       const nextRunTime = new Date(Date.now() + nextInterval);
 
       this.logger.info(
-        `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`,
+        `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`
       );
 
       // Perform the enhanced retweet detection as a separate, final step.
@@ -426,7 +426,8 @@ export class ScraperApplication {
    * @returns {Promise<Array>} Array of tweet objects
    */
   async extractTweets() {
-    return await this.browser.evaluate(() => {
+    const monitoredUser = this.xUser; // Pass the monitored user to browser context
+    return await this.browser.evaluate(monitoredUser => {
       /* eslint-disable no-undef */
       const tweets = [];
 
@@ -535,7 +536,7 @@ export class ScraperApplication {
           let isRetweet = false;
 
           // Method 1: Check if author is different from monitored user
-          if (author !== this.xUser && author !== `@${this.xUser}` && author !== 'Unknown') {
+          if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
             isRetweet = true;
           }
 
@@ -574,7 +575,7 @@ export class ScraperApplication {
       console.log(`Total tweets extracted: ${tweets.length}`);
       return tweets;
       /* eslint-enable no-undef */
-    });
+    }, monitoredUser);
   }
 
   /**
@@ -609,7 +610,7 @@ export class ScraperApplication {
     }
 
     this.logger.info(
-      `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`,
+      `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`
     );
 
     return newTweets;
@@ -644,7 +645,7 @@ export class ScraperApplication {
     const isNew = tweetTime >= botStartTime;
 
     this.logger.debug(
-      `Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`,
+      `Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`
     );
 
     return isNew;
@@ -701,7 +702,7 @@ export class ScraperApplication {
       } else {
         // Use classifier for other tweets
         this.logger.info(
-          `Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`,
+          `Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`
         );
         classification = this.classifier.classifyXContent(tweet.url, tweet.text, metadata);
       }
@@ -956,7 +957,7 @@ export class ScraperApplication {
       return false;
     }
 
-    return cookies.every((cookie) => {
+    return cookies.every(cookie => {
       return (
         cookie && typeof cookie === 'object' && typeof cookie.name === 'string' && typeof cookie.value === 'string'
       );
