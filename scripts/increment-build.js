@@ -12,11 +12,11 @@ fs.readFile(versionFilePath, 'utf8', (err, data) => {
   const versionData = JSON.parse(data);
   versionData.build += 1;
 
-  fs.writeFile(versionFilePath, JSON.stringify(versionData, null, 2), 'utf8', (err) => {
+  fs.writeFile(versionFilePath, JSON.stringify(versionData, null, 2), 'utf8', err => {
     if (err) {
       console.error('Error writing build-version.json:', err);
       process.exit(1);
     }
-    console.log(`Build number incremented to ${versionData.build}`);
+    console.log(`\t\t⬆️ Build number incremented to #️${versionData.build}`);
   });
 });
