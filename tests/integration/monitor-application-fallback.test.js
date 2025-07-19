@@ -45,7 +45,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
     };
 
     mockConfig = {
-      getRequired: jest.fn().mockImplementation((key) => {
+      getRequired: jest.fn().mockImplementation(key => {
         const values = {
           YOUTUBE_CHANNEL_ID: 'UCTestChannel',
           YOUTUBE_API_KEY: 'test-api-key',
@@ -55,6 +55,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       }),
       get: jest.fn().mockReturnValue('test-secret'),
       getNumber: jest.fn().mockReturnValue(300000),
+      getBoolean: jest.fn().mockReturnValue(false),
     };
 
     mockStateManager = {
@@ -341,7 +342,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
       // Verify duplicate was detected and skipped
       expect(monitorApp.duplicateDetector.isDuplicate).toHaveBeenCalledWith(
-        'https://www.youtube.com/watch?v=duplicate-video',
+        'https://www.youtube.com/watch?v=duplicate-video'
       );
       expect(mockLogger.debug).toHaveBeenCalledWith('Duplicate video detected: Duplicate Video (duplicate-video)');
       expect(mockContentAnnouncer.announceContent).not.toHaveBeenCalled();
@@ -375,7 +376,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
           type: 'livestream',
           id: 'classified-video',
           isLive: true,
-        }),
+        })
       );
     });
 
@@ -405,7 +406,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
           }),
           source: 'api-fallback',
           timestamp: expect.any(Date),
-        }),
+        })
       );
     });
   });

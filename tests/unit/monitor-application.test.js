@@ -32,7 +32,19 @@ describe('MonitorApplication', () => {
       getRequired: jest.fn(),
       get: jest.fn(),
       getNumber: jest.fn(),
+      getBoolean: jest.fn().mockReturnValue(false),
     };
+
+    // Setup default config values
+    mockConfig.getRequired.mockImplementation(key => {
+      const values = {
+        YOUTUBE_CHANNEL_ID: 'UCTestChannel',
+        YOUTUBE_API_KEY: 'test-api-key',
+        PSH_CALLBACK_URL: 'https://example.com/webhook',
+      };
+      return values[key] || 'default-value';
+    });
+    mockConfig.get.mockReturnValue('test-secret');
     mockStateManager = {
       get: jest.fn(),
     };
@@ -60,25 +72,34 @@ describe('MonitorApplication', () => {
     monitorApp = new MonitorApplication(dependencies);
   });
 
-  describe('handleNotification', () => {
+  describe('handleWebhook', () => {
     it('should increment xmlParseFailures when XML is malformed', async () => {
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest.spyOn(monitorApp, 'verifyWebhookSignatureDebug').mockReturnValue({ isValid: true, details: {} });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue(null);
+      jest.spyOn(monitorApp, 'logWebhookDebug').mockImplementation(() => {});
+      jest.spyOn(monitorApp, 'sanitizeHeaders').mockReturnValue({});
+      jest.spyOn(monitorApp, 'getBodyPreview').mockReturnValue('preview');
+
       const request = {
         body: '<xml>malformed</xml>',
         headers: { 'x-hub-signature': 'sha1=test' },
         method: 'POST',
       };
 
-      await monitorApp.handleWebhook(request);
+      const result = await monitorApp.handleWebhook(request);
 
       expect(monitorApp.stats.xmlParseFailures).toBe(1);
+      expect(result.status).toBe(400);
+      expect(result.message).toBe('Invalid XML');
     });
 
     it('should trigger API fallback when notification processing fails', async () => {
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest.spyOn(monitorApp, 'verifyWebhookSignatureDebug').mockReturnValue({ isValid: true, details: {} });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
-      jest.spyOn(monitorApp, 'scheduleApiFallback');
+      jest.spyOn(monitorApp, 'scheduleApiFallback').mockImplementation(() => {});
+      jest.spyOn(monitorApp, 'logWebhookDebug').mockImplementation(() => {});
+      jest.spyOn(monitorApp, 'sanitizeHeaders').mockReturnValue({});
+      jest.spyOn(monitorApp, 'getBodyPreview').mockReturnValue('preview');
       mockYoutubeService.getVideoDetails.mockRejectedValue(new Error('API Error'));
 
       const request = {
@@ -93,10 +114,13 @@ describe('MonitorApplication', () => {
     });
 
     it('should NOT trigger API fallback when notification processing succeeds', async () => {
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest.spyOn(monitorApp, 'verifyWebhookSignatureDebug').mockReturnValue({ isValid: true, details: {} });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
-      jest.spyOn(monitorApp, 'scheduleApiFallback');
+      jest.spyOn(monitorApp, 'scheduleApiFallback').mockImplementation(() => {});
       jest.spyOn(monitorApp, 'processVideo').mockResolvedValue();
+      jest.spyOn(monitorApp, 'logWebhookDebug').mockImplementation(() => {});
+      jest.spyOn(monitorApp, 'sanitizeHeaders').mockReturnValue({});
+      jest.spyOn(monitorApp, 'getBodyPreview').mockReturnValue('preview');
       mockYoutubeService.getVideoDetails.mockResolvedValue({
         id: 'test123',
         snippet: { title: 'Test Video' },
@@ -111,6 +135,45 @@ describe('MonitorApplication', () => {
       await monitorApp.handleWebhook(request);
 
       expect(monitorApp.scheduleApiFallback).not.toHaveBeenCalled();
+    });
+
+    it('should handle GET verification requests', async () => {
+      jest.spyOn(monitorApp, 'verifyWebhookSignatureDebug').mockReturnValue({ isValid: true, details: {} });
+      jest.spyOn(monitorApp, 'handleVerificationRequest').mockReturnValue({ status: 200, message: 'verified' });
+      jest.spyOn(monitorApp, 'logWebhookDebug').mockImplementation(() => {});
+      jest.spyOn(monitorApp, 'sanitizeHeaders').mockReturnValue({});
+
+      const request = {
+        headers: { 'x-hub-signature': 'sha1=test' },
+        method: 'GET',
+        query: { 'hub.challenge': 'test123' },
+      };
+
+      const result = await monitorApp.handleWebhook(request);
+
+      expect(monitorApp.handleVerificationRequest).toHaveBeenCalledWith(request.query);
+      expect(result.status).toBe(200);
+      expect(result.message).toBe('verified');
+    });
+
+    it('should reject requests with invalid signatures', async () => {
+      jest.spyOn(monitorApp, 'verifyWebhookSignatureDebug').mockReturnValue({
+        isValid: false,
+        details: { error: 'invalid signature' },
+      });
+      jest.spyOn(monitorApp, 'logWebhookDebug').mockImplementation(() => {});
+      jest.spyOn(monitorApp, 'sanitizeHeaders').mockReturnValue({});
+
+      const request = {
+        body: '<xml>test</xml>',
+        headers: { 'x-hub-signature': 'sha1=invalid' },
+        method: 'POST',
+      };
+
+      const result = await monitorApp.handleWebhook(request);
+
+      expect(result.status).toBe(403);
+      expect(result.message).toBe('Invalid signature');
     });
   });
 
@@ -260,7 +323,7 @@ describe('MonitorApplication', () => {
       expect(monitorApp.processVideo).toHaveBeenCalledTimes(2);
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Error processing video video1 in API fallback:',
-        expect.any(Error),
+        expect.any(Error)
       );
       expect(mockLogger.info).toHaveBeenCalledWith('API fallback check completed successfully');
     });
@@ -279,15 +342,6 @@ describe('MonitorApplication', () => {
   describe('start - No Automatic Polling', () => {
     beforeEach(() => {
       jest.useFakeTimers();
-      mockConfig.getRequired.mockImplementation((key) => {
-        const values = {
-          YOUTUBE_CHANNEL_ID: 'UCTestChannel',
-          YOUTUBE_API_KEY: 'test-api-key',
-          PSH_CALLBACK_URL: 'https://example.com/webhook',
-        };
-        return values[key];
-      });
-      mockConfig.get.mockReturnValue('test-secret');
       mockYoutubeService.getChannelDetails.mockResolvedValue({
         snippet: { title: 'Test Channel' },
       });
@@ -347,6 +401,89 @@ describe('MonitorApplication', () => {
       monitorApp.stopFallbackPolling();
 
       expect(mockLogger.info).not.toHaveBeenCalledWith('Scheduled API fallback cleared');
+    });
+  });
+
+  describe('parseNotificationXML', () => {
+    it('should parse valid YouTube XML notification', () => {
+      const validXml = `
+        <feed>
+          <yt:videoId>test123</yt:videoId>
+          <media:title>Test Video Title</media:title>
+          <link rel="alternate" href="https://www.youtube.com/watch?v=test123"/>
+        </feed>
+      `;
+
+      const result = monitorApp.parseNotificationXML(validXml);
+
+      expect(result).toEqual({
+        videoId: 'test123',
+        title: 'Test Video Title',
+        link: 'https://www.youtube.com/watch?v=test123',
+      });
+    });
+
+    it('should return null for invalid XML', () => {
+      const invalidXml = '<invalid>xml</invalid>';
+
+      const result = monitorApp.parseNotificationXML(invalidXml);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null for XML missing video ID', () => {
+      const xmlMissingVideoId = `
+        <feed>
+          <media:title>Test Video Title</media:title>
+          <link rel="alternate" href="https://www.youtube.com/watch?v=test123"/>
+        </feed>
+      `;
+
+      const result = monitorApp.parseNotificationXML(xmlMissingVideoId);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('helper methods', () => {
+    it('should sanitize headers by removing authorization', () => {
+      const headers = {
+        'content-type': 'application/xml',
+        authorization: 'Bearer secret-token',
+        'x-hub-signature': 'sha1=test',
+      };
+
+      const result = monitorApp.sanitizeHeaders(headers);
+
+      expect(result).toEqual({
+        'content-type': 'application/xml',
+        authorization: '[REDACTED]',
+        'x-hub-signature': '[SIGNATURE:9chars]',
+      });
+    });
+
+    it('should return preview of body content', () => {
+      const longBody = 'A'.repeat(250);
+
+      const result = monitorApp.getBodyPreview(longBody);
+
+      expect(result).toContain('...');
+      expect(result).toContain('[TRUNCATED:250total]');
+      expect(result.substring(0, 200)).toBe('A'.repeat(200));
+    });
+
+    it('should return full body if short enough', () => {
+      const shortBody = 'Short content';
+
+      const result = monitorApp.getBodyPreview(shortBody);
+
+      expect(result).toBe(shortBody);
+    });
+
+    it('should handle empty body', () => {
+      const result = monitorApp.getBodyPreview(null);
+
+      expect(result).toBe('[EMPTY]');
     });
   });
 });
