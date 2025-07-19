@@ -338,8 +338,8 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-and-push-docker.outputs.image_tag }}
+    #container:
+    #  image: ${{ needs.build-and-push-docker.outputs.image_tag }}
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
