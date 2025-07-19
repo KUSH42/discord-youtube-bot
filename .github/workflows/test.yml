@@ -72,7 +72,7 @@ jobs:
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             # For push events, check if this commit is part of an open PR
             set +e  # Don't exit on command failure
-            PR_COUNT=$(gh pr list --state open --json number,headRefName,headRefOid --jq '.[] | select(.headRefOid == "${{ github.sha }}") | .number' | wc -l)
+            PR_COUNT=$(gh pr list --state open --json number,headRefName,headRefOid --jq ".[] | select(.headRefOid == \"${{ github.sha }}\") | .number" | wc -l)
             gh_exit_code=$?
             set -e
             
