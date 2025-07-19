@@ -218,7 +218,7 @@ jobs:
     needs: [pre-flight]
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'integration')
     outputs:
-      image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}:latest
+      image_name: ghcr.io/${{ steps.string.outputs.repo_lc }}
     steps:
       - uses: actions/checkout@v4
 
