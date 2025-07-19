@@ -67,6 +67,9 @@ web_modules/
 # Optional eslint cache
 .eslintcache
 
+# Jest cache
+.jest-cache/
+
 # Optional stylelint cache
 .stylelintcache
 

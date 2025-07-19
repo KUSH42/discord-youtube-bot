@@ -153,10 +153,16 @@ try {
 ## 5. Testing & Validation Standards
 
 ### Test Coverage Requirements
-- **Minimum Global Coverage**: 25% (enforced by CI)
-- **Core Module Coverage**: 85% for `src/core/` modules
-- **Critical Path Coverage**: 100% for authentication, command processing, and webhook verification
-- **New Code Coverage**: All new functions must have accompanying tests
+- **Global Thresholds**: 25% statements/lines, 20% branches, 25% functions (enforced by Jest)
+- **Core Module Coverage**: 50% statements/lines, 40% branches, 55% functions for `src/core/` modules
+- **Critical Components**: 85-90% coverage for well-tested modules like `youtube-api-service` and `content-classifier`
+- **New Code Coverage**: All new functions must have accompanying tests that meet component-specific thresholds
+- **Enforcement**: Coverage thresholds are automatically enforced during test execution and CI/CD
+
+### Test Configurations
+- **Production Config (`jest.config.js`)**: Full coverage enforcement, parallel execution, quality gates
+- **Development Config (`jest.dev.config.js`)**: Fast feedback, single worker, git-aware testing
+- **Specialized Configs**: Separate configurations for E2E, security, and performance tests
 
 ### Test Organization
 - **Unit Tests**: `tests/unit/` - Test individual functions and classes with mocking
@@ -204,9 +210,12 @@ describe('CommandProcessor', () => {
 
 ### CI/CD Test Execution
 - **Automated Testing**: All tests run on GitHub Actions for every push and PR
+- **Parallel Execution**: Tests run with 50% worker utilization for optimal performance
+- **Coverage Enforcement**: Jest coverage thresholds enforced at the test execution level
 - **Docker Integration**: Integration tests use cached Docker images for Playwright
 - **Coverage Reporting**: Upload coverage to Codecov with merged reports
-- **Quality Gates**: All tests must pass before merge approval
+- **Quality Gates**: All tests must pass and meet coverage thresholds before merge approval
+- **Performance Optimizations**: Caching and parallel execution reduce CI/CD execution time
 
 ## 6. Development Commands & Workflow
 
@@ -218,13 +227,26 @@ npm run decrypt             # Start with encrypted credentials
 npm run validate            # Validate configuration only
 npm run setup-encryption    # Set up credential encryption
 
-# Testing
+# Testing - Essential Commands
 npm test                    # Full test suite with coverage
+npm run test:dev           # Development mode (fast feedback)
+npm run test:watch         # Watch mode for development
+npm run test:coverage      # Generate detailed coverage reports
+npm run test:parallel      # Parallel execution (faster)
+
+# Testing - Specific Types
 npm run test:unit          # Unit tests only
 npm run test:integration   # Integration tests only
 npm run test:e2e           # End-to-end tests
-npm run test:coverage      # Generate detailed coverage reports
-npm run test:watch         # Watch mode for development
+npm run test:performance   # Performance tests
+npm run test:security      # Security tests
+
+# Testing - Advanced Options
+npm run test:changed       # Only test changed files (Git-aware)
+npm run test:debug         # Debug mode with breakpoints
+npm run test:runner unit   # Interactive test runner
+npm run test:verbose       # Detailed test output
+npm run test:bail          # Stop on first failure
 
 # Code Quality
 npm run lint               # Run ESLint
@@ -234,11 +256,20 @@ npm run format            # Check Prettier formatting
 
 ### Development Workflow
 1. **Before Making Changes**: Run `npm test` to ensure baseline stability
-2. **During Development**: Use `npm run test:watch` for immediate feedback
-3. **Code Quality**: Run `npm run lint:fix` before committing
-4. **Pre-commit**: Husky automatically runs linting and formatting checks
-5. **Testing**: Add tests for new functionality before implementation
-6. **Documentation**: Update relevant documentation with changes
+2. **During Development**: Use `npm run test:dev` or `npm run test:watch` for immediate feedback
+3. **Fast Iteration**: Use `npm run test:changed` to test only modified files
+4. **Code Quality**: Run `npm run lint:fix` before committing
+5. **Pre-commit**: Husky automatically runs linting and formatting checks
+6. **Testing**: Add tests for new functionality before implementation
+7. **Coverage Compliance**: Ensure new code meets coverage thresholds
+8. **Documentation**: Update relevant documentation with changes
+
+### Enhanced Testing Strategy
+- **Development Phase**: Use `jest.dev.config.js` for rapid iteration
+- **Debugging**: Utilize `npm run test:debug` with breakpoint support
+- **Performance**: Leverage `npm run test:parallel` for faster execution
+- **Quality Gates**: All code must meet established coverage thresholds
+- **CI/CD**: Full test suite with coverage enforcement
 
 ## 7. Discord Bot Command System
 

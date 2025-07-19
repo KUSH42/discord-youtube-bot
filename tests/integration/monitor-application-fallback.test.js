@@ -95,7 +95,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
   describe('Error-Triggered Fallback Integration', () => {
     it('should trigger fallback when webhook processing fails due to XML parsing error', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue(null);
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
 
@@ -115,7 +117,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should trigger fallback when webhook processing fails due to video details API error', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
       mockYoutubeService.getVideoDetails.mockRejectedValue(new Error('API Error'));
@@ -141,7 +145,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should trigger fallback when webhook processing fails due to video processing error', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'processVideo').mockRejectedValue(new Error('Processing Error'));
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
@@ -170,7 +176,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should NOT trigger fallback when webhook processing succeeds completely', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'processVideo').mockResolvedValue();
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
@@ -195,7 +203,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should handle multiple notification errors with only one fallback scheduled', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
       mockYoutubeService.getVideoDetails.mockRejectedValue(new Error('API Error'));
