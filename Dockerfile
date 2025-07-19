@@ -30,7 +30,6 @@ RUN npm ci && npm cache clean --force
 COPY src/ ./src/
 COPY tests/ ./tests/
 COPY jest.*.js ./
-COPY babel.config.cjs ./
 COPY index.js ./
 
 # Create non-root user for security
