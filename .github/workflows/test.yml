@@ -343,7 +343,8 @@ jobs:
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    needs: [pre-flight, lint, build-and-push-docker]
+    #needs: [pre-flight, lint, build-and-push-docker]
+    needs: [pre-flight, lint]
     if: needs.pre-flight.outputs.should-run-tests == 'true' && contains(fromJson(needs.pre-flight.outputs.test-matrix).test-type, 'integration')
     services:
       redis:
