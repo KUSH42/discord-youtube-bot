@@ -31,7 +31,7 @@ describe('X Scraper Entry Point', () => {
       DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345684',
     };
 
-    const { main: mainFunc } = await import('../../x-scraper.js');
+    const { main: mainFunc } = await import('../../src/x-scraper.js');
     main = mainFunc;
   });
 

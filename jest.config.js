@@ -10,8 +10,8 @@ export default {
   collectCoverageFrom: [
     'src/**/*.js',
     'index.js', // Include main entry point
-    'x-scraper.js', // Include X/Twitter scraper
-    'youtube-monitor.js', // Include YouTube monitor
+    'src/x-scraper.js', // Include X/Twitter scraper
+    'src/youtube-monitor.js', // Include YouTube monitor
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',

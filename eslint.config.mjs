@@ -113,7 +113,7 @@ export default [
   
   // Main entry point configuration
   {
-    files: ['index.js', 'x-scraper.js', 'youtube-monitor.js'],
+    files: ['index.js', 'src/x-scraper.js', 'src/youtube-monitor.js'],
     rules: {
       'no-console': ['warn', {
         allow: ['warn', 'error', 'info', 'log']

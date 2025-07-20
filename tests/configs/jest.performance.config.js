@@ -28,8 +28,8 @@ export default {
   collectCoverageFrom: [
     'src/**/*.js',
     'index.js',
-    'x-scraper.js',
-    'youtube-monitor.js',
+    'src/x-scraper.js',
+    'src/youtube-monitor.js',
     '!node_modules/**',
     '!coverage/**',
     '!jest.*.config.js',

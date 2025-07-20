@@ -28,7 +28,7 @@ describe('YouTube Monitor Entry Point', () => {
       DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345684',
     };
 
-    const { main: mainFunc } = await import('../../youtube-monitor.js');
+    const { main: mainFunc } = await import('../../src/youtube-monitor.js');
     main = mainFunc;
   });
 
