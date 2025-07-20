@@ -60,7 +60,8 @@ export class DuplicateDetector {
   }
 
   /**
-   * Check if a video ID is already known (duplicate)
+   * Check if a video ID is already known (duplicate) - PRIVATE METHOD
+   * @private
    * @param {string} videoId - YouTube video ID to check
    * @returns {boolean} - True if the video is a duplicate
    */
@@ -69,7 +70,8 @@ export class DuplicateDetector {
   }
 
   /**
-   * Check if a tweet ID is already known (duplicate)
+   * Check if a tweet ID is already known (duplicate) - PRIVATE METHOD
+   * @private
    * @param {string} tweetId - X/Twitter post ID to check
    * @returns {boolean} - True if the tweet is a duplicate
    */
@@ -343,9 +345,10 @@ export class DuplicateDetector {
   }
 
   /**
-   * Check if a URL is a duplicate (simplified interface for applications)
+   * Check if a URL contains duplicate content (unified interface for all content types)
+   * Supports YouTube video URLs and X/Twitter post URLs
    * @param {string} url - URL to check for duplicates
-   * @returns {boolean} - True if URL is a duplicate
+   * @returns {boolean} - True if URL contains known content (is a duplicate)
    */
   isDuplicate(url) {
     if (!url || typeof url !== 'string') {
@@ -368,7 +371,8 @@ export class DuplicateDetector {
   }
 
   /**
-   * Mark a URL as seen (simplified interface for applications)
+   * Mark a URL as seen (unified interface for all content types)
+   * Extracts and stores video/tweet IDs from YouTube and X/Twitter URLs
    * @param {string} url - URL to mark as seen
    */
   markAsSeen(url) {

@@ -141,8 +141,8 @@ describe('ScraperApplication Initialization', () => {
       expect(scraperApp.navigateToProfileTimeline).toHaveBeenCalledWith('testuser');
 
       // Verify tweets were marked as seen
-      expect(scraperApp.duplicateDetector.isTweetIdKnown('123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isTweetIdKnown('987654321')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/123456789')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/987654321')).toBe(true);
 
       // Verify logging
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -159,11 +159,13 @@ describe('ScraperApplication Initialization', () => {
           tweetID: '123456789',
           timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago (recent)
           author: 'testuser',
+          url: 'https://x.com/testuser/status/123456789',
         },
         {
           tweetID: '987654321',
           timestamp: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago (old)
           author: 'testuser',
+          url: 'https://x.com/testuser/status/987654321',
         },
       ];
 
@@ -174,8 +176,8 @@ describe('ScraperApplication Initialization', () => {
       await scraperApp.initializeRecentContent();
 
       // Only recent tweet should be marked as seen
-      expect(scraperApp.duplicateDetector.isTweetIdKnown('123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isTweetIdKnown('987654321')).toBe(false);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/123456789')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/987654321')).toBe(false);
     });
 
     it('should handle initialization errors gracefully', async () => {
@@ -203,10 +205,12 @@ describe('ScraperApplication Initialization', () => {
         {
           tweetID: '123456789',
           timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago (within 6h window)
+          url: 'https://x.com/testuser/status/123456789',
         },
         {
           tweetID: '987654321',
           timestamp: new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago (outside 6h window)
+          url: 'https://x.com/testuser/status/987654321',
         },
       ];
 
@@ -216,17 +220,21 @@ describe('ScraperApplication Initialization', () => {
       await scraperApp.initializeRecentContent();
 
       // Only tweet within 6-hour window should be marked
-      expect(scraperApp.duplicateDetector.isTweetIdKnown('123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isTweetIdKnown('987654321')).toBe(false);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/123456789')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/987654321')).toBe(false);
     });
   });
 
   describe('isNewContent with improved logic', () => {
     it('should return false for already known tweets', () => {
-      const tweet = { tweetID: '123456789', timestamp: new Date().toISOString() };
+      const tweet = {
+        tweetID: '123456789',
+        timestamp: new Date().toISOString(),
+        url: 'https://x.com/testuser/status/123456789',
+      };
 
       // Mark tweet as seen
-      scraperApp.duplicateDetector.addTweetId('123456789');
+      scraperApp.duplicateDetector.markAsSeen('https://x.com/testuser/status/123456789');
 
       expect(scraperApp.isNewContent(tweet)).toBe(false);
     });

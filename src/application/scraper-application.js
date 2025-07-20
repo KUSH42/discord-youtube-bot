@@ -670,7 +670,7 @@ export class ScraperApplication {
     }
 
     // First check: Have we seen this tweet before? (Primary duplicate detection)
-    if (tweet.tweetID && this.duplicateDetector.isTweetIdKnown(tweet.tweetID)) {
+    if (tweet.url && this.duplicateDetector.isDuplicate(tweet.url)) {
       this.logger.debug(`Tweet ${tweet.tweetID} already known (duplicate), not new`);
       return false;
     }
@@ -797,8 +797,8 @@ export class ScraperApplication {
       }
 
       // Mark tweet as seen to prevent future re-processing
-      if (tweet.tweetID) {
-        this.duplicateDetector.addTweetId(tweet.tweetID);
+      if (tweet.url) {
+        this.duplicateDetector.markAsSeen(tweet.url);
         this.logger.debug(`Marked tweet ${tweet.tweetID} as seen`);
       }
 
@@ -1084,8 +1084,8 @@ export class ScraperApplication {
 
         if (tweetTime && tweetTime >= cutoffTime) {
           // Mark as seen by adding to duplicate detector
-          if (tweet.tweetID) {
-            this.duplicateDetector.addTweetId(tweet.tweetID);
+          if (tweet.url) {
+            this.duplicateDetector.markAsSeen(tweet.url);
             markedAsSeen++;
             this.logger.debug(`Marked tweet ${tweet.tweetID} as seen (${tweetTime.toISOString()})`);
           }
@@ -1099,9 +1099,9 @@ export class ScraperApplication {
           for (const tweet of retweetTweets) {
             const tweetTime = tweet.timestamp ? new Date(tweet.timestamp) : null;
 
-            if (tweetTime && tweetTime >= cutoffTime && tweet.tweetID) {
-              if (!this.duplicateDetector.isTweetIdKnown(tweet.tweetID)) {
-                this.duplicateDetector.addTweetId(tweet.tweetID);
+            if (tweetTime && tweetTime >= cutoffTime && tweet.url) {
+              if (!this.duplicateDetector.isDuplicate(tweet.url)) {
+                this.duplicateDetector.markAsSeen(tweet.url);
                 markedAsSeen++;
                 this.logger.debug(`Marked retweet ${tweet.tweetID} as seen (${tweetTime.toISOString()})`);
               }

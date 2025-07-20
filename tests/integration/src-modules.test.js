@@ -94,10 +94,11 @@ describe('Source Module Integration Tests', () => {
       const tweetId = matches[0][1];
       expect(tweetId).toBe('1234567890123456789');
 
-      // Test with duplicate detector
-      expect(duplicateDetector.isTweetIdKnown(tweetId)).toBe(false);
-      duplicateDetector.addTweetId(tweetId);
-      expect(duplicateDetector.isTweetIdKnown(tweetId)).toBe(true);
+      // Test with duplicate detector using unified interface
+      const tweetUrl = `https://x.com/user/status/${tweetId}`;
+      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(false);
+      duplicateDetector.markAsSeen(tweetUrl);
+      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
     });
 
     it('should handle mixed content with both YouTube and Twitter URLs', () => {
@@ -112,12 +113,14 @@ describe('Source Module Integration Tests', () => {
       const videoId = videoMatches[0][1];
       const tweetId = tweetMatches[0][1];
 
-      // Both should be trackable
-      duplicateDetector.addVideoId(videoId);
-      duplicateDetector.addTweetId(tweetId);
+      // Both should be trackable using unified interface
+      const videoUrl = `https://youtu.be/${videoId}`;
+      const tweetUrl = `https://x.com/user/status/${tweetId}`;
+      duplicateDetector.markAsSeen(videoUrl);
+      duplicateDetector.markAsSeen(tweetUrl);
 
-      expect(duplicateDetector.isVideoIdKnown(videoId)).toBe(true);
-      expect(duplicateDetector.isTweetIdKnown(tweetId)).toBe(true);
+      expect(duplicateDetector.isDuplicate(videoUrl)).toBe(true);
+      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
     });
   });
 
@@ -307,16 +310,19 @@ describe('Source Module Integration Tests', () => {
       const videoId = videoMatches[0][1];
       const tweetId = tweetMatches[0][1];
 
-      // 3. Duplicate detection
+      // 3. Duplicate detection using unified interface
       const duplicateDetector = new DuplicateDetector();
-      expect(duplicateDetector.isVideoIdKnown(videoId)).toBe(false);
-      expect(duplicateDetector.isTweetIdKnown(tweetId)).toBe(false);
+      const videoUrl = `https://youtu.be/${videoId}`;
+      const tweetUrl = `https://x.com/user/status/${tweetId}`;
 
-      duplicateDetector.addVideoId(videoId);
-      duplicateDetector.addTweetId(tweetId);
+      expect(duplicateDetector.isDuplicate(videoUrl)).toBe(false);
+      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(false);
 
-      expect(duplicateDetector.isVideoIdKnown(videoId)).toBe(true);
-      expect(duplicateDetector.isTweetIdKnown(tweetId)).toBe(true);
+      duplicateDetector.markAsSeen(videoUrl);
+      duplicateDetector.markAsSeen(tweetUrl);
+
+      expect(duplicateDetector.isDuplicate(videoUrl)).toBe(true);
+      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
 
       // 4. Rate limiting
       const rateLimiter = new CommandRateLimit(5, 60000);

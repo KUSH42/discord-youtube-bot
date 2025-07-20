@@ -512,13 +512,13 @@ describe('Duplicate Detection Logic Tests', () => {
         expect(results.errors).toHaveLength(0);
 
         // Verify IDs were added to known set
-        expect(duplicateDetector.isTweetIdKnown('1234567890123456789')).toBe(true);
-        expect(duplicateDetector.isTweetIdKnown('9876543210987654321')).toBe(true);
+        expect(duplicateDetector.isDuplicate('https://x.com/user/status/1234567890123456789')).toBe(true);
+        expect(duplicateDetector.isDuplicate('https://x.com/user/status/9876543210987654321')).toBe(true);
       });
 
       it('should not add duplicate tweet IDs', async () => {
         // Pre-add one tweet ID
-        duplicateDetector.addTweetId('1234567890123456789');
+        duplicateDetector.markAsSeen('https://x.com/user/status/1234567890123456789');
 
         const results = await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
 
