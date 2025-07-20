@@ -54,6 +54,9 @@ export async function setupProductionServices(container, config) {
   // Set up logging
   await setupLogging(container, config);
 
+  // Set up Discord logging transport (after both services exist)
+  await setupDiscordLogging(container, config);
+
   // Validate container
   container.validate();
 }
@@ -248,20 +251,8 @@ async function setupLogging(container, config) {
       }),
     ];
 
-    // Add Discord transport if configured
-    const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
-    if (supportChannelId) {
-      const discordService = c.resolve('discordService');
-      transports.push(
-        new DiscordTransport({
-          level: logLevel, // Use the same log level as configured
-          client: discordService.client,
-          channelId: supportChannelId,
-          flushInterval: 2000,
-          maxBufferSize: 20,
-        })
-      );
-    }
+    // Note: Discord transport will be added later to avoid circular dependency
+    // between logger and discordService
 
     return winston.createLogger({
       level: logLevel,
@@ -269,6 +260,29 @@ async function setupLogging(container, config) {
       transports,
     });
   });
+}
+
+/**
+ * Configure Discord logging transport after both logger and discordService are created
+ */
+async function setupDiscordLogging(container, config) {
+  const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
+  if (supportChannelId) {
+    const logger = container.resolve('logger');
+    const discordService = container.resolve('discordService');
+    const logLevel = config.get('LOG_LEVEL', 'info');
+
+    // Add Discord transport to existing logger
+    const discordTransport = new DiscordTransport({
+      level: logLevel,
+      client: discordService.client,
+      channelId: supportChannelId,
+      flushInterval: 2000,
+      maxBufferSize: 20,
+    });
+
+    logger.add(discordTransport);
+  }
 }
 
 /**
