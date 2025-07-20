@@ -342,6 +342,9 @@ describe('Tweet Processing Pipeline', () => {
       tweetCategory: 'Post',
     };
 
+    // Mock duplicate detector to return false for new tweet
+    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(false);
+
     await scraperApp.processNewTweet(mockTweet);
 
     // Should classify the tweet

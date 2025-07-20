@@ -5,11 +5,11 @@ import { config } from '@dotenvx/dotenvx';
 import { pathToFileURL } from 'url';
 
 // Infrastructure
-import { Configuration } from './src/infrastructure/configuration.js';
-import { DependencyContainer } from './src/infrastructure/dependency-container.js';
+import { Configuration } from './infrastructure/configuration.js';
+import { DependencyContainer } from './infrastructure/dependency-container.js';
 
 // Setup
-import { setupProductionServices, createShutdownHandler } from './src/setup/production-setup.js';
+import { setupProductionServices, createShutdownHandler } from './setup/production-setup.js';
 
 // Load environment variables with encryption support
 config();
