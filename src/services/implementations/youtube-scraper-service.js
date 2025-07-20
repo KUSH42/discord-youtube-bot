@@ -14,13 +14,13 @@ export class YouTubeScraperService {
     this.isInitialized = false;
     this.isRunning = false;
     this.scrapingInterval = null;
-    
+
     // Configuration
     this.scrapingIntervalMs = config.get('YOUTUBE_SCRAPER_INTERVAL_MS', 15000); // 15 seconds
     this.maxRetries = config.get('YOUTUBE_SCRAPER_MAX_RETRIES', 3);
     this.retryDelayMs = config.get('YOUTUBE_SCRAPER_RETRY_DELAY_MS', 5000);
     this.timeoutMs = config.get('YOUTUBE_SCRAPER_TIMEOUT_MS', 30000);
-    
+
     // Metrics
     this.metrics = {
       totalScrapingAttempts: 0,
@@ -44,7 +44,7 @@ export class YouTubeScraperService {
 
     // Construct channel URL
     this.channelUrl = `https://www.youtube.com/@${channelHandle}/videos`;
-    
+
     try {
       // Launch browser with optimized settings for scraping
       await this.browserService.launch({
@@ -119,20 +119,24 @@ export class YouTubeScraperService {
       // Extract latest video information using multiple selector strategies
       const latestVideo = await this.browserService.evaluate(() => {
         // Strategy 1: Try modern YouTube layout
+        // eslint-disable-next-line no-undef
         let videoElement = document.querySelector('ytd-rich-grid-media:first-child #video-title-link');
-        
+
         // Strategy 2: Try alternate selector
         if (!videoElement) {
+          // eslint-disable-next-line no-undef
           videoElement = document.querySelector('ytd-rich-item-renderer:first-child #video-title-link');
         }
-        
+
         // Strategy 3: Try grid layout
         if (!videoElement) {
+          // eslint-disable-next-line no-undef
           videoElement = document.querySelector('#contents ytd-rich-grid-media:first-child a#video-title');
         }
-        
+
         // Strategy 4: Try list layout
         if (!videoElement) {
+          // eslint-disable-next-line no-undef
           videoElement = document.querySelector('#contents ytd-video-renderer:first-child a#video-title');
         }
 
@@ -149,7 +153,7 @@ export class YouTubeScraperService {
 
         const videoId = videoIdMatch[1];
         const title = videoElement.textContent?.trim() || 'Unknown Title';
-        
+
         // Try to get additional metadata
         const videoContainer = videoElement.closest('ytd-rich-grid-media, ytd-rich-item-renderer, ytd-video-renderer');
         let publishedText = 'Unknown';
@@ -158,10 +162,19 @@ export class YouTubeScraperService {
 
         if (videoContainer) {
           // Try to find published time
-          const metadataElements = videoContainer.querySelectorAll('#metadata-line span, #published-time-text, .ytd-video-meta-block span');
+          const metadataElements = videoContainer.querySelectorAll(
+            '#metadata-line span, #published-time-text, .ytd-video-meta-block span'
+          );
           for (const element of metadataElements) {
             const text = element.textContent?.trim();
-            if (text && (text.includes('ago') || text.includes('hour') || text.includes('day') || text.includes('week') || text.includes('month'))) {
+            if (
+              text &&
+              (text.includes('ago') ||
+                text.includes('hour') ||
+                text.includes('day') ||
+                text.includes('week') ||
+                text.includes('month'))
+            ) {
               publishedText = text;
               break;
             }
@@ -185,11 +198,11 @@ export class YouTubeScraperService {
 
         return {
           id: videoId,
-          title: title,
+          title,
           url: videoUrl,
-          publishedText: publishedText,
-          viewsText: viewsText,
-          thumbnailUrl: thumbnailUrl,
+          publishedText,
+          viewsText,
+          thumbnailUrl,
           scrapedAt: new Date().toISOString(),
         };
       });
@@ -197,7 +210,7 @@ export class YouTubeScraperService {
       if (latestVideo) {
         this.metrics.successfulScrapes++;
         this.metrics.lastSuccessfulScrape = new Date();
-        
+
         this.logger.debug('Successfully scraped latest video', {
           videoId: latestVideo.id,
           title: latestVideo.title,
@@ -238,7 +251,7 @@ export class YouTubeScraperService {
     }
 
     const latestVideo = await this.fetchLatestVideo();
-    
+
     if (latestVideo && latestVideo.id !== this.lastKnownVideoId) {
       this.logger.info('New video detected via scraping', {
         videoId: latestVideo.id,
@@ -248,7 +261,7 @@ export class YouTubeScraperService {
 
       this.lastKnownVideoId = latestVideo.id;
       this.metrics.videosDetected++;
-      
+
       return latestVideo;
     }
 
@@ -313,7 +326,7 @@ export class YouTubeScraperService {
     }
 
     this.isRunning = false;
-    
+
     if (this.scrapingInterval) {
       clearTimeout(this.scrapingInterval);
       this.scrapingInterval = null;
@@ -327,9 +340,10 @@ export class YouTubeScraperService {
    * @returns {Object} Scraper metrics
    */
   getMetrics() {
-    const successRate = this.metrics.totalScrapingAttempts > 0 
-      ? (this.metrics.successfulScrapes / this.metrics.totalScrapingAttempts) * 100 
-      : 0;
+    const successRate =
+      this.metrics.totalScrapingAttempts > 0
+        ? (this.metrics.successfulScrapes / this.metrics.totalScrapingAttempts) * 100
+        : 0;
 
     return {
       ...this.metrics,
@@ -353,7 +367,7 @@ export class YouTubeScraperService {
   updateLastKnownVideoId(videoId) {
     const previousId = this.lastKnownVideoId;
     this.lastKnownVideoId = videoId;
-    
+
     this.logger.debug('Updated last known video ID', {
       previousId,
       newId: videoId,
@@ -386,7 +400,7 @@ export class YouTubeScraperService {
 
       // Try to fetch latest video as health check
       const testVideo = await this.fetchLatestVideo();
-      
+
       if (testVideo) {
         health.status = 'healthy';
         health.details.lastVideoId = testVideo.id;
@@ -395,14 +409,13 @@ export class YouTubeScraperService {
         health.status = 'no_videos_found';
         health.details.warning = 'No videos found during health check';
       }
-
     } catch (error) {
       health.status = 'error';
       health.details.error = error.message;
     }
 
     health.details.metrics = this.getMetrics();
-    
+
     return health;
   }
 
@@ -412,13 +425,13 @@ export class YouTubeScraperService {
    */
   async cleanup() {
     this.logger.info('Cleaning up YouTube scraper service');
-    
+
     await this.stopMonitoring();
-    
+
     if (this.browserService) {
       await this.browserService.close();
     }
-    
+
     this.isInitialized = false;
     this.lastKnownVideoId = null;
     this.channelUrl = null;

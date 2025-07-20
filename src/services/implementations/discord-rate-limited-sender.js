@@ -5,13 +5,13 @@
 export class DiscordRateLimitedSender {
   constructor(logger, options = {}) {
     this.logger = logger;
-    
+
     // Queue configuration
     this.messageQueue = [];
     this.isProcessing = false;
     this.isPaused = false;
     this.pauseUntil = null;
-    
+
     // Rate limiting configuration
     this.baseSendDelay = options.baseSendDelay || 1000; // 1 second between sends
     this.burstAllowance = options.burstAllowance || 5; // Allow 5 quick sends
@@ -23,7 +23,7 @@ export class DiscordRateLimitedSender {
     // Burst tracking
     this.burstCounter = 0;
     this.lastBurstReset = Date.now();
-    
+
     // Metrics
     this.metrics = {
       totalMessages: 0,
@@ -35,7 +35,7 @@ export class DiscordRateLimitedSender {
       maxQueueSize: 0,
       lastRateLimitHit: null,
     };
-    
+
     // Start processing queue
     this.startProcessing();
   }
@@ -159,20 +159,19 @@ export class DiscordRateLimitedSender {
     try {
       // Apply rate limiting delays
       await this.applyRateLimit();
-      
+
       // Attempt to send the message
       const response = await this.attemptSend(task.channel, task.content, task.options);
-      
+
       // Success
       this.metrics.successfulSends++;
       task.resolve(response);
-      
+
       this.logger.debug('Message sent successfully', {
         taskId: task.id,
         messageId: response.id,
         channel: task.channel.name || task.channel.id,
       });
-      
     } catch (error) {
       await this.handleSendError(task, error);
     }
@@ -216,9 +215,9 @@ export class DiscordRateLimitedSender {
     if (this.isRetryableError(error) && task.retryCount < this.maxRetries) {
       task.retryCount++;
       this.metrics.totalRetries++;
-      
+
       const retryDelay = this.calculateRetryDelay(task.retryCount);
-      
+
       this.logger.warn('Retrying message send after error', {
         taskId: task.id,
         retryCount: task.retryCount,
@@ -231,14 +230,14 @@ export class DiscordRateLimitedSender {
       setTimeout(() => {
         this.messageQueue.unshift(task); // Add to front for priority
       }, retryDelay);
-      
+
       return;
     }
 
     // Permanent failure
     this.metrics.failedSends++;
     task.reject(error);
-    
+
     this.logger.error('Message send permanently failed', {
       taskId: task.id,
       retryCount: task.retryCount,
@@ -258,7 +257,7 @@ export class DiscordRateLimitedSender {
 
     // Extract retry-after from error
     let retryAfterMs = 1000; // Default 1 second
-    
+
     if (error.retryAfter) {
       retryAfterMs = error.retryAfter * 1000; // Convert seconds to milliseconds
     } else if (error.retry_after) {
@@ -289,7 +288,7 @@ export class DiscordRateLimitedSender {
    */
   async applyRateLimit() {
     const now = Date.now();
-    
+
     // Reset burst counter if time has elapsed
     if (now - this.lastBurstReset > this.burstResetTime) {
       this.burstCounter = 0;
@@ -324,13 +323,7 @@ export class DiscordRateLimitedSender {
    */
   isRetryableError(error) {
     // Network-related errors that might be temporary
-    const retryableErrors = [
-      'ENOTFOUND',
-      'ECONNRESET',
-      'ETIMEDOUT',
-      'ECONNREFUSED',
-      'EPIPE',
-    ];
+    const retryableErrors = ['ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'EPIPE'];
 
     // Discord API errors that might be temporary
     const retryableCodes = [
@@ -353,10 +346,9 @@ export class DiscordRateLimitedSender {
   updateQueueMetrics() {
     const currentSize = this.messageQueue.length;
     this.metrics.maxQueueSize = Math.max(this.metrics.maxQueueSize, currentSize);
-    
+
     // Simple running average for queue size
-    this.metrics.averageQueueSize = 
-      (this.metrics.averageQueueSize * 0.9) + (currentSize * 0.1);
+    this.metrics.averageQueueSize = this.metrics.averageQueueSize * 0.9 + currentSize * 0.1;
   }
 
   /**
@@ -387,9 +379,8 @@ export class DiscordRateLimitedSender {
       isProcessing: this.isProcessing,
       isPaused: this.isPaused,
       pauseUntil: this.pauseUntil,
-      successRate: this.metrics.totalMessages > 0 
-        ? (this.metrics.successfulSends / this.metrics.totalMessages) * 100 
-        : 0,
+      successRate:
+        this.metrics.totalMessages > 0 ? (this.metrics.successfulSends / this.metrics.totalMessages) * 100 : 0,
       configuration: {
         baseSendDelay: this.baseSendDelay,
         burstAllowance: this.burstAllowance,
@@ -405,14 +396,14 @@ export class DiscordRateLimitedSender {
    */
   clearQueue(reason = 'Queue cleared') {
     const clearedTasks = this.messageQueue.length;
-    
+
     // Reject all pending tasks
     this.messageQueue.forEach(task => {
       task.reject(new Error(reason));
     });
-    
+
     this.messageQueue = [];
-    
+
     this.logger.info('Message queue cleared', {
       clearedTasks,
       reason,
@@ -431,9 +422,9 @@ export class DiscordRateLimitedSender {
     });
 
     const startTime = Date.now();
-    
+
     // Wait for queue to empty or timeout
-    while (this.messageQueue.length > 0 && (Date.now() - startTime) < timeoutMs) {
+    while (this.messageQueue.length > 0 && Date.now() - startTime < timeoutMs) {
       await this.delay(1000);
     }
 
