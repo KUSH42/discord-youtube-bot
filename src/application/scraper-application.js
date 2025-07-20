@@ -44,6 +44,26 @@ export class ScraperApplication {
       lastError: null,
     };
     this.nextPollTimestamp = null;
+
+    // Debug logging sampling configuration to prevent Discord spam
+    this.debugSamplingRate = parseFloat(this.config.get('X_DEBUG_SAMPLING_RATE', '0.1')); // 10% default
+    this.verboseLogSamplingRate = parseFloat(this.config.get('X_VERBOSE_LOG_SAMPLING_RATE', '0.05')); // 5% default
+  }
+
+  /**
+   * Check if debug logging should be sampled to reduce Discord spam
+   * @returns {boolean} True if debug logging should occur
+   */
+  shouldLogDebug() {
+    return Math.random() < this.debugSamplingRate;
+  }
+
+  /**
+   * Check if verbose logging should be sampled to reduce Discord spam
+   * @returns {boolean} True if verbose logging should occur
+   */
+  shouldLogVerbose() {
+    return Math.random() < this.verboseLogSamplingRate;
   }
 
   /**
@@ -409,13 +429,19 @@ export class ScraperApplication {
       this.logger.info(`Found ${newTweets.length} new tweets during enhanced retweet detection.`);
 
       for (const tweet of newTweets) {
-        this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
+        // Reduce debug frequency for tweet checking
+        if (this.shouldLogDebug()) {
+          this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
+        }
         if (this.isNewContent(tweet)) {
           this.logger.info(`✅ Found new tweet to process: ${tweet.url} (${tweet.tweetCategory})`);
           await this.processNewTweet(tweet);
           this.stats.totalTweetsAnnounced++;
         } else {
-          this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is old.`);
+          // Reduce frequency of old tweet skip logs
+          if (this.shouldLogVerbose()) {
+            this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is old.`);
+          }
         }
       }
     } catch (error) {
@@ -601,14 +627,23 @@ export class ScraperApplication {
         // Check if tweet is new enough based on bot start time
         if (this.isNewContent(tweet)) {
           newTweets.push(tweet);
-          this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
+          // Only log debug for sampling to reduce Discord spam
+          if (this.shouldLogDebug()) {
+            this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
+          }
         } else {
           oldContentCount++;
-          this.logger.debug(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
+          // Reduce frequency of old tweet filtering logs
+          if (this.shouldLogVerbose()) {
+            this.logger.debug(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
+          }
         }
       } else {
         duplicateCount++;
-        this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
+        // Reduce frequency of duplicate filtering logs
+        if (this.shouldLogVerbose()) {
+          this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
+        }
       }
     }
 

@@ -4,6 +4,7 @@
 import Transport from 'winston-transport';
 import * as winston from 'winston';
 import { splitMessage } from './discord-utils.js';
+import { DiscordRateLimitedSender } from './services/implementations/discord-rate-limited-sender.js';
 
 /**
  * Discord Transport for Winston logger
@@ -23,6 +24,16 @@ export class DiscordTransport extends Transport {
     this.flushTimer = null;
     this.isDestroyed = false;
 
+    // Rate-limited sender for improved Discord API handling
+    // More conservative settings for Discord logging to prevent rate limiting
+    this.rateLimitedSender = new DiscordRateLimitedSender(console, {
+      baseSendDelay: opts.baseSendDelay || 2000, // 2 seconds between sends for logging
+      burstAllowance: opts.burstAllowance || 2, // Only 2 quick messages per minute for logging
+      burstResetTime: opts.burstResetTime || 90000, // 1.5 minutes burst reset (more conservative)
+      maxRetries: opts.maxRetries || 2,
+      maxBackoffDelay: opts.maxBackoffDelay || 60000, // 1 minute max backoff for logging
+    });
+
     // Don't start periodic flushing in test environment to prevent test timeouts
     if (process.env.NODE_ENV !== 'test') {
       this.startFlushing();
@@ -41,20 +52,27 @@ export class DiscordTransport extends Transport {
   }
 
   // Add cleanup method to prevent memory leaks
-  close() {
+  async close() {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
     this.isDestroyed = true;
-    // Trigger flush for the test spy, but don't actually send anything
-    this.flush();
+    
+    // Flush any remaining messages
+    await this.flush();
+    
+    // Gracefully shutdown the rate-limited sender
+    if (this.rateLimitedSender) {
+      await this.rateLimitedSender.shutdown(5000); // 5 second timeout
+    }
+    
     this.emit('close');
   }
 
   // Override the Winston transport close method
-  destroy() {
-    this.close();
+  async destroy() {
+    await this.close();
   }
 
   async log(info, callback) {
@@ -72,8 +90,11 @@ export class DiscordTransport extends Transport {
         const fetchedChannel = await this.client.channels.fetch(this.channelId);
         if (fetchedChannel && fetchedChannel.isTextBased()) {
           this.channel = fetchedChannel;
-          // Send initialization message immediately, not buffered
-          this.channel.send('✅ **Winston logging transport initialized for this channel.**').catch(error => {
+          // Send initialization message using rate-limited sender
+          this.rateLimitedSender.sendImmediate(
+            this.channel, 
+            '✅ **Winston logging transport initialized for this channel.**'
+          ).catch(error => {
             console.error('[DiscordTransport] Failed to send initialization message:', error);
           });
         } else {
@@ -116,16 +137,29 @@ export class DiscordTransport extends Transport {
 
     const combinedMessage = messagesToFlush.join('\n');
     try {
+      // Use rate-limited sender for improved Discord API handling
       for (const part of splitMessage(combinedMessage, { maxLength: 1980 })) {
         if (part) {
-          await this.channel.send(part);
+          await this.rateLimitedSender.queueMessage(this.channel, part, {
+            priority: 1, // Logging messages have normal priority
+          });
         }
       }
     } catch (error) {
       // Only log the error if it's not related to Discord being unavailable during shutdown
       if (error.message && !error.message.includes('token to be set') && !error.message.includes('client destroyed')) {
         console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
+        
+        // Log rate limiting metrics for debugging
+        const metrics = this.rateLimitedSender.getMetrics();
+        console.error('[DiscordTransport] Rate limiter metrics:', {
+          successRate: metrics.successRate,
+          rateLimitHits: metrics.rateLimitHits,
+          currentQueueSize: metrics.currentQueueSize,
+          isPaused: metrics.isPaused,
+        });
       }
+      
       // Re-add messages to buffer if sending failed and transport is still active
       if (!this.isDestroyed && messagesToFlush.length > 0 && this.client.isReady()) {
         this.buffer.unshift(...messagesToFlush);

@@ -20,14 +20,16 @@ The project is designed with a clear separation of concerns, making it easy for 
 - **📺 Content Monitoring**
     - **Real-time YouTube Notifications**: Uses PubSubHubbub for instant upload and livestream announcements.
     - **Intelligent Fallback System**: Automatically switches to API polling if PubSubHubbub fails, ensuring no content is missed.
-    - **X (Twitter) Scraping**: Monitors profiles for new posts, replies, quotes, and retweets.
+    - **YouTube Web Scraping**: Near-instantaneous content detection (15-second polling) using Playwright for backup monitoring.
+    - **X (Twitter) Scraping**: Monitors profiles for new posts, replies, quotes, and retweets with enhanced authentication.
     - **Persistent Duplicate Detection**: Scans channel history on startup to prevent re-announcing content across restarts.
     - **Advanced Retweet Classification**: Uses multiple strategies to accurately identify and route retweets.
 
 - **🛡️ Security & Reliability**
     - **Credential Encryption**: Securely stores API keys and passwords using `.envx` encryption.
     - **Webhook Signature Verification**: Cryptographically validates incoming YouTube notifications.
-    - **Rate Limiting**: Protects the bot from abuse on commands and webhooks.
+    - **Advanced Rate Limiting**: Sophisticated Discord API rate limiting with 429 error handling and exponential backoff.
+    - **Queue Management**: Intelligent message queue with priority support and graceful degradation.
     - **Configuration Validation**: Ensures all required configurations are present on startup.
 
 - **🏗️ Architecture & Extensibility**
@@ -144,6 +146,14 @@ All configuration is managed through the `.env` file.
 | `X_VX_TWITTER_CONVERSION`         | Automatically convert `twitter.com` links to `vxtwitter.com`.               | No       | `false`            |
 | `WEBHOOK_DEBUG_LOGGING`           | Enable detailed webhook debugging logs for PubSubHubbub troubleshooting.    | No       | `false`            |
 | `SYSTEMD_SERVICE_NAME`            | The name of the `systemd` service for the `!update` command.                | No       | `discord-bot.service` |
+| `YOUTUBE_SCRAPER_INTERVAL_MS`     | YouTube web scraper polling interval in milliseconds.                       | No       | `15000` (15 sec)   |
+| `YOUTUBE_SCRAPER_MAX_RETRIES`     | Maximum retry attempts for YouTube scraper failures.                        | No       | `3`                |
+| `YOUTUBE_SCRAPER_TIMEOUT_MS`      | Timeout for YouTube scraper page operations in milliseconds.                | No       | `30000` (30 sec)   |
+| `X_DEBUG_SAMPLING_RATE`           | Sampling rate for debug logs to reduce Discord spam (0.0-1.0).              | No       | `0.1` (10%)        |
+| `X_VERBOSE_LOG_SAMPLING_RATE`     | Sampling rate for verbose logs to reduce Discord spam (0.0-1.0).            | No       | `0.05` (5%)        |
+| `DISCORD_BASE_SEND_DELAY`         | Base delay between Discord message sends in milliseconds.                   | No       | `2000` (2 sec)     |
+| `DISCORD_BURST_ALLOWANCE`         | Number of quick Discord messages allowed per burst period.                  | No       | `2`                |
+| `DISCORD_MAX_BUFFER_SIZE`         | Maximum Discord log message buffer size before flushing.                    | No       | `30`               |
 
 ## Usage
 
@@ -273,9 +283,16 @@ docker build -t bot:deps --target dependencies .
 
 ## Testing & Quality Assurance
 
-This project is committed to high quality through a comprehensive and automated testing strategy. We maintain a suite of over 350 tests, including unit, integration, end-to-end (E2E), performance, and security tests.
+This project is committed to high quality through a comprehensive and automated testing strategy. We maintain a suite of over 400 tests, including unit, integration, end-to-end (E2E), performance, and security tests.
 
 Our testing philosophy emphasizes fast feedback, high confidence in critical paths, and maintainability. All tests are executed automatically on every push and pull request via GitHub Actions.
+
+**Recent E2E Testing Enhancements:**
+- **Comprehensive Command Testing**: Complete workflow tests for all Discord bot commands (!health, !announce, !restart, etc.)
+- **YouTube Content Monitoring**: End-to-end tests for the complete YouTube announcement pipeline
+- **Fallback Recovery**: Tests for YouTube API failure scenarios and recovery mechanisms
+- **Rate Limiting**: Tests for Discord API rate limiting and 429 error handling
+- **Authorization**: Comprehensive tests for user authorization and command validation
 
 -   **Run all tests locally:**
     ```sh
