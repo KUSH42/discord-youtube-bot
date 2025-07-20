@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { YouTubeScraperService } from '../../src/services/implementations/youtube-scraper-service.js';
 
-jest.mock('../../src/services/implementations/playwright-browser-service.js', () => {
-  return jest.fn().mockImplementation(() => ({
+jest.mock('../../src/services/implementations/playwright-browser-service.js', () => ({
+  PlaywrightBrowserService: jest.fn().mockImplementation(() => ({
     launch: jest.fn(),
     setUserAgent: jest.fn(),
     setViewport: jest.fn(),
@@ -11,8 +11,8 @@ jest.mock('../../src/services/implementations/playwright-browser-service.js', ()
     evaluate: jest.fn(),
     close: jest.fn(),
     isRunning: jest.fn(() => true),
-  }));
-});
+  })),
+}));
 
 describe('YouTubeScraperService', () => {
   let scraperService;

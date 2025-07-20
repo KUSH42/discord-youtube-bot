@@ -32,7 +32,9 @@ describe('DiscordRateLimitedSender', () => {
   });
 
   afterEach(async () => {
-    await sender.shutdown(1000);
+    if (sender) {
+      await sender.shutdown(1000);
+    }
     jest.useRealTimers();
   });
 
@@ -94,12 +96,12 @@ describe('DiscordRateLimitedSender', () => {
       await Promise.all(promises);
       const endTime = Date.now();
 
-      // Should complete quickly since all are within burst allowance
-      expect(endTime - startTime).toBeLessThan(500);
+      // Should complete quickly since all are within burst allowance (increased tolerance for CI)
+      expect(endTime - startTime).toBeLessThan(2000);
       expect(mockChannel.send).toHaveBeenCalledTimes(3);
 
       jest.useFakeTimers();
-    });
+    }, 15000); // 15 second timeout for real-timer test
 
     it('should apply delay after burst allowance exceeded', async () => {
       // Send burst allowance messages

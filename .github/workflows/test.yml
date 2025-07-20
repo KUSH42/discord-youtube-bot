@@ -494,7 +494,7 @@ jobs:
         run: |
           mkdir -p test-results/e2e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
-          npx jest --config jest.e2e.config.js \
+          npx jest --config tests/configs/jest.e2e.config.js \
             --maxWorkers=2 \
             --testTimeout=60000 \
             --forceExit \
@@ -638,7 +638,7 @@ jobs:
         run: |
           mkdir -p test-results/security
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
-          npx jest --config jest.security.config.js \
+          npx jest --config tests/configs/jest.security.config.js \
             --maxWorkers=4 \
             --testTimeout=45000 \
             --forceExit \
