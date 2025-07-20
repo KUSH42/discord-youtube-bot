@@ -86,13 +86,14 @@ async function setupInfrastructureServices(container, config) {
  */
 async function setupExternalServices(container, config) {
   // Discord Client Service
-  container.registerSingleton('discordService', () => {
+  container.registerSingleton('discordService', c => {
     const client = new Client({
       intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
       partials: [Partials.Message, Partials.Channel, Partials.Reaction],
     });
+    const logger = c.resolve('logger').child({ service: 'DiscordClientService' });
 
-    return new DiscordClientService(client);
+    return new DiscordClientService(client, logger);
   });
 
   // YouTube API Service

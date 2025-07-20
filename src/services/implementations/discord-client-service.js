@@ -4,9 +4,10 @@ import { DiscordService } from '../interfaces/discord-service.js';
  * Discord.js implementation of DiscordService
  */
 export class DiscordClientService extends DiscordService {
-  constructor(client) {
+  constructor(client, logger) {
     super();
     this.client = client;
+    this.logger = logger;
     this.eventHandlers = new Map();
   }
 
@@ -50,7 +51,14 @@ export class DiscordClientService extends DiscordService {
       try {
         handler(message);
       } catch (error) {
-        console.error('Error in message handler:', error);
+        // Log the error with context
+        this.logger.error('Error in message handler:', {
+          error: error.message, // Include the error message
+          stack: error.stack, // Include the stack trace
+          messageContent: message.content, // Include the message content
+          channelId: message.channelId, // Include the channel ID
+          userId: message.author?.id, // Include the user ID, if available
+        });
       }
     };
 

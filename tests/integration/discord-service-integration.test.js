@@ -6,6 +6,7 @@ describe('Discord Service Integration', () => {
   let mockClient;
   let mockChannel;
   let mockGuild;
+  let mockLogger; // Mock logger
 
   beforeEach(() => {
     mockChannel = {
@@ -33,7 +34,12 @@ describe('Discord Service Integration', () => {
       removeListener: jest.fn(),
     };
 
-    discordService = new DiscordClientService(mockClient);
+    mockLogger = {
+      // Create a mock logger
+      error: jest.fn(),
+    };
+
+    discordService = new DiscordClientService(mockClient, mockLogger);
   });
 
   afterEach(() => {
@@ -156,17 +162,33 @@ describe('Discord Service Integration', () => {
 
     it('should handle message events with error handling', () => {
       const mockHandler = jest.fn(() => {
-        throw new Error('Handler error');
+        throw new Error('Simulated handler error');
       });
 
       discordService.onMessage(mockHandler);
 
       // Get the wrapped handler that was registered
       const wrappedHandler = mockClient.on.mock.calls.find(call => call[0] === 'messageCreate')[1];
+      const messageContent = 'test message';
 
-      // Should not throw when handler throws
-      expect(() => wrappedHandler({ content: 'test' })).not.toThrow();
-      expect(mockHandler).toHaveBeenCalledWith({ content: 'test' });
+      // Call the wrapped handler
+      wrappedHandler({ content: messageContent, channelId: 'test-channel', author: { id: 'test-user' } });
+
+      // Assert that the handler was called, and check that no error was thrown
+      expect(mockHandler).toHaveBeenCalledWith({
+        content: messageContent,
+        channelId: 'test-channel',
+        author: { id: 'test-user' },
+      });
+
+      // Assert that the logger was called with the correct error information
+      expect(mockLogger.error).toHaveBeenCalledWith('Error in message handler:', {
+        error: 'Simulated handler error',
+        messageContent,
+        channelId: 'test-channel',
+        userId: 'test-user',
+        stack: expect.any(String), // Expect a stack trace
+      });
     });
   });
 

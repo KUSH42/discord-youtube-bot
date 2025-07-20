@@ -64,6 +64,9 @@ export class ScraperApplication {
       // Perform initial login
       await this.ensureAuthenticated();
 
+      // Initialize with recent content to prevent announcing old posts
+      await this.initializeRecentContent();
+
       // Start polling
       this.startPolling();
 
@@ -618,6 +621,7 @@ export class ScraperApplication {
 
   /**
    * Check if content is new enough to announce
+   * Uses duplicate detection and reasonable time windows instead of strict bot startup time
    * @param {Object} tweet - Tweet object
    * @returns {boolean} True if content is new
    */
@@ -630,25 +634,51 @@ export class ScraperApplication {
       return true;
     }
 
-    const botStartTime = this.state.get('botStartTime');
-    if (!botStartTime) {
-      this.logger.debug(`No bot start time set, considering tweet ${tweet.tweetID} as new`);
-      return true; // If no start time set, consider all content new
+    // First check: Have we seen this tweet before? (Primary duplicate detection)
+    if (tweet.tweetID && this.duplicateDetector.isTweetIdKnown(tweet.tweetID)) {
+      this.logger.debug(`Tweet ${tweet.tweetID} already known (duplicate), not new`);
+      return false;
     }
 
+    // Second check: Is the content too old to be relevant?
+    // Use a reasonable time window (e.g., 7 days) instead of bot startup time
+    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    const cutoffTime = new Date(Date.now() - maxAge);
+
+    if (tweet.timestamp) {
+      const tweetTime = new Date(tweet.timestamp);
+      if (tweetTime < cutoffTime) {
+        this.logger.debug(
+          `Tweet ${tweet.tweetID} is too old (${tweetTime.toISOString()} < ${cutoffTime.toISOString()}), not new`
+        );
+        return false;
+      }
+    }
+
+    // Third check: For additional safety, still check bot startup time if available
+    // but only as a fallback, not as the primary filter
+    const botStartTime = this.state.get('botStartTime');
+    if (botStartTime && tweet.timestamp) {
+      const tweetTime = new Date(tweet.timestamp);
+
+      // If the tweet is very recent (within last 2 hours of bot start), be more permissive
+      const twoHoursAfterStart = new Date(botStartTime.getTime() + 2 * 60 * 60 * 1000);
+      const now = new Date();
+
+      if (tweetTime < botStartTime && now < twoHoursAfterStart) {
+        this.logger.debug(`Tweet ${tweet.tweetID} predates bot start but bot started recently, accepting as new`);
+        return true;
+      }
+    }
+
+    // If no timestamp available, assume it's new (but will be caught by duplicate detection if seen again)
     if (!tweet.timestamp) {
       this.logger.debug(`No timestamp for tweet ${tweet.tweetID}, considering as new`);
-      return true; // If no timestamp available, assume it's new
+      return true;
     }
 
-    const tweetTime = new Date(tweet.timestamp);
-    const isNew = tweetTime >= botStartTime;
-
-    this.logger.debug(
-      `Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`
-    );
-
-    return isNew;
+    this.logger.debug(`Tweet ${tweet.tweetID} passed all checks, considering as new`);
+    return true;
   }
 
   /**
@@ -729,6 +759,12 @@ export class ScraperApplication {
         this.logger.debug(`Skipped ${classification.type} from @${tweet.author}: ${result.reason}`);
       } else {
         this.logger.warn(`Failed to announce ${classification.type} from @${tweet.author}: ${result.reason}`);
+      }
+
+      // Mark tweet as seen to prevent future re-processing
+      if (tweet.tweetID) {
+        this.duplicateDetector.addTweetId(tweet.tweetID);
+        this.logger.debug(`Marked tweet ${tweet.tweetID} as seen`);
       }
 
       // Emit tweet processed event
@@ -983,6 +1019,71 @@ export class ScraperApplication {
     }
     searchUrl += '&f=live&pf=on&src=typed_query';
     return searchUrl;
+  }
+
+  /**
+   * Initialize recent content on startup to prevent announcing old posts
+   * This scans recent content and marks it as "seen" without announcing it
+   * @returns {Promise<void>}
+   */
+  async initializeRecentContent() {
+    try {
+      this.logger.info('Initializing with recent content to prevent old post announcements...');
+
+      // Scan recent content based on configuration to mark as seen
+      const initializationHours = parseInt(this.config.get('INITIALIZATION_WINDOW_HOURS', '24'), 10);
+      const initializationWindow = initializationHours * 60 * 60 * 1000; // Convert hours to milliseconds
+      const cutoffTime = new Date(Date.now() - initializationWindow);
+
+      // Navigate to user's profile to get recent content
+      await this.navigateToProfileTimeline(this.xUser);
+
+      // Extract recent tweets
+      const tweets = await this.extractTweets();
+      this.logger.info(`Found ${tweets.length} recent tweets during initialization scan`);
+
+      let markedAsSeen = 0;
+      for (const tweet of tweets) {
+        // Only mark tweets that are within our initialization window
+        const tweetTime = tweet.timestamp ? new Date(tweet.timestamp) : null;
+
+        if (tweetTime && tweetTime >= cutoffTime) {
+          // Mark as seen by adding to duplicate detector
+          if (tweet.tweetID) {
+            this.duplicateDetector.addTweetId(tweet.tweetID);
+            markedAsSeen++;
+            this.logger.debug(`Marked tweet ${tweet.tweetID} as seen (${tweetTime.toISOString()})`);
+          }
+        }
+      }
+
+      // Also scan for retweets separately to ensure we catch them
+      if (this.shouldProcessRetweets()) {
+        try {
+          const retweetTweets = await this.extractTweets();
+          for (const tweet of retweetTweets) {
+            const tweetTime = tweet.timestamp ? new Date(tweet.timestamp) : null;
+
+            if (tweetTime && tweetTime >= cutoffTime && tweet.tweetID) {
+              if (!this.duplicateDetector.isTweetIdKnown(tweet.tweetID)) {
+                this.duplicateDetector.addTweetId(tweet.tweetID);
+                markedAsSeen++;
+                this.logger.debug(`Marked retweet ${tweet.tweetID} as seen (${tweetTime.toISOString()})`);
+              }
+            }
+          }
+        } catch (error) {
+          this.logger.warn('Error during retweet initialization scan:', error.message);
+        }
+      }
+
+      this.logger.info(`✅ Initialization complete: marked ${markedAsSeen} recent posts as seen`);
+      this.logger.info(`Content posted after ${new Date().toISOString()} will be announced`);
+    } catch (error) {
+      this.logger.error('Error during recent content initialization:', error);
+      // Don't throw - this is a best-effort initialization
+      this.logger.warn('Continuing with normal operation despite initialization error');
+    }
   }
 
   async dispose() {
