@@ -69,6 +69,7 @@ web_modules/
 
 # Jest cache
 .jest-cache/
+.jest-cache-*/
 
 # Optional stylelint cache
 .stylelintcache
@@ -155,9 +156,12 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/node
 
-# Temporary documentation
+# Temporary documentation and analysis files
 merge-strategies.md
 testing-gap-analysis.md
+COVERAGE_*.md
+*-analysis.md
+*-plan.md
 
 # Secrets and credentials
 xush.env

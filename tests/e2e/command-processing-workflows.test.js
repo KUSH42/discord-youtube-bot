@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { CommandProcessor } from '../../src/core/command-processor.js';
-import { createMockClient, createMockChannel, createMockMessage, createMockUser } from '../mocks/discord.mock.js';
+import { createMockClient, createMockChannel, createMockUser } from '../mocks/discord.mock.js';
 
 describe('End-to-End Command Processing Workflows', () => {
   let commandProcessor;
@@ -45,10 +45,10 @@ describe('End-to-End Command Processing Workflows', () => {
             throw new Error(result);
           }
         }
-        
+
         const oldValue = mockStateManager.data.get(key);
         mockStateManager.data.set(key, value);
-        
+
         // Notify subscribers
         if (mockStateManager.subscribers.has(key)) {
           setImmediate(() => {
@@ -56,7 +56,7 @@ describe('End-to-End Command Processing Workflows', () => {
             callback(value, oldValue);
           });
         }
-        
+
         return value;
       }),
 
@@ -315,7 +315,7 @@ describe('End-to-End Command Processing Workflows', () => {
       expect(result.message).toContain('**!restart**: Performs a full restart');
       expect(result.message).toContain('**!announce <true|false>**: Toggles announcement posting');
       expect(result.message).toContain('**!vxtwitter <true|false>**: Toggles the conversion');
-      expect(result.message).toContain('**!loglevel <level>**: Changes the bot\'s logging level');
+      expect(result.message).toContain("**!loglevel <level>**: Changes the bot's logging level");
       expect(result.message).toContain('**!health**: Shows bot health status');
       expect(result.message).toContain('**!health-detailed**: Shows detailed health status');
       expect(result.message).toContain('**!update**: Pulls the latest changes from git');
@@ -371,7 +371,9 @@ describe('End-to-End Command Processing Workflows', () => {
       const result = await commandProcessor.processCommand('loglevel', ['unknown'], authorizedUser.id);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('❌ Invalid log level. Valid levels are: error, warn, info, http, verbose, debug, silly.');
+      expect(result.message).toBe(
+        '❌ Invalid log level. Valid levels are: error, warn, info, http, verbose, debug, silly.'
+      );
     });
 
     it('should reject unknown commands', async () => {
@@ -423,8 +425,10 @@ describe('End-to-End Command Processing Workflows', () => {
       // Valid log levels
       const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
       for (const level of validLevels) {
+        const currentLevel = level; // Capture variable for safe closure
+        const stateManager = mockStateManager; // Capture outer scope variable
         await expect(async () => {
-          mockStateManager.set('logLevel', level);
+          stateManager.set('logLevel', currentLevel);
         }).not.toThrow();
       }
 
@@ -471,7 +475,7 @@ describe('End-to-End Command Processing Workflows', () => {
 
     it('should simulate emergency shutdown workflow', async () => {
       // Scenario: Critical issue detected, need to stop all posting
-      
+
       // Step 1: Check current status
       const healthResult = await commandProcessor.processCommand('health', [], authorizedUser.id);
       expect(healthResult.success).toBe(true);
@@ -495,9 +499,9 @@ describe('End-to-End Command Processing Workflows', () => {
 
     it('should simulate unauthorized user attempting restricted commands', async () => {
       // Unauthorized user tries to access restricted commands
-      
+
       const restrictedCommands = ['restart', 'kill', 'update'];
-      
+
       for (const command of restrictedCommands) {
         const result = await commandProcessor.processCommand(command, [], unauthorizedUser.id);
         expect(result.success).toBe(false);
@@ -539,8 +543,12 @@ describe('End-to-End Command Processing Workflows', () => {
     it('should handle empty allowed user IDs configuration', async () => {
       // Mock empty ALLOWED_USER_IDS
       mockConfig.get.mockImplementation((key, defaultValue) => {
-        if (key === 'ALLOWED_USER_IDS') return '';
-        if (key === 'COMMAND_PREFIX') return '!';
+        if (key === 'ALLOWED_USER_IDS') {
+          return '';
+        }
+        if (key === 'COMMAND_PREFIX') {
+          return '!';
+        }
         return defaultValue;
       });
 

@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { YouTubeScraperService } from '../../src/services/implementations/youtube-scraper-service.js';
 
-// Mock Playwright browser service
-jest.mock('../../src/services/implementations/playwright-browser-service.js', () => ({
-  PlaywrightBrowserService: jest.fn().mockImplementation(() => ({
+jest.mock('../../src/services/implementations/playwright-browser-service.js', () => {
+  return jest.fn().mockImplementation(() => ({
     launch: jest.fn(),
     setUserAgent: jest.fn(),
     setViewport: jest.fn(),
@@ -12,8 +11,8 @@ jest.mock('../../src/services/implementations/playwright-browser-service.js', ()
     evaluate: jest.fn(),
     close: jest.fn(),
     isRunning: jest.fn(() => true),
-  })),
-}));
+  }));
+});
 
 describe('YouTubeScraperService', () => {
   let scraperService;
@@ -146,13 +145,10 @@ describe('YouTubeScraperService', () => {
       const result = await scraperService.fetchLatestVideo();
 
       expect(result).toEqual(mockVideo);
-      expect(mockBrowserService.goto).toHaveBeenCalledWith(
-        'https://www.youtube.com/@testchannel/videos',
-        {
-          waitUntil: 'networkidle',
-          timeout: 30000,
-        }
-      );
+      expect(mockBrowserService.goto).toHaveBeenCalledWith('https://www.youtube.com/@testchannel/videos', {
+        waitUntil: 'networkidle',
+        timeout: 30000,
+      });
       expect(scraperService.metrics.totalScrapingAttempts).toBe(1);
       expect(scraperService.metrics.successfulScrapes).toBe(1);
     });
@@ -180,9 +176,7 @@ describe('YouTubeScraperService', () => {
     it('should throw error if not initialized', async () => {
       const uninitializedScraper = new YouTubeScraperService(mockLogger, mockConfig);
 
-      await expect(uninitializedScraper.fetchLatestVideo()).rejects.toThrow(
-        'YouTube scraper is not initialized'
-      );
+      await expect(uninitializedScraper.fetchLatestVideo()).rejects.toThrow('YouTube scraper is not initialized');
     });
   });
 

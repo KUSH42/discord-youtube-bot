@@ -107,7 +107,7 @@ describe('Credential Handling Security Tests', () => {
       // Verify stored cookies don't contain plain text passwords
       const storedCookies = stateManager.get('x_session_cookies');
       expect(storedCookies).toBeDefined();
-      
+
       const cookiesString = JSON.stringify(storedCookies);
       expect(cookiesString).not.toContain('test_secure_pass_123');
       expect(cookiesString).not.toContain('password');
@@ -337,10 +337,9 @@ describe('Credential Handling Security Tests', () => {
       // Verify any errors don't contain credentials
       results.forEach(result => {
         expect(result.status).toBeDefined();
-        if (result.status === 'rejected') {
-          expect(result.reason.message).not.toContain('test_secure_pass_123');
-          expect(result.reason.message).not.toContain('test_secure_user');
-        }
+        const isRejected = result.status === 'rejected';
+        expect(isRejected ? result.reason.message : '').not.toContain('test_secure_pass_123');
+        expect(isRejected ? result.reason.message : '').not.toContain('test_secure_user');
       });
     });
 

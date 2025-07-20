@@ -130,9 +130,7 @@ describe('DiscordRateLimitedSender', () => {
       rateLimitError.retryAfter = 2; // 2 seconds
 
       // First call fails with rate limit, second succeeds
-      mockChannel.send
-        .mockRejectedValueOnce(rateLimitError)
-        .mockResolvedValue({ id: 'success-message' });
+      mockChannel.send.mockRejectedValueOnce(rateLimitError).mockResolvedValue({ id: 'success-message' });
 
       const messagePromise = sender.queueMessage(mockChannel, 'Rate limited message');
 
@@ -249,9 +247,7 @@ describe('DiscordRateLimitedSender', () => {
       const error = new Error('Immediate send failed');
       mockChannel.send.mockRejectedValue(error);
 
-      await expect(sender.sendImmediate(mockChannel, 'Failed message')).rejects.toThrow(
-        'Immediate send failed'
-      );
+      await expect(sender.sendImmediate(mockChannel, 'Failed message')).rejects.toThrow('Immediate send failed');
       expect(sender.metrics.failedSends).toBe(1);
     });
   });

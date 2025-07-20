@@ -232,12 +232,14 @@ describe('Application Input Validation Security Tests', () => {
 
       for (const url of maliciousUrls) {
         // Test various classification methods
+        const currentUrl = url; // Capture variable for safe closure
+        const classifier = contentClassifier; // Capture outer scope variable
         expect(() => {
-          contentClassifier.classifyVideoContent({ videoUrl: url });
+          classifier.classifyVideoContent({ videoUrl: currentUrl });
         }).not.toThrow();
 
         expect(() => {
-          contentClassifier.classifyXPost({ entities: { urls: [{ expanded_url: url }] } });
+          classifier.classifyXPost({ entities: { urls: [{ expanded_url: currentUrl }] } });
         }).not.toThrow();
       }
     });
@@ -267,13 +269,13 @@ describe('Application Input Validation Security Tests', () => {
       ];
 
       for (const metadata of maliciousMetadata) {
+        const currentMetadata = metadata; // Capture variable for safe closure
+        const classifier = contentClassifier; // Capture outer scope variable
         expect(() => {
-          const result = contentClassifier.classifyVideoContent(metadata);
+          const result = classifier.classifyVideoContent(currentMetadata);
 
           // If classification succeeds, ensure output is sanitized
-          if (result && result.title) {
-            expect(result.title).not.toContain('<script>');
-          }
+          expect(result && result.title ? result.title : '').not.toContain('<script>');
         }).not.toThrow();
       }
     });
@@ -294,9 +296,11 @@ describe('Application Input Validation Security Tests', () => {
       malformedContent[malformedContent.length - 1].circular.ref = malformedContent[malformedContent.length - 1];
 
       for (const content of malformedContent) {
+        const currentContent = content; // Capture variable for safe closure
+        const classifier = contentClassifier; // Capture outer scope variable
         expect(() => {
-          contentClassifier.classifyVideoContent(content);
-          contentClassifier.classifyXPost(content);
+          classifier.classifyVideoContent(currentContent);
+          classifier.classifyXPost(currentContent);
         }).not.toThrow();
       }
     });
@@ -333,7 +337,7 @@ describe('Application Input Validation Security Tests', () => {
         // Check that sent messages are sanitized
         const callCount = mockDiscordService.sendMessage.mock.calls.length;
         expect(callCount).toBeGreaterThan(0);
-        
+
         const lastCall = mockDiscordService.sendMessage.mock.calls[callCount - 1];
         const sentContent = lastCall[1]; // Second argument is the message content
 
@@ -390,7 +394,7 @@ describe('Application Input Validation Security Tests', () => {
       // Check that Discord API limits are respected
       const callCount = mockDiscordService.sendMessage.mock.calls.length;
       expect(callCount).toBeGreaterThan(0);
-      
+
       const lastCall = mockDiscordService.sendMessage.mock.calls[callCount - 1];
       const sentContent = lastCall[1];
 
