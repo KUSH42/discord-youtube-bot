@@ -199,7 +199,7 @@ For production, it is recommended to run the bot as a `systemd` service for auto
     # Replace 'your_bot_user' with the user the bot runs as
     User=your_bot_user
     # The start-bot.sh script handles finding the correct Node.js path
-    ExecStart=/home/your_bot_user/discord-youtube-bot/start-bot.sh
+    ExecStart=/home/your_bot_user/discord-youtube-bot/scripts/start-bot.sh
     Restart=on-failure
     RestartSec=10s
     StandardOutput=syslog

@@ -15,7 +15,7 @@ export default {
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',
-    '!setup-encryption.js',
+    '!scripts/setup-encryption.js',
     '!tests/**',
     '!src/services/interfaces/**',
     '!src/setup/**',
