@@ -506,7 +506,7 @@ export class YouTubeScraperService {
           /* eslint-enable no-undef */
         });
 
-        this.logger.info(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
+        this.logger.debug(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
       } catch (error) {
         this.logger.error('Failed to get YouTube page debug info:', error.message);
         debugInfo = { error: 'Failed to evaluate page' };
