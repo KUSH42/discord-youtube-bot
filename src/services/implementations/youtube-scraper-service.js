@@ -417,62 +417,61 @@ export class YouTubeScraperService {
       await this.browserService.waitFor(2000);
 
       // Debug: Log page content for troubleshooting
-      await this.browserService.evaluate(() => {
+      const debugInfo = await this.browserService.evaluate(() => {
         /* eslint-disable no-undef */
-        console.log('Page title:', document.title);
-        console.log('URL:', window.location.href);
-        console.log('ytd-rich-grid-media count:', document.querySelectorAll('ytd-rich-grid-media').length);
-        console.log('ytd-rich-item-renderer count:', document.querySelectorAll('ytd-rich-item-renderer').length);
-        console.log('a#video-title count:', document.querySelectorAll('a#video-title').length);
-        console.log('#video-title-link count:', document.querySelectorAll('#video-title-link').length);
+        return {
+          title: document.title,
+          url: window.location.href,
+          ytdRichGridMedia: document.querySelectorAll('ytd-rich-grid-media').length,
+          ytdRichItemRenderer: document.querySelectorAll('ytd-rich-item-renderer').length,
+          videoTitleById: document.querySelectorAll('a#video-title').length,
+          videoTitleLinkById: document.querySelectorAll('#video-title-link').length,
+          genericVideoLinks: document.querySelectorAll('a[href*="/watch?v="]').length,
+          shortsLinks: document.querySelectorAll('a[href*="/shorts/"]').length,
+        };
         /* eslint-enable no-undef */
       });
 
+      this.logger.info('YouTube page debug info:', debugInfo);
+
       // Extract latest video information using multiple selector strategies
       const latestVideo = await this.browserService.evaluate(() => {
-        // Strategy 1: Try modern YouTube layout
-        // eslint-disable-next-line no-undef
-        let videoElement = document.querySelector('ytd-rich-grid-media:first-child #video-title-link');
+        const selectors = [
+          { name: 'modern-grid', selector: 'ytd-rich-grid-media:first-child #video-title-link' },
+          { name: 'rich-item', selector: 'ytd-rich-item-renderer:first-child #video-title-link' },
+          { name: 'grid-with-contents', selector: '#contents ytd-rich-grid-media:first-child a#video-title' },
+          { name: 'list-renderer', selector: '#contents ytd-video-renderer:first-child a#video-title' },
+          { name: 'generic-watch', selector: 'a[href*="/watch?v="]' },
+          { name: 'shorts-and-titled', selector: 'a[href*="/shorts/"], a[title][href*="youtube.com/watch"]' },
+        ];
 
-        // Strategy 2: Try alternate selector
-        if (!videoElement) {
-          // eslint-disable-next-line no-undef
-          videoElement = document.querySelector('ytd-rich-item-renderer:first-child #video-title-link');
-        }
+        let videoElement = null;
+        let usedStrategy = null;
 
-        // Strategy 3: Try grid layout
-        if (!videoElement) {
+        for (const strategy of selectors) {
           // eslint-disable-next-line no-undef
-          videoElement = document.querySelector('#contents ytd-rich-grid-media:first-child a#video-title');
-        }
-
-        // Strategy 4: Try list layout
-        if (!videoElement) {
-          // eslint-disable-next-line no-undef
-          videoElement = document.querySelector('#contents ytd-video-renderer:first-child a#video-title');
-        }
-
-        // Strategy 5: Try more generic approach
-        if (!videoElement) {
-          // eslint-disable-next-line no-undef
-          videoElement = document.querySelector('a[href*="/watch?v="]');
-        }
-
-        // Strategy 6: Try shorts or other video formats
-        if (!videoElement) {
-          // eslint-disable-next-line no-undef
-          videoElement = document.querySelector('a[href*="/shorts/"], a[title][href*="youtube.com/watch"]');
+          videoElement = document.querySelector(strategy.selector);
+          if (videoElement) {
+            usedStrategy = strategy.name;
+            break;
+          }
         }
 
         if (!videoElement) {
-          return null;
+          return { success: false, strategies: selectors.map(s => s.name) };
         }
 
         // Extract video ID from URL
         const videoUrl = videoElement.href;
-        const videoIdMatch = videoUrl.match(/[?&]v=([^&]+)/);
+        let videoIdMatch = videoUrl.match(/[?&]v=([^&]+)/);
+
+        // If no standard video ID, try shorts format
         if (!videoIdMatch) {
-          return null;
+          videoIdMatch = videoUrl.match(/\/shorts\/([^?&]+)/);
+        }
+
+        if (!videoIdMatch) {
+          return { success: false, error: 'Could not extract video ID', url: videoUrl };
         }
 
         const videoId = videoIdMatch[1];
@@ -521,6 +520,8 @@ export class YouTubeScraperService {
         }
 
         return {
+          success: true,
+          strategy: usedStrategy,
           id: videoId,
           title,
           url: videoUrl,
@@ -532,19 +533,27 @@ export class YouTubeScraperService {
         };
       });
 
-      if (latestVideo) {
+      if (latestVideo && latestVideo.success) {
         this.metrics.successfulScrapes++;
         this.metrics.lastSuccessfulScrape = new Date();
 
-        this.logger.debug('Successfully scraped latest video', {
+        this.logger.info('Successfully scraped latest video', {
+          strategy: latestVideo.strategy,
           videoId: latestVideo.id,
           title: latestVideo.title,
           publishedText: latestVideo.publishedText,
         });
       } else {
-        this.logger.warn('No videos found during scraping', {
+        const failureInfo = {
           videosUrl: this.videosUrl,
-        });
+          debugInfo,
+        };
+
+        if (latestVideo && !latestVideo.success) {
+          failureInfo.attemptedStrategies = latestVideo.strategies;
+        }
+
+        this.logger.warn('No videos found during scraping', failureInfo);
       }
 
       return latestVideo;
