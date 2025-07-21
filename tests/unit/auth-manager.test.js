@@ -302,7 +302,7 @@ describe('AuthManager', () => {
       expect(authManager.loginToX).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Error validating saved cookies, falling back to login:',
-        expect.any(Error)
+        'Cookie error'
       );
     });
 
@@ -311,7 +311,7 @@ describe('AuthManager', () => {
       authManager.loginToX.mockRejectedValue(new Error('Login failed'));
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', 'Login failed');
     });
 
     it('should handle browser navigation errors during cookie validation', async () => {
@@ -324,7 +324,7 @@ describe('AuthManager', () => {
       expect(authManager.loginToX).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Error validating saved cookies, falling back to login:',
-        expect.any(Error)
+        'Navigation error'
       );
     });
   });
@@ -418,7 +418,7 @@ describe('AuthManager', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Error validating saved cookies, falling back to login:',
-        expect.any(Error)
+        'Browser disconnected'
       );
       expect(authManager.loginToX).toHaveBeenCalled();
     });
@@ -459,7 +459,7 @@ describe('AuthManager', () => {
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', 'State read error');
     });
 
     it('should log an error but still attempt to login if stateManager.delete fails', async () => {
