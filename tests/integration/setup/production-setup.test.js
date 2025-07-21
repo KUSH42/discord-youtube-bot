@@ -42,9 +42,13 @@ jest.unstable_mockModule('playwright', () => ({
   },
 }));
 
-const { Configuration } = await import('../../../src/infrastructure/configuration.js');
-const { DependencyContainer } = await import('../../../src/infrastructure/dependency-container.js');
-const { setupProductionServices } = await import('../../../src/setup/production-setup.js');
+let Configuration, DependencyContainer, setupProductionServices;
+
+(async () => {
+  ({ Configuration } = await import('../../../src/infrastructure/configuration.js'));
+  ({ DependencyContainer } = await import('../../../src/infrastructure/dependency-container.js'));
+  ({ setupProductionServices } = await import('../../../src/setup/production-setup.js'));
+})();
 
 describe('Production Setup', () => {
   let container;
@@ -107,7 +111,12 @@ describe('Production Setup', () => {
     ];
 
     for (const serviceName of expectedServices) {
-      expect(() => container.resolve(serviceName)).not.toThrow();
+      try {
+        container.resolve(serviceName);
+      } catch (error) {
+        // Fail the test if resolving any service throws an error
+        throw new Error(`Failed to resolve service "${serviceName}": ${error.message}`);
+      }
     }
   });
 
