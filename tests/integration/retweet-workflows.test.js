@@ -10,6 +10,7 @@ describe('Retweet Workflows Integration', () => {
   let announcer;
   let config;
   let mockDiscordClient;
+  let mockLogger;
 
   // Helper function to create mock config
   const createMockConfig = (overrides = {}) => {
@@ -42,6 +43,14 @@ describe('Retweet Workflows Integration', () => {
       sendMessage: jest.fn().mockResolvedValue({ id: 'message123' }),
     };
 
+    // Mock logger
+    mockLogger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+    };
+
     // Mock state manager
     const mockStateManager = {
       get: jest.fn((key, defaultValue) => {
@@ -59,7 +68,7 @@ describe('Retweet Workflows Integration', () => {
     config = createMockConfig();
 
     classifier = new ContentClassifier();
-    announcer = new ContentAnnouncer(mockDiscordClient, config, mockStateManager);
+    announcer = new ContentAnnouncer(mockDiscordClient, config, mockStateManager, mockLogger);
   });
 
   describe('Enhanced Retweet Detection Integration', () => {
@@ -118,7 +127,12 @@ describe('Retweet Workflows Integration', () => {
         set: jest.fn(),
       };
 
-      const announcerWithoutRetweets = new ContentAnnouncer(mockDiscordClient, configWithoutRetweets, mockStateManager);
+      const announcerWithoutRetweets = new ContentAnnouncer(
+        mockDiscordClient,
+        configWithoutRetweets,
+        mockStateManager,
+        mockLogger
+      );
 
       const retweetContent = {
         platform: 'x',

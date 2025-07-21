@@ -16,7 +16,8 @@ export class YouTubeScraperService {
     this.scrapingInterval = null;
 
     // Configuration
-    this.scrapingIntervalMs = config.get('YOUTUBE_SCRAPER_INTERVAL_MS', 15000); // 15 seconds
+    this.minInterval = parseInt(config.get('YOUTUBE_SCRAPER_INTERVAL_MIN', '300000'), 10);
+    this.maxInterval = parseInt(config.get('YOUTUBE_SCRAPER_INTERVAL_MAX', '600000'), 10);
     this.maxRetries = config.get('YOUTUBE_SCRAPER_MAX_RETRIES', 3);
     this.retryDelayMs = config.get('YOUTUBE_SCRAPER_RETRY_DELAY_MS', 5000);
     this.timeoutMs = config.get('YOUTUBE_SCRAPER_TIMEOUT_MS', 30000);
@@ -310,12 +311,16 @@ export class YouTubeScraperService {
 
       // Schedule next check
       if (this.isRunning) {
-        this.scrapingInterval = setTimeout(monitoringLoop, this.scrapingIntervalMs);
+        const nextInterval = this._getNextInterval();
+        this.logger.debug(`Next YouTube scrape scheduled in ${nextInterval}ms`);
+        this.scrapingInterval = setTimeout(monitoringLoop, nextInterval);
       }
     };
 
     // Start monitoring
-    this.scrapingInterval = setTimeout(monitoringLoop, this.scrapingIntervalMs);
+    const firstInterval = this._getNextInterval();
+    this.logger.info(`Starting YouTube scraper monitoring, first check in ${firstInterval}ms`);
+    this.scrapingInterval = setTimeout(monitoringLoop, firstInterval);
   }
 
   /**
@@ -355,7 +360,8 @@ export class YouTubeScraperService {
       lastKnownVideoId: this.lastKnownVideoId,
       channelUrl: this.channelUrl,
       configuration: {
-        scrapingIntervalMs: this.scrapingIntervalMs,
+        minInterval: this.minInterval,
+        maxInterval: this.maxInterval,
         maxRetries: this.maxRetries,
         timeoutMs: this.timeoutMs,
       },
@@ -437,5 +443,16 @@ export class YouTubeScraperService {
     this.isInitialized = false;
     this.lastKnownVideoId = null;
     this.channelUrl = null;
+  }
+
+  /**
+   * Get the next polling interval with jitter
+   * @returns {number} Interval in milliseconds
+   * @private
+   */
+  _getNextInterval() {
+    const jitter = Math.random() * 0.2 - 0.1; // +/- 10% jitter
+    const baseInterval = this.minInterval + Math.random() * (this.maxInterval - this.minInterval);
+    return Math.floor(baseInterval * (1 + jitter));
   }
 }

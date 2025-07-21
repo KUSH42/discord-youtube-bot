@@ -12,6 +12,7 @@ export class BotApplication {
     this.exec = dependencies.exec || defaultExec;
     this.scraperApplication = dependencies.scraperApplication;
     this.monitorApplication = dependencies.monitorApplication;
+    this.youtubeScraper = dependencies.youtubeScraperService;
     this.discord = dependencies.discordService;
     this.commandProcessor = dependencies.commandProcessor;
     this.eventBus = dependencies.eventBus;
@@ -90,6 +91,23 @@ export class BotApplication {
       // Set bot presence
       await this.setBotPresence();
 
+      // Start YouTube Scraper if available
+      if (this.youtubeScraper) {
+        try {
+          const youtubeChannelHandle = this.config.get('YOUTUBE_CHANNEL_HANDLE');
+          if (youtubeChannelHandle) {
+            await this.youtubeScraper.initialize(youtubeChannelHandle);
+            await this.youtubeScraper.startMonitoring(video => {
+              this.eventBus.emit('youtube.video', video);
+            });
+          } else {
+            this.logger.info('YOUTUBE_CHANNEL_HANDLE not configured, YouTube scraper will not start.');
+          }
+        } catch (error) {
+          this.logger.error('Failed to start YouTube Scraper:', error);
+        }
+      }
+
       this.isRunning = true;
       this.logger.info('Bot application started successfully');
 
@@ -122,6 +140,11 @@ export class BotApplication {
 
       // Disconnect from Discord
       await this.discord.destroy();
+
+      // Stop YouTube Scraper
+      if (this.youtubeScraper) {
+        await this.youtubeScraper.cleanup();
+      }
 
       this.isRunning = false;
       this.logger.info('Bot application stopped');
@@ -270,6 +293,7 @@ export class BotApplication {
         bot: this.getStats(),
         scraper: this.scraperApplication.getStats(),
         monitor: this.monitorApplication.getStats(),
+        youtubeScraper: this.youtubeScraper ? this.youtubeScraper.getMetrics() : null,
         system: {
           uptime: process.uptime(),
           memory: process.memoryUsage(),
@@ -402,7 +426,7 @@ export class BotApplication {
    * @returns {Object} Discord embed object
    */
   createDetailedHealthEmbed(healthData) {
-    const { bot, scraper, monitor, system } = healthData;
+    const { bot, scraper, monitor, youtubeScraper, system } = healthData;
     const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8);
     const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
     const nextPoll = scraper.pollingInterval.next;
@@ -426,7 +450,11 @@ export class BotApplication {
           inline: true,
         },
         { name: '🐦 X Scraper', value: `Status: ${scraper.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
-
+        {
+          name: '📹 YouTube Scraper',
+          value: `Status: ${youtubeScraper?.isRunning ? '✅ Running' : '❌ Stopped'}`,
+          inline: true,
+        },
         { name: '📢 Announcements', value: bot.announcementEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
         { name: '🔄 VX Twitter', value: bot.vxTwitterEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
         { name: '⏳ Next X Poll', value: nextPollStr, inline: true },
