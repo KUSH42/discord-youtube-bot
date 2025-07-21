@@ -41,7 +41,10 @@ export class AuthManager {
             await this.loginToX();
           }
         } catch (error) {
-          this.logger.error('Error validating saved cookies, falling back to login:', this.sanitizeErrorMessage(error.message));
+          this.logger.error(
+            'Error validating saved cookies, falling back to login:',
+            this.sanitizeErrorMessage(error.message)
+          );
           await this.loginToX();
         }
       } else if (savedCookies) {
@@ -166,15 +169,15 @@ export class AuthManager {
    */
   sanitizeErrorMessage(message) {
     let sanitized = message;
-    
+
     // Get original credentials from config for sanitization
     const originalUsername = this.config.getRequired('TWITTER_USERNAME');
     const originalPassword = this.config.getRequired('TWITTER_PASSWORD');
-    
+
     // Replace credentials with placeholders
     sanitized = sanitized.replace(new RegExp(originalPassword, 'g'), '[REDACTED_PASSWORD]');
     sanitized = sanitized.replace(new RegExp(originalUsername, 'g'), '[REDACTED_USERNAME]');
-    
+
     return sanitized;
   }
 
@@ -187,28 +190,28 @@ export class AuthManager {
     if (!Array.isArray(cookies) || cookies.length === 0) {
       return false;
     }
-    
+
     return cookies.every(cookie => {
       // Basic format validation
       if (!cookie || typeof cookie.name !== 'string' || typeof cookie.value !== 'string') {
         return false;
       }
-      
+
       // Security validation - reject suspicious patterns
       const suspiciousPatterns = [
-        /data:text\/html/i,        // Data URLs with HTML
-        /javascript:/i,            // JavaScript URLs
-        /vbscript:/i,             // VBScript URLs
-        /\$\(/,                   // Command substitution
-        /`.*`/,                   // Backtick command execution
-        /\.\.[\/\\]/,             // Path traversal patterns
-        /<script/i,               // Script tags
-        /<iframe/i,               // Iframe tags
-        /eval\(/i,                // eval() calls
-        /document\./i,            // DOM access
-        /window\./i,              // Window object access
+        /data:text\/html/i, // Data URLs with HTML
+        /javascript:/i, // JavaScript URLs
+        /vbscript:/i, // VBScript URLs
+        /\$\(/, // Command substitution
+        /`.*`/, // Backtick command execution
+        /\.\.[/\\]/, // Path traversal patterns
+        /<script/i, // Script tags
+        /<iframe/i, // Iframe tags
+        /eval\(/i, // eval() calls
+        /document\./i, // DOM access
+        /window\./i, // Window object access
       ];
-      
+
       // Check cookie name and value against suspicious patterns
       const nameValue = cookie.name + cookie.value;
       return !suspiciousPatterns.some(pattern => pattern.test(nameValue));

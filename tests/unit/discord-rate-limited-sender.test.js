@@ -29,7 +29,7 @@ describe('DiscordRateLimitedSender', () => {
       burstResetTime: 1000,
       maxRetries: 2,
     });
-    
+
     // Stop the continuous processing to avoid timer conflicts in tests
     sender.stopProcessing();
   });
@@ -99,14 +99,14 @@ describe('DiscordRateLimitedSender', () => {
         const task = sender.messageQueue.shift();
         await sender.processMessage(task);
       }
-      
+
       await Promise.all(promises);
       expect(mockChannel.send).toHaveBeenCalledTimes(3);
     });
 
     it('should apply delay after burst allowance exceeded', async () => {
       const promises = [];
-      
+
       // Send burst allowance messages
       for (let i = 0; i < 3; i++) {
         promises.push(sender.queueMessage(mockChannel, `Burst ${i + 1}`));
@@ -120,7 +120,7 @@ describe('DiscordRateLimitedSender', () => {
         const task = sender.messageQueue.shift();
         await sender.processMessage(task);
       }
-      
+
       await Promise.all(promises);
       expect(mockChannel.send).toHaveBeenCalledTimes(4);
       expect(mockChannel.send).toHaveBeenCalledWith('Delayed message');
@@ -141,15 +141,15 @@ describe('DiscordRateLimitedSender', () => {
       // Process the message manually - first attempt should fail and set rate limit
       const task = sender.messageQueue.shift();
       await sender.processMessage(task);
-      
+
       expect(sender.metrics.rateLimitHits).toBe(1);
       expect(sender.isPaused).toBe(true);
-      expect(sender.messageQueue.length).toBe(1); // Task should be re-queued
+      expect(sender.messageQueue).toHaveLength(1); // Task should be re-queued
 
       // Simulate time passing and retry
       sender.isPaused = false;
       sender.pauseUntil = null;
-      
+
       const retryTask = sender.messageQueue.shift();
       await sender.processMessage(retryTask);
 
@@ -177,15 +177,15 @@ describe('DiscordRateLimitedSender', () => {
       // Process first message (triggers rate limit)
       const task1 = sender.messageQueue.shift();
       await sender.processMessage(task1);
-      
+
       expect(sender.isPaused).toBe(true);
       expect(mockChannel.send).toHaveBeenCalledTimes(1);
-      expect(sender.messageQueue.length).toBe(3); // Original task re-queued + 2 others
+      expect(sender.messageQueue).toHaveLength(3); // Original task re-queued + 2 others
 
       // Clear the pause and process remaining messages
       sender.isPaused = false;
       sender.pauseUntil = null;
-      
+
       while (sender.messageQueue.length > 0) {
         const task = sender.messageQueue.shift();
         await sender.processMessage(task);

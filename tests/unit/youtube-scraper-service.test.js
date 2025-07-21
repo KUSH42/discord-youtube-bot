@@ -31,7 +31,7 @@ describe('YouTubeScraperService', () => {
     };
 
     scraperService = new YouTubeScraperService(mockLogger, mockConfig);
-    
+
     // Replace the real browser service with a mock
     mockBrowserService = {
       launch: jest.fn(),
@@ -126,7 +126,7 @@ describe('YouTubeScraperService', () => {
       });
       await scraperService.initialize('testchannel');
       jest.clearAllMocks();
-      
+
       // Reset metrics after initialization for clean test state
       scraperService.metrics.totalScrapingAttempts = 0;
       scraperService.metrics.successfulScrapes = 0;
@@ -193,7 +193,7 @@ describe('YouTubeScraperService', () => {
       });
       await scraperService.initialize('testchannel');
       jest.clearAllMocks();
-      
+
       // Reset metrics after initialization for clean test state
       scraperService.metrics.totalScrapingAttempts = 0;
       scraperService.metrics.successfulScrapes = 0;
@@ -261,7 +261,7 @@ describe('YouTubeScraperService', () => {
       });
       await scraperService.initialize('testchannel');
       jest.clearAllMocks();
-      
+
       // Reset metrics after initialization for clean test state
       scraperService.metrics.totalScrapingAttempts = 0;
       scraperService.metrics.successfulScrapes = 0;
@@ -353,7 +353,7 @@ describe('YouTubeScraperService', () => {
       });
       await scraperService.initialize('testchannel');
       jest.clearAllMocks();
-      
+
       // Don't reset metrics here as this section tests the metrics functionality
     });
 

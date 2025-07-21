@@ -179,7 +179,7 @@ describe('Credential Handling Security Tests', () => {
       // Verify browser service calls contain credentials only during authentication (expected)
       const typeCalls = mockBrowser.type.mock.calls;
       expect(typeCalls.length).toBeGreaterThan(0); // Should have typing calls for authentication
-      
+
       // The credentials should be passed to browser.type() during authentication - this is expected
       const passwordCalls = typeCalls.filter(call => call[1] === 'test_secure_pass_123');
       expect(passwordCalls.length).toBeGreaterThan(0); // Should have password typing calls
@@ -198,16 +198,12 @@ describe('Credential Handling Security Tests', () => {
 
       // Verify timeout errors don't expose credentials
       expect(mockLogger.error).toHaveBeenCalled();
-      
+
       // Check all error log calls for credential leakage
-      if (mockLogger.error.mock && mockLogger.error.mock.calls) {
-        const errorLogs = mockLogger.error.mock.calls.flat();
-        errorLogs.forEach(log => {
-          const logString = typeof log === 'string' ? log : JSON.stringify(log);
-          expect(logString).not.toContain('test_secure_pass_123');
-          expect(logString).not.toContain('test_secure_user');
-        });
-      }
+      const errorLogs = mockLogger.error.mock.calls.flat();
+      const allLogsString = errorLogs.map(log => (typeof log === 'string' ? log : JSON.stringify(log))).join(' ');
+      expect(allLogsString).not.toContain('test_secure_pass_123');
+      expect(allLogsString).not.toContain('test_secure_user');
     });
 
     it('should handle malformed cookie data gracefully', async () => {
@@ -544,7 +540,7 @@ describe('Credential Handling Security Tests', () => {
       expect(authManager.twitterUsername).toBeNull();
       expect(authManager.twitterPassword).toBeNull();
       // Verify test data is cleared
-      expect(largeObjects.length).toBe(0);
+      expect(largeObjects).toHaveLength(0);
     });
   });
 

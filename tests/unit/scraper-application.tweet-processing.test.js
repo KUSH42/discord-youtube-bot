@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
-import { DuplicateDetector } from '../../src/duplicate-detector.js';
+// import { DuplicateDetector } from '../../src/duplicate-detector.js';
 
 describe('Tweet Processing and Duplicate Detection', () => {
   let scraperApp;
@@ -138,7 +138,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
 
     // Mock duplicate detector to track what gets marked as seen
     const markAsSeenSpy = jest.spyOn(scraperApp.duplicateDetector, 'markAsSeen');
-    const isDuplicateSpy = jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(false);
+    const _isDuplicateSpy = jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(false);
 
     const result = scraperApp.filterNewTweets(mockTweets);
 
@@ -550,7 +550,7 @@ describe('Tweet Processing Pipeline', () => {
 
   it('should correctly categorize monitored user tweets in extractTweets', async () => {
     // Mock browser.evaluate to simulate extractTweets behavior
-    mockBrowserService.evaluate.mockImplementation((fn, monitoredUser) => {
+    mockBrowserService.evaluate.mockImplementation((_fn, _monitoredUser) => {
       // Simulate the extracted tweets - one from monitored user, one retweet
       return Promise.resolve([
         {

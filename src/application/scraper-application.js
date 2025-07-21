@@ -313,7 +313,7 @@ export class ScraperApplication {
 
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const sinceDate = yesterday.toISOString().split('T')[0];
+      const _sinceDate = yesterday.toISOString().split('T')[0];
 
       // Verify authentication before searching
       await this.verifyAuthentication();
@@ -472,13 +472,13 @@ export class ScraperApplication {
       for (const selector of articleSelectors) {
         articles = document.querySelectorAll(selector);
         if (articles.length > 0) {
-          console.log(`Found ${articles.length} articles using selector: ${selector}`);
+          this.logger.info(`Found ${articles.length} articles using selector: ${selector}`);
           break;
         }
       }
 
       if (articles.length === 0) {
-        console.log('No tweet articles found with any selector');
+        this.logger.warn('No tweet articles found with any selector');
         return tweets;
       }
 
@@ -595,13 +595,13 @@ export class ScraperApplication {
             tweetCategory,
           });
 
-          console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
+          this.logger.info(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
         } catch (err) {
-          console.error('Error extracting tweet:', err);
+          this.logger.error('Error extracting tweet:', err);
         }
       }
 
-      console.log(`Total tweets extracted: ${tweets.length}`);
+      this.logger.info(`Total tweets extracted: ${tweets.length}`);
       return tweets;
       /* eslint-enable no-undef */
     }, monitoredUser);
