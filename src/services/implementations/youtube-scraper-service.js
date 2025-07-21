@@ -69,6 +69,9 @@ export class YouTubeScraperService {
       // Set viewport
       await this.browserService.setViewport({ width: 1920, height: 1080 });
 
+      // Mark as initialized before fetching to avoid circular dependency
+      this.isInitialized = true;
+
       // Find and set the initial latest video
       const latestVideo = await this.fetchLatestVideo();
       if (latestVideo) {
@@ -83,9 +86,8 @@ export class YouTubeScraperService {
           channelUrl: this.channelUrl,
         });
       }
-
-      this.isInitialized = true;
     } catch (error) {
+      this.isInitialized = false;
       this.logger.error('Failed to initialize YouTube scraper', {
         error: error.message,
         stack: error.stack,

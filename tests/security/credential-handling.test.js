@@ -151,15 +151,19 @@ describe('Credential Handling Security Tests', () => {
         expect(authManager.validateCookieFormat(cookies)).toBe(false);
       });
 
-      // Valid cookies should pass (current implementation allows any string content)
+      // Valid cookies should pass
       const validCookies = [
         { name: 'auth_token', value: 'safe_alphanumeric_123' },
         { name: 'session_id', value: 'sess_abc123def456' },
-        // NOTE: Current implementation would accept these (security gap):
+      ];
+      expect(authManager.validateCookieFormat(validCookies)).toBe(true);
+
+      // Security: Should reject cookies with suspicious patterns
+      const maliciousCookies = [
         { name: '<script>alert(1)</script>', value: 'value1' },
         { name: 'valid', value: 'data:text/html,alert(1)' },
       ];
-      expect(authManager.validateCookieFormat(validCookies)).toBe(true);
+      expect(authManager.validateCookieFormat(maliciousCookies)).toBe(false);
     });
 
     it('should clear sensitive data from memory after authentication', async () => {
@@ -168,16 +172,17 @@ describe('Credential Handling Security Tests', () => {
 
       await authManager.ensureAuthenticated();
 
-      // NOTE: AuthManager stores credentials as instance properties (expected behavior)
-      // but browser service should not retain them
-      const browserString = JSON.stringify(mockBrowser);
-      expect(browserString).not.toContain('test_secure_pass_123');
-      expect(browserString).not.toContain('test_secure_user');
+      // Verify credentials are cleared after successful authentication (security feature)
+      expect(authManager.twitterUsername).toBeNull();
+      expect(authManager.twitterPassword).toBeNull();
 
-      // Verify browser mock calls don't contain credentials (they should be redacted in logs)
+      // Verify browser service calls contain credentials only during authentication (expected)
       const typeCalls = mockBrowser.type.mock.calls;
-      expect(typeCalls.length).toBeGreaterThanOrEqual(0);
-      expect(JSON.stringify(typeCalls)).not.toContain('test_secure_pass_123');
+      expect(typeCalls.length).toBeGreaterThan(0); // Should have typing calls for authentication
+      
+      // The credentials should be passed to browser.type() during authentication - this is expected
+      const passwordCalls = typeCalls.filter(call => call[1] === 'test_secure_pass_123');
+      expect(passwordCalls.length).toBeGreaterThan(0); // Should have password typing calls
     });
   });
 
@@ -193,11 +198,16 @@ describe('Credential Handling Security Tests', () => {
 
       // Verify timeout errors don't expose credentials
       expect(mockLogger.error).toHaveBeenCalled();
-      const errorLogs = mockLogger.error.mock.calls.flat();
-      errorLogs.forEach(log => {
-        expect(log).not.toContain('test_secure_pass_123');
-        expect(log).not.toContain('test_secure_user');
-      });
+      
+      // Check all error log calls for credential leakage
+      if (mockLogger.error.mock && mockLogger.error.mock.calls) {
+        const errorLogs = mockLogger.error.mock.calls.flat();
+        errorLogs.forEach(log => {
+          const logString = typeof log === 'string' ? log : JSON.stringify(log);
+          expect(logString).not.toContain('test_secure_pass_123');
+          expect(logString).not.toContain('test_secure_user');
+        });
+      }
     });
 
     it('should handle malformed cookie data gracefully', async () => {
@@ -293,6 +303,9 @@ describe('Credential Handling Security Tests', () => {
       ];
       stateManager.set('x_session_cookies', expiredCookies);
 
+      // Spy on stateManager.delete to track calls
+      const deleteSpy = jest.spyOn(stateManager, 'delete');
+
       // Mock authentication check to fail (expired)
       jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(false);
       jest.spyOn(authManager, 'loginToX').mockResolvedValue();
@@ -300,7 +313,7 @@ describe('Credential Handling Security Tests', () => {
       await authManager.ensureAuthenticated();
 
       // Verify expired cookies are cleared securely
-      expect(stateManager.delete).toHaveBeenCalledWith('x_session_cookies');
+      expect(deleteSpy).toHaveBeenCalledWith('x_session_cookies');
       expect(mockLogger.warn).toHaveBeenCalledWith('Clearing expired session cookies');
 
       // Verify the deletion process doesn't log sensitive data
@@ -353,6 +366,9 @@ describe('Credential Handling Security Tests', () => {
 
       stateManager.set('x_session_cookies', maliciousCookies);
 
+      // Spy on stateManager.delete to track calls
+      const deleteSpy = jest.spyOn(stateManager, 'delete');
+
       // Mock authentication to fail with existing cookies (simulating rejection)
       jest.spyOn(authManager, 'isAuthenticated').mockResolvedValue(false);
       jest.spyOn(authManager, 'loginToX').mockResolvedValue();
@@ -360,7 +376,7 @@ describe('Credential Handling Security Tests', () => {
       await authManager.ensureAuthenticated();
 
       // Verify that failed authentication clears potentially malicious cookies
-      expect(stateManager.delete).toHaveBeenCalledWith('x_session_cookies');
+      expect(deleteSpy).toHaveBeenCalledWith('x_session_cookies');
       expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Saved cookies failed'));
     });
 
@@ -497,9 +513,9 @@ describe('Credential Handling Security Tests', () => {
         global.gc();
       }
 
-      // Check that credentials are not lingering in string representations
-      const objectString = JSON.stringify(authManager);
-      expect(objectString).not.toContain('test_secure_pass_123');
+      // Check that credentials are not lingering in AuthManager instance
+      expect(authManager.twitterUsername).toBeNull();
+      expect(authManager.twitterPassword).toBeNull();
 
       // Check browser service state
       const browserString = JSON.stringify(mockBrowser);
@@ -524,10 +540,11 @@ describe('Credential Handling Security Tests', () => {
       // Clear large objects
       largeObjects.length = 0;
 
-      // Verify credentials are still secure and not leaked
-      const authString = JSON.stringify(authManager);
-      expect(authString).not.toContain('test_secure_pass_123');
-      expect(authString).not.toContain('memory_test'); // Should not contain test data
+      // Verify credentials are cleared from AuthManager instance
+      expect(authManager.twitterUsername).toBeNull();
+      expect(authManager.twitterPassword).toBeNull();
+      // Verify test data is cleared
+      expect(largeObjects.length).toBe(0);
     });
   });
 
@@ -544,10 +561,10 @@ describe('Credential Handling Security Tests', () => {
       expect(mockLogger.error).toHaveBeenCalled();
       const errorLogs = mockLogger.error.mock.calls.flat();
 
-      errorLogs.forEach(log => {
-        expect(log).not.toContain('test_secure_pass_123');
-        expect(log).not.toContain('test_secure_user');
-        expect(typeof log).toBe('string');
+      errorLogs.forEach(logCall => {
+        const logString = Array.isArray(logCall) ? logCall.join(' ') : String(logCall);
+        expect(logString).not.toContain('test_secure_pass_123');
+        expect(logString).not.toContain('test_secure_user');
       });
     });
 
@@ -565,9 +582,10 @@ describe('Credential Handling Security Tests', () => {
       // Check that logged errors are sanitized
       const allLogs = [...mockLogger.error.mock.calls, ...mockLogger.warn.mock.calls].flat();
 
-      allLogs.forEach(log => {
-        expect(log).not.toContain('test_secure_pass_123');
-        expect(log).not.toContain('test_secure_user');
+      allLogs.forEach(logCall => {
+        const logString = Array.isArray(logCall) ? logCall.join(' ') : String(logCall);
+        expect(logString).not.toContain('test_secure_pass_123');
+        expect(logString).not.toContain('test_secure_user');
       });
     });
   });

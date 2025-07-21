@@ -669,16 +669,16 @@ export class ScraperApplication {
       return true;
     }
 
-    // First check: Have we seen this tweet before? (Primary duplicate detection)
+    // Check: Have we seen this tweet before? (Primary duplicate detection)
     if (tweet.url && this.duplicateDetector.isDuplicate(tweet.url)) {
       this.logger.debug(`Tweet ${tweet.tweetID} already known (duplicate), not new`);
       return false;
     }
 
-    // Second check: Is the content too old to be relevant?
-    // Use a reasonable time window (e.g., 7 days) instead of bot startup time
-    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-    const cutoffTime = new Date(Date.now() - maxAge);
+    // Check: Is the content too old based on configurable backoff duration?
+    const backoffHours = this.config.get('CONTENT_BACKOFF_DURATION_HOURS', '2'); // Default 2 hours
+    const backoffMs = parseInt(backoffHours) * 60 * 60 * 1000;
+    const cutoffTime = new Date(Date.now() - backoffMs);
 
     if (tweet.timestamp) {
       const tweetTime = new Date(tweet.timestamp);
@@ -687,22 +687,6 @@ export class ScraperApplication {
           `Tweet ${tweet.tweetID} is too old (${tweetTime.toISOString()} < ${cutoffTime.toISOString()}), not new`
         );
         return false;
-      }
-    }
-
-    // Third check: For additional safety, still check bot startup time if available
-    // but only as a fallback, not as the primary filter
-    const botStartTime = this.state.get('botStartTime');
-    if (botStartTime && tweet.timestamp) {
-      const tweetTime = new Date(tweet.timestamp);
-
-      // If the tweet is very recent (within last 2 hours of bot start), be more permissive
-      const twoHoursAfterStart = new Date(botStartTime.getTime() + 2 * 60 * 60 * 1000);
-      const now = new Date();
-
-      if (tweetTime < botStartTime && now < twoHoursAfterStart) {
-        this.logger.debug(`Tweet ${tweet.tweetID} predates bot start but bot started recently, accepting as new`);
-        return true;
       }
     }
 

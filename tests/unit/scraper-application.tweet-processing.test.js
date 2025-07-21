@@ -54,6 +54,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
         const values = {
           X_QUERY_INTERVAL_MIN: '300000',
           X_QUERY_INTERVAL_MAX: '600000',
+          CONTENT_BACKOFF_DURATION_HOURS: '2', // 2 hours backoff
         };
         return values[key] || defaultValue;
       }),
@@ -68,9 +69,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
     // Mock state manager
     mockStateManager = {
       get: jest.fn(key => {
-        const values = {
-          botStartTime: new Date('2024-01-01T00:00:00Z'),
-        };
+        const values = {};
         return values[key];
       }),
       set: jest.fn(),
@@ -110,9 +109,14 @@ describe('Tweet Processing and Duplicate Detection', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    jest.restoreAllMocks(); // Restore Date.now and other mocks
   });
 
   it('should mark all non-duplicate tweets as seen regardless of announcement', async () => {
+    // Mock Date.now to work with 2-hour backoff: tweet1 (23:59:59) will be >2h old, tweet2 (00:01:00) will be <2h old
+    const mockNow = new Date('2024-01-01T02:00:30Z').getTime(); // Just over 2h from tweet1, just under 2h from tweet2
+    jest.spyOn(Date, 'now').mockReturnValue(mockNow);
+
     const mockTweets = [
       {
         tweetID: '1234567890',
@@ -274,6 +278,7 @@ describe('Tweet Processing Pipeline', () => {
         const values = {
           X_QUERY_INTERVAL_MIN: '300000',
           X_QUERY_INTERVAL_MAX: '600000',
+          CONTENT_BACKOFF_DURATION_HOURS: '2', // 2 hours backoff
         };
         return values[key] || defaultValue;
       }),
@@ -288,9 +293,7 @@ describe('Tweet Processing Pipeline', () => {
     // Mock state manager
     mockStateManager = {
       get: jest.fn(key => {
-        const values = {
-          botStartTime: new Date('2024-01-01T00:00:00Z'),
-        };
+        const values = {};
         return values[key];
       }),
       set: jest.fn(),
@@ -333,6 +336,10 @@ describe('Tweet Processing Pipeline', () => {
   });
 
   it('should process new tweets through the complete pipeline', async () => {
+    // Mock Date.now to work with 2-hour backoff: tweet (00:01:00) will be <2h old
+    const mockNow = new Date('2024-01-01T01:30:00Z').getTime(); // 1.5 hours after tweet, within backoff window
+    jest.spyOn(Date, 'now').mockReturnValue(mockNow);
+
     const mockTweet = {
       tweetID: '1234567890',
       url: 'https://x.com/testuser/status/1234567890',

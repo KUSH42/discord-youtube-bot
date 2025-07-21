@@ -28,6 +28,7 @@ export class AuthManager {
 
           if (await this.isAuthenticated()) {
             this.logger.info('✅ Successfully authenticated using saved cookies.');
+            this.clearSensitiveData();
             return;
           } else {
             this.logger.warn('Saved cookies failed, attempting login');
@@ -40,7 +41,7 @@ export class AuthManager {
             await this.loginToX();
           }
         } catch (error) {
-          this.logger.error('Error validating saved cookies, falling back to login:', error);
+          this.logger.error('Error validating saved cookies, falling back to login:', this.sanitizeErrorMessage(error.message));
           await this.loginToX();
         }
       } else if (savedCookies) {
@@ -56,7 +57,7 @@ export class AuthManager {
         await this.loginToX();
       }
     } catch (error) {
-      this.logger.error('Authentication process failed:', error);
+      this.logger.error('Authentication process failed:', this.sanitizeErrorMessage(error.message));
       throw new Error('Authentication failed');
     }
   }
@@ -86,6 +87,7 @@ export class AuthManager {
     if (await this.isAuthenticated()) {
       this.logger.info('✅ Login successful, a new session has been established.');
       await this.saveAuthenticationState();
+      this.clearSensitiveData();
       return true;
     } else {
       this.logger.error('Credential-based login failed.');
@@ -148,14 +150,68 @@ export class AuthManager {
   }
 
   /**
-   * Validates the format of the cookies.
+   * Clears sensitive data from memory after successful authentication.
+   * @returns {void}
+   */
+  clearSensitiveData() {
+    // Clear credentials from memory after successful authentication
+    this.twitterUsername = null;
+    this.twitterPassword = null;
+  }
+
+  /**
+   * Sanitizes error messages to remove sensitive credentials.
+   * @param {string} message - Error message to sanitize
+   * @returns {string} Sanitized error message
+   */
+  sanitizeErrorMessage(message) {
+    let sanitized = message;
+    
+    // Get original credentials from config for sanitization
+    const originalUsername = this.config.getRequired('TWITTER_USERNAME');
+    const originalPassword = this.config.getRequired('TWITTER_PASSWORD');
+    
+    // Replace credentials with placeholders
+    sanitized = sanitized.replace(new RegExp(originalPassword, 'g'), '[REDACTED_PASSWORD]');
+    sanitized = sanitized.replace(new RegExp(originalUsername, 'g'), '[REDACTED_USERNAME]');
+    
+    return sanitized;
+  }
+
+  /**
+   * Validates the format and security of cookies.
    * @param {any} cookies - The cookies to validate.
-   * @returns {boolean} - True if the format is valid, false otherwise.
+   * @returns {boolean} - True if the format is valid and secure, false otherwise.
    */
   validateCookieFormat(cookies) {
     if (!Array.isArray(cookies) || cookies.length === 0) {
       return false;
     }
-    return cookies.every(c => c && typeof c.name === 'string' && typeof c.value === 'string');
+    
+    return cookies.every(cookie => {
+      // Basic format validation
+      if (!cookie || typeof cookie.name !== 'string' || typeof cookie.value !== 'string') {
+        return false;
+      }
+      
+      // Security validation - reject suspicious patterns
+      const suspiciousPatterns = [
+        /data:text\/html/i,        // Data URLs with HTML
+        /javascript:/i,            // JavaScript URLs
+        /vbscript:/i,             // VBScript URLs
+        /\$\(/,                   // Command substitution
+        /`.*`/,                   // Backtick command execution
+        /\.\.[\/\\]/,             // Path traversal patterns
+        /<script/i,               // Script tags
+        /<iframe/i,               // Iframe tags
+        /eval\(/i,                // eval() calls
+        /document\./i,            // DOM access
+        /window\./i,              // Window object access
+      ];
+      
+      // Check cookie name and value against suspicious patterns
+      const nameValue = cookie.name + cookie.value;
+      return !suspiciousPatterns.some(pattern => pattern.test(nameValue));
+    });
   }
 }

@@ -334,7 +334,7 @@ export class DiscordRateLimitedSender {
     ];
 
     return (
-      retryableErrors.some(errorType => error.code === errorType || error.message.includes(errorType)) ||
+      retryableErrors.some(errorType => error.code === errorType || (error.message && error.message.includes(errorType))) ||
       retryableCodes.includes(error.status) ||
       retryableCodes.includes(error.code)
     );
