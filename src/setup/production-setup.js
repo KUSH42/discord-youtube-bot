@@ -22,6 +22,9 @@ import { CommandProcessor } from '../core/command-processor.js';
 import { ContentClassifier } from '../core/content-classifier.js';
 import { ContentAnnouncer } from '../core/content-announcer.js';
 
+// Services
+import { YouTubeScraperService } from '../services/implementations/youtube-scraper-service.js';
+
 // Applications
 import { AuthManager } from '../application/auth-manager.js';
 import { BotApplication } from '../application/bot-application.js';
@@ -166,7 +169,7 @@ async function setupCoreServices(container, config) {
 async function setupApplicationServices(container, config) {
   // Bot Application
   container.registerSingleton('botApplication', c => {
-    const botApp = new BotApplication({
+    return new BotApplication({
       exec,
       discordService: c.resolve('discordService'),
       commandProcessor: c.resolve('commandProcessor'),
@@ -174,13 +177,10 @@ async function setupApplicationServices(container, config) {
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
       logger: c.resolve('logger').child({ service: 'BotApplication' }),
+      scraperApplication: c.resolve('scraperApplication'),
+      monitorApplication: c.resolve('monitorApplication'),
+      youtubeScraperService: c.resolve('youtubeScraperService'),
     });
-
-    // Manually set dependencies to avoid circular dependency issues
-    botApp.scraperApplication = c.resolve('scraperApplication');
-    botApp.monitorApplication = c.resolve('monitorApplication');
-
-    return botApp;
   });
 
   // Auth Manager
@@ -220,6 +220,14 @@ async function setupApplicationServices(container, config) {
       eventBus: c.resolve('eventBus'),
       logger: c.resolve('logger').child({ service: 'MonitorApplication' }),
     });
+  });
+
+  // YouTube Scraper Service
+  container.registerSingleton('youtubeScraperService', c => {
+    return new YouTubeScraperService(
+      c.resolve('logger').child({ service: 'YouTubeScraperService' }),
+      c.resolve('config')
+    );
   });
 }
 
