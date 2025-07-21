@@ -230,27 +230,27 @@ describe('ScraperApplication Initialization', () => {
   describe('isNewContent with improved logic', () => {
     it('should return false for already known tweets', () => {
       const tweet = {
-        tweetID: '123456789',
+        tweetID: '1234567890123456789',
         timestamp: new Date().toISOString(),
-        url: 'https://x.com/testuser/status/123456789',
+        url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
       // Mark tweet as seen
-      scraperApp.duplicateDetector.markAsSeen('https://x.com/testuser/status/123456789');
+      scraperApp.duplicateDetector.markAsSeen('https://x.com/testuser/status/1234567890123456789');
 
       expect(scraperApp.isNewContent(tweet)).toBe(false);
     });
 
     it('should return false for very old tweets', () => {
       const oldDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
-      const tweet = { tweetID: '123456789', timestamp: oldDate.toISOString() };
+      const tweet = { tweetID: '1111111111111111111', timestamp: oldDate.toISOString() };
 
       expect(scraperApp.isNewContent(tweet)).toBe(false);
     });
 
     it('should return true for recent unknown tweets', () => {
       const recentDate = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
-      const tweet = { tweetID: '123456789', timestamp: recentDate.toISOString() };
+      const tweet = { tweetID: '2222222222222222222', timestamp: recentDate.toISOString() };
 
       expect(scraperApp.isNewContent(tweet)).toBe(true);
     });
@@ -261,7 +261,7 @@ describe('ScraperApplication Initialization', () => {
 
       mockStateManager.get.mockReturnValue(botStartTime);
 
-      const tweet = { tweetID: '123456789', timestamp: tweetBeforeStart.toISOString() };
+      const tweet = { tweetID: '3333333333333333333', timestamp: tweetBeforeStart.toISOString() };
 
       // Should be permissive since bot just started
       expect(scraperApp.isNewContent(tweet)).toBe(true);
@@ -276,7 +276,7 @@ describe('ScraperApplication Initialization', () => {
       });
 
       const veryOldTweet = {
-        tweetID: '123456789',
+        tweetID: '4444444444444444444',
         timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
       };
 
