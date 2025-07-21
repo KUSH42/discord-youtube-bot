@@ -105,6 +105,62 @@ describe('BotApplication', () => {
     });
   });
 
+  describe('_formatGitPullOutput', () => {
+    const green = '\\u001b[32m';
+    const red = '\\u001b[31m';
+    const reset = '\\u001b[0m';
+
+    it('should colorize addition and deletion lines', () => {
+      const input = `
+-  "version": "1.0.0",
++  "version": "1.0.1",
+   "description": "A bot"
+      `;
+      const expected = `
+${red}-  "version": "1.0.0",${reset}
+${green}+  "version": "1.0.1",${reset}
+   "description": "A bot"
+      `;
+      expect(botApplication._formatGitPullOutput(input)).toBe(expected);
+    });
+
+    it('should not colorize diff headers', () => {
+      const input = `
+--- a/file.js
++++ b/file.js
+-  console.log('old');
++  console.log('new');
+      `;
+      const expected = `
+--- a/file.js
++++ b/file.js
+${red}-  console.log('old');${reset}
+${green}+  console.log('new');${reset}
+      `;
+      expect(botApplication._formatGitPullOutput(input)).toBe(expected);
+    });
+
+    it('should not colorize + or - within a line', () => {
+      const input = 'This line has a + and a - character.';
+      expect(botApplication._formatGitPullOutput(input)).toBe(input);
+    });
+
+    it('should correctly colorize git pull summary lines', () => {
+      const input = ' src/bot.js | 2 +-';
+      const expected = ` src/bot.js | 2 ${green}+${reset}${red}-${reset}`;
+      // Note: The regex match and replacement can sometimes have subtle differences.
+      // We are re-creating the expected output here based on the function's logic.
+      const actualOutput = botApplication._formatGitPullOutput(input);
+      expect(actualOutput).toBe(expected);
+    });
+
+    it('should handle empty and no-change strings gracefully', () => {
+      expect(botApplication._formatGitPullOutput('')).toBe('');
+      const noChangeString = 'Already up to date.';
+      expect(botApplication._formatGitPullOutput(noChangeString)).toBe(noChangeString);
+    });
+  });
+
   describe('createDetailedHealthEmbed', () => {
     it('should create a detailed health embed correctly', () => {
       const healthData = {

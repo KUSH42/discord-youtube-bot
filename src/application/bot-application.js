@@ -176,13 +176,14 @@ export class BotApplication {
       if (error) {
         this.logger.error(`git pull failed: ${error}`);
         if (message) {
-          await message.reply(`❌ **Git pull failed:**\n\`\`\`diff\n- ${error.message}\`\`\``);
+          await message.reply(`❌ **Git pull failed:**\n\`\`\`ansi\n${this._formatGitPullOutput(error.message)}\`\`\``);
         }
         return;
       }
 
       if (message) {
-        const output = `**✅ Git pull successful:**\n\`\`\`diff\n${stdout || 'No new changes.'}\`\`\``;
+        const formattedOutput = this._formatGitPullOutput(stdout || 'No new changes.');
+        const output = `**✅ Git pull successful:**\n\`\`\`ansi\n${formattedOutput}\`\`\``;
         await message.reply(output);
       }
 
@@ -705,5 +706,43 @@ export class BotApplication {
    */
   async dispose() {
     await this.stop();
+  }
+
+  /**
+   * Formats git pull output with ANSI color codes for Discord.
+   * @param {string} text - The raw output from git pull.
+   * @returns {string} The formatted text.
+   * @private
+   */
+  _formatGitPullOutput(text) {
+    const green = '\\u001b[32m';
+    const red = '\\u001b[31m';
+    const reset = '\\u001b[0m';
+
+    return text
+      .split('\n')
+      .map(line => {
+        // First, check for the summary line format
+        const summaryRegex = /^(\s*[\w./-]+\s*\|\s*\d+\s+)([+-]+)$/;
+        const summaryMatch = line.match(summaryRegex);
+
+        if (summaryMatch) {
+          const prefix = summaryMatch[1];
+          const changes = summaryMatch[2];
+          const coloredChanges = changes.replace(/\+/g, `${green}+${reset}`).replace(/-/g, `${red}-${reset}`);
+          return `${prefix}${coloredChanges}`;
+        }
+
+        // Fallback for standard diff lines
+        if (line.trim().startsWith('+') && !/^\+\+\+/.test(line.trim())) {
+          return `${green}${line}${reset}`;
+        }
+        if (line.trim().startsWith('-') && !/^---/.test(line.trim())) {
+          return `${red}${line}${reset}`;
+        }
+
+        return line;
+      })
+      .join('\n');
   }
 }
