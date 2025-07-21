@@ -3,10 +3,29 @@ import { DuplicateDetector } from '../../src/duplicate-detector.js';
 
 describe('Enhanced Duplicate Detection with Fingerprinting', () => {
   let duplicateDetector;
+  let mockPersistentStorage;
+  let mockLogger;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    duplicateDetector = new DuplicateDetector();
+
+    // Mock persistent storage
+    mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
+    };
+
+    // Mock logger
+    mockLogger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+
+    duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
   });
 
   afterEach(() => {

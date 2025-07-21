@@ -294,7 +294,6 @@ async function setupLogging(container, config) {
     // Create transports
     const transports = [
       // Console transport
-      // Console transport
       new winston.transports.Console({
         level: logLevel,
         format: createConsoleLogFormat(),
@@ -313,7 +312,6 @@ async function setupLogging(container, config) {
 
     // Note: Discord transport will be added later to avoid circular dependency
     // between logger and discordService
-
     return winston.createLogger({
       level: logLevel,
       format: winston.format.combine(winston.format.timestamp(), winston.format.errors({ stack: true })),

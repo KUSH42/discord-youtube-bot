@@ -29,6 +29,11 @@ export class DuplicateDetector {
     // In-memory cache for performance
     this.fingerprintCache = new Set();
     this.urlCache = new Set();
+    this.maxSize = 10000; // Maximum cache size for memory management
+
+    // Legacy compatibility cache
+    this.knownVideoIds = new Set();
+    this.knownTweetIds = new Set();
   }
 
   /**
@@ -131,8 +136,7 @@ export class DuplicateDetector {
     if (!url) {
       return null;
     }
-    const youtubeRegex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
-    const match = url.match(youtubeRegex);
+    const match = url.match(videoUrlRegex);
     return match ? match[1] : null;
   }
 
@@ -146,5 +150,186 @@ export class DuplicateDetector {
       .replace(/[^\w\s]/gi, '') // Remove special characters
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
+  }
+
+  // === Public methods for enhanced testing and functionality ===
+
+  /**
+   * Public wrapper for _generateContentFingerprint for testing
+   */
+  generateContentFingerprint(content) {
+    return this._generateContentFingerprint(content);
+  }
+
+  /**
+   * Public wrapper for _normalizeTitle for testing
+   */
+  normalizeTitle(title) {
+    return this._normalizeTitle(title);
+  }
+
+  /**
+   * Public wrapper for _extractContentId for testing
+   */
+  extractContentId(url) {
+    return this._extractContentId(url);
+  }
+
+  /**
+   * Public wrapper for _normalizeUrl for testing
+   */
+  normalizeUrl(url) {
+    return this._normalizeUrl(url);
+  }
+
+  /**
+   * Enhanced duplicate detection using fingerprinting
+   */
+  async isDuplicateWithFingerprint(content) {
+    return await this.isDuplicate(content);
+  }
+
+  /**
+   * Mark content as seen using fingerprinting
+   */
+  async markAsSeenWithFingerprint(content) {
+    await this.markAsSeen(content);
+  }
+
+  /**
+   * Process content with fingerprinting and return detailed results
+   */
+  async processContentWithFingerprint(content) {
+    // Handle string input for backwards compatibility
+    if (typeof content === 'string') {
+      content = { url: content };
+    }
+
+    const fingerprint = this._generateContentFingerprint(content);
+    const isDuplicateFingerprint = fingerprint ? await this.isDuplicate(content) : false;
+    const isDuplicateUrl = await this.isDuplicateByUrl(content.url);
+
+    // Extract video and tweet IDs for legacy compatibility
+    const videoMatches = [...(content.url || '').matchAll(videoUrlRegex)];
+    const tweetMatches = [...(content.url || '').matchAll(tweetUrlRegex)];
+
+    const result = {
+      videos: videoMatches.map(match => match[1]).filter(Boolean),
+      tweets: tweetMatches.map(match => match[1]).filter(Boolean),
+      fingerprint: {
+        enabled: !!fingerprint,
+        generated: fingerprint,
+        isDuplicate: isDuplicateFingerprint || isDuplicateUrl,
+      },
+    };
+
+    // Mark as seen if not duplicate
+    if (!result.fingerprint.isDuplicate) {
+      await this.markAsSeen(content);
+    }
+
+    return result;
+  }
+
+  /**
+   * Determine the content type from URL
+   */
+  determineContentType(url) {
+    if (this._extractVideoId(url)) {
+      return 'youtube_video';
+    }
+    if (tweetUrlRegex.test(url)) {
+      return 'x_tweet';
+    }
+    return 'unknown';
+  }
+
+  /**
+   * Get enhanced statistics with fingerprint information
+   */
+  getEnhancedStats() {
+    return {
+      fingerprints: this.fingerprintCache.size,
+      urls: this.urlCache.size,
+      knownVideoIds: this.knownVideoIds.size,
+      knownTweetIds: this.knownTweetIds.size,
+      totalKnownIds: this.fingerprintCache.size + this.urlCache.size,
+      fingerprintingEnabled: true,
+    };
+  }
+
+  /**
+   * Legacy isDuplicate method for backwards compatibility with string URLs
+   */
+  isDuplicateCompat(url) {
+    // Extract video/tweet IDs and check against legacy sets
+    const videoMatches = [...url.matchAll(videoUrlRegex)];
+    const tweetMatches = [...url.matchAll(tweetUrlRegex)];
+
+    for (const match of videoMatches) {
+      if (this.knownVideoIds.has(match[1])) {
+        return true;
+      }
+    }
+
+    for (const match of tweetMatches) {
+      if (this.knownTweetIds.has(match[1])) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Legacy markAsSeen method for backwards compatibility with string URLs
+   */
+  markAsSeenCompat(url) {
+    const videoMatches = [...url.matchAll(videoUrlRegex)];
+    const tweetMatches = [...url.matchAll(tweetUrlRegex)];
+
+    videoMatches.forEach(match => {
+      if (match[1]) {
+        this.knownVideoIds.add(match[1]);
+      }
+    });
+
+    tweetMatches.forEach(match => {
+      if (match[1]) {
+        this.knownTweetIds.add(match[1]);
+      }
+    });
+  }
+
+  /**
+   * Memory management - clean up old entries
+   */
+  _cleanupMemory() {
+    if (this.fingerprintCache.size > this.maxSize) {
+      // Convert to array, slice to keep only recent entries
+      const fingerprintArray = Array.from(this.fingerprintCache);
+      this.fingerprintCache.clear();
+      fingerprintArray.slice(-Math.floor(this.maxSize * 0.8)).forEach(fp => {
+        this.fingerprintCache.add(fp);
+      });
+    }
+
+    if (this.urlCache.size > this.maxSize) {
+      const urlArray = Array.from(this.urlCache);
+      this.urlCache.clear();
+      urlArray.slice(-Math.floor(this.maxSize * 0.8)).forEach(url => {
+        this.urlCache.add(url);
+      });
+    }
+  }
+
+  /**
+   * Cleanup method (for test compatibility)
+   */
+  destroy() {
+    this.fingerprintCache.clear();
+    this.urlCache.clear();
+    this.knownVideoIds.clear();
+    this.knownTweetIds.clear();
   }
 }

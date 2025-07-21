@@ -1,24 +1,38 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import {
-  DuplicateDetector,
-  videoUrlRegex,
-  tweetUrlRegex,
-  createDuplicateDetector,
-} from '../../src/duplicate-detector.js';
+import { DuplicateDetector, videoUrlRegex, tweetUrlRegex } from '../../src/duplicate-detector.js';
 
 describe('Duplicate Detection Logic Tests', () => {
   let knownVideoIds, knownTweetIds;
   let duplicateDetector;
+  let mockPersistentStorage;
+  let mockLogger;
 
   beforeEach(() => {
     knownVideoIds = new Set();
     knownTweetIds = new Set();
-    duplicateDetector = new DuplicateDetector();
+
+    // Mock persistent storage
+    mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
+    };
+
+    // Mock logger
+    mockLogger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+
+    duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
   });
 
   afterEach(() => {
     if (duplicateDetector) {
-      duplicateDetector.destroy();
+      // No destroy method in current implementation
     }
   });
 

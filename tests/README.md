@@ -25,6 +25,16 @@ Our testing strategy is guided by the following core principles:
 - **Reliability:** Tests must be deterministic and free of flakiness.
 - **Shift-Left Testing:** We aim to catch issues as early as possible in the development lifecycle.
 
+### 2.1. Recent Test Infrastructure Improvements ✅
+
+**Major fixes completed in 2025-07-21:**
+- **Timer Testing Resolution:** Implemented reliable patterns for testing async timer-dependent code (see `tests/TIMER-TESTING-GUIDE.md`)
+- **Enhanced Duplicate Detection:** Complete test coverage for content fingerprinting and persistent storage integration
+- **YouTube Scraper Updates:** Updated tests for new architecture with content coordinator integration
+- **CI/CD Reliability:** Resolved hanging tests and improved GitHub Actions execution time
+
+For detailed information on recent fixes, see `docs/TEST-INFRASTRUCTURE-FIXES.md`.
+
 ## 3. Test Types & Scope
 
 ### 3.1. Unit Tests

@@ -21,7 +21,8 @@ describe('YouTubeScraperService', () => {
     mockConfig = {
       get: jest.fn((key, defaultValue) => {
         const config = {
-          YOUTUBE_SCRAPER_INTERVAL_MS: 15000,
+          YOUTUBE_SCRAPER_INTERVAL_MIN: '300000',
+          YOUTUBE_SCRAPER_INTERVAL_MAX: '600000',
           YOUTUBE_SCRAPER_MAX_RETRIES: 3,
           YOUTUBE_SCRAPER_RETRY_DELAY_MS: 5000,
           YOUTUBE_SCRAPER_TIMEOUT_MS: 30000,
@@ -39,7 +40,16 @@ describe('YouTubeScraperService', () => {
       }),
     };
 
-    scraperService = new YouTubeScraperService(mockLogger, mockConfig);
+    // Mock content coordinator
+    const mockContentCoordinator = {
+      processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+    };
+
+    scraperService = new YouTubeScraperService({
+      logger: mockLogger,
+      config: mockConfig,
+      contentCoordinator: mockContentCoordinator,
+    });
 
     // Replace the real browser service with a mock
     mockBrowserService = {
@@ -80,14 +90,15 @@ describe('YouTubeScraperService', () => {
       expect(scraperService.isInitialized).toBe(true);
       expect(scraperService.videosUrl).toBe('https://www.youtube.com/@testchannel/videos');
       expect(scraperService.liveStreamUrl).toBe('https://www.youtube.com/@testchannel/live');
-      expect(scraperService.lastKnownContentId).toBe('dQw4w9WgXcQ');
+      // lastKnownContentId is no longer tracked directly - content state is managed by contentCoordinator
+      // expect(scraperService.lastKnownContentId).toBe('dQw4w9WgXcQ');
       expect(mockBrowserService.launch).toHaveBeenCalledWith({
         headless: true,
         args: expect.arrayContaining(['--no-sandbox', '--disable-setuid-sandbox']),
       });
       expect(mockLogger.info).toHaveBeenCalledWith('YouTube scraper initialized', {
         videosUrl: 'https://www.youtube.com/@testchannel/videos',
-        lastKnownContentId: 'dQw4w9WgXcQ',
+        initialContentId: 'dQw4w9WgXcQ',
         title: 'Test Video',
       });
     });
