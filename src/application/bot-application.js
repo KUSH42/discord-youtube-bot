@@ -750,7 +750,7 @@ export class BotApplication {
         }
 
         // Colorize (+) and (-) in summary lines like "13 files changed, 3319 insertions(+), 11 deletions(-)"
-        return line.replace(/(\(\+\))/g, `${green}$1${reset}`).replace(/(\(-\))/g, `${red}$1${reset}`);
+        return line.replace(/(\()(\+)(\))/g, `$1${green}$2${reset}$3`).replace(/(\()(-)(\))/g, `$1${red}$2${reset}$3`);
       })
       .join('\n');
   }
