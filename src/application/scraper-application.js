@@ -472,13 +472,11 @@ export class ScraperApplication {
       for (const selector of articleSelectors) {
         articles = document.querySelectorAll(selector);
         if (articles.length > 0) {
-          // console.info(`Found ${articles.length} articles using selector: ${selector}`);
           break;
         }
       }
 
       if (articles.length === 0) {
-        // console.warn('No tweet articles found with any selector');
         return tweets;
       }
 
@@ -594,14 +592,10 @@ export class ScraperApplication {
             timestamp,
             tweetCategory,
           });
-
-          // console.info(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
         } catch (err) {
           // console.error('Error extracting tweet:', err);
         }
       }
-
-      // console.info(`Total tweets extracted: ${tweets.length}`);
       return tweets;
       /* eslint-enable no-undef */
     }, monitoredUser);
