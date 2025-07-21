@@ -52,7 +52,7 @@ export class YouTubeScraperService {
     try {
       // Launch browser with optimized settings for scraping
       await this.browserService.launch({
-        headless: true,
+        headless: false, // Run in headed mode for debugging
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

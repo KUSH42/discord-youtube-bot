@@ -393,16 +393,22 @@ export class ScraperApplication {
 
       const nextInterval = this.getNextInterval();
       const nextRunTime = new Date(Date.now() + nextInterval);
+      const nextRunTimeFormatted = nextRunTime.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
 
       if (nextInterval < 180000) {
         // show time until next scraper run in seconds if nextInterval < 3 minutes
         this.logger.info(
-          `X scraper run finished. Next run in ~${Math.round(nextInterval / 1000)} seconds, at ${nextRunTime.toLocaleTimeString()}`
+          `X scraper run finished. Next run in ~${Math.round(nextInterval / 1000)} seconds, at ${nextRunTimeFormatted}`
         );
       } else {
         // show time until next scraper run in minutes if nextInterval > 3 minutes
         this.logger.info(
-          `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`
+          `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTimeFormatted}`
         );
       }
 
