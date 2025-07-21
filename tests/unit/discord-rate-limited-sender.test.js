@@ -30,13 +30,14 @@ describe('DiscordRateLimitedSender', () => {
       maxRetries: 2,
     });
 
-    // Stop the continuous processing to avoid timer conflicts in tests
-    sender.stopProcessing();
+    // Keep processing enabled but use fake timers to control timing
   });
 
   afterEach(async () => {
     if (sender) {
-      await sender.shutdown(500);
+      // Stop processing and clear queue immediately for fast cleanup
+      sender.stopProcessing();
+      sender.clearQueue('Test cleanup');
     }
     jest.useRealTimers();
   });
@@ -45,9 +46,8 @@ describe('DiscordRateLimitedSender', () => {
     it('should queue and send messages successfully', async () => {
       const messagePromise = sender.queueMessage(mockChannel, 'Test message');
 
-      // Manually process the first message
-      const task = sender.messageQueue.shift();
-      await sender.processMessage(task);
+      // Advance timers to allow processing
+      await jest.advanceTimersByTimeAsync(200);
 
       const result = await messagePromise;
       expect(result.id).toBe('message-123');
