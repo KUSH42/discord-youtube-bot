@@ -105,6 +105,53 @@ describe('BotApplication', () => {
     });
   });
 
+  describe('_formatGitPullOutput', () => {
+    const green = '\\u001b[32m';
+    const red = '\\u001b[31m';
+    const reset = '\\u001b[0m';
+
+    it('should colorize addition and deletion lines', () => {
+      const input = `
+-  "version": "1.0.0",
++  "version": "1.0.1",
+   "description": "A bot"
+      `;
+      const expected = `
+${red}-  "version": "1.0.0",${reset}
+${green}+  "version": "1.0.1",${reset}
+   "description": "A bot"
+      `;
+      expect(botApplication._formatGitPullOutput(input)).toBe(expected);
+    });
+
+    it('should not colorize diff headers', () => {
+      const input = `
+--- a/file.js
++++ b/file.js
+-  console.log('old');
++  console.log('new');
+      `;
+      const expected = `
+--- a/file.js
++++ b/file.js
+${red}-  console.log('old');${reset}
+${green}+  console.log('new');${reset}
+      `;
+      expect(botApplication._formatGitPullOutput(input)).toBe(expected);
+    });
+
+    it('should not colorize + or - within a line', () => {
+      const input = 'This line has a + and a - character.';
+      expect(botApplication._formatGitPullOutput(input)).toBe(input);
+    });
+
+    it('should handle empty and no-change strings gracefully', () => {
+      expect(botApplication._formatGitPullOutput('')).toBe('');
+      const noChangeString = 'Already up to date.';
+      expect(botApplication._formatGitPullOutput(noChangeString)).toBe(noChangeString);
+    });
+  });
+
   describe('createDetailedHealthEmbed', () => {
     it('should create a detailed health embed correctly', () => {
       const healthData = {
@@ -133,6 +180,9 @@ describe('BotApplication', () => {
           xmlParseFailures: 0,
           lastError: 'None',
         },
+        youtubeScraper: {
+          isRunning: false,
+        },
         system: { uptime: 12345, memory: { heapUsed: 1024 * 1024 * 50 }, timestamp: new Date().toISOString() },
       };
       botApplication.discord.isReady = () => true;
@@ -142,7 +192,7 @@ describe('BotApplication', () => {
       const embed = botApplication.createDetailedHealthEmbed(healthData);
 
       expect(embed.title).toBe('📊 Detailed Bot Health Status');
-      expect(embed.fields).toHaveLength(12);
+      expect(embed.fields).toHaveLength(13);
     });
 
     it('should display "In progress..." for next X poll when scraper is running but no next poll time is set', () => {
