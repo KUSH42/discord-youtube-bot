@@ -24,6 +24,9 @@ export class DiscordRateLimitedSender {
     // Time source abstraction for testing
     this.timeSource = options.timeSource || (() => Date.now());
 
+    // Delay behavior control for testing
+    this.enableDelays = options.enableDelays !== false; // Default true, can disable for tests
+
     // Burst tracking
     this.burstCounter = 0;
     this.lastBurstReset = this.timeSource();
@@ -134,7 +137,9 @@ export class DiscordRateLimitedSender {
         this.logger.debug('Queue processing paused due to rate limit', {
           remainingMs: remainingPause,
         });
-        await this.delay(Math.min(remainingPause, 1000)); // Check every second
+        if (this.enableDelays) {
+          await this.delay(Math.min(remainingPause, 1000)); // Check every second
+        }
         continue;
       }
 
@@ -152,7 +157,12 @@ export class DiscordRateLimitedSender {
         this.updateQueueMetrics();
       } else {
         // No messages to process, wait a bit
-        await this.delay(100);
+        if (this.enableDelays) {
+          await this.delay(100);
+        } else {
+          // In testing mode without delays, yield control to prevent infinite loop
+          await Promise.resolve();
+        }
       }
     }
   }
@@ -232,10 +242,15 @@ export class DiscordRateLimitedSender {
         error: error.message,
       });
 
-      // Add back to queue with delay
-      setTimeout(() => {
-        this.messageQueue.unshift(task); // Add to front for priority
-      }, retryDelay);
+      // Add back to queue with delay (or immediately if delays disabled)
+      if (this.enableDelays) {
+        setTimeout(() => {
+          this.messageQueue.unshift(task); // Add to front for priority
+        }, retryDelay);
+      } else {
+        // For testing, add immediately but still track the delay would have happened
+        this.messageQueue.unshift(task);
+      }
 
       return;
     }
@@ -307,8 +322,10 @@ export class DiscordRateLimitedSender {
       return;
     }
 
-    // Apply base delay if we've exceeded burst allowance
-    await this.delay(this.baseSendDelay);
+    // Apply base delay if we've exceeded burst allowance (only if delays are enabled)
+    if (this.enableDelays) {
+      await this.delay(this.baseSendDelay);
+    }
   }
 
   /**
@@ -433,7 +450,12 @@ export class DiscordRateLimitedSender {
 
     // Wait for queue to empty or timeout
     while (this.messageQueue.length > 0 && this.timeSource() - startTime < timeoutMs) {
-      await this.delay(1000);
+      if (this.enableDelays) {
+        await this.delay(1000);
+      } else {
+        // In testing, just yield control
+        await Promise.resolve();
+      }
     }
 
     // Stop processing
