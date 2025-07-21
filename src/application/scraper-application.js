@@ -394,7 +394,7 @@ export class ScraperApplication {
       const nextInterval = this.getNextInterval();
       const nextRunTime = new Date(Date.now() + nextInterval);
 
-      if (nextInterval > 180000) {
+      if (nextInterval < 180000) {
         // show time until next scraper run in seconds if nextInterval < 3 minutes
         this.logger.info(
           `X scraper run finished. Next run in ~${Math.round(nextInterval / 1000)} seconds, at ${nextRunTime.toLocaleTimeString()}`
