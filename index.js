@@ -136,8 +136,13 @@ async function startWebServer(container, config) {
   setupWebhookEndpoints(app, container);
 
   // Error handling middleware
-  app.use((error, req, res) => {
-    logger.error('Express error:', error);
+  app.use((error, req, res, _next) => {
+    logger.error('Express error:', {
+      message: error.message,
+      stack: error.stack,
+      url: req.url,
+      method: req.method,
+    });
     res.status(500).json({ error: 'Internal Server Error' });
   });
 

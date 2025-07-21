@@ -25,8 +25,17 @@ describe('YouTubeScraperService', () => {
           YOUTUBE_SCRAPER_MAX_RETRIES: 3,
           YOUTUBE_SCRAPER_RETRY_DELAY_MS: 5000,
           YOUTUBE_SCRAPER_TIMEOUT_MS: 30000,
+          YOUTUBE_AUTHENTICATION_ENABLED: 'false',
+          YOUTUBE_USERNAME: '',
+          YOUTUBE_PASSWORD: '',
         };
         return config[key] || defaultValue;
+      }),
+      getBoolean: jest.fn((key, defaultValue) => {
+        const config = {
+          YOUTUBE_AUTHENTICATION_ENABLED: false,
+        };
+        return config[key] !== undefined ? config[key] : defaultValue;
       }),
     };
 
@@ -40,6 +49,10 @@ describe('YouTubeScraperService', () => {
       goto: jest.fn(),
       waitFor: jest.fn(),
       evaluate: jest.fn(),
+      waitForSelector: jest.fn(),
+      type: jest.fn(),
+      click: jest.fn(),
+      setCookies: jest.fn(),
       close: jest.fn(),
       isRunning: jest.fn(() => true),
     };
@@ -473,6 +486,8 @@ describe('YouTubeScraperService', () => {
         successRate: 66.67, // 2/3 success rate
         isInitialized: true,
         isRunning: false,
+        isAuthenticated: false,
+        authEnabled: false,
         lastKnownContentId: 'initial123',
         videosUrl: 'https://www.youtube.com/@testchannel/videos',
         liveStreamUrl: 'https://www.youtube.com/@testchannel/live',
@@ -481,6 +496,7 @@ describe('YouTubeScraperService', () => {
           maxInterval: expect.any(Number),
           maxRetries: 3,
           timeoutMs: 30000,
+          authEnabled: false,
         },
       });
     });
@@ -580,6 +596,7 @@ describe('YouTubeScraperService', () => {
           };
           return config[key] || defaultValue;
         }),
+        getBoolean: jest.fn(() => false),
       };
 
       const customScraper = new YouTubeScraperService(mockLogger, customConfig);
@@ -613,6 +630,417 @@ describe('YouTubeScraperService', () => {
 
       // Should not have thrown error despite null callback
       expect(scraperService.isRunning).toBe(true);
+    });
+  });
+
+  describe('YouTube Authentication', () => {
+    let authenticatedService;
+    let authConfig;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      authConfig = {
+        get: jest.fn((key, defaultValue) => {
+          const config = {
+            YOUTUBE_SCRAPER_INTERVAL_MIN: '30000',
+            YOUTUBE_SCRAPER_INTERVAL_MAX: '60000',
+            YOUTUBE_SCRAPER_MAX_RETRIES: 3,
+            YOUTUBE_SCRAPER_RETRY_DELAY_MS: 5000,
+            YOUTUBE_SCRAPER_TIMEOUT_MS: 30000,
+            YOUTUBE_AUTHENTICATION_ENABLED: 'true',
+            YOUTUBE_USERNAME: 'test@example.com',
+            YOUTUBE_PASSWORD: 'testpassword',
+          };
+          return config[key] || defaultValue;
+        }),
+        getBoolean: jest.fn((key, defaultValue) => {
+          const config = {
+            YOUTUBE_AUTHENTICATION_ENABLED: true,
+          };
+          return config[key] !== undefined ? config[key] : defaultValue;
+        }),
+      };
+
+      authenticatedService = new YouTubeScraperService(mockLogger, authConfig);
+      authenticatedService.browserService = mockBrowserService;
+    });
+
+    afterEach(async () => {
+      await authenticatedService.cleanup();
+    });
+
+    describe('Authentication Configuration', () => {
+      it('should initialize with authentication enabled', () => {
+        expect(authenticatedService.authEnabled).toBe(true);
+        expect(authenticatedService.youtubeUsername).toBe('test@example.com');
+        expect(authenticatedService.youtubePassword).toBe('testpassword');
+        expect(authenticatedService.isAuthenticated).toBe(false);
+      });
+
+      it('should disable authentication when not configured', () => {
+        const noAuthConfig = {
+          get: jest.fn(() => ''),
+          getBoolean: jest.fn(() => false),
+        };
+        const noAuthService = new YouTubeScraperService(mockLogger, noAuthConfig);
+        expect(noAuthService.authEnabled).toBe(false);
+      });
+
+      it('should include auth status in metrics', () => {
+        const metrics = authenticatedService.getMetrics();
+        expect(metrics.authEnabled).toBe(true);
+        expect(metrics.isAuthenticated).toBe(false);
+        expect(metrics.configuration.authEnabled).toBe(true);
+      });
+    });
+
+    describe('Main Authentication Flow', () => {
+      it('should perform successful authentication', async () => {
+        // Mock individual helper methods instead of complex waitForSelector chains
+        jest.spyOn(authenticatedService, 'handleCookieConsent').mockResolvedValue();
+        jest.spyOn(authenticatedService, 'handleAccountChallenges').mockResolvedValue(true);
+        jest.spyOn(authenticatedService, 'handle2FA').mockResolvedValue(true);
+        jest.spyOn(authenticatedService, 'handleCaptcha').mockResolvedValue(true);
+        jest.spyOn(authenticatedService, 'handleDeviceVerification').mockResolvedValue();
+
+        // Mock the basic browser operations
+        mockBrowserService.waitForSelector.mockResolvedValue();
+        mockBrowserService.evaluate.mockResolvedValueOnce(true); // Sign-in detection
+
+        await authenticatedService.authenticateWithYouTube();
+
+        expect(mockBrowserService.goto).toHaveBeenCalledWith(
+          'https://accounts.google.com/signin/v2/identifier?service=youtube'
+        );
+        expect(mockBrowserService.type).toHaveBeenCalledWith('input[type="email"]', 'test@example.com');
+        expect(mockBrowserService.type).toHaveBeenCalledWith('input[type="password"]', 'testpassword');
+        expect(mockBrowserService.click).toHaveBeenCalledWith('#identifierNext');
+        expect(mockBrowserService.click).toHaveBeenCalledWith('#passwordNext');
+        expect(authenticatedService.isAuthenticated).toBe(true);
+        expect(mockLogger.info).toHaveBeenCalledWith('✅ Successfully authenticated with YouTube');
+      });
+
+      it('should skip authentication when disabled', async () => {
+        authenticatedService.authEnabled = false;
+
+        await authenticatedService.authenticateWithYouTube();
+
+        expect(mockBrowserService.goto).not.toHaveBeenCalled();
+        expect(mockLogger.debug).toHaveBeenCalledWith('YouTube authentication is disabled');
+      });
+
+      it('should skip authentication when credentials missing', async () => {
+        authenticatedService.youtubeUsername = '';
+        authenticatedService.youtubePassword = '';
+
+        await authenticatedService.authenticateWithYouTube();
+
+        expect(mockBrowserService.goto).not.toHaveBeenCalled();
+        expect(mockLogger.warn).toHaveBeenCalledWith('YouTube authentication enabled but credentials not provided');
+      });
+
+      it('should handle authentication failures gracefully', async () => {
+        mockBrowserService.goto.mockRejectedValue(new Error('Navigation failed'));
+
+        await authenticatedService.authenticateWithYouTube();
+
+        expect(authenticatedService.isAuthenticated).toBe(false);
+        expect(mockLogger.error).toHaveBeenCalledWith('Failed to authenticate with YouTube:', {
+          error: 'Navigation failed',
+          stack: expect.any(String),
+        });
+        expect(mockLogger.warn).toHaveBeenCalledWith('Continuing without YouTube authentication');
+      });
+
+      it('should warn when authentication may have failed', async () => {
+        // Mock helper methods to succeed
+        jest.spyOn(authenticatedService, 'handleCookieConsent').mockResolvedValue();
+        jest.spyOn(authenticatedService, 'handleAccountChallenges').mockResolvedValue(true);
+        jest.spyOn(authenticatedService, 'handle2FA').mockResolvedValue(true);
+        jest.spyOn(authenticatedService, 'handleCaptcha').mockResolvedValue(true);
+        jest.spyOn(authenticatedService, 'handleDeviceVerification').mockResolvedValue();
+
+        // Mock basic operations to succeed but sign-in detection fails
+        mockBrowserService.waitForSelector.mockResolvedValue();
+        mockBrowserService.evaluate.mockResolvedValueOnce(false); // Sign-in detection fails
+
+        await authenticatedService.authenticateWithYouTube();
+
+        expect(authenticatedService.isAuthenticated).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'YouTube authentication may have failed - proceeding without authentication'
+        );
+      });
+    });
+
+    describe('Cookie Consent Handling', () => {
+      it('should handle cookie consent successfully', async () => {
+        mockBrowserService.waitForSelector.mockResolvedValueOnce(); // Cookie consent found
+        mockBrowserService.click.mockResolvedValueOnce();
+
+        await authenticatedService.handleCookieConsent();
+
+        expect(mockBrowserService.waitForSelector).toHaveBeenCalledWith('button:has-text("Accept all")', {
+          timeout: 3000,
+        });
+        expect(mockBrowserService.click).toHaveBeenCalled();
+        expect(mockLogger.debug).toHaveBeenCalledWith('Clicked cookie consent button: button:has-text("Accept all")');
+      });
+
+      it('should handle no cookie consent banner gracefully', async () => {
+        mockBrowserService.waitForSelector.mockRejectedValue(new Error('Selector timeout'));
+
+        await authenticatedService.handleCookieConsent();
+
+        expect(mockLogger.debug).toHaveBeenCalledWith('No cookie consent banner found');
+      });
+
+      it('should try multiple consent selectors', async () => {
+        // First selector fails, second succeeds
+        mockBrowserService.waitForSelector.mockRejectedValueOnce(new Error('Not found')).mockResolvedValueOnce();
+
+        await authenticatedService.handleCookieConsent();
+
+        expect(mockBrowserService.waitForSelector).toHaveBeenCalledTimes(2);
+        expect(mockBrowserService.click).toHaveBeenCalled();
+      });
+    });
+
+    describe('Account Security Challenges', () => {
+      it('should detect email verification challenge', async () => {
+        mockBrowserService.waitForSelector.mockResolvedValueOnce(); // Email challenge found
+
+        const result = await authenticatedService.handleAccountChallenges();
+
+        expect(result).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Email verification challenge detected - requires manual intervention'
+        );
+        expect(mockLogger.info).toHaveBeenCalledWith('Please check your email and complete verification manually');
+      });
+
+      it('should detect phone verification challenge', async () => {
+        mockBrowserService.waitForSelector
+          .mockRejectedValueOnce(new Error('Email not found')) // No email challenge
+          .mockRejectedValueOnce(new Error('Email not found')) // No email challenge
+          .mockRejectedValueOnce(new Error('Email not found')) // No email challenge
+          .mockResolvedValueOnce(); // Phone challenge found
+
+        const result = await authenticatedService.handleAccountChallenges();
+
+        expect(result).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Phone verification challenge detected - requires manual intervention'
+        );
+      });
+
+      it('should return true when no challenges detected', async () => {
+        mockBrowserService.waitForSelector.mockRejectedValue(new Error('Not found'));
+
+        const result = await authenticatedService.handleAccountChallenges();
+
+        expect(result).toBe(true);
+      });
+    });
+
+    describe('2FA/MFA Handling', () => {
+      it('should detect 2FA challenge', async () => {
+        mockBrowserService.waitForSelector.mockResolvedValueOnce(); // 2FA input found
+
+        const result = await authenticatedService.handle2FA();
+
+        expect(result).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          '2FA challenge detected - authentication cannot proceed automatically'
+        );
+        expect(mockLogger.info).toHaveBeenCalledWith(
+          'Please disable 2FA for this account or handle authentication manually'
+        );
+      });
+
+      it('should return true when no 2FA present', async () => {
+        mockBrowserService.waitForSelector.mockRejectedValue(new Error('Not found'));
+
+        const result = await authenticatedService.handle2FA();
+
+        expect(result).toBe(true);
+      });
+
+      it('should try multiple 2FA selectors', async () => {
+        mockBrowserService.waitForSelector
+          .mockRejectedValueOnce(new Error('Not found'))
+          .mockRejectedValueOnce(new Error('Not found'))
+          .mockResolvedValueOnce(); // Third selector succeeds
+
+        const result = await authenticatedService.handle2FA();
+
+        expect(result).toBe(false);
+        expect(mockBrowserService.waitForSelector).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    describe('CAPTCHA Detection', () => {
+      it('should detect CAPTCHA challenge', async () => {
+        mockBrowserService.waitForSelector.mockResolvedValueOnce(); // CAPTCHA found
+
+        const result = await authenticatedService.handleCaptcha();
+
+        expect(result).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'CAPTCHA challenge detected - authentication cannot proceed automatically'
+        );
+        expect(mockLogger.info).toHaveBeenCalledWith('Manual intervention required to complete CAPTCHA verification');
+      });
+
+      it('should return true when no CAPTCHA present', async () => {
+        mockBrowserService.waitForSelector.mockRejectedValue(new Error('Not found'));
+
+        const result = await authenticatedService.handleCaptcha();
+
+        expect(result).toBe(true);
+      });
+
+      it('should detect various CAPTCHA types', async () => {
+        // Test different CAPTCHA selectors
+        const captchaSelectors = [
+          '[data-sitekey]',
+          '.g-recaptcha',
+          '#recaptcha',
+          '[src*="captcha"]',
+          'iframe[src*="recaptcha"]',
+        ];
+
+        for (let i = 0; i < captchaSelectors.length; i++) {
+          mockBrowserService.waitForSelector.mockImplementation(selector => {
+            if (selector === captchaSelectors[i]) {
+              return Promise.resolve();
+            }
+            return Promise.reject(new Error('Not found'));
+          });
+
+          const result = await authenticatedService.handleCaptcha();
+          expect(result).toBe(false);
+        }
+      });
+    });
+
+    describe('Device Verification Handling', () => {
+      it('should handle device verification prompts', async () => {
+        mockBrowserService.waitForSelector.mockResolvedValueOnce();
+        mockBrowserService.click.mockResolvedValueOnce();
+
+        await authenticatedService.handleDeviceVerification();
+
+        expect(mockBrowserService.click).toHaveBeenCalled();
+        expect(mockLogger.debug).toHaveBeenCalledWith('Handled device verification: button:has-text("Not now")');
+      });
+
+      it('should try multiple device verification selectors', async () => {
+        mockBrowserService.waitForSelector.mockRejectedValueOnce(new Error('Not found')).mockResolvedValueOnce();
+
+        await authenticatedService.handleDeviceVerification();
+
+        expect(mockBrowserService.waitForSelector).toHaveBeenCalledTimes(2);
+        expect(mockBrowserService.click).toHaveBeenCalled();
+      });
+
+      it('should handle when no device verification present', async () => {
+        mockBrowserService.waitForSelector.mockRejectedValue(new Error('Not found'));
+
+        // Should not throw error
+        await expect(authenticatedService.handleDeviceVerification()).resolves.not.toThrow();
+        expect(mockBrowserService.click).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Integration with Initialization', () => {
+      it('should call authentication during initialization when enabled', async () => {
+        const authSpy = jest.spyOn(authenticatedService, 'authenticateWithYouTube').mockResolvedValue();
+        mockBrowserService.evaluate.mockResolvedValue({
+          id: 'test123',
+          title: 'Test Video',
+          url: 'https://www.youtube.com/watch?v=test123',
+        });
+
+        await authenticatedService.initialize('testchannel');
+
+        expect(authSpy).toHaveBeenCalled();
+        expect(authenticatedService.isInitialized).toBe(true);
+      });
+
+      it('should skip authentication during initialization when disabled', async () => {
+        const noAuthService = new YouTubeScraperService(mockLogger, mockConfig);
+        noAuthService.browserService = mockBrowserService;
+        const authSpy = jest.spyOn(noAuthService, 'authenticateWithYouTube');
+
+        mockBrowserService.evaluate.mockResolvedValue({
+          id: 'test123',
+          title: 'Test Video',
+          url: 'https://www.youtube.com/watch?v=test123',
+        });
+
+        await noAuthService.initialize('testchannel');
+
+        expect(authSpy).not.toHaveBeenCalled();
+        expect(noAuthService.isInitialized).toBe(true);
+      });
+    });
+
+    describe('Health Check with Authentication', () => {
+      it('should include authentication status in health check', async () => {
+        authenticatedService.isAuthenticated = true;
+        mockBrowserService.evaluate.mockResolvedValue({
+          id: 'health123',
+          title: 'Health Video',
+          url: 'https://www.youtube.com/watch?v=health123',
+        });
+
+        await authenticatedService.initialize('testchannel');
+        const health = await authenticatedService.healthCheck();
+
+        expect(health.status).toBe('healthy');
+        expect(health.details.metrics.authEnabled).toBe(true);
+        expect(health.details.metrics.isAuthenticated).toBe(true);
+      });
+
+      it('should provide authentication failure hints when enabled but not authenticated', async () => {
+        authenticatedService.isAuthenticated = false;
+        mockBrowserService.evaluate.mockResolvedValue(null); // No videos found
+
+        await authenticatedService.initialize('testchannel');
+        const health = await authenticatedService.healthCheck();
+
+        expect(health.status).toBe('no_videos_found');
+        expect(health.details.possibleCause).toBe('Authentication enabled but not authenticated');
+      });
+
+      it('should log detailed error information during health check failures', async () => {
+        // Initialize first
+        mockBrowserService.evaluate.mockResolvedValueOnce({
+          id: 'init123',
+          title: 'Init Video',
+        });
+        await authenticatedService.initialize('testchannel');
+
+        // Clear previous mocks and make health check goto fail with error
+        jest.clearAllMocks();
+        const healthError = new Error('Health check network error');
+        mockBrowserService.goto.mockRejectedValue(healthError);
+
+        const health = await authenticatedService.healthCheck();
+
+        // The health check catches the error and returns 'no_videos_found' status
+        // but logs the error details
+        expect(health.status).toBe('no_videos_found');
+        expect(health.details.warning).toBe('No videos found during health check');
+        expect(mockLogger.error).toHaveBeenCalledWith('Failed to scrape YouTube channel', {
+          error: 'Health check network error',
+          stack: expect.any(String),
+          videosUrl: 'https://www.youtube.com/@testchannel/videos',
+          attempt: expect.any(Number),
+        });
+      });
     });
   });
 });

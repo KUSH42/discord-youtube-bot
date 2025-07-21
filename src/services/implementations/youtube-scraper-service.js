@@ -15,6 +15,7 @@ export class YouTubeScraperService {
     this.isInitialized = false;
     this.isRunning = false;
     this.scrapingInterval = null;
+    this.isAuthenticated = false;
 
     // Configuration
     this.minInterval = parseInt(config.get('YOUTUBE_SCRAPER_INTERVAL_MIN', '300000'), 10);
@@ -22,6 +23,11 @@ export class YouTubeScraperService {
     this.maxRetries = config.get('YOUTUBE_SCRAPER_MAX_RETRIES', 3);
     this.retryDelayMs = config.get('YOUTUBE_SCRAPER_RETRY_DELAY_MS', 5000);
     this.timeoutMs = config.get('YOUTUBE_SCRAPER_TIMEOUT_MS', 30000);
+
+    // Authentication configuration
+    this.authEnabled = config.getBoolean('YOUTUBE_AUTHENTICATION_ENABLED', false);
+    this.youtubeUsername = config.get('YOUTUBE_USERNAME');
+    this.youtubePassword = config.get('YOUTUBE_PASSWORD');
 
     // Metrics
     this.metrics = {
@@ -76,6 +82,11 @@ export class YouTubeScraperService {
       // Mark as initialized before fetching to avoid circular dependency
       this.isInitialized = true;
 
+      // Perform authentication if enabled
+      if (this.authEnabled) {
+        await this.authenticateWithYouTube();
+      }
+
       // Find and set the initial latest video
       const latestVideo = await this.fetchLatestVideo();
       if (latestVideo) {
@@ -98,6 +109,289 @@ export class YouTubeScraperService {
         videosUrl: this.videosUrl,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Authenticate with YouTube using credentials
+   * @returns {Promise<void>}
+   */
+  async authenticateWithYouTube() {
+    if (!this.authEnabled) {
+      this.logger.debug('YouTube authentication is disabled');
+      return;
+    }
+
+    if (!this.youtubeUsername || !this.youtubePassword) {
+      this.logger.warn('YouTube authentication enabled but credentials not provided');
+      return;
+    }
+
+    try {
+      this.logger.info('Starting YouTube authentication...');
+
+      // Navigate to YouTube sign-in page
+      await this.browserService.goto('https://accounts.google.com/signin/v2/identifier?service=youtube');
+
+      // Handle cookie consent if present
+      await this.handleCookieConsent();
+
+      // Wait for email input
+      await this.browserService.waitForSelector('input[type="email"]', { timeout: 10000 });
+
+      // Enter email/username
+      await this.browserService.type('input[type="email"]', this.youtubeUsername);
+
+      // Click Next
+      await this.browserService.click('#identifierNext');
+      await this.browserService.waitFor(3000);
+
+      // Check for account security challenges
+      const challengeHandled = await this.handleAccountChallenges();
+      if (!challengeHandled) {
+        return;
+      }
+
+      // Wait for password input
+      await this.browserService.waitForSelector('input[type="password"]', { timeout: 10000 });
+
+      // Enter password
+      await this.browserService.type('input[type="password"]', this.youtubePassword);
+
+      // Click Next/Sign In
+      await this.browserService.click('#passwordNext');
+
+      // Wait for navigation to complete and handle any post-login challenges
+      await this.browserService.waitFor(5000);
+
+      // Handle 2FA if present
+      const twoFAHandled = await this.handle2FA();
+      if (!twoFAHandled) {
+        return;
+      }
+
+      // Check for CAPTCHA challenges
+      const captchaHandled = await this.handleCaptcha();
+      if (!captchaHandled) {
+        return;
+      }
+
+      // Handle device verification if present
+      await this.handleDeviceVerification();
+
+      // Check if we're successfully logged in by navigating to YouTube and looking for signed-in indicators
+      await this.browserService.goto('https://www.youtube.com');
+      await this.browserService.waitFor(3000);
+
+      // Check for signed-in user avatar/menu
+      const signedIn = await this.browserService.evaluate(() => {
+        /* eslint-disable no-undef */
+        // Look for signed-in indicators
+        return (
+          document.querySelector('button[aria-label*="Google Account"]') ||
+          document.querySelector('#avatar-btn') ||
+          document.querySelector('ytd-topbar-menu-button-renderer') ||
+          document.querySelector('[id="guide-section-3"]') ||
+          // Additional selectors for signed-in state
+          document.querySelector('[data-uia="user-menu-toggle"]') ||
+          document.querySelector('.ytp-chrome-top .ytp-user-avatar') ||
+          document.querySelector('yt-img-shadow#avatar')
+        );
+        /* eslint-enable no-undef */
+      });
+
+      if (signedIn) {
+        this.isAuthenticated = true;
+        this.logger.info('✅ Successfully authenticated with YouTube');
+      } else {
+        this.logger.warn('YouTube authentication may have failed - proceeding without authentication');
+      }
+    } catch (error) {
+      this.logger.error('Failed to authenticate with YouTube:', {
+        error: error.message,
+        stack: error.stack,
+      });
+      this.logger.warn('Continuing without YouTube authentication');
+    }
+  }
+
+  /**
+   * Handle cookie consent banners
+   * @returns {Promise<void>}
+   */
+  async handleCookieConsent() {
+    try {
+      // Wait a moment for cookie banners to appear
+      await this.browserService.waitFor(2000);
+
+      // Common cookie consent selectors
+      const consentSelectors = [
+        'button:has-text("Accept all")',
+        'button:has-text("I agree")',
+        'button:has-text("Accept")',
+        '[data-testid="accept-all-button"]',
+        '[data-testid="consent-accept-all"]',
+        'button[aria-label*="Accept"]',
+        '#L2AGLb', // Google's "I agree" button
+        'button:has-text("Reject all")', // Fallback - reject if accept not found
+      ];
+
+      for (const selector of consentSelectors) {
+        try {
+          await this.browserService.waitForSelector(selector, { timeout: 3000 });
+          await this.browserService.click(selector);
+          this.logger.debug(`Clicked cookie consent button: ${selector}`);
+          await this.browserService.waitFor(1000);
+          return;
+        } catch {
+          // Continue to next selector
+        }
+      }
+
+      this.logger.debug('No cookie consent banner found');
+    } catch (error) {
+      this.logger.debug('Error handling cookie consent:', error.message);
+    }
+  }
+
+  /**
+   * Handle account security challenges (email verification, etc.)
+   * @returns {Promise<boolean>} True if challenge was handled or no challenge present
+   */
+  async handleAccountChallenges() {
+    try {
+      // Check for email verification challenge
+      const emailChallengeSelectors = [
+        'input[type="email"][placeholder*="verification"]',
+        'input[name="knowledgePreregisteredEmailResponse"]',
+        'input[data-initial-value][type="email"]',
+      ];
+
+      for (const selector of emailChallengeSelectors) {
+        try {
+          await this.browserService.waitForSelector(selector, { timeout: 3000 });
+          this.logger.warn('Email verification challenge detected - requires manual intervention');
+          this.logger.info('Please check your email and complete verification manually');
+          return false;
+        } catch {
+          // Continue to next selector
+        }
+      }
+
+      // Check for phone verification challenge
+      const phoneSelectors = ['input[type="tel"]', 'input[name="phoneNumberId"]'];
+
+      for (const selector of phoneSelectors) {
+        try {
+          await this.browserService.waitForSelector(selector, { timeout: 3000 });
+          this.logger.warn('Phone verification challenge detected - requires manual intervention');
+          return false;
+        } catch {
+          // Continue to next selector
+        }
+      }
+
+      return true; // No challenges detected
+    } catch (error) {
+      this.logger.debug('Error checking account challenges:', error.message);
+      return true;
+    }
+  }
+
+  /**
+   * Handle 2FA/MFA challenges
+   * @returns {Promise<boolean>} True if 2FA was handled or not present
+   */
+  async handle2FA() {
+    try {
+      // Check for 2FA code input
+      const twoFASelectors = [
+        'input[name="totpPin"]',
+        'input[type="tel"][maxlength="6"]',
+        'input[placeholder*="code"]',
+        'input[aria-label*="verification code"]',
+      ];
+
+      for (const selector of twoFASelectors) {
+        try {
+          await this.browserService.waitForSelector(selector, { timeout: 3000 });
+          this.logger.warn('2FA challenge detected - authentication cannot proceed automatically');
+          this.logger.info('Please disable 2FA for this account or handle authentication manually');
+          return false;
+        } catch {
+          // Continue to next selector
+        }
+      }
+
+      return true; // No 2FA challenge
+    } catch (error) {
+      this.logger.debug('Error checking 2FA:', error.message);
+      return true;
+    }
+  }
+
+  /**
+   * Handle CAPTCHA challenges
+   * @returns {Promise<boolean>} True if no CAPTCHA present, false if CAPTCHA detected
+   */
+  async handleCaptcha() {
+    try {
+      // Common CAPTCHA selectors
+      const captchaSelectors = [
+        '[data-sitekey]', // reCAPTCHA
+        '.g-recaptcha', // reCAPTCHA v2
+        '#recaptcha', // Generic reCAPTCHA
+        '[src*="captcha"]', // Image CAPTCHA
+        'iframe[src*="recaptcha"]', // reCAPTCHA iframe
+        '[aria-label*="captcha"]', // Accessibility CAPTCHA
+        'canvas[width][height]', // Canvas-based CAPTCHA (some bot detection)
+      ];
+
+      for (const selector of captchaSelectors) {
+        try {
+          await this.browserService.waitForSelector(selector, { timeout: 2000 });
+          this.logger.warn('CAPTCHA challenge detected - authentication cannot proceed automatically');
+          this.logger.info('Manual intervention required to complete CAPTCHA verification');
+          return false;
+        } catch {
+          // Continue to next selector
+        }
+      }
+
+      return true; // No CAPTCHA detected
+    } catch (error) {
+      this.logger.debug('Error checking for CAPTCHA:', error.message);
+      return true;
+    }
+  }
+
+  /**
+   * Handle device verification prompts
+   * @returns {Promise<void>}
+   */
+  async handleDeviceVerification() {
+    try {
+      // Look for "Continue" or "Not now" buttons on device verification screens
+      const deviceVerificationSelectors = [
+        'button:has-text("Not now")',
+        'button:has-text("Continue")',
+        '[data-action-button-secondary]',
+        'button[jsname="b3VHJd"]', // Google's "Not now" button
+      ];
+
+      for (const selector of deviceVerificationSelectors) {
+        try {
+          await this.browserService.waitForSelector(selector, { timeout: 3000 });
+          await this.browserService.click(selector);
+          this.logger.debug(`Handled device verification: ${selector}`);
+          await this.browserService.waitFor(2000);
+          return;
+        } catch {
+          // Continue to next selector
+        }
+      }
+    } catch (error) {
+      this.logger.debug('Error handling device verification:', error.message);
     }
   }
 
@@ -424,6 +718,8 @@ export class YouTubeScraperService {
       successRate: Math.round(successRate * 100) / 100,
       isInitialized: this.isInitialized,
       isRunning: this.isRunning,
+      isAuthenticated: this.isAuthenticated,
+      authEnabled: this.authEnabled,
       lastKnownContentId: this.lastKnownContentId,
       videosUrl: this.videosUrl,
       liveStreamUrl: this.liveStreamUrl,
@@ -432,6 +728,7 @@ export class YouTubeScraperService {
         maxInterval: this.maxInterval,
         maxRetries: this.maxRetries,
         timeoutMs: this.timeoutMs,
+        authEnabled: this.authEnabled,
       },
     };
   }
@@ -484,10 +781,20 @@ export class YouTubeScraperService {
       } else {
         health.status = 'no_videos_found';
         health.details.warning = 'No videos found during health check';
+        if (this.authEnabled && !this.isAuthenticated) {
+          health.details.possibleCause = 'Authentication enabled but not authenticated';
+        }
       }
     } catch (error) {
       health.status = 'error';
       health.details.error = error.message;
+      health.details.stack = error.stack;
+      this.logger.error('YouTube scraper health check failed:', {
+        error: error.message,
+        stack: error.stack,
+        authEnabled: this.authEnabled,
+        isAuthenticated: this.isAuthenticated,
+      });
     }
 
     health.details.metrics = this.getMetrics();
