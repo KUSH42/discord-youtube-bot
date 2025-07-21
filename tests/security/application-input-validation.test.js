@@ -88,7 +88,7 @@ describe('Application Input Validation Security Tests', () => {
 
     commandProcessor = new CommandProcessor(mockConfig, mockStateManager);
     contentClassifier = new ContentClassifier();
-    contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager);
+    contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager, mockLogger);
   });
 
   afterEach(() => {

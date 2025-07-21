@@ -5,10 +5,11 @@ import { splitMessage } from '../discord-utils.js';
  * Handles message formatting and channel routing based on content type
  */
 export class ContentAnnouncer {
-  constructor(discordService, config, stateManager) {
+  constructor(discordService, config, stateManager, logger) {
     this.discord = discordService;
     this.config = config;
     this.state = stateManager;
+    this.logger = logger;
 
     // Channel mapping based on content types
     this.channelMap = {
@@ -49,6 +50,8 @@ export class ContentAnnouncer {
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         // Remove javascript: URLs but preserve other data URLs
         .replace(/javascript:/gi, 'blocked:')
+        // Remove data: URLs that are not image types (as Discord allows image data URLs)
+        .replace(/data:(?!image\/(png|jpeg|gif|webp))/gi, 'blocked:')
     );
   }
 
@@ -84,8 +87,10 @@ export class ContentAnnouncer {
 
       // Get target channel
       const channelId = this.getChannelForContent(content);
-      if (!channelId) {
-        result.reason = `No channel configured for ${content.platform} ${content.type}`;
+      if (!channelId || !this._isValidDiscordId(channelId)) {
+        const errorMessage = `Invalid or missing channel ID: ${channelId}`;
+        this.logger.error(errorMessage, { content });
+        result.reason = errorMessage;
         return result;
       }
 
@@ -533,5 +538,15 @@ export class ContentAnnouncer {
     }
 
     return results;
+  }
+
+  /**
+   * Check if a string is a valid Discord Snowflake ID
+   * @param {string} id - The ID to validate
+   * @returns {boolean} True if the ID is valid
+   * @private
+   */
+  _isValidDiscordId(id) {
+    return /^\d{17,19}$/.test(id);
   }
 }

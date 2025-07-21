@@ -11,6 +11,8 @@ export class DiscordRateLimitedSender {
     this.isProcessing = false;
     this.isPaused = false;
     this.pauseUntil = null;
+    this.processingPromise = null;
+    this._processingResolve = null;
 
     // Rate limiting configuration
     this.baseSendDelay = options.baseSendDelay || 1000; // 1 second between sends
@@ -116,14 +118,21 @@ export class DiscordRateLimitedSender {
     }
 
     this.isProcessing = true;
+    this.processingPromise = new Promise(resolve => {
+      this._processingResolve = resolve;
+    });
     this.processQueue();
   }
 
   /**
    * Stop processing the message queue
    */
-  stopProcessing() {
+  async stopProcessing() {
     this.isProcessing = false;
+    if (this.processingPromise) {
+      // Allow the loop to complete one final time and exit
+      await this.processingPromise;
+    }
   }
 
   /**
@@ -156,14 +165,14 @@ export class DiscordRateLimitedSender {
         await this.processMessage(task);
         this.updateQueueMetrics();
       } else {
-        // No messages to process, wait a bit
-        if (this.enableDelays) {
-          await this.delay(100);
-        } else {
-          // In testing mode without delays, yield control to prevent infinite loop
-          await Promise.resolve();
-        }
+        // No messages to process, wait a bit.
+        // The loop will pause here until timers are advanced in tests.
+        await this.delay(100);
       }
+    }
+
+    if (this._processingResolve) {
+      this._processingResolve();
     }
   }
 
@@ -274,7 +283,7 @@ export class DiscordRateLimitedSender {
    */
   handleRateLimit(error, task) {
     this.metrics.rateLimitHits++;
-    this.metrics.lastRateLimitHit = new Date();
+    this.metrics.lastRateLimitHit = this.timeSource();
 
     // Extract retry-after from error
     let retryAfterMs = 1000; // Default 1 second
@@ -459,7 +468,7 @@ export class DiscordRateLimitedSender {
     }
 
     // Stop processing
-    this.stopProcessing();
+    await this.stopProcessing();
 
     // Clear any remaining messages
     if (this.messageQueue.length > 0) {
