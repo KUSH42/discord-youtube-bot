@@ -15,6 +15,13 @@ export class MonitorApplication {
     this.state = dependencies.stateManager;
     this.eventBus = dependencies.eventBus;
     this.logger = dependencies.logger;
+    this.contentStateManager = dependencies.contentStateManager;
+    this.livestreamStateMachine = dependencies.livestreamStateMachine;
+    this.contentCoordinator = dependencies.contentCoordinator;
+
+    // Polling configuration
+    this.scheduledContentPollInterval = this.config.get('SCHEDULED_CONTENT_POLL_INTERVAL_MS', 600000); // 10 minutes
+    this.liveStatePollInterval = this.config.get('LIVE_STATE_POLL_INTERVAL_MS', 60000); // 1 minute
 
     // YouTube configuration
     this.youtubeChannelId = this.config.getRequired('YOUTUBE_CHANNEL_ID');
@@ -36,6 +43,8 @@ export class MonitorApplication {
     this.isRunning = false;
     this.subscriptionActive = false;
     this.fallbackTimerId = null;
+    this.scheduledContentPollTimerId = null;
+    this.liveStatePollTimerId = null;
 
     // Statistics
     this.stats = {
@@ -71,6 +80,9 @@ export class MonitorApplication {
 
       // Fallback system is only triggered on notification processing failures
 
+      // Start scheduled content polling
+      this.startScheduledContentPolling();
+
       this.isRunning = true;
       this.logger.info('✅ YouTube monitor application started successfully');
 
@@ -105,6 +117,10 @@ export class MonitorApplication {
 
       // Unsubscribe from PubSubHubbub
       await this.unsubscribeFromPubSubHubbub();
+
+      // Stop all polling timers
+      this.stopScheduledContentPolling();
+      this.stopLiveStatePolling();
 
       this.isRunning = false;
       this.logger.info('YouTube monitor application stopped');
@@ -810,5 +826,123 @@ export class MonitorApplication {
    */
   async dispose() {
     await this.stop();
+  }
+
+  /**
+   * Starts the polling loop for discovering scheduled content.
+   */
+  startScheduledContentPolling() {
+    if (this.scheduledContentPollTimerId) {
+      this.stopScheduledContentPolling();
+    }
+    const loop = async () => {
+      try {
+        await this.pollScheduledContent();
+      } catch (error) {
+        this.logger.error('Error in scheduled content polling loop:', error);
+      }
+      if (this.isRunning) {
+        this.scheduledContentPollTimerId = setTimeout(loop, this.scheduledContentPollInterval);
+      }
+    };
+    this.scheduledContentPollTimerId = setTimeout(loop, 5000); // Start after 5s
+    this.logger.info('Scheduled content polling started', { interval: this.scheduledContentPollInterval });
+  }
+
+  /**
+   * Stops the scheduled content polling loop.
+   */
+  stopScheduledContentPolling() {
+    if (this.scheduledContentPollTimerId) {
+      clearTimeout(this.scheduledContentPollTimerId);
+      this.scheduledContentPollTimerId = null;
+      this.logger.info('Scheduled content polling stopped.');
+    }
+  }
+
+  /**
+   * Fetches upcoming streams and adds them to the state manager.
+   */
+  async pollScheduledContent() {
+    this.logger.debug('Polling for scheduled content...');
+    const scheduledVideos = await this.youtube.getScheduledContent(this.youtubeChannelId);
+
+    for (const video of scheduledVideos) {
+      if (!this.contentStateManager.hasContent(video.id)) {
+        await this.contentStateManager.addContent(video.id, {
+          type: 'youtube_livestream',
+          state: 'scheduled',
+          source: 'api',
+          publishedAt: video.publishedAt,
+          url: `https://www.youtube.com/watch?v=${video.id}`,
+          title: video.title,
+          metadata: { scheduledStartTime: video.scheduledStartTime },
+        });
+      }
+    }
+    // Start or restart the live state polling after discovering new content
+    this.startLiveStatePolling();
+  }
+
+  /**
+   * Starts the polling loop for checking state transitions of scheduled streams.
+   */
+  startLiveStatePolling() {
+    if (this.liveStatePollTimerId) {
+      // It's already running, no need to start another one
+      return;
+    }
+    const loop = async () => {
+      try {
+        await this.pollLiveStateTransitions();
+      } catch (error) {
+        this.logger.error('Error in live state polling loop:', error);
+      }
+
+      const scheduledContent = this.contentStateManager.getContentByState('scheduled');
+      if (this.isRunning && scheduledContent.length > 0) {
+        this.liveStatePollTimerId = setTimeout(loop, this.liveStatePollInterval);
+      } else {
+        this.stopLiveStatePolling(); // No more scheduled content to check
+      }
+    };
+    this.liveStatePollTimerId = setTimeout(loop, 1000); // Start immediately
+    this.logger.info('Live state transition polling started', { interval: this.liveStatePollInterval });
+  }
+
+  /**
+   * Stops the live state polling loop.
+   */
+  stopLiveStatePolling() {
+    if (this.liveStatePollTimerId) {
+      clearTimeout(this.liveStatePollTimerId);
+      this.liveStatePollTimerId = null;
+      this.logger.info('Live state transition polling stopped.');
+    }
+  }
+
+  /**
+   * Checks for state changes in scheduled content and processes them.
+   */
+  async pollLiveStateTransitions() {
+    const scheduledContent = this.contentStateManager.getContentByState('scheduled');
+    if (scheduledContent.length === 0) {
+      this.logger.debug('No scheduled content to poll for state changes.');
+      return;
+    }
+
+    this.logger.debug(`Polling state for ${scheduledContent.length} scheduled item(s)...`);
+    const videoIds = scheduledContent.map(c => c.id);
+    const currentStates = await this.youtube.checkScheduledContentStates(videoIds);
+
+    for (const currentState of currentStates) {
+      const oldState = this.contentStateManager.getContentState(currentState.id);
+      if (oldState && oldState.state !== currentState.state) {
+        this.logger.info(
+          `State transition detected for ${currentState.id}: ${oldState.state} -> ${currentState.state}`
+        );
+        await this.livestreamStateMachine.transitionState(currentState.id, currentState.state);
+      }
+    }
   }
 }

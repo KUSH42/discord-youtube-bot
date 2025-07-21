@@ -27,6 +27,7 @@ import { ContentClassifier } from '../core/content-classifier.js';
 import { ContentAnnouncer } from '../core/content-announcer.js';
 import { ContentCoordinator } from '../core/content-coordinator.js';
 import { ContentStateManager } from '../core/content-state-manager.js';
+import { LivestreamStateMachine } from '../core/livestream-state-machine.js';
 
 // Services
 import { YouTubeScraperService } from '../services/implementations/youtube-scraper-service.js';
@@ -175,7 +176,10 @@ async function setupCoreServices(container, config) {
 
   // Duplicate Detector
   container.registerSingleton('duplicateDetector', c => {
-    return new DuplicateDetector(c.resolve('persistentStorage'));
+    return new DuplicateDetector(
+      c.resolve('persistentStorage'),
+      c.resolve('logger').child({ service: 'DuplicateDetector' })
+    );
   });
 
   // Content State Manager
@@ -195,6 +199,14 @@ async function setupCoreServices(container, config) {
       c.resolve('duplicateDetector'),
       c.resolve('logger').child({ service: 'ContentCoordinator' }),
       c.resolve('config')
+    );
+  });
+
+  // Livestream State Machine
+  container.registerSingleton('livestreamStateMachine', c => {
+    return new LivestreamStateMachine(
+      c.resolve('contentStateManager'),
+      c.resolve('logger').child({ service: 'LivestreamStateMachine' })
     );
   });
 }
@@ -255,6 +267,9 @@ async function setupApplicationServices(container, config) {
       stateManager: c.resolve('stateManager'),
       eventBus: c.resolve('eventBus'),
       logger: c.resolve('logger').child({ service: 'MonitorApplication' }),
+      contentStateManager: c.resolve('contentStateManager'),
+      livestreamStateMachine: c.resolve('livestreamStateMachine'),
+      contentCoordinator: c.resolve('contentCoordinator'),
     });
   });
 
