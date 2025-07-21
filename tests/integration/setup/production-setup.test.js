@@ -44,15 +44,15 @@ jest.unstable_mockModule('playwright', () => ({
 
 let Configuration, DependencyContainer, setupProductionServices;
 
-(async () => {
-  ({ Configuration } = await import('../../../src/infrastructure/configuration.js'));
-  ({ DependencyContainer } = await import('../../../src/infrastructure/dependency-container.js'));
-  ({ setupProductionServices } = await import('../../../src/setup/production-setup.js'));
-})();
-
 describe('Production Setup', () => {
   let container;
   let config;
+
+  beforeAll(async () => {
+    ({ Configuration } = await import('../../../src/infrastructure/configuration.js'));
+    ({ DependencyContainer } = await import('../../../src/infrastructure/dependency-container.js'));
+    ({ setupProductionServices } = await import('../../../src/setup/production-setup.js'));
+  });
 
   beforeEach(() => {
     // Create a mock configuration with all required variables
