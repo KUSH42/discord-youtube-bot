@@ -261,12 +261,12 @@ describe('YouTubeScraperService', () => {
         title: 'New Video',
         url: 'https://www.youtube.com/watch?v=new456',
         publishedText: '5 minutes ago',
+        type: 'video',
       };
 
+      // Mock live stream to return null to force video check
+      scraperService.fetchActiveLiveStream = jest.fn().mockResolvedValue(null);
       mockBrowserService.evaluate.mockResolvedValue(newVideo);
-
-      // Expected to return a video object with a type
-      newVideo.type = 'video';
 
       const result = await scraperService.checkForNewContent();
 
@@ -381,10 +381,9 @@ describe('YouTubeScraperService', () => {
       await scraperService.startMonitoring(onNewContentCallback);
 
       expect(scraperService.isRunning).toBe(true);
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Starting YouTube scraper monitoring, first check in',
-        expect.any(Number)
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith('Starting YouTube scraper monitoring', {
+        nextCheckInMs: expect.any(Number),
+      });
 
       // Fast-forward time to trigger monitoring loop twice
       await jest.advanceTimersByTimeAsync(scraperService.maxInterval * 2);
@@ -573,7 +572,8 @@ describe('YouTubeScraperService', () => {
       const customConfig = {
         get: jest.fn((key, defaultValue) => {
           const config = {
-            YOUTUBE_SCRAPER_INTERVAL_MS: 10000,
+            YOUTUBE_SCRAPER_INTERVAL_MIN: '10000',
+            YOUTUBE_SCRAPER_INTERVAL_MAX: '20000',
             YOUTUBE_SCRAPER_MAX_RETRIES: 5,
             YOUTUBE_SCRAPER_RETRY_DELAY_MS: 3000,
             YOUTUBE_SCRAPER_TIMEOUT_MS: 60000,
@@ -584,7 +584,8 @@ describe('YouTubeScraperService', () => {
 
       const customScraper = new YouTubeScraperService(mockLogger, customConfig);
 
-      expect(customScraper.scrapingIntervalMs).toBe(10000);
+      expect(customScraper.minInterval).toBe(10000);
+      expect(customScraper.maxInterval).toBe(20000);
       expect(customScraper.maxRetries).toBe(5);
       expect(customScraper.retryDelayMs).toBe(3000);
       expect(customScraper.timeoutMs).toBe(60000);

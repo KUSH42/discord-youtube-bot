@@ -384,7 +384,9 @@ export class YouTubeScraperService {
 
     // Start monitoring
     const firstInterval = this._getNextInterval();
-    this.logger.info(`Starting YouTube scraper monitoring, first check in ${firstInterval}ms`);
+    this.logger.info('Starting YouTube scraper monitoring', {
+      nextCheckInMs: firstInterval,
+    });
     this.scrapingInterval = setTimeout(monitoringLoop, firstInterval);
   }
 
