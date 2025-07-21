@@ -4,6 +4,7 @@
  */
 
 export default {
+  rootDir: '../../', // Set root to project root
   testEnvironment: 'node',
 
   // Transform configuration
@@ -38,6 +39,7 @@ export default {
   // This line tells Jest to run our script before the tests.
   // <rootDir> is a special Jest variable for the project's root folder.
   setupFiles: ['<rootDir>/scripts/setup-env.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
 
   coverageDirectory: 'coverage/integration',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],
