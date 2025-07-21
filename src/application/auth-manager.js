@@ -60,7 +60,9 @@ export class AuthManager {
         await this.loginToX();
       }
     } catch (error) {
-      this.logger.error('Authentication process failed:', this.sanitizeErrorMessage(error.message));
+      const sanitizedMessage =
+        error && error.message ? this.sanitizeErrorMessage(error.message) : 'An unknown authentication error occurred.';
+      this.logger.error('Authentication process failed:', sanitizedMessage);
       throw new Error('Authentication failed');
     }
   }
@@ -190,6 +192,9 @@ export class AuthManager {
    * @returns {string} Sanitized error message
    */
   sanitizeErrorMessage(message) {
+    if (typeof message !== 'string') {
+      return 'An unknown error occurred';
+    }
     let sanitized = message;
 
     // Get original credentials from config for sanitization
@@ -197,8 +202,12 @@ export class AuthManager {
     const originalPassword = this.config.getRequired('TWITTER_PASSWORD');
 
     // Replace credentials with placeholders
-    sanitized = sanitized.replace(new RegExp(originalPassword, 'g'), '[REDACTED_PASSWORD]');
-    sanitized = sanitized.replace(new RegExp(originalUsername, 'g'), '[REDACTED_USERNAME]');
+    if (originalPassword) {
+      sanitized = sanitized.replace(new RegExp(originalPassword, 'g'), '[REDACTED_PASSWORD]');
+    }
+    if (originalUsername) {
+      sanitized = sanitized.replace(new RegExp(originalUsername, 'g'), '[REDACTED_USERNAME]');
+    }
 
     return sanitized;
   }
