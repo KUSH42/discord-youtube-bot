@@ -26,7 +26,7 @@ describe('CommandProcessor', () => {
     mockConfig.get.mockImplementation((key, defaultValue) => {
       const config = {
         COMMAND_PREFIX: '!',
-        ALLOWED_USER_IDS: 'user1,user2,user3',
+        ALLOWED_USER_IDS: '123456789012345678,987654321098765432,555666777888999000',
       };
       return config[key] !== undefined ? config[key] : defaultValue;
     });
@@ -61,7 +61,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should authorize allowed user for restricted commands', () => {
-      const result = processor.isUserAuthorized('user1', 'restart');
+      const result = processor.isUserAuthorized('123456789012345678', 'restart');
       expect(result).toBe(true);
     });
 
@@ -81,18 +81,18 @@ describe('CommandProcessor', () => {
 
   describe('Command Validation', () => {
     it('should validate correct command format', () => {
-      const result = processor.validateCommand('health', [], 'user123');
+      const result = processor.validateCommand('health', [], '123456789012345678');
       expect(result.success).toBe(true);
     });
 
     it('should reject invalid command', () => {
-      const result = processor.validateCommand('', [], 'user123');
+      const result = processor.validateCommand('', [], '123456789012345678');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid command format');
     });
 
     it('should reject too long command', () => {
-      const result = processor.validateCommand('a'.repeat(25), [], 'user123');
+      const result = processor.validateCommand('a'.repeat(25), [], '123456789012345678');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Command name too long');
     });
@@ -104,31 +104,31 @@ describe('CommandProcessor', () => {
     });
 
     it('should validate announce command arguments', () => {
-      let result = processor.validateCommand('announce', ['true'], 'user123');
+      let result = processor.validateCommand('announce', ['true'], '123456789012345678');
       expect(result.success).toBe(true);
 
-      result = processor.validateCommand('announce', ['false'], 'user123');
+      result = processor.validateCommand('announce', ['false'], '123456789012345678');
       expect(result.success).toBe(true);
 
-      result = processor.validateCommand('announce', ['invalid'], 'user123');
+      result = processor.validateCommand('announce', ['invalid'], '123456789012345678');
       expect(result.success).toBe(false);
     });
 
     it('should validate log level arguments', () => {
-      let result = processor.validateCommand('loglevel', ['info'], 'user123');
+      let result = processor.validateCommand('loglevel', ['info'], '123456789012345678');
       expect(result.success).toBe(true);
 
-      result = processor.validateCommand('loglevel', ['invalid'], 'user123');
+      result = processor.validateCommand('loglevel', ['invalid'], '123456789012345678');
       expect(result.success).toBe(false);
 
-      result = processor.validateCommand('loglevel', [''], 'user123');
+      result = processor.validateCommand('loglevel', [''], '123456789012345678');
       expect(result.success).toBe(false);
     });
   });
 
   describe('Command Processing', () => {
     it('should process kill command successfully', async () => {
-      const result = await processor.processCommand('kill', [], 'user1');
+      const result = await processor.processCommand('kill', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('All Discord posting has been stopped');
@@ -136,14 +136,14 @@ describe('CommandProcessor', () => {
     });
 
     it('should reject kill command for unauthorized user', async () => {
-      const result = await processor.processCommand('kill', [], 'unauthorized');
+      const result = await processor.processCommand('kill', [], '999888777666555444');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('not authorized');
     });
 
     it('should process announce command with arguments', async () => {
-      const result = await processor.processCommand('announce', ['true'], 'user1');
+      const result = await processor.processCommand('announce', ['true'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('enabled');
@@ -153,14 +153,14 @@ describe('CommandProcessor', () => {
     it('should process announce command without arguments', async () => {
       mockState.get.mockReturnValue(true);
 
-      const result = await processor.processCommand('announce', [], 'user1');
+      const result = await processor.processCommand('announce', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('enabled');
     });
 
     it('should process vxtwitter command', async () => {
-      const result = await processor.processCommand('vxtwitter', ['false'], 'user1');
+      const result = await processor.processCommand('vxtwitter', ['false'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('disabled');
@@ -168,7 +168,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should process loglevel command', async () => {
-      const result = await processor.processCommand('loglevel', ['debug'], 'user1');
+      const result = await processor.processCommand('loglevel', ['debug'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('debug');
@@ -186,7 +186,7 @@ describe('CommandProcessor', () => {
         return values[key] !== undefined ? values[key] : defaultValue;
       });
 
-      const result = await processor.processCommand('health', [], 'user1');
+      const result = await processor.processCommand('health', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.healthData).toBeDefined();
@@ -196,7 +196,7 @@ describe('CommandProcessor', () => {
 
     it('should process health-detailed command', async () => {
       const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
-      const result = await processor.processCommand('health-detailed', [], 'user1', appStats);
+      const result = await processor.processCommand('health-detailed', [], '123456789012345678', appStats);
 
       expect(result.success).toBe(true);
       expect(result.healthData).toEqual(appStats);
@@ -204,14 +204,14 @@ describe('CommandProcessor', () => {
 
     it('should process hd command as alias for health-detailed', async () => {
       const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
-      const result = await processor.processCommand('hd', [], 'user1', appStats);
+      const result = await processor.processCommand('hd', [], '123456789012345678', appStats);
 
       expect(result.success).toBe(true);
       expect(result.healthData).toEqual(appStats);
     });
 
     it('should process readme command', async () => {
-      const result = await processor.processCommand('readme', [], 'user1');
+      const result = await processor.processCommand('readme', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Discord Bot Message Commands');
@@ -220,7 +220,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should process restart command', async () => {
-      const result = await processor.processCommand('restart', [], 'user1');
+      const result = await processor.processCommand('restart', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.requiresRestart).toBe(true);
@@ -228,7 +228,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should process update command', async () => {
-      const result = await processor.processCommand('update', [], 'user1');
+      const result = await processor.processCommand('update', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.requiresUpdate).toBe(true);
@@ -236,7 +236,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should handle unknown command', async () => {
-      const result = await processor.processCommand('unknown', [], 'user1');
+      const result = await processor.processCommand('unknown', [], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Unknown command');
@@ -281,12 +281,12 @@ describe('CommandProcessor', () => {
 
   describe('Edge Cases', () => {
     it('should handle null/undefined arguments gracefully', async () => {
-      const result = await processor.processCommand('health', null, 'user1');
+      const result = await processor.processCommand('health', null, '123456789012345678');
       expect(result.success).toBe(true);
     });
 
     it('should handle command validation errors', async () => {
-      const result = await processor.processCommand(null, [], 'user1');
+      const result = await processor.processCommand(null, [], '123456789012345678');
       expect(result.success).toBe(false);
     });
 
@@ -296,7 +296,7 @@ describe('CommandProcessor', () => {
       });
 
       // The command should propagate the error from state manager
-      await expect(processor.processCommand('kill', [], 'user1')).rejects.toThrow('State error');
+      await expect(processor.processCommand('kill', [], '123456789012345678')).rejects.toThrow('State error');
     });
   });
 });
