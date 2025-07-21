@@ -27,8 +27,13 @@ export class ScraperApplication {
     this.minInterval = parseInt(this.config.get('X_QUERY_INTERVAL_MIN', '300000'), 10);
     this.maxInterval = parseInt(this.config.get('X_QUERY_INTERVAL_MAX', '600000'), 10);
 
-    // State management
-    this.duplicateDetector = new DuplicateDetector();
+    // State management - accept duplicateDetector dependency
+    this.duplicateDetector =
+      dependencies.duplicateDetector ||
+      new DuplicateDetector(
+        dependencies.persistentStorage,
+        dependencies.logger?.child({ service: 'DuplicateDetector' })
+      );
     this.isRunning = false;
     this.timerId = null;
     this.currentSession = null;
@@ -613,8 +618,8 @@ export class ScraperApplication {
             timestamp,
             tweetCategory,
           });
-        } catch (err) {
-          // console.error('Error extracting tweet:', err);
+        } catch (_err) {
+          // console.error('Error extracting tweet:', _err);
         }
       }
       return tweets;

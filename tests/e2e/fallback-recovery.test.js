@@ -229,12 +229,16 @@ describe('End-to-End Fallback Recovery Tests', () => {
       // Step 2: Retry fails
       const failureId = Array.from(mockYouTubeMonitor.failedNotifications.keys())[0];
 
+      let retryError = null;
       try {
         await mockYouTubeMonitor.reprocessFailedNotification(malformedNotification);
-      } catch (retryError) {
-        // Retry should fail for malformed XML
-        expect(retryError.message).toContain('XML structure');
+      } catch (error) {
+        retryError = error;
       }
+      
+      // Retry should fail for malformed XML
+      expect(retryError).toBeTruthy();
+      expect(retryError.message).toContain('XML structure');
 
       // Step 3: Multiple failures trigger API fallback
       await mockYouTubeMonitor.handleFailedNotification('another-failure', new Error('Another error'));

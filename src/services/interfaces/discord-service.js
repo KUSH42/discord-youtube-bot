@@ -8,7 +8,7 @@ export class DiscordService {
    * @param {string} token - Discord bot token
    * @returns {Promise<void>}
    */
-  async login(token) {
+  async login(_token) {
     throw new Error('Abstract method: login must be implemented');
   }
 
@@ -18,7 +18,7 @@ export class DiscordService {
    * @param {string|Object} content - Message content (string or embed object)
    * @returns {Promise<Object>} Message object
    */
-  async sendMessage(channelId, content) {
+  async sendMessage(_channelId, _content) {
     throw new Error('Abstract method: sendMessage must be implemented');
   }
 
@@ -27,7 +27,7 @@ export class DiscordService {
    * @param {string} channelId - Discord channel ID
    * @returns {Promise<Object>} Channel object
    */
-  async fetchChannel(channelId) {
+  async fetchChannel(_channelId) {
     throw new Error('Abstract method: fetchChannel must be implemented');
   }
 
@@ -36,7 +36,7 @@ export class DiscordService {
    * @param {string} guildId - Discord guild ID
    * @returns {Promise<Object>} Guild object
    */
-  async fetchGuild(guildId) {
+  async fetchGuild(_guildId) {
     throw new Error('Abstract method: fetchGuild must be implemented');
   }
 
@@ -45,7 +45,7 @@ export class DiscordService {
    * @param {Function} handler - Message handler function
    * @returns {Function} Unregister function
    */
-  onMessage(handler) {
+  onMessage(_handler) {
     throw new Error('Abstract method: onMessage must be implemented');
   }
 
@@ -54,7 +54,7 @@ export class DiscordService {
    * @param {Function} handler - Ready handler function
    * @returns {Function} Unregister function
    */
-  onReady(handler) {
+  onReady(_handler) {
     throw new Error('Abstract method: onReady must be implemented');
   }
 
@@ -63,7 +63,7 @@ export class DiscordService {
    * @param {Function} handler - Error handler function
    * @returns {Function} Unregister function
    */
-  onError(handler) {
+  onError(_handler) {
     throw new Error('Abstract method: onError must be implemented');
   }
 
@@ -106,7 +106,7 @@ export class DiscordService {
    * @param {string|Object} newContent - New message content
    * @returns {Promise<Object>} Updated message object
    */
-  async editMessage(channelId, messageId, newContent) {
+  async editMessage(_channelId, _messageId, _newContent) {
     throw new Error('Abstract method: editMessage must be implemented');
   }
 
@@ -116,7 +116,7 @@ export class DiscordService {
    * @param {string} messageId - Message ID to delete
    * @returns {Promise<void>}
    */
-  async deleteMessage(channelId, messageId) {
+  async deleteMessage(_channelId, _messageId) {
     throw new Error('Abstract method: deleteMessage must be implemented');
   }
 
@@ -127,7 +127,7 @@ export class DiscordService {
    * @param {string} emoji - Emoji to add
    * @returns {Promise<void>}
    */
-  async addReaction(channelId, messageId, emoji) {
+  async addReaction(_channelId, _messageId, _emoji) {
     throw new Error('Abstract method: addReaction must be implemented');
   }
 
@@ -137,7 +137,7 @@ export class DiscordService {
    * @param {string} userId - User ID
    * @returns {Promise<Object>} Guild member object
    */
-  async getGuildMember(guildId, userId) {
+  async getGuildMember(_guildId, _userId) {
     throw new Error('Abstract method: getGuildMember must be implemented');
   }
 
@@ -148,7 +148,7 @@ export class DiscordService {
    * @param {string} permission - Permission to check
    * @returns {Promise<boolean>} True if user has permission
    */
-  async hasPermission(channelId, userId, permission) {
+  async hasPermission(_channelId, _userId, _permission) {
     throw new Error('Abstract method: hasPermission must be implemented');
   }
 
@@ -157,7 +157,7 @@ export class DiscordService {
    * @param {Object} presence - Presence object
    * @returns {Promise<void>}
    */
-  async setPresence(presence) {
+  async setPresence(_presence) {
     throw new Error('Abstract method: setPresence must be implemented');
   }
 

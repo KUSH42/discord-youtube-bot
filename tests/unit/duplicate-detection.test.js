@@ -434,6 +434,8 @@ describe('Duplicate Detection Logic Tests', () => {
             return {
               size: resultMap.size,
               values: () => resultMap.values(),
+              [Symbol.iterator]: () => resultMap[Symbol.iterator](),
+              last: () => (resultMap.size > 0 ? Array.from(resultMap.values()).pop() : null),
             };
           }),
         },
@@ -526,13 +528,13 @@ describe('Duplicate Detection Logic Tests', () => {
         expect(results.errors).toHaveLength(0);
 
         // Verify IDs were added to known set
-        expect(duplicateDetector.isDuplicate('https://x.com/user/status/1234567890123456789')).toBe(true);
-        expect(duplicateDetector.isDuplicate('https://x.com/user/status/9876543210987654321')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://x.com/user/status/1234567890123456789')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://x.com/user/status/9876543210987654321')).toBe(true);
       });
 
       it('should not add duplicate tweet IDs', async () => {
         // Pre-add one tweet ID
-        duplicateDetector.markAsSeen('https://x.com/user/status/1234567890123456789');
+        await duplicateDetector.markAsSeen('https://x.com/user/status/1234567890123456789');
 
         const results = await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
 
@@ -551,14 +553,26 @@ describe('Duplicate Detection Logic Tests', () => {
               .mockResolvedValueOnce({
                 size: 2,
                 values: () => [mockMessages.get('msg1'), mockMessages.get('msg2')].values(),
+                *[Symbol.iterator]() {
+                  yield ['msg1', mockMessages.get('msg1')];
+                  yield ['msg2', mockMessages.get('msg2')];
+                },
+                last: () => mockMessages.get('msg2'),
               })
               .mockResolvedValueOnce({
                 size: 2,
                 values: () => [mockMessages.get('msg3'), mockMessages.get('msg4')].values(),
+                *[Symbol.iterator]() {
+                  yield ['msg3', mockMessages.get('msg3')];
+                  yield ['msg4', mockMessages.get('msg4')];
+                },
+                last: () => mockMessages.get('msg4'),
               })
               .mockResolvedValueOnce({
                 size: 0,
                 values: () => [].values(),
+                *[Symbol.iterator]() {},
+                last: () => null,
               }),
           },
         };
@@ -579,9 +593,9 @@ describe('Duplicate Detection Logic Tests', () => {
         await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
 
         // Test duplicate detection
-        expect(duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
-        expect(duplicateDetector.isDuplicate('https://youtu.be/oHg5SJYRHA0')).toBe(true);
-        expect(duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=newVideoId123')).toBe(false);
+        expect(await duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://youtu.be/oHg5SJYRHA0')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=newVideoId123')).toBe(false);
       });
 
       it('should work with existing markAsSeen method', async () => {
@@ -590,10 +604,10 @@ describe('Duplicate Detection Logic Tests', () => {
 
         // Add a new video
         const newVideoUrl = 'https://www.youtube.com/watch?v=newVideoId123';
-        expect(duplicateDetector.isDuplicate(newVideoUrl)).toBe(false);
+        expect(await duplicateDetector.isDuplicate(newVideoUrl)).toBe(false);
 
-        duplicateDetector.markAsSeen(newVideoUrl);
-        expect(duplicateDetector.isDuplicate(newVideoUrl)).toBe(true);
+        await duplicateDetector.markAsSeen(newVideoUrl);
+        expect(await duplicateDetector.isDuplicate(newVideoUrl)).toBe(true);
       });
 
       it('should maintain statistics correctly after scanning', async () => {

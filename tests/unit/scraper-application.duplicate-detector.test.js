@@ -87,12 +87,21 @@ describe('Duplicate Detector Integration', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn(() => mockLogger),
     };
 
     // Mock auth manager
     const mockAuthManager = {
       ensureAuthenticated: jest.fn(),
       isAuthenticated: jest.fn().mockResolvedValue(true),
+    };
+
+    // Mock persistent storage
+    const mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
     };
 
     // Create scraper application instance
@@ -105,6 +114,7 @@ describe('Duplicate Detector Integration', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: mockPersistentStorage,
     });
   });
 

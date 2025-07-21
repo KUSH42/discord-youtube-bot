@@ -56,10 +56,15 @@ export class DuplicateDetector {
 
   /**
    * The primary method to check for duplicates using a robust fingerprint.
-   * @param {object} content - The content object.
+   * @param {object|string} content - The content object or URL string (for backward compatibility).
    * @returns {Promise<boolean>} True if the content is a duplicate.
    */
   async isDuplicate(content) {
+    // Handle legacy string URLs for backward compatibility
+    if (typeof content === 'string') {
+      return this.isDuplicateByUrl(content);
+    }
+
     const fingerprint = this._generateContentFingerprint(content);
     if (!fingerprint) {
       // Fallback to URL check if fingerprint cannot be generated
@@ -79,9 +84,14 @@ export class DuplicateDetector {
 
   /**
    * Marks content as seen using its robust fingerprint.
-   * @param {object} content - The content object.
+   * @param {object|string} content - The content object or URL string (for backward compatibility).
    */
   async markAsSeen(content) {
+    // Handle legacy string URLs for backward compatibility
+    if (typeof content === 'string') {
+      return this.markAsSeenByUrl(content);
+    }
+
     const fingerprint = this._generateContentFingerprint(content);
     if (fingerprint) {
       this.fingerprintCache.add(fingerprint);
@@ -121,6 +131,22 @@ export class DuplicateDetector {
     const normalizedUrl = this._normalizeUrl(url);
     this.urlCache.add(normalizedUrl);
     await this.storage.addUrl(normalizedUrl);
+
+    // Also update legacy compatibility sets
+    const videoMatches = [...url.matchAll(videoUrlRegex)];
+    const tweetMatches = [...url.matchAll(tweetUrlRegex)];
+
+    videoMatches.forEach(match => {
+      if (match[1]) {
+        this.knownVideoIds.add(match[1]);
+      }
+    });
+
+    tweetMatches.forEach(match => {
+      if (match[1]) {
+        this.knownTweetIds.add(match[1]);
+      }
+    });
   }
 
   _normalizeUrl(url) {
@@ -321,6 +347,185 @@ export class DuplicateDetector {
         this.urlCache.add(url);
       });
     }
+  }
+
+  /**
+   * Scan Discord channel for YouTube video URLs and extract video IDs
+   * @param {Object} channel - Discord channel object with messages
+   * @param {number} limit - Maximum number of messages to scan
+   * @returns {Promise<Object>} Results with messagesScanned, videoIdsFound, videoIdsAdded
+   */
+  async scanDiscordChannelForVideos(channel, limit = 100) {
+    if (!channel || !channel.messages) {
+      throw new Error('Invalid Discord channel provided');
+    }
+
+    const results = {
+      messagesScanned: 0,
+      videoIdsFound: [],
+      videoIdsAdded: 0,
+      errors: [],
+    };
+
+    try {
+      let messagesProcessed = 0;
+      let lastId = null;
+
+      while (messagesProcessed < limit) {
+        const fetchOptions = { limit: Math.min(50, limit - messagesProcessed) };
+        if (lastId) {
+          fetchOptions.before = lastId;
+        }
+
+        const messages = await channel.messages.fetch(fetchOptions);
+        if (messages.size === 0) {
+          break;
+        }
+
+        for (const [, message] of messages) {
+          const videoMatches = [...(message.content || '').matchAll(videoUrlRegex)];
+          for (const match of videoMatches) {
+            const videoId = match[1];
+            if (videoId) {
+              results.videoIdsFound.push(videoId);
+              if (!this.knownVideoIds.has(videoId)) {
+                this.knownVideoIds.add(videoId);
+                results.videoIdsAdded++;
+              }
+              // Also add to URL cache for consistent duplicate checking
+              const normalizedUrl = this._normalizeUrl(match[0]);
+              this.urlCache.add(normalizedUrl);
+            }
+          }
+          messagesProcessed++;
+          if (messagesProcessed >= limit) {
+            break;
+          }
+        }
+
+        lastId = messages.last()?.id;
+
+        // Rate limiting between batches
+        if (messages.size > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      results.messagesScanned = messagesProcessed;
+    } catch (error) {
+      results.errors.push({
+        type: 'fetch_error',
+        message: error.message,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Scan Discord channel for X/Twitter URLs and extract tweet IDs
+   * @param {Object} channel - Discord channel object with messages
+   * @param {number} limit - Maximum number of messages to scan
+   * @returns {Promise<Object>} Results with messagesScanned, tweetIdsFound, tweetIdsAdded
+   */
+  async scanDiscordChannelForTweets(channel, limit = 100) {
+    if (!channel || !channel.messages) {
+      throw new Error('Invalid Discord channel provided');
+    }
+
+    const results = {
+      messagesScanned: 0,
+      tweetIdsFound: [],
+      tweetIdsAdded: 0,
+      errors: [],
+    };
+
+    try {
+      let messagesProcessed = 0;
+      let lastId = null;
+
+      while (messagesProcessed < limit) {
+        const fetchOptions = { limit: Math.min(50, limit - messagesProcessed) };
+        if (lastId) {
+          fetchOptions.before = lastId;
+        }
+
+        const messages = await channel.messages.fetch(fetchOptions);
+        if (messages.size === 0) {
+          break;
+        }
+
+        for (const [, message] of messages) {
+          const tweetMatches = [...(message.content || '').matchAll(tweetUrlRegex)];
+          for (const match of tweetMatches) {
+            const tweetId = match[1];
+            if (tweetId) {
+              results.tweetIdsFound.push(tweetId);
+              if (!this.knownTweetIds.has(tweetId)) {
+                this.knownTweetIds.add(tweetId);
+                results.tweetIdsAdded++;
+              }
+              // Also add to URL cache for consistent duplicate checking
+              const normalizedUrl = this._normalizeUrl(match[0]);
+              this.urlCache.add(normalizedUrl);
+            }
+          }
+          messagesProcessed++;
+          if (messagesProcessed >= limit) {
+            break;
+          }
+        }
+
+        lastId = messages.last()?.id;
+
+        // Rate limiting between batches
+        if (messages.size > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      results.messagesScanned = messagesProcessed;
+    } catch (error) {
+      results.errors.push({
+        type: 'fetch_error',
+        message: error.message,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Get statistics about the duplicate detector
+   * @returns {Object} Statistics object
+   */
+  getStats() {
+    return {
+      fingerprints: this.fingerprintCache.size,
+      urls: this.urlCache.size,
+      knownVideoIds: this.knownVideoIds.size,
+      knownTweetIds: this.knownTweetIds.size,
+      totalKnownIds: this.fingerprintCache.size + this.urlCache.size,
+      fingerprintingEnabled: true,
+    };
+  }
+
+  /**
+   * Check if a video ID is known
+   * @param {string} videoId - YouTube video ID
+   * @returns {boolean} True if video ID is known
+   */
+  isVideoIdKnown(videoId) {
+    return this.knownVideoIds.has(videoId);
+  }
+
+  /**
+   * Check if a tweet ID is known
+   * @param {string} tweetId - Tweet ID
+   * @returns {boolean} True if tweet ID is known
+   */
+  isTweetIdKnown(tweetId) {
+    return this.knownTweetIds.has(tweetId);
   }
 
   /**

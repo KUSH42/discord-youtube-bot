@@ -146,11 +146,8 @@ describe('Configuration Validation Tests', () => {
     it('should provide default values for unset optional variables', () => {
       optionalVars.forEach(({ name, defaultValue }) => {
         const value = process.env[name] || defaultValue;
-        if (defaultValue !== null) {
-          expect(value).toBe(defaultValue);
-        } else {
-          expect(value).toBeNull();
-        }
+        const expectedValue = defaultValue !== null ? defaultValue : null;
+        expect(value).toBe(expectedValue);
       });
     });
 
@@ -383,11 +380,8 @@ describe('Configuration Validation Tests', () => {
       invalidPorts.forEach(port => {
         process.env.PSH_PORT = port;
         const portNum = parseInt(process.env.PSH_PORT, 10);
-        if (!Number.isNaN(portNum)) {
-          expect(portNum <= 0 || portNum > 65535).toBe(true);
-        } else {
-          expect(Number.isNaN(portNum)).toBe(true);
-        }
+        const isInvalidPort = Number.isNaN(portNum) || portNum <= 0 || portNum > 65535;
+        expect(isInvalidPort).toBe(true);
       });
     });
 

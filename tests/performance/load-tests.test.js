@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { createMockClient, createMockChannel } from '../mocks/discord.mock.js';
-import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
+// import { createMockClient, createMockChannel } from '../mocks/discord.mock.js';
+// import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 import { DuplicateDetector } from '../../src/duplicate-detector.js';
-import { createDiscordManager } from '../../src/discord-utils.js';
+// import { createDiscordManager } from '../../src/discord-utils.js';
 import { createWebhookLimiter, createCommandRateLimiter } from '../../src/rate-limiter.js';
 
 describe('Performance and Load Tests', () => {
@@ -109,12 +109,12 @@ describe('Performance and Load Tests', () => {
         memoryManager.add(`key${i}`, `value${i}`);
       }
 
-      const maxMemory = process.memoryUsage().heapUsed;
+      const _maxMemory = process.memoryUsage().heapUsed;
 
       // Force cleanup
       memoryManager.cleanup();
 
-      const cleanupMemory = process.memoryUsage().heapUsed;
+      const _cleanupMemory = process.memoryUsage().heapUsed;
 
       // Should not exceed max size
       expect(memoryManager.entries.size).toBeLessThanOrEqual(10000);
@@ -462,7 +462,7 @@ describe('Performance and Load Tests', () => {
 
   describe('Memory Leak Detection', () => {
     it('should not leak memory during continuous operation', () => {
-      const initialMemory = process.memoryUsage();
+      const _initialMemory = process.memoryUsage();
       const duplicateTracker = new Set();
       const cycleCount = 1000;
 
@@ -486,16 +486,20 @@ describe('Performance and Load Tests', () => {
       expect(memoryIncrease).toBeLessThan(15 * 1024 * 1024);
 
       // Force garbage collection if available (only in local dev with --expose-gc)
-      if (typeof global.gc === 'function') {
+      const gcAvailable = typeof global.gc === 'function';
+      let afterGCIncrease = 0;
+
+      if (gcAvailable) {
         global.gc();
         const afterGCMemory = process.memoryUsage();
-        const afterGCIncrease = afterGCMemory.heapUsed - initialMemory.heapUsed;
+        afterGCIncrease = afterGCMemory.heapUsed - initialMemory.heapUsed;
+      }
 
-        // After GC, memory increase should be minimal
+      // Test GC effectiveness when available, otherwise test reasonable memory behavior
+      if (gcAvailable) {
         expect(afterGCIncrease).toBeLessThan(5 * 1024 * 1024);
       } else {
-        // In CI environments without --expose-gc, just check that memory didn't grow excessively
-        console.log('GC not available, skipping post-GC memory check');
+        expect(memoryIncrease).toBeLessThan(20 * 1024 * 1024);
       }
     });
 
@@ -510,7 +514,7 @@ describe('Performance and Load Tests', () => {
         return { obj1, obj2 };
       };
 
-      const initialMemory = process.memoryUsage();
+      const _initialMemory = process.memoryUsage();
       const structures = [];
 
       // Create many circular structures
@@ -518,7 +522,7 @@ describe('Performance and Load Tests', () => {
         structures.push(createCircularStructure());
       }
 
-      const midMemory = process.memoryUsage();
+      const _midMemory = process.memoryUsage();
 
       // Clear references
       structures.length = 0;

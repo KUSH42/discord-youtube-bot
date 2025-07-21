@@ -38,8 +38,13 @@ export class MonitorApplication {
     // API fallback configuration (triggered only on notification failures)
     this.fallbackEnabled = true;
 
-    // State management
-    this.duplicateDetector = new DuplicateDetector();
+    // State management - accept duplicateDetector dependency
+    this.duplicateDetector =
+      dependencies.duplicateDetector ||
+      new DuplicateDetector(
+        dependencies.persistentStorage,
+        dependencies.logger?.child({ service: 'DuplicateDetector' })
+      );
     this.isRunning = false;
     this.subscriptionActive = false;
     this.fallbackTimerId = null;

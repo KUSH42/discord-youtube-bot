@@ -6,8 +6,9 @@ import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
 // Infrastructure
-import { Configuration } from '../infrastructure/configuration.js';
-import { DependencyContainer } from '../infrastructure/dependency-container.js';
+// Infrastructure classes imported for JSDoc type annotations
+// import { Configuration } from '../infrastructure/configuration.js';
+// import { DependencyContainer } from '../infrastructure/dependency-container.js';
 import { EventBus } from '../infrastructure/event-bus.js';
 import { StateManager } from '../infrastructure/state-manager.js';
 import { PersistentStorage } from '../infrastructure/persistent-storage.js';
@@ -158,7 +159,7 @@ async function setupExternalServices(container, config) {
 /**
  * Set up core business logic services
  */
-async function setupCoreServices(container, config) {
+async function setupCoreServices(container, _config) {
   // Command Processor
   container.registerSingleton('commandProcessor', c => {
     return new CommandProcessor(c.resolve('config'), c.resolve('stateManager'));
@@ -214,7 +215,7 @@ async function setupCoreServices(container, config) {
 /**
  * Set up application services
  */
-async function setupApplicationServices(container, config) {
+async function setupApplicationServices(container, _config) {
   // Bot Application
   container.registerSingleton('botApplication', c => {
     return new BotApplication({
@@ -253,6 +254,8 @@ async function setupApplicationServices(container, config) {
       eventBus: c.resolve('eventBus'),
       logger: c.resolve('logger').child({ service: 'ScraperApplication' }),
       authManager: c.resolve('authManager'),
+      duplicateDetector: c.resolve('duplicateDetector'),
+      persistentStorage: c.resolve('persistentStorage'),
     });
   });
 
@@ -270,6 +273,8 @@ async function setupApplicationServices(container, config) {
       contentStateManager: c.resolve('contentStateManager'),
       livestreamStateMachine: c.resolve('livestreamStateMachine'),
       contentCoordinator: c.resolve('contentCoordinator'),
+      duplicateDetector: c.resolve('duplicateDetector'),
+      persistentStorage: c.resolve('persistentStorage'),
     });
   });
 
@@ -287,7 +292,7 @@ async function setupApplicationServices(container, config) {
  * Set up logging infrastructure
  */
 async function setupLogging(container, config) {
-  container.registerSingleton('logger', c => {
+  container.registerSingleton('logger', _c => {
     const logLevel = config.get('LOG_LEVEL', 'info');
     const logFilePath = config.get('LOG_FILE_PATH', 'bot.log');
 
