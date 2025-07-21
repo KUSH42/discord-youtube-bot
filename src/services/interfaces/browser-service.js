@@ -8,7 +8,7 @@ export class BrowserService {
    * @param {Object} options - Browser launch options
    * @returns {Promise<void>}
    */
-  async launch(options = {}) {
+  async launch(_options = {}) {
     throw new Error('Abstract method: launch must be implemented');
   }
 
@@ -26,7 +26,7 @@ export class BrowserService {
    * @param {Object} options - Navigation options
    * @returns {Promise<Object>} Response object
    */
-  async goto(url, options = {}) {
+  async goto(url, _options = {}) {
     throw new Error('Abstract method: goto must be implemented');
   }
 
@@ -36,7 +36,7 @@ export class BrowserService {
    * @param {Object} options - Wait options
    * @returns {Promise<Object>} Element handle
    */
-  async waitForSelector(selector, options = {}) {
+  async waitForSelector(selector, _options = {}) {
     throw new Error('Abstract method: waitForSelector must be implemented');
   }
 
@@ -45,7 +45,7 @@ export class BrowserService {
    * @param {Object} options - Wait options
    * @returns {Promise<Object>} Response object
    */
-  async waitForNavigation(options = {}) {
+  async waitForNavigation(_options = {}) {
     throw new Error('Abstract method: waitForNavigation must be implemented');
   }
 
@@ -55,7 +55,7 @@ export class BrowserService {
    * @param {...*} args - Arguments to pass to the function
    * @returns {Promise<*>} Result of the script execution
    */
-  async evaluate(script, ...args) {
+  async evaluate(_script, ..._args) {
     throw new Error('Abstract method: evaluate must be implemented');
   }
 
@@ -66,7 +66,7 @@ export class BrowserService {
    * @param {Object} options - Type options
    * @returns {Promise<void>}
    */
-  async type(selector, text, options = {}) {
+  async type(selector, text, _options = {}) {
     throw new Error('Abstract method: type must be implemented');
   }
 
@@ -76,7 +76,7 @@ export class BrowserService {
    * @param {Object} options - Click options
    * @returns {Promise<void>}
    */
-  async click(selector, options = {}) {
+  async click(selector, _options = {}) {
     throw new Error('Abstract method: click must be implemented');
   }
 
@@ -85,7 +85,7 @@ export class BrowserService {
    * @param {string} selector - CSS selector
    * @returns {Promise<string>} Text content
    */
-  async getTextContent(selector) {
+  async getTextContent(_selector) {
     throw new Error('Abstract method: getTextContent must be implemented');
   }
 
@@ -95,7 +95,7 @@ export class BrowserService {
    * @param {string} attribute - Attribute name
    * @returns {Promise<string|null>} Attribute value
    */
-  async getAttribute(selector, attribute) {
+  async getAttribute(_selector, _attribute) {
     throw new Error('Abstract method: getAttribute must be implemented');
   }
 
@@ -104,7 +104,7 @@ export class BrowserService {
    * @param {Object} options - Screenshot options
    * @returns {Promise<Buffer>} Screenshot buffer
    */
-  async screenshot(options = {}) {
+  async screenshot(_options = {}) {
     throw new Error('Abstract method: screenshot must be implemented');
   }
 
@@ -113,7 +113,7 @@ export class BrowserService {
    * @param {Array<Object>} cookies - Array of cookie objects
    * @returns {Promise<void>}
    */
-  async setCookies(cookies) {
+  async setCookies(_cookies) {
     throw new Error('Abstract method: setCookies must be implemented');
   }
 
@@ -122,7 +122,7 @@ export class BrowserService {
    * @param {Array<string>} urls - URLs to get cookies for (optional)
    * @returns {Promise<Array<Object>>} Array of cookie objects
    */
-  async getCookies(urls = []) {
+  async getCookies(_urls = []) {
     throw new Error('Abstract method: getCookies must be implemented');
   }
 
@@ -131,7 +131,7 @@ export class BrowserService {
    * @param {string} userAgent - User agent string
    * @returns {Promise<void>}
    */
-  async setUserAgent(userAgent) {
+  async setUserAgent(_userAgent) {
     throw new Error('Abstract method: setUserAgent must be implemented');
   }
 
@@ -140,7 +140,7 @@ export class BrowserService {
    * @param {Object} viewport - Viewport dimensions
    * @returns {Promise<void>}
    */
-  async setViewport(viewport) {
+  async setViewport(_viewport) {
     throw new Error('Abstract method: setViewport must be implemented');
   }
 
@@ -149,7 +149,7 @@ export class BrowserService {
    * @param {number} ms - Milliseconds to wait
    * @returns {Promise<void>}
    */
-  async waitFor(ms) {
+  async waitFor(_ms) {
     throw new Error('Abstract method: waitFor must be implemented');
   }
 
@@ -174,7 +174,7 @@ export class BrowserService {
    * @param {string} selector - CSS selector
    * @returns {Promise<boolean>} True if element exists
    */
-  async elementExists(selector) {
+  async elementExists(_selector) {
     throw new Error('Abstract method: elementExists must be implemented');
   }
 
@@ -183,7 +183,7 @@ export class BrowserService {
    * @param {string} selector - CSS selector
    * @returns {Promise<Array<Object>>} Array of element handles
    */
-  async getElements(selector) {
+  async getElements(_selector) {
     throw new Error('Abstract method: getElements must be implemented');
   }
 

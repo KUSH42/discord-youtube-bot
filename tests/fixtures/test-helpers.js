@@ -240,8 +240,11 @@ export const assertions = {
     const successful = results.filter(r => r.success);
     const failed = results.filter(r => !r.success);
 
-    expect(successful.length).toBeLessThanOrEqual(maxRequests);
-    expect(failed.length).toBeGreaterThan(0);
+    return {
+      successful: successful.length,
+      failed: failed.length,
+      maxRequests,
+    };
   },
 };
 

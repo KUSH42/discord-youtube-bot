@@ -402,22 +402,57 @@ export function createShutdownHandler(container) {
     const logger = container.resolve('logger');
     logger.info(`Received ${signal}, starting graceful shutdown...`);
 
+    let hasError = false;
+
     try {
       // Stop applications
       const botApp = container.resolve('botApplication');
       const scraperApp = container.resolve('scraperApplication');
       const monitorApp = container.resolve('monitorApplication');
 
-      await Promise.all([botApp.stop(), scraperApp.stop(), monitorApp.stop()]);
+      // Stop applications individually to handle failures gracefully
+      try {
+        await botApp.stop();
+      } catch (error) {
+        logger.error('Error stopping bot application:', error);
+        hasError = true;
+      }
+
+      try {
+        await scraperApp.stop();
+      } catch (error) {
+        logger.error('Error stopping scraper application:', error);
+        hasError = true;
+      }
+
+      try {
+        await monitorApp.stop();
+      } catch (error) {
+        logger.error('Error stopping monitor application:', error);
+        hasError = true;
+      }
 
       // Dispose of container resources
-      await container.dispose();
+      try {
+        await container.dispose();
+      } catch (error) {
+        logger.error('Error disposing container:', error);
+        hasError = true;
+      }
 
-      logger.info('Graceful shutdown completed');
-      process.exit(0);
+      if (hasError) {
+        logger.error('Graceful shutdown completed with errors');
+        process.exit(1);
+        return; // For test compatibility when process.exit is mocked
+      } else {
+        logger.info('Graceful shutdown completed');
+        process.exit(0);
+        return; // For test compatibility when process.exit is mocked
+      }
     } catch (error) {
       logger.error('Error during shutdown:', error);
       process.exit(1);
+      return; // For test compatibility when process.exit is mocked
     }
   };
 }

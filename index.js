@@ -169,17 +169,17 @@ function setupGracefulShutdown(container) {
   process.on('SIGUSR2', () => shutdownHandler('SIGUSR2'));
 
   // Handle uncaught exceptions
-  process.on('uncaughtException', error => {
+  process.on('uncaughtException', async error => {
     const logger = container.resolve('logger');
     logger.error('Uncaught Exception:', error);
-    shutdownHandler('uncaughtException');
+    await shutdownHandler('uncaughtException');
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, promise) => {
+  process.on('unhandledRejection', async (reason, promise) => {
     const logger = container.resolve('logger');
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    shutdownHandler('unhandledRejection');
+    await shutdownHandler('unhandledRejection');
   });
 }
 

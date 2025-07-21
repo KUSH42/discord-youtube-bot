@@ -295,13 +295,8 @@ describe('CommandProcessor', () => {
         throw new Error('State error');
       });
 
-      try {
-        const result = await processor.processCommand('kill', [], 'user1');
-        expect(result.success).toBe(false);
-      } catch (error) {
-        // The error should be thrown and caught
-        expect(error.message).toBe('State error');
-      }
+      // The command should propagate the error from state manager
+      await expect(processor.processCommand('kill', [], 'user1')).rejects.toThrow('State error');
     });
   });
 });
