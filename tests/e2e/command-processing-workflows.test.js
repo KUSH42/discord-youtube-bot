@@ -20,7 +20,7 @@ describe('End-to-End Command Processing Workflows', () => {
       get: jest.fn((key, defaultValue) => {
         const config = {
           COMMAND_PREFIX: '!',
-          ALLOWED_USER_IDS: '123456789,987654321',
+          ALLOWED_USER_IDS: '123456789012345678,987654321098765432',
         };
         return config[key] || defaultValue;
       }),
@@ -82,8 +82,8 @@ describe('End-to-End Command Processing Workflows', () => {
     // Create mock Discord entities
     discordClient = createMockClient();
     supportChannel = createMockChannel({ id: 'support-channel', name: 'support' });
-    authorizedUser = createMockUser({ id: '123456789', username: 'authorized_user' });
-    unauthorizedUser = createMockUser({ id: '555666777', username: 'unauthorized_user' });
+    authorizedUser = createMockUser({ id: '123456789012345678', username: 'authorized_user' });
+    unauthorizedUser = createMockUser({ id: '555666777888999000', username: 'unauthorized_user' });
 
     discordClient.channels.cache.set('support-channel', supportChannel);
   });
@@ -558,7 +558,7 @@ describe('End-to-End Command Processing Workflows', () => {
       expect(stats.allowedUsers).toBe(0);
 
       // Should deny all restricted commands when no users are allowed
-      const result = await processor.processCommand('restart', [], '123456789');
+      const result = await processor.processCommand('restart', [], '123456789012345678');
       expect(result.success).toBe(false);
       expect(result.message).toBe('🚫 You are not authorized to use this command.');
     });

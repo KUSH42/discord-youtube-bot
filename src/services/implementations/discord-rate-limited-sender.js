@@ -19,10 +19,14 @@ export class DiscordRateLimitedSender {
     this.maxRetries = options.maxRetries || 3;
     this.backoffMultiplier = options.backoffMultiplier || 2;
     this.maxBackoffDelay = options.maxBackoffDelay || 30000; // 30 seconds max backoff
+    this.autoStart = options.autoStart !== false; // Default true, allow disabling for tests
+
+    // Time source abstraction for testing
+    this.timeSource = options.timeSource || (() => Date.now());
 
     // Burst tracking
     this.burstCounter = 0;
-    this.lastBurstReset = Date.now();
+    this.lastBurstReset = this.timeSource();
 
     // Metrics
     this.metrics = {
@@ -36,8 +40,10 @@ export class DiscordRateLimitedSender {
       lastRateLimitHit: null,
     };
 
-    // Start processing queue
-    this.startProcessing();
+    // Start processing queue (unless disabled for testing)
+    if (this.autoStart) {
+      this.startProcessing();
+    }
   }
 
   /**
@@ -57,7 +63,7 @@ export class DiscordRateLimitedSender {
         resolve,
         reject,
         retryCount: 0,
-        createdAt: Date.now(),
+        createdAt: this.timeSource(),
         priority: options.priority || 0, // Higher priority = sent first
       };
 
@@ -123,8 +129,8 @@ export class DiscordRateLimitedSender {
   async processQueue() {
     while (this.isProcessing) {
       // Check if we need to wait due to rate limiting
-      if (this.isPaused && this.pauseUntil && Date.now() < this.pauseUntil) {
-        const remainingPause = this.pauseUntil - Date.now();
+      if (this.isPaused && this.pauseUntil && this.timeSource() < this.pauseUntil) {
+        const remainingPause = this.pauseUntil - this.timeSource();
         this.logger.debug('Queue processing paused due to rate limit', {
           remainingMs: remainingPause,
         });
@@ -133,7 +139,7 @@ export class DiscordRateLimitedSender {
       }
 
       // Clear pause if time has elapsed
-      if (this.isPaused && this.pauseUntil && Date.now() >= this.pauseUntil) {
+      if (this.isPaused && this.pauseUntil && this.timeSource() >= this.pauseUntil) {
         this.isPaused = false;
         this.pauseUntil = null;
         this.logger.info('Rate limit pause cleared, resuming queue processing');
@@ -277,7 +283,7 @@ export class DiscordRateLimitedSender {
 
     // Pause the entire queue
     this.isPaused = true;
-    this.pauseUntil = Date.now() + retryAfterMs;
+    this.pauseUntil = this.timeSource() + retryAfterMs;
 
     // Re-queue the current task
     this.messageQueue.unshift(task);
@@ -287,7 +293,7 @@ export class DiscordRateLimitedSender {
    * Apply rate limiting delays between messages
    */
   async applyRateLimit() {
-    const now = Date.now();
+    const now = this.timeSource();
 
     // Reset burst counter if time has elapsed
     if (now - this.lastBurstReset > this.burstResetTime) {
@@ -358,7 +364,7 @@ export class DiscordRateLimitedSender {
    * @returns {string} Unique task ID
    */
   generateTaskId() {
-    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `msg_${this.timeSource()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -423,10 +429,10 @@ export class DiscordRateLimitedSender {
       timeoutMs,
     });
 
-    const startTime = Date.now();
+    const startTime = this.timeSource();
 
     // Wait for queue to empty or timeout
-    while (this.messageQueue.length > 0 && Date.now() - startTime < timeoutMs) {
+    while (this.messageQueue.length > 0 && this.timeSource() - startTime < timeoutMs) {
       await this.delay(1000);
     }
 

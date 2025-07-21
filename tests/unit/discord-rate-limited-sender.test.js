@@ -10,6 +10,28 @@ describe('DiscordRateLimitedSender', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
+    // Mock time source for deterministic testing
+    let currentTime = 0;
+    const mockTimeSource = jest.fn(() => currentTime);
+    mockTimeSource.advanceTime = ms => {
+      currentTime += ms;
+      return currentTime;
+    };
+    mockTimeSource.setTime = time => {
+      currentTime = time;
+      return currentTime;
+    };
+    global.mockTimeSource = mockTimeSource;
+
+    // Test helper for synchronized async timer advancement
+    global.advanceAsyncTimers = async ms => {
+      mockTimeSource.advanceTime(ms);
+      await jest.advanceTimersByTimeAsync(ms);
+      // Allow promises to resolve
+      await Promise.resolve();
+      await new Promise(resolve => setImmediate(resolve));
+    };
+
     mockLogger = {
       debug: jest.fn(),
       info: jest.fn(),
@@ -28,9 +50,11 @@ describe('DiscordRateLimitedSender', () => {
       burstAllowance: 3,
       burstResetTime: 1000,
       maxRetries: 2,
+      autoStart: false, // Disable auto-start for manual test control
+      timeSource: global.mockTimeSource, // Use controllable time source
     });
 
-    // Keep processing enabled but use fake timers to control timing
+    // Manual test control - start processing when needed
   });
 
   afterEach(async () => {
@@ -115,11 +139,9 @@ describe('DiscordRateLimitedSender', () => {
       // Send one more that should be delayed
       promises.push(sender.queueMessage(mockChannel, 'Delayed message'));
 
-      // Process all messages manually without queue processing delays
-      const tasks = [];
-      while (sender.messageQueue.length > 0) {
-        tasks.push(sender.messageQueue.shift());
-      }
+      // Process all messages manually (no automatic processing)
+      const tasks = [...sender.messageQueue];
+      sender.messageQueue.length = 0; // Clear queue
 
       for (const task of tasks) {
         await sender.processMessage(task);
@@ -128,7 +150,7 @@ describe('DiscordRateLimitedSender', () => {
       await Promise.all(promises);
       expect(mockChannel.send).toHaveBeenCalledTimes(4);
       expect(mockChannel.send).toHaveBeenCalledWith('Delayed message');
-    });
+    }, 3000);
   });
 
   describe('Discord Rate Limit Handling (429 Errors)', () => {
@@ -191,10 +213,8 @@ describe('DiscordRateLimitedSender', () => {
       sender.pauseUntil = null;
 
       // Process all remaining tasks manually
-      const remainingTasks = [];
-      while (sender.messageQueue.length > 0) {
-        remainingTasks.push(sender.messageQueue.shift());
-      }
+      const remainingTasks = [...sender.messageQueue];
+      sender.messageQueue.length = 0;
 
       for (const task of remainingTasks) {
         await sender.processMessage(task);
@@ -205,7 +225,7 @@ describe('DiscordRateLimitedSender', () => {
       // All messages should eventually be sent
       expect(mockChannel.send).toHaveBeenCalledTimes(4); // 1 failed + 3 successful
       expect(sender.metrics.rateLimitHits).toBe(1);
-    });
+    }, 3000);
   });
 
   describe('Retry Logic', () => {
@@ -238,13 +258,28 @@ describe('DiscordRateLimitedSender', () => {
 
       const messagePromise = sender.queueMessage(mockChannel, 'Will fail permanently');
 
-      // Process through all retries
-      await jest.advanceTimersByTimeAsync(10000);
+      // Process initial attempt and all retries manually
+      const task = sender.messageQueue.shift();
+      await sender.processMessage(task);
+
+      // Process first retry
+      await global.advanceAsyncTimers(2000); // Advance time for retry delay
+      const retryTask1 = sender.messageQueue.shift();
+      if (retryTask1) {
+        await sender.processMessage(retryTask1);
+      }
+
+      // Process second retry
+      await global.advanceAsyncTimers(4000); // Exponential backoff
+      const retryTask2 = sender.messageQueue.shift();
+      if (retryTask2) {
+        await sender.processMessage(retryTask2);
+      }
 
       await expect(messagePromise).rejects.toThrow('ECONNRESET');
       expect(mockChannel.send).toHaveBeenCalledTimes(3); // Initial + 2 retries
       expect(sender.metrics.failedSends).toBe(1);
-    });
+    }, 3000);
 
     it('should not retry non-retryable errors', async () => {
       const permError = new Error('Missing permissions');
@@ -254,12 +289,14 @@ describe('DiscordRateLimitedSender', () => {
 
       const messagePromise = sender.queueMessage(mockChannel, 'Permission error test');
 
-      await jest.advanceTimersByTimeAsync(1000);
+      // Process the message manually
+      const task = sender.messageQueue.shift();
+      await sender.processMessage(task);
 
       await expect(messagePromise).rejects.toThrow('Missing permissions');
       expect(mockChannel.send).toHaveBeenCalledTimes(1); // No retries
       expect(sender.metrics.totalRetries).toBe(0);
-    });
+    }, 1000);
   });
 
   describe('Immediate Sending', () => {
@@ -354,17 +391,17 @@ describe('DiscordRateLimitedSender', () => {
 
       expect(sender.messageQueue).toHaveLength(2);
 
-      // Test shutdown behavior directly without relying on timers
+      // Test shutdown behavior with controlled time
       const shutdownPromise = sender.shutdown(100); // Short timeout
 
-      // Advance timers to trigger timeout
-      await jest.advanceTimersByTimeAsync(150);
+      // Advance time to trigger timeout
+      await global.advanceAsyncTimers(150);
 
       await shutdownPromise;
 
       expect(sender.isProcessing).toBe(false);
       expect(sender.messageQueue).toHaveLength(0); // Should be cleared due to timeout
-    });
+    }, 3000);
   });
 
   describe('Edge Cases', () => {
