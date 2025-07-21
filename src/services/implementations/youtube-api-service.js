@@ -276,6 +276,180 @@ export class YouTubeApiService extends YouTubeService {
   }
 
   /**
+   * Get scheduled livestreams from a channel
+   * @param {string} channelId - Channel ID to search for scheduled content
+   * @param {number} maxResults - Maximum number of results to return
+   * @returns {Array} Array of scheduled livestreams
+   */
+  async getScheduledContent(channelId, maxResults = 50) {
+    if (!this.validateChannelId(channelId)) {
+      throw new Error(`Invalid channel ID: ${channelId}`);
+    }
+
+    try {
+      const response = await this.youtube.search.list({
+        part: ['snippet'],
+        channelId,
+        eventType: 'upcoming', // Scheduled livestreams
+        type: 'video',
+        maxResults: Math.min(maxResults, 50),
+        order: 'date',
+      });
+
+      // Get detailed information for each scheduled video
+      const videoIds = response.data.items.map(item => item.id.videoId).filter(id => id);
+
+      if (videoIds.length === 0) {
+        return [];
+      }
+
+      const detailsResponse = await this.youtube.videos.list({
+        part: 'snippet,liveStreamingDetails,contentDetails',
+        id: videoIds.join(','),
+      });
+
+      return detailsResponse.data.items.map(item => ({
+        id: item.id,
+        title: item.snippet.title,
+        description: item.snippet.description,
+        publishedAt: item.snippet.publishedAt,
+        scheduledStartTime: item.liveStreamingDetails?.scheduledStartTime,
+        actualStartTime: item.liveStreamingDetails?.actualStartTime,
+        actualEndTime: item.liveStreamingDetails?.actualEndTime,
+        liveBroadcastContent: item.snippet.liveBroadcastContent,
+        state: this.determineLivestreamState(item),
+        thumbnails: item.snippet.thumbnails,
+        channelId: item.snippet.channelId,
+        channelTitle: item.snippet.channelTitle,
+      }));
+    } catch (error) {
+      this.logger.error('Failed to fetch scheduled content', {
+        channelId,
+        error: error.message,
+      });
+      throw new Error(`Failed to fetch scheduled content for ${channelId}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check the current state of scheduled content
+   * @param {Array<string>} videoIds - Array of video IDs to check
+   * @returns {Array} Array of video states
+   */
+  async checkScheduledContentStates(videoIds) {
+    if (!Array.isArray(videoIds) || videoIds.length === 0) {
+      return [];
+    }
+
+    try {
+      const response = await this.youtube.videos.list({
+        part: 'snippet,liveStreamingDetails',
+        id: videoIds.join(','),
+      });
+
+      return response.data.items.map(item => ({
+        id: item.id,
+        state: this.determineLivestreamState(item),
+        liveBroadcastContent: item.snippet.liveBroadcastContent,
+        scheduledStartTime: item.liveStreamingDetails?.scheduledStartTime,
+        actualStartTime: item.liveStreamingDetails?.actualStartTime,
+        actualEndTime: item.liveStreamingDetails?.actualEndTime,
+      }));
+    } catch (error) {
+      this.logger.error('Failed to check scheduled content states', {
+        videoIds: videoIds.slice(0, 5), // Log first 5 IDs
+        error: error.message,
+      });
+      throw new Error(`Failed to check content states: ${error.message}`);
+    }
+  }
+
+  /**
+   * Poll scheduled content for state changes
+   * @param {Array<Object>} scheduledContent - Array of scheduled content to monitor
+   * @returns {Array} Array of content that has changed state
+   */
+  async pollScheduledContent(scheduledContent) {
+    if (!Array.isArray(scheduledContent) || scheduledContent.length === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    const changedContent = [];
+
+    try {
+      // Get current states
+      const videoIds = scheduledContent.map(content => content.id);
+      const currentStates = await this.checkScheduledContentStates(videoIds);
+
+      for (const currentState of currentStates) {
+        const originalContent = scheduledContent.find(c => c.id === currentState.id);
+
+        if (!originalContent) {
+          continue;
+        }
+
+        // Check if scheduled content should now be live
+        const scheduledStart = new Date(currentState.scheduledStartTime);
+        const shouldBeLive = now >= scheduledStart;
+
+        // Detect state changes
+        if (originalContent.state !== currentState.state) {
+          changedContent.push({
+            ...originalContent,
+            newState: currentState.state,
+            oldState: originalContent.state,
+            actualStartTime: currentState.actualStartTime,
+            actualEndTime: currentState.actualEndTime,
+            detectionTime: now,
+            stateChangeDetected: true,
+          });
+        } else if (shouldBeLive && currentState.state === 'scheduled') {
+          // Content should be live but still shows as scheduled - might need manual check
+          this.logger.warn('Scheduled content may have started but API not updated', {
+            videoId: currentState.id,
+            scheduledStart: scheduledStart.toISOString(),
+            currentTime: now.toISOString(),
+          });
+        }
+      }
+
+      return changedContent;
+    } catch (error) {
+      this.logger.error('Failed to poll scheduled content', {
+        contentCount: scheduledContent.length,
+        error: error.message,
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Determine the current state of a livestream based on API data
+   * @param {Object} videoData - Video data from YouTube API
+   * @returns {string} Current state ('scheduled', 'live', 'ended', 'published')
+   */
+  determineLivestreamState(videoData) {
+    const { liveBroadcastContent } = videoData.snippet;
+    const liveDetails = videoData.liveStreamingDetails;
+
+    switch (liveBroadcastContent) {
+      case 'upcoming':
+        return 'scheduled';
+      case 'live':
+        return 'live';
+      case 'none':
+        // Check if it was previously a livestream
+        if (liveDetails && (liveDetails.actualStartTime || liveDetails.scheduledStartTime)) {
+          return liveDetails.actualEndTime ? 'ended' : 'published';
+        }
+        return 'published';
+      default:
+        return 'unknown';
+    }
+  }
+
+  /**
    * Check if API key is valid
    */
   async validateApiKey() {

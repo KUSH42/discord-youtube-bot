@@ -21,6 +21,11 @@ The project is designed with a clear separation of concerns, making it easy for 
     - **Real-time YouTube Notifications**: Uses PubSubHubbub for instant upload and livestream announcements.
     - **Intelligent Fallback System**: Automatically switches to API polling if PubSubHubbub fails, ensuring no content is missed.
     - **YouTube Web Scraping**: Near-instantaneous content detection (15-second polling) using Playwright for backup monitoring.
+    - **Multi-Source Detection with Priority**: Webhook notifications override API polling, which overrides scraper detection for optimal reliability.
+    - **Livestream State Management**: Tracks scheduled → live → ended transitions with proper announcement timing.
+    - **Enhanced Content Fingerprinting**: Advanced duplicate detection using title normalization and timestamp precision, preventing duplicates even with URL variations.
+    - **Persistent Content State**: Content states survive bot restarts with file-based storage and automatic cleanup.
+    - **Race Condition Prevention**: ContentCoordinator ensures same content from multiple sources doesn't cause duplicate announcements.
     - **X (Twitter) Scraping**: Monitors profiles for new posts, replies, quotes, and retweets with enhanced authentication.
     - **Persistent Duplicate Detection**: Scans channel history on startup to prevent re-announcing content across restarts.
     - **Advanced Retweet Classification**: Uses multiple strategies to accurately identify and route retweets.
@@ -49,12 +54,69 @@ The bot follows clean architecture principles to ensure a clear separation of co
 ```bash
 src/
 ├── 🎯 application/           # Application layer (e.g., orchestrators)
-├── 💼 core/                  # Business logic layer (e.g., command processing)
-├── 🏗️ infrastructure/        # Foundation layer (e.g., config, DI container)
+├── 💼 core/                  # Business logic layer
+│   ├── command-processor.js  # Discord command processing
+│   ├── content-announcer.js  # Content announcement formatting and routing
+│   ├── content-classifier.js # Content type classification and validation
+│   ├── content-coordinator.js # Multi-source content coordination with race condition prevention
+│   ├── content-state-manager.js # Unified content state management and persistence
+│   └── livestream-state-machine.js # Livestream transition tracking (scheduled → live → ended)
+├── 🏗️ infrastructure/        # Foundation layer
+│   ├── configuration.js      # Environment configuration management  
+│   ├── dependency-container.js # Dependency injection container
+│   ├── event-bus.js          # Event-driven communication
+│   ├── persistent-storage.js # File-based content state and fingerprint storage
+│   └── state-manager.js      # Runtime state management
 ├── 🔧 services/              # External service layer (e.g., Discord, YouTube clients)
+├── ⚙️ config/                # Configuration modules
+│   └── content-detection.js  # Content detection reliability configuration
 ├── ⚙️ setup/                 # Production dependency wiring
 └── 🛠️ utilities/             # Shared utilities (e.g., logger, validator)
 ```
+
+## YouTube Content Detection Reliability
+
+The bot features a sophisticated multi-layered system for reliable YouTube content detection, designed to prevent missed content and eliminate duplicate announcements.
+
+### Content Detection Sources & Priority
+
+The system uses **Source Priority** to handle the same content being detected by multiple systems:
+
+1. **🔗 Webhooks** (Highest Priority) - Real-time PubSubHubbub push notifications from YouTube
+2. **📡 API Polling** (Medium Priority) - Direct YouTube Data API v3 queries  
+3. **🕷️ Web Scraping** (Lowest Priority) - Playwright-based fallback scraping
+
+When the same video is detected by multiple sources, the higher priority source wins, ensuring the most reliable data is used while preventing duplicate announcements.
+
+### Enhanced Content State Management
+
+- **Unified State Tracking**: Single source of truth for all content states, replacing previous dual-logic inconsistencies
+- **Persistent Storage**: Content states survive bot restarts with automatic cleanup of old entries
+- **Livestream Transitions**: Proper tracking of `scheduled → live → ended → published` state changes with appropriate announcements
+
+### Advanced Duplicate Detection
+
+- **Content Fingerprinting**: Uses normalized titles and timestamp precision to detect duplicates even when URLs vary
+- **URL Normalization**: Handles different YouTube URL formats (`youtu.be`, `youtube.com`, query parameters)
+- **Cross-Restart Persistence**: Duplicate detection data survives bot restarts
+- **Memory Management**: Automatic cleanup prevents memory bloat in long-running instances
+
+### Race Condition Prevention
+
+The **ContentCoordinator** prevents issues when multiple detection systems find the same content simultaneously:
+
+- **Processing Locks**: Ensures same content isn't processed multiple times concurrently
+- **Source Coordination**: Manages conflicts between webhook, API, and scraper detections
+- **Unified Processing**: Single pipeline for all content regardless of detection source
+
+### Configuration
+
+All reliability features are configurable through environment variables (see [Configuration](#-configuration) section):
+
+- `MAX_CONTENT_AGE_HOURS=2` - Only announce content newer than 2 hours
+- `ENABLE_CONTENT_FINGERPRINTING=true` - Enable advanced duplicate detection
+- `ENABLE_LIVESTREAM_MONITORING=true` - Enable livestream state tracking
+- `CONTENT_STORAGE_DIR=data` - Directory for persistent storage
 
 ## Getting Started (Quick Start)
 
@@ -154,6 +216,16 @@ All configuration is managed through the `.env` file.
 | `DISCORD_BASE_SEND_DELAY`         | Base delay between Discord message sends in milliseconds.                   | No       | `2000` (2 sec)     |
 | `DISCORD_BURST_ALLOWANCE`         | Number of quick Discord messages allowed per burst period.                  | No       | `2`                |
 | `DISCORD_MAX_BUFFER_SIZE`         | Maximum Discord log message buffer size before flushing.                    | No       | `30`               |
+| **Content Detection Reliability** |                                                                              |          |                    |
+| `MAX_CONTENT_AGE_HOURS`           | Maximum age in hours for content to be considered "new" and announced.       | No       | `2`                |
+| `ENABLE_CONTENT_FINGERPRINTING`   | Enable enhanced duplicate detection using content fingerprinting.            | No       | `true`             |
+| `ENABLE_LIVESTREAM_MONITORING`    | Enable scheduled livestream state monitoring and transitions.                | No       | `true`             |
+| `ENABLE_CROSS_VALIDATION`         | Enable cross-system content validation between detection sources.            | No       | `true`             |
+| `CONTENT_STORAGE_DIR`             | Directory for persistent content state storage.                             | No       | `data`             |
+| `DUPLICATE_CLEANUP_INTERVAL_HOURS`| Hours between duplicate detection cleanup operations.                        | No       | `168` (1 week)     |
+| `LIVESTREAM_POLLING_INTERVAL_MS`  | Interval in milliseconds for polling scheduled livestream state changes.    | No       | `30000` (30 sec)   |
+| `WEBHOOK_MAX_RETRIES`             | Maximum retry attempts for failed webhook processing.                       | No       | `3`                |
+| `PROCESSING_LOCK_TIMEOUT_MS`      | Timeout in milliseconds for content processing locks to prevent deadlocks.  | No       | `30000` (30 sec)   |
 
 ## Usage
 
@@ -287,7 +359,10 @@ This project is committed to high quality through a comprehensive and automated 
 
 Our testing philosophy emphasizes fast feedback, high confidence in critical paths, and maintainability. All tests are executed automatically on every push and pull request via GitHub Actions.
 
-**Recent E2E Testing Enhancements:**
+**Recent Testing Enhancements:**
+- **Enhanced Duplicate Detection**: Comprehensive tests for content fingerprinting, URL normalization, and cross-restart persistence
+- **Content State Management**: Tests for unified state tracking, livestream transitions, and persistent storage
+- **Race Condition Prevention**: Tests for ContentCoordinator's processing locks and source priority handling
 - **Comprehensive Command Testing**: Complete workflow tests for all Discord bot commands (!health, !announce, !restart, etc.)
 - **YouTube Content Monitoring**: End-to-end tests for the complete YouTube announcement pipeline
 - **Fallback Recovery**: Tests for YouTube API failure scenarios and recovery mechanisms
@@ -317,6 +392,10 @@ Our testing philosophy emphasizes fast feedback, high confidence in critical pat
 
 -   **`listen EADDRINUSE` Error**: The `PSH_PORT` is already in use by another application. Change the port or stop the conflicting process.
 -   **No YouTube Announcements**: Ensure `PSH_CALLBACK_URL` is public and reachable. Verify your API key and check bot logs for any subscription errors. Enable `WEBHOOK_DEBUG_LOGGING=true` for detailed webhook diagnostics.
+-   **Duplicate Announcements**: The enhanced duplicate detection should prevent this, but if it occurs, check the `data/` directory for proper content state persistence and verify `ENABLE_CONTENT_FINGERPRINTING=true`.
+-   **Missing Livestream Transitions**: Ensure `ENABLE_LIVESTREAM_MONITORING=true` and check logs for livestream state polling activity. Verify `LIVESTREAM_POLLING_INTERVAL_MS` is appropriate for your needs.
+-   **Content Too Old Errors**: Adjust `MAX_CONTENT_AGE_HOURS` if legitimate content is being rejected as too old. The default is 2 hours.
+-   **Storage Issues**: If the bot can't write to the storage directory, ensure the `CONTENT_STORAGE_DIR` path is writable and has sufficient disk space.
 -   **No X Announcements**: Double-check your X account credentials and ensure they are not locked or requiring a CAPTCHA. Review logs for scraping errors.
 -   **Commands Not Working**: Confirm you are using the correct `COMMAND_PREFIX` in the designated support channel. Ensure your user ID is in `ALLOWED_USER_IDS` for admin commands.
 -   **Webhook Issues**: Set `WEBHOOK_DEBUG_LOGGING=true` in your `.env` file to get comprehensive debugging information about PubSubHubbub webhooks, including request details, signature verification, and processing flow.

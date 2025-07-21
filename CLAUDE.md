@@ -348,11 +348,23 @@ When adding new commands:
 
 ## 8. Content Monitoring Architecture
 
+### Multi-Source Detection System
+The system uses a three-tier detection hierarchy with **Source Priority** to prevent conflicts:
+1. **Webhooks** (Highest Priority) - PubSubHubbub push notifications from YouTube
+2. **API Polling** (Medium Priority) - Direct YouTube Data API v3 queries
+3. **Web Scraping** (Lowest Priority) - Playwright-based fallback monitoring
+
 ### YouTube Monitoring (PubSubHubbub)
 - **Real-time Notifications**: Push-based webhook system for instant updates
 - **Signature Verification**: HMAC-SHA1 validation of incoming webhooks
 - **Fallback System**: Automatic switch to API polling if webhooks fail
-- **Duplicate Prevention**: Track announced content to prevent re-posting
+- **Scheduled Content**: Monitors `scheduled → live → ended → published` transitions
+- **Enhanced Duplicate Prevention**: Content fingerprinting with persistent storage
+
+### YouTube API Enhancement
+- **Scheduled Livestream Detection**: `getScheduledContent()` method for upcoming streams
+- **State Polling**: `checkScheduledContentStates()` and `pollScheduledContent()` for real-time transitions
+- **Livestream State Determination**: Intelligent state detection from API response data
 
 ### X (Twitter) Monitoring (Web Scraping)
 - **Authentication**: Managed by `AuthManager` with persistent cookie storage
@@ -360,12 +372,23 @@ When adding new commands:
 - **Advanced Scraping**: Search-based scraping with enhanced scrolling
 - **Rate Limiting**: Respectful scraping with configurable intervals
 
-### Content Processing Pipeline
-1. **Content Detection**: PubSubHubbub webhook or scraper discovery
-2. **Validation**: Verify content is new and meets filtering criteria
-3. **Classification**: Determine content type and target Discord channel
-4. **Announcement**: Format and send to appropriate Discord channels
-5. **Tracking**: Record announced content for duplicate prevention
+### Enhanced Content Processing Pipeline
+1. **Multi-Source Detection**: Content detected by webhook, API, or scraper
+2. **ContentCoordinator Processing**: Race condition prevention with processing locks
+3. **Source Priority Resolution**: Higher priority sources override lower priority
+4. **ContentStateManager**: Unified state tracking and age validation
+5. **Enhanced Duplicate Detection**: Fingerprinting and URL normalization
+6. **LivestreamStateMachine**: State transition management for livestreams
+7. **Content Classification**: Determine content type and target Discord channel
+8. **Announcement**: Format and send to appropriate Discord channels
+9. **Persistent Tracking**: Store content states and fingerprints for restart persistence
+
+### Key Components Added
+- **ContentStateManager** (`src/core/content-state-manager.js`): Unified content state with persistent storage
+- **LivestreamStateMachine** (`src/core/livestream-state-machine.js`): Handles livestream transitions
+- **ContentCoordinator** (`src/core/content-coordinator.js`): Prevents race conditions between sources
+- **PersistentStorage** (`src/infrastructure/persistent-storage.js`): File-based storage for content states
+- **Enhanced DuplicateDetector**: Content fingerprinting with normalized titles and timestamps
 
 ## 9. Configuration & Environment Management
 
@@ -376,6 +399,7 @@ All configuration managed through `.env` file with validation at startup:
 - **X Monitoring**: `X_USER_HANDLE`, authentication credentials
 - **Security**: `PSH_SECRET`, rate limiting configuration
 - **Operations**: Logging levels, feature toggles, polling intervals
+- **Content Detection**: `MAX_CONTENT_AGE_HOURS`, `ENABLE_CONTENT_FINGERPRINTING`, `CONTENT_STORAGE_DIR`, reliability settings
 
 ### Configuration Validation
 - **Startup Validation**: `src/config-validator.js` validates required variables

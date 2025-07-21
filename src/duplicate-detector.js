@@ -404,11 +404,314 @@ export class DuplicateDetector {
   }
 
   /**
+   * Generate content fingerprint for enhanced duplicate detection
+   * @param {Object} content - Content object with title, url, publishedAt
+   * @returns {string} Content fingerprint
+   */
+  generateContentFingerprint(content) {
+    if (!content || typeof content !== 'object') {
+      return null;
+    }
+
+    const normalizedTitle = this.normalizeTitle(content.title || '');
+    const extractedId = this.extractContentId(content.url || '');
+    const publishTime = content.publishedAt ? new Date(content.publishedAt).getTime() : 0;
+
+    // Create fingerprint with minute precision to handle slight timing differences
+    const timeSlot = Math.floor(publishTime / 60000); // minute precision
+
+    return `${extractedId}:${normalizedTitle}:${timeSlot}`;
+  }
+
+  /**
+   * Normalize title for fingerprinting
+   * @param {string} title - Original title
+   * @returns {string} Normalized title
+   */
+  normalizeTitle(title) {
+    if (!title || typeof title !== 'string') {
+      return '';
+    }
+
+    return title
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '') // Remove special characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+      .substring(0, 100); // Limit length
+  }
+
+  /**
+   * Extract content ID from URL (video ID or tweet ID)
+   * @param {string} url - Content URL
+   * @returns {string} Extracted ID or empty string
+   */
+  extractContentId(url) {
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+
+    // Try to extract video ID
+    const videoIds = this.extractVideoIds(url);
+    if (videoIds.length > 0) {
+      return videoIds[0];
+    }
+
+    // Try to extract tweet ID
+    const tweetIds = this.extractTweetIds(url);
+    if (tweetIds.length > 0) {
+      return tweetIds[0];
+    }
+
+    return '';
+  }
+
+  /**
+   * Check for duplicate using content fingerprinting
+   * @param {Object} content - Content object to check
+   * @param {Object} [persistentStorage] - Optional persistent storage for fingerprints
+   * @returns {Promise<boolean>} True if content is duplicate
+   */
+  async isDuplicateWithFingerprint(content, persistentStorage = null) {
+    // First check URL-based duplicates
+    const urlDuplicate = this.isDuplicate(content.url);
+    if (urlDuplicate) {
+      return true;
+    }
+
+    // Then check fingerprint-based duplicates
+    const fingerprint = this.generateContentFingerprint(content);
+    if (!fingerprint) {
+      return false;
+    }
+
+    // Check in-memory fingerprint cache
+    if (this.contentFingerprints && this.contentFingerprints.has(fingerprint)) {
+      return true;
+    }
+
+    // Check persistent storage if available
+    if (persistentStorage && typeof persistentStorage.hasFingerprint === 'function') {
+      try {
+        const fingerprintExists = await persistentStorage.hasFingerprint(fingerprint);
+        if (fingerprintExists) {
+          // Cache in memory for faster future checks
+          if (this.contentFingerprints) {
+            this.contentFingerprints.add(fingerprint);
+          }
+          return true;
+        }
+      } catch (error) {
+        // If persistent storage fails, continue with URL-only check
+        console.warn('Fingerprint check failed, falling back to URL check:', error.message);
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Mark content as seen with fingerprint
+   * @param {Object} content - Content object to mark
+   * @param {Object} [persistentStorage] - Optional persistent storage for fingerprints
+   */
+  async markAsSeenWithFingerprint(content, persistentStorage = null) {
+    // Mark URL as seen using existing method
+    if (content.url) {
+      this.markAsSeen(content.url);
+    }
+
+    // Generate and store fingerprint
+    const fingerprint = this.generateContentFingerprint(content);
+    if (!fingerprint) {
+      return;
+    }
+
+    // Store in memory cache
+    if (!this.contentFingerprints) {
+      this.contentFingerprints = new Set();
+    }
+    this.contentFingerprints.add(fingerprint);
+
+    // Store in persistent storage if available
+    if (persistentStorage && typeof persistentStorage.storeFingerprint === 'function') {
+      try {
+        await persistentStorage.storeFingerprint(fingerprint, {
+          url: content.url,
+          title: content.title,
+          publishedAt: content.publishedAt,
+          contentId: this.extractContentId(content.url),
+          type: this.determineContentType(content.url),
+        });
+      } catch (error) {
+        console.warn('Failed to store fingerprint persistently:', error.message);
+      }
+    }
+
+    // Clean up memory if it gets too large
+    if (this.contentFingerprints.size > (this.maxSize || 10000)) {
+      this.cleanupFingerprints();
+    }
+  }
+
+  /**
+   * Determine content type from URL
+   * @param {string} url - Content URL
+   * @returns {string} Content type
+   */
+  determineContentType(url) {
+    if (!url || typeof url !== 'string') {
+      return 'unknown';
+    }
+
+    if (this.extractVideoIds(url).length > 0) {
+      return 'youtube_video';
+    }
+
+    if (this.extractTweetIds(url).length > 0) {
+      return 'x_tweet';
+    }
+
+    return 'unknown';
+  }
+
+  /**
+   * Normalize URL for consistent duplicate detection
+   * @param {string} url - Original URL
+   * @returns {string} Normalized URL
+   */
+  normalizeUrl(url) {
+    if (!url || typeof url !== 'string') {
+      return url;
+    }
+
+    const videoIds = this.extractVideoIds(url);
+    if (videoIds.length > 0) {
+      return `https://www.youtube.com/watch?v=${videoIds[0]}`;
+    }
+
+    const tweetIds = this.extractTweetIds(url);
+    if (tweetIds.length > 0) {
+      // Normalize to x.com format
+      return `https://x.com/i/status/${tweetIds[0]}`;
+    }
+
+    return url;
+  }
+
+  /**
+   * Clean up memory-based fingerprints
+   */
+  cleanupFingerprints() {
+    if (!this.contentFingerprints || this.contentFingerprints.size === 0) {
+      return;
+    }
+
+    const fingerprintArray = Array.from(this.contentFingerprints);
+    const keepCount = Math.floor((this.maxSize || 10000) * 0.8);
+    const toKeep = fingerprintArray.slice(-keepCount);
+
+    this.contentFingerprints.clear();
+    toKeep.forEach(fingerprint => this.contentFingerprints.add(fingerprint));
+  }
+
+  /**
+   * Enhanced process content with fingerprinting
+   * @param {string|Object} content - Content to process (string or object with url/title/publishedAt)
+   * @param {Object} [persistentStorage] - Optional persistent storage
+   * @returns {Promise<Object>} Processing result with fingerprint information
+   */
+  async processContentWithFingerprint(content, persistentStorage = null) {
+    let contentObj = content;
+
+    // Handle string input (backwards compatibility)
+    if (typeof content === 'string') {
+      contentObj = { url: content };
+    }
+
+    // Check URL-based duplicates without marking as seen yet
+    const videoIds = this.extractVideoIds(contentObj.url || '');
+    const tweetIds = this.extractTweetIds(contentObj.url || '');
+
+    const urlBasedResult = {
+      videos: {
+        found: videoIds,
+        duplicates: videoIds.filter(id => this.isVideoIdKnown(id)),
+        new: videoIds.filter(id => !this.isVideoIdKnown(id)),
+      },
+      tweets: {
+        found: tweetIds,
+        duplicates: tweetIds.filter(id => this.isTweetIdKnown(id)),
+        new: tweetIds.filter(id => !this.isTweetIdKnown(id)),
+      },
+    };
+
+    // Fingerprint-based checking
+    let fingerprintDuplicate = false;
+    let fingerprint = null;
+
+    if (contentObj.title || contentObj.publishedAt) {
+      fingerprint = this.generateContentFingerprint(contentObj);
+      fingerprintDuplicate = await this.isDuplicateWithFingerprint(contentObj, persistentStorage);
+    }
+
+    // Mark as seen only if not a duplicate by either method
+    const isUrlDuplicate = urlBasedResult.videos.duplicates.length > 0 || urlBasedResult.tweets.duplicates.length > 0;
+
+    if (!fingerprintDuplicate && !isUrlDuplicate) {
+      // Mark URL-based IDs as seen
+      urlBasedResult.videos.new.forEach(id => this.addVideoId(id));
+      urlBasedResult.tweets.new.forEach(id => this.addTweetId(id));
+
+      // Mark fingerprint as seen if available
+      if (fingerprint) {
+        await this.markAsSeenWithFingerprint(contentObj, persistentStorage);
+      }
+    }
+
+    return {
+      ...urlBasedResult,
+      fingerprint: {
+        generated: fingerprint,
+        isDuplicate: fingerprintDuplicate,
+        enabled: !!fingerprint,
+      },
+    };
+  }
+
+  /**
+   * Get enhanced statistics including fingerprint information
+   * @returns {Object} Enhanced statistics object
+   */
+  getEnhancedStats() {
+    const baseStats = this.getStats();
+
+    return {
+      ...baseStats,
+      fingerprints: this.contentFingerprints ? this.contentFingerprints.size : 0,
+      fingerprintingEnabled: !!this.contentFingerprints,
+    };
+  }
+
+  /**
+   * Reset enhanced duplicate detector
+   */
+  resetWithFingerprints() {
+    this.reset();
+    if (this.contentFingerprints) {
+      this.contentFingerprints.clear();
+    }
+  }
+
+  /**
    * Destroy the duplicate detector and clean up resources
    */
   destroy() {
     this.stopPeriodicCleanup();
     this.reset();
+    if (this.contentFingerprints) {
+      this.contentFingerprints.clear();
+    }
   }
 }
 
