@@ -374,7 +374,8 @@ describe('Rate Limiting Tests', () => {
 
       const ip = '127.0.0.1';
 
-      // Simulate 10 failed signature verification attempts
+      // Simulate 10 failed signature verification attempts - all should pass
+      const nextCalls = [];
       for (let i = 0; i < 10; i++) {
         const req = createMockRequest({
           ip,
@@ -384,11 +385,11 @@ describe('Rate Limiting Tests', () => {
         const next = jest.fn();
 
         signatureRateLimit(req, res, next);
-
-        if (i < 10) {
-          expect(next).toHaveBeenCalledWith();
-        }
+        nextCalls.push(next);
       }
+
+      // Verify all 10 attempts passed
+      nextCalls.forEach(next => expect(next).toHaveBeenCalledWith());
 
       // 11th attempt should be blocked
       const req = createMockRequest({

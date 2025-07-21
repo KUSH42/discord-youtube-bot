@@ -101,12 +101,9 @@ describe('URL Regex Pattern Tests', () => {
       invalidIds.forEach(id => {
         const url = `https://www.youtube.com/watch?v=${id}`;
         const matches = [...url.matchAll(videoUrlRegex)];
-        // Invalid IDs should not match or match with different length
-        if (matches.length > 0) {
-          expect(matches[0][1]).not.toBe(id);
-        } else {
-          expect(matches).toHaveLength(0);
-        }
+        // Invalid IDs should either not match at all, or if they partially match,
+        // the extracted portion should not equal the full invalid ID
+        expect(matches.length === 0 || matches[0][1] !== id).toBe(true);
       });
     });
   });

@@ -113,27 +113,29 @@ describe('ScraperApplication Initialization', () => {
       const now = new Date();
       const recentTweets = [
         {
-          tweetID: '123456789',
+          tweetID: '1234567890123456789',
           timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
           author: 'testuser',
           text: 'Recent tweet',
-          url: 'https://x.com/testuser/status/123456789',
+          url: 'https://x.com/testuser/status/1234567890123456789',
         },
         {
-          tweetID: '987654321',
+          tweetID: '9876543210987654321',
           timestamp: new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
           author: 'testuser',
           text: 'Another recent tweet',
-          url: 'https://x.com/testuser/status/987654321',
+          url: 'https://x.com/testuser/status/9876543210987654321',
         },
       ];
 
       // Mock browser navigation and tweet extraction
       mockBrowserService.goto.mockResolvedValue();
-      mockBrowserService.evaluate.mockResolvedValue(recentTweets);
 
       // Mock the navigateToProfileTimeline method
       scraperApp.navigateToProfileTimeline = jest.fn().mockResolvedValue();
+
+      // Mock the extractTweets method to return our test data
+      scraperApp.extractTweets = jest.fn().mockResolvedValue(recentTweets);
 
       await scraperApp.initializeRecentContent();
 
@@ -141,8 +143,8 @@ describe('ScraperApplication Initialization', () => {
       expect(scraperApp.navigateToProfileTimeline).toHaveBeenCalledWith('testuser');
 
       // Verify tweets were marked as seen
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/987654321')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(true);
 
       // Verify logging
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -156,28 +158,28 @@ describe('ScraperApplication Initialization', () => {
       const now = new Date();
       const tweets = [
         {
-          tweetID: '123456789',
+          tweetID: '1234567890123456789',
           timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago (recent)
           author: 'testuser',
-          url: 'https://x.com/testuser/status/123456789',
+          url: 'https://x.com/testuser/status/1234567890123456789',
         },
         {
-          tweetID: '987654321',
+          tweetID: '9876543210987654321',
           timestamp: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago (old)
           author: 'testuser',
-          url: 'https://x.com/testuser/status/987654321',
+          url: 'https://x.com/testuser/status/9876543210987654321',
         },
       ];
 
       mockBrowserService.goto.mockResolvedValue();
-      mockBrowserService.evaluate.mockResolvedValue(tweets);
       scraperApp.navigateToProfileTimeline = jest.fn().mockResolvedValue();
+      scraperApp.extractTweets = jest.fn().mockResolvedValue(tweets);
 
       await scraperApp.initializeRecentContent();
 
       // Only recent tweet should be marked as seen
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/987654321')).toBe(false);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(false);
     });
 
     it('should handle initialization errors gracefully', async () => {
@@ -203,25 +205,25 @@ describe('ScraperApplication Initialization', () => {
       const now = new Date();
       const tweets = [
         {
-          tweetID: '123456789',
+          tweetID: '1234567890123456789',
           timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago (within 6h window)
-          url: 'https://x.com/testuser/status/123456789',
+          url: 'https://x.com/testuser/status/1234567890123456789',
         },
         {
-          tweetID: '987654321',
+          tweetID: '9876543210987654321',
           timestamp: new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago (outside 6h window)
-          url: 'https://x.com/testuser/status/987654321',
+          url: 'https://x.com/testuser/status/9876543210987654321',
         },
       ];
 
-      mockBrowserService.evaluate.mockResolvedValue(tweets);
       scraperApp.navigateToProfileTimeline = jest.fn().mockResolvedValue();
+      scraperApp.extractTweets = jest.fn().mockResolvedValue(tweets);
 
       await scraperApp.initializeRecentContent();
 
       // Only tweet within 6-hour window should be marked
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/987654321')).toBe(false);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(true);
+      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(false);
     });
   });
 
