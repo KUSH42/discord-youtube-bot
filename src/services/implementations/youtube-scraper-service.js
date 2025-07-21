@@ -5,13 +5,13 @@ import { PlaywrightBrowserService } from './playwright-browser-service.js';
  * Provides an alternative to API polling for faster notifications
  */
 export class YouTubeScraperService {
-  constructor(logger, config) {
+  constructor({ logger, config, contentCoordinator }) {
     this.logger = logger;
     this.config = config;
+    this.contentCoordinator = contentCoordinator;
     this.browserService = new PlaywrightBrowserService();
     this.videosUrl = null;
     this.liveStreamUrl = null;
-    this.lastKnownContentId = null;
     this.isInitialized = false;
     this.isRunning = false;
     this.scrapingInterval = null;
@@ -35,6 +35,7 @@ export class YouTubeScraperService {
       successfulScrapes: 0,
       failedScrapes: 0,
       videosDetected: 0,
+      livestreamsDetected: 0,
       lastSuccessfulScrape: null,
       lastError: null,
     };
@@ -90,10 +91,10 @@ export class YouTubeScraperService {
       // Find and set the initial latest video
       const latestVideo = await this.fetchLatestVideo();
       if (latestVideo) {
-        this.lastKnownContentId = latestVideo.id;
+        await this.contentCoordinator.processContent(latestVideo.id, 'scraper', latestVideo);
         this.logger.info('YouTube scraper initialized', {
           videosUrl: this.videosUrl,
-          lastKnownContentId: this.lastKnownContentId,
+          initialContentId: latestVideo.id,
           title: latestVideo.title,
         });
       } else {
@@ -719,38 +720,23 @@ export class YouTubeScraperService {
    * Check for new videos since last check
    * @returns {Promise<Object|null>} New video object or null if none found
    */
-  async checkForNewContent() {
+  async scanForContent() {
     if (!this.isInitialized) {
       throw new Error('YouTube scraper is not initialized');
     }
 
-    // Prioritize checking for a live stream
-    const activeLiveStream = await this.fetchActiveLiveStream();
-    if (activeLiveStream && activeLiveStream.id !== this.lastKnownContentId) {
-      this.logger.info('New live stream detected via scraping', {
-        contentId: activeLiveStream.id,
-        title: activeLiveStream.title,
-        previousContentId: this.lastKnownContentId,
-      });
-      this.lastKnownContentId = activeLiveStream.id;
-      this.metrics.videosDetected++;
-      return activeLiveStream;
+    // Fetch both potential new content types concurrently
+    const [activeLiveStream, latestVideo] = await Promise.all([this.fetchActiveLiveStream(), this.fetchLatestVideo()]);
+
+    if (activeLiveStream) {
+      this.metrics.livestreamsDetected++;
+      await this.contentCoordinator.processContent(activeLiveStream.id, 'scraper', activeLiveStream);
     }
 
-    // If no new live stream, check for the latest video
-    const latestVideo = await this.fetchLatestVideo();
-    if (latestVideo && latestVideo.id !== this.lastKnownContentId) {
-      this.logger.info('New video detected via scraping', {
-        contentId: latestVideo.id,
-        title: latestVideo.title,
-        previousContentId: this.lastKnownContentId,
-      });
-      this.lastKnownContentId = latestVideo.id;
+    if (latestVideo && latestVideo.success) {
       this.metrics.videosDetected++;
-      return latestVideo;
+      await this.contentCoordinator.processContent(latestVideo.id, 'scraper', latestVideo);
     }
-
-    return null;
   }
 
   /**
@@ -758,7 +744,7 @@ export class YouTubeScraperService {
    * @param {Function} onNewVideo - Callback function for new videos
    * @returns {Promise<void>}
    */
-  async startMonitoring(onNewContent) {
+  async startMonitoring() {
     if (!this.isInitialized) {
       throw new Error('YouTube scraper is not initialized');
     }
@@ -776,10 +762,7 @@ export class YouTubeScraperService {
       }
 
       try {
-        const newContent = await this.checkForNewContent();
-        if (newContent && typeof onNewContent === 'function') {
-          await onNewContent(newContent);
-        }
+        await this.scanForContent();
       } catch (error) {
         this.logger.error('Error in YouTube scraper monitoring loop', {
           error: error.message,
@@ -839,7 +822,7 @@ export class YouTubeScraperService {
       isRunning: this.isRunning,
       isAuthenticated: this.isAuthenticated,
       authEnabled: this.authEnabled,
-      lastKnownContentId: this.lastKnownContentId,
+      lastKnownContentId: null, // No longer tracked here
       videosUrl: this.videosUrl,
       liveStreamUrl: this.liveStreamUrl,
       configuration: {
@@ -856,15 +839,8 @@ export class YouTubeScraperService {
    * Update the known video ID (useful for initial sync)
    * @param {string} videoId - Video ID to set as last known
    */
-  updateLastKnownContentId(contentId) {
-    const previousId = this.lastKnownContentId;
-    this.lastKnownContentId = contentId;
-
-    this.logger.debug('Updated last known content ID', {
-      previousId,
-      newId: contentId,
-    });
-  }
+  // This method is now obsolete as state is managed by ContentStateManager
+  // updateLastKnownContentId(contentId) { ... }
 
   /**
    * Force a health check of the scraper
@@ -935,7 +911,6 @@ export class YouTubeScraperService {
     }
 
     this.isInitialized = false;
-    this.lastKnownContentId = null;
     this.videosUrl = null;
     this.liveStreamUrl = null;
   }

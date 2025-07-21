@@ -97,9 +97,7 @@ export class BotApplication {
           const youtubeChannelHandle = this.config.get('YOUTUBE_CHANNEL_HANDLE');
           if (youtubeChannelHandle) {
             await this.youtubeScraper.initialize(youtubeChannelHandle);
-            await this.youtubeScraper.startMonitoring(content => {
-              this.eventBus.emit('youtube.content', content);
-            });
+            await this.youtubeScraper.startMonitoring();
           } else {
             this.logger.info('YOUTUBE_CHANNEL_HANDLE not configured, YouTube scraper will not start.');
           }

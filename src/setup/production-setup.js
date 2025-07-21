@@ -10,6 +10,10 @@ import { Configuration } from '../infrastructure/configuration.js';
 import { DependencyContainer } from '../infrastructure/dependency-container.js';
 import { EventBus } from '../infrastructure/event-bus.js';
 import { StateManager } from '../infrastructure/state-manager.js';
+import { PersistentStorage } from '../infrastructure/persistent-storage.js';
+
+// Core Logic
+import { DuplicateDetector } from '../duplicate-detector.js';
 
 // Services
 import { DiscordClientService } from '../services/implementations/discord-client-service.js';
@@ -21,6 +25,8 @@ import { PlaywrightBrowserService } from '../services/implementations/playwright
 import { CommandProcessor } from '../core/command-processor.js';
 import { ContentClassifier } from '../core/content-classifier.js';
 import { ContentAnnouncer } from '../core/content-announcer.js';
+import { ContentCoordinator } from '../core/content-coordinator.js';
+import { ContentStateManager } from '../core/content-state-manager.js';
 
 // Services
 import { YouTubeScraperService } from '../services/implementations/youtube-scraper-service.js';
@@ -84,6 +90,11 @@ async function setupInfrastructureServices(container, config) {
       logLevel: config.get('LOG_LEVEL', 'info'),
     });
     return state;
+  });
+
+  // Persistent Storage
+  container.registerSingleton('persistentStorage', c => {
+    return new PersistentStorage(c.resolve('logger').child({ service: 'PersistentStorage' }));
   });
 }
 
@@ -161,6 +172,31 @@ async function setupCoreServices(container, config) {
   container.registerSingleton('contentAnnouncer', c => {
     return new ContentAnnouncer(c.resolve('discordService'), c.resolve('config'), c.resolve('stateManager'));
   });
+
+  // Duplicate Detector
+  container.registerSingleton('duplicateDetector', c => {
+    return new DuplicateDetector(c.resolve('persistentStorage'));
+  });
+
+  // Content State Manager
+  container.registerSingleton('contentStateManager', c => {
+    return new ContentStateManager(
+      c.resolve('config'),
+      c.resolve('persistentStorage'),
+      c.resolve('logger').child({ service: 'ContentStateManager' })
+    );
+  });
+
+  // Content Coordinator
+  container.registerSingleton('contentCoordinator', c => {
+    return new ContentCoordinator(
+      c.resolve('contentStateManager'),
+      c.resolve('contentAnnouncer'),
+      c.resolve('duplicateDetector'),
+      c.resolve('logger').child({ service: 'ContentCoordinator' }),
+      c.resolve('config')
+    );
+  });
 }
 
 /**
@@ -224,10 +260,11 @@ async function setupApplicationServices(container, config) {
 
   // YouTube Scraper Service
   container.registerSingleton('youtubeScraperService', c => {
-    return new YouTubeScraperService(
-      c.resolve('logger').child({ service: 'YouTubeScraperService' }),
-      c.resolve('config')
-    );
+    return new YouTubeScraperService({
+      logger: c.resolve('logger').child({ service: 'YouTubeScraperService' }),
+      config: c.resolve('config'),
+      contentCoordinator: c.resolve('contentCoordinator'),
+    });
   });
 }
 
