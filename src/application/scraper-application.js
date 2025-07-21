@@ -327,7 +327,7 @@ export class ScraperApplication {
 
       // Always use search for normal post detection
       const searchUrl = this.generateSearchUrl(true);
-      this.logger.info(`Navigating to search URL: ${searchUrl}`);
+      this.logger.debug(`Navigating to search URL: ${searchUrl}`);
       await this.browser.goto(searchUrl);
 
       // This is the search for normal tweets. Retweet logic should not be invoked here.

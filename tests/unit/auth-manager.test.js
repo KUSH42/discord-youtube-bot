@@ -118,33 +118,51 @@ describe('AuthManager', () => {
   });
 
   describe('isAuthenticated', () => {
-    it('should return true when URL contains /home', async () => {
-      mockPage.url.mockResolvedValue('https://x.com/home');
+    beforeEach(() => {
+      // Mock browser.evaluate for isAuthenticated
+      mockBrowserService.evaluate = jest.fn();
+    });
+
+    it('should return true when logged-in elements are present', async () => {
+      mockBrowserService.evaluate.mockResolvedValue(true);
 
       const result = await authManager.isAuthenticated();
 
       expect(result).toBe(true);
-      expect(mockPage.url).toHaveBeenCalled();
+      expect(mockBrowserService.goto).toHaveBeenCalledWith('https://x.com/home', {
+        timeout: 15000,
+        waitUntil: 'domcontentloaded',
+      });
+      expect(mockBrowserService.evaluate).toHaveBeenCalled();
     });
 
-    it('should return false when URL does not contain /home', async () => {
-      mockPage.url.mockResolvedValue('https://x.com/login');
+    it('should return false when logged-in elements are not present', async () => {
+      mockBrowserService.evaluate.mockResolvedValue(false);
 
       const result = await authManager.isAuthenticated();
 
       expect(result).toBe(false);
     });
 
-    it('should return false and log warning when URL check fails', async () => {
-      mockPage.url.mockRejectedValue(new Error('URL error'));
+    it('should return false and log warning on evaluation error', async () => {
+      const error = new Error('Evaluation failed');
+      mockBrowserService.evaluate.mockRejectedValue(error);
 
       const result = await authManager.isAuthenticated();
 
       expect(result).toBe(false);
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Could not determine authentication status from URL:',
-        expect.any(Error)
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith('Error checking authentication status:', 'Evaluation failed');
+    });
+
+    it('should return false if browser or page is not available', async () => {
+      authManager.browser = { ...mockBrowserService, page: null };
+      let result = await authManager.isAuthenticated();
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Browser service or page not available for authentication check.');
+
+      authManager.browser = null;
+      result = await authManager.isAuthenticated();
+      expect(result).toBe(false);
     });
   });
 
@@ -349,7 +367,10 @@ describe('AuthManager', () => {
     it('should handle browser service being unavailable', async () => {
       authManager.browser = null;
 
-      await expect(authManager.isAuthenticated()).rejects.toThrow();
+      // The new implementation should not throw, but return false and log.
+      const result = await authManager.isAuthenticated();
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Browser service or page not available for authentication check.');
     });
 
     it('should handle timeout errors during login', async () => {

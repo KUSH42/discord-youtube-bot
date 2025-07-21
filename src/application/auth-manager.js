@@ -141,13 +141,35 @@ export class AuthManager {
    */
   async isAuthenticated() {
     if (!this.browser || !this.browser.page) {
-      throw new Error('Browser service is not available.');
+      this.logger.warn('Browser service or page not available for authentication check.');
+      return false;
     }
     try {
-      const currentUrl = await this.browser.page.url();
-      return currentUrl.includes('/home');
+      // Navigate to a page that requires authentication to be sure
+      await this.browser.goto('https://x.com/home', { timeout: 15000, waitUntil: 'domcontentloaded' });
+
+      // Check for multiple indicators of being logged in
+      const isLoggedIn = await this.browser.evaluate(() => {
+        /* eslint-disable no-undef */
+        const homeTimeline = document.querySelector('[aria-label="Home timeline"]');
+        const profileButton = document.querySelector('[data-testid="AppTabBar_Profile_Link"]');
+        const loginButton = document.querySelector('a[href="/i/flow/login"]');
+        const primaryColumn = document.querySelector('[data-testid="primaryColumn"]');
+
+        // If a login button is visible, we are definitely not logged in
+        if (loginButton) {
+          return false;
+        }
+
+        // A combination of home timeline and profile button is a strong indicator
+        return (homeTimeline && profileButton) || (primaryColumn && !loginButton);
+        /* eslint-enable no-undef */
+      });
+
+      return isLoggedIn;
     } catch (error) {
-      this.logger.warn('Could not determine authentication status from URL:', error);
+      this.logger.warn('Error checking authentication status:', this.sanitizeErrorMessage(error.message));
+      // In case of timeout or navigation error, assume not authenticated
       return false;
     }
   }
