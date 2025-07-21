@@ -259,9 +259,15 @@ export class ScraperApplication {
     const interval = this.getNextInterval();
     this.nextPollTimestamp = Date.now() + interval;
     this.timerId = setTimeout(async () => {
-      if (this.isRunning) {
+      if (!this.isRunning) {
+        return;
+      }
+      try {
         await this.pollXProfile();
         this.scheduleNextPoll();
+      } catch (error) {
+        this.logger.error('Unhandled error in scheduled poll, rescheduling with retry:', error);
+        this.scheduleRetry();
       }
     }, interval);
 
@@ -275,14 +281,15 @@ export class ScraperApplication {
     const retryInterval = Math.min(this.maxInterval, this.minInterval * 2);
     this.nextPollTimestamp = Date.now() + retryInterval;
     this.timerId = setTimeout(async () => {
-      if (this.isRunning) {
-        try {
-          await this.pollXProfile();
-          this.scheduleNextPoll(); // Resume normal scheduling on success
-        } catch (error) {
-          this.logger.error('Error during retry scheduling:', error);
-          this.scheduleRetry(); // Continue retry on failure
-        }
+      if (!this.isRunning) {
+        return;
+      }
+      try {
+        await this.pollXProfile();
+        this.scheduleNextPoll(); // Resume normal scheduling on success
+      } catch (error) {
+        this.logger.error('Unhandled error in scheduled retry, rescheduling:', error);
+        this.scheduleRetry(); // Continue retry on failure
       }
     }, retryInterval);
 
