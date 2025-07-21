@@ -176,13 +176,13 @@ export class BotApplication {
       if (error) {
         this.logger.error(`git pull failed: ${error}`);
         if (message) {
-          await message.reply(`❌ **Git pull failed:**\n\`\`\`${error.message}\`\`\``);
+          await message.reply(`❌ **Git pull failed:**\n\`\`\`diff\n${error.message}\`\`\``);
         }
         return;
       }
 
       if (message) {
-        const output = `**✅ Git pull successful:**\n\`\`\`${stdout || 'No new changes.'}\`\`\``;
+        const output = `**✅ Git pull successful:**\n\`\`\`diff\n${stdout || 'No new changes.'}\`\`\``;
         await message.reply(output);
       }
 
