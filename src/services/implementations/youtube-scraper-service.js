@@ -255,6 +255,75 @@ export class YouTubeScraperService {
   }
 
   /**
+   * Handle YouTube consent page redirects
+   * @returns {Promise<void>}
+   */
+  async handleConsentPageRedirect() {
+    try {
+      const currentUrl = await this.browserService.evaluate(() => {
+        // eslint-disable-next-line no-undef
+        return window.location.href;
+      });
+
+      if (currentUrl.includes('consent.youtube.com')) {
+        this.logger.info('Detected YouTube consent page redirect, attempting to handle');
+
+        // Wait for consent page to load
+        await this.browserService.waitFor(2000);
+
+        // YouTube consent page specific selectors
+        const consentSelectors = [
+          'button:has-text("Alle akzeptieren")', // German "Accept all"
+          'button:has-text("Accept all")', // English
+          'button:has-text("I agree")',
+          'button:has-text("Einverstanden")', // German "Agree"
+          'form[action*="consent"] button[type="submit"]', // Generic consent form
+          '[data-value="1"]', // YouTube consent accept button
+          'button[jsname]:has-text("Akzeptieren")', // German accept with jsname
+          'button[jsname]:has-text("Accept")', // English accept with jsname
+        ];
+
+        let consentHandled = false;
+        for (const selector of consentSelectors) {
+          try {
+            await this.browserService.waitForSelector(selector, { timeout: 5000 });
+            await this.browserService.click(selector);
+            this.logger.info(`Clicked YouTube consent button: ${selector}`);
+
+            // Wait for redirect back to YouTube
+            await this.browserService.waitFor(3000);
+
+            // Check if we're back on YouTube proper
+            const newUrl = await this.browserService.evaluate(() => {
+              // eslint-disable-next-line no-undef
+              return window.location.href;
+            });
+            if (!newUrl.includes('consent.youtube.com')) {
+              this.logger.info('Successfully handled consent redirect, now on YouTube');
+              consentHandled = true;
+              break;
+            }
+          } catch {
+            // Continue to next selector
+            continue;
+          }
+        }
+
+        if (!consentHandled) {
+          this.logger.warn('Could not handle YouTube consent page automatically');
+          // Try to navigate directly to the videos page again
+          await this.browserService.goto(this.videosUrl, {
+            waitUntil: 'networkidle',
+            timeout: this.timeoutMs,
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.debug('Error handling consent page redirect:', error.message);
+    }
+  }
+
+  /**
    * Handle account security challenges (email verification, etc.)
    * @returns {Promise<boolean>} True if challenge was handled or no challenge present
    */
@@ -412,6 +481,9 @@ export class YouTubeScraperService {
         waitUntil: 'networkidle',
         timeout: this.timeoutMs,
       });
+
+      // Handle consent page if redirected
+      await this.handleConsentPageRedirect();
 
       // Wait for the page to load and videos to appear
       await this.browserService.waitFor(2000);
