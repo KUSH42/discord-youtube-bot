@@ -9,8 +9,9 @@ export class YouTubeScraperService {
     this.logger = logger;
     this.config = config;
     this.browserService = new PlaywrightBrowserService();
-    this.channelUrl = null;
-    this.lastKnownVideoId = null;
+    this.videosUrl = null;
+    this.liveStreamUrl = null;
+    this.lastKnownContentId = null;
     this.isInitialized = false;
     this.isRunning = false;
     this.scrapingInterval = null;
@@ -43,8 +44,10 @@ export class YouTubeScraperService {
       throw new Error('YouTube scraper is already initialized');
     }
 
-    // Construct channel URL
-    this.channelUrl = `https://www.youtube.com/@${channelHandle}/videos`;
+    // Construct channel URLs
+    const baseUrl = `https://www.youtube.com/@${channelHandle}`;
+    this.videosUrl = `${baseUrl}/videos`;
+    this.liveStreamUrl = `${baseUrl}/live`;
 
     try {
       // Launch browser with optimized settings for scraping
@@ -76,15 +79,15 @@ export class YouTubeScraperService {
       // Find and set the initial latest video
       const latestVideo = await this.fetchLatestVideo();
       if (latestVideo) {
-        this.lastKnownVideoId = latestVideo.id;
+        this.lastKnownContentId = latestVideo.id;
         this.logger.info('YouTube scraper initialized', {
-          channelUrl: this.channelUrl,
-          lastKnownVideoId: this.lastKnownVideoId,
+          videosUrl: this.videosUrl,
+          lastKnownContentId: this.lastKnownContentId,
           title: latestVideo.title,
         });
       } else {
         this.logger.warn('YouTube scraper initialized but no videos found', {
-          channelUrl: this.channelUrl,
+          videosUrl: this.videosUrl,
         });
       }
     } catch (error) {
@@ -92,7 +95,7 @@ export class YouTubeScraperService {
       this.logger.error('Failed to initialize YouTube scraper', {
         error: error.message,
         stack: error.stack,
-        channelUrl: this.channelUrl,
+        videosUrl: this.videosUrl,
       });
       throw error;
     }
@@ -111,7 +114,7 @@ export class YouTubeScraperService {
 
     try {
       // Navigate to channel videos page
-      await this.browserService.goto(this.channelUrl, {
+      await this.browserService.goto(this.videosUrl, {
         waitUntil: 'networkidle',
         timeout: this.timeoutMs,
       });
@@ -206,6 +209,7 @@ export class YouTubeScraperService {
           publishedText,
           viewsText,
           thumbnailUrl,
+          type: 'video',
           scrapedAt: new Date().toISOString(),
         };
       });
@@ -221,7 +225,7 @@ export class YouTubeScraperService {
         });
       } else {
         this.logger.warn('No videos found during scraping', {
-          channelUrl: this.channelUrl,
+          videosUrl: this.videosUrl,
         });
       }
 
@@ -236,7 +240,7 @@ export class YouTubeScraperService {
       this.logger.error('Failed to scrape YouTube channel', {
         error: error.message,
         stack: error.stack,
-        channelUrl: this.channelUrl,
+        videosUrl: this.videosUrl,
         attempt: this.metrics.totalScrapingAttempts,
       });
 
@@ -245,26 +249,91 @@ export class YouTubeScraperService {
   }
 
   /**
-   * Check for new videos since last check
-   * @returns {Promise<Object|null>} New video object or null if none found
+   * Fetch the active live stream from the channel's live tab
+   * @returns {Promise<Object|null>} Active live stream details or null if none found
    */
-  async checkForNewVideo() {
+  async fetchActiveLiveStream() {
     if (!this.isInitialized) {
       throw new Error('YouTube scraper is not initialized');
     }
 
-    const latestVideo = await this.fetchLatestVideo();
-
-    if (latestVideo && latestVideo.id !== this.lastKnownVideoId) {
-      this.logger.info('New video detected via scraping', {
-        videoId: latestVideo.id,
-        title: latestVideo.title,
-        previousVideoId: this.lastKnownVideoId,
+    try {
+      await this.browserService.goto(this.liveStreamUrl, {
+        waitUntil: 'networkidle',
+        timeout: this.timeoutMs,
       });
 
-      this.lastKnownVideoId = latestVideo.id;
-      this.metrics.videosDetected++;
+      const liveStream = await this.browserService.evaluate(() => {
+        // eslint-disable-next-line no-undef
+        const liveElement = document.querySelector('ytd-channel-featured-content-renderer a#video-title-link');
+        if (!liveElement) {
+          return null;
+        }
 
+        const url = liveElement.href;
+        const videoIdMatch = url.match(/[?&]v=([^&]+)/);
+        if (!videoIdMatch) {
+          return null;
+        }
+
+        return {
+          id: videoIdMatch[1],
+          title: liveElement.getAttribute('title') || 'Live Stream',
+          url,
+          type: 'livestream',
+          scrapedAt: new Date().toISOString(),
+        };
+      });
+
+      if (liveStream) {
+        this.logger.debug('Successfully scraped active live stream', {
+          videoId: liveStream.id,
+          title: liveStream.title,
+        });
+      }
+
+      return liveStream;
+    } catch (error) {
+      this.logger.error('Failed to scrape for active live stream', {
+        error: error.message,
+        liveStreamUrl: this.liveStreamUrl,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Check for new videos since last check
+   * @returns {Promise<Object|null>} New video object or null if none found
+   */
+  async checkForNewContent() {
+    if (!this.isInitialized) {
+      throw new Error('YouTube scraper is not initialized');
+    }
+
+    // Prioritize checking for a live stream
+    const activeLiveStream = await this.fetchActiveLiveStream();
+    if (activeLiveStream && activeLiveStream.id !== this.lastKnownContentId) {
+      this.logger.info('New live stream detected via scraping', {
+        contentId: activeLiveStream.id,
+        title: activeLiveStream.title,
+        previousContentId: this.lastKnownContentId,
+      });
+      this.lastKnownContentId = activeLiveStream.id;
+      this.metrics.videosDetected++;
+      return activeLiveStream;
+    }
+
+    // If no new live stream, check for the latest video
+    const latestVideo = await this.fetchLatestVideo();
+    if (latestVideo && latestVideo.id !== this.lastKnownContentId) {
+      this.logger.info('New video detected via scraping', {
+        contentId: latestVideo.id,
+        title: latestVideo.title,
+        previousContentId: this.lastKnownContentId,
+      });
+      this.lastKnownContentId = latestVideo.id;
+      this.metrics.videosDetected++;
       return latestVideo;
     }
 
@@ -276,7 +345,7 @@ export class YouTubeScraperService {
    * @param {Function} onNewVideo - Callback function for new videos
    * @returns {Promise<void>}
    */
-  async startMonitoring(onNewVideo) {
+  async startMonitoring(onNewContent) {
     if (!this.isInitialized) {
       throw new Error('YouTube scraper is not initialized');
     }
@@ -287,10 +356,6 @@ export class YouTubeScraperService {
     }
 
     this.isRunning = true;
-    this.logger.info('Starting YouTube scraper monitoring', {
-      intervalMs: this.scrapingIntervalMs,
-      channelUrl: this.channelUrl,
-    });
 
     const monitoringLoop = async () => {
       if (!this.isRunning) {
@@ -298,9 +363,9 @@ export class YouTubeScraperService {
       }
 
       try {
-        const newVideo = await this.checkForNewVideo();
-        if (newVideo && typeof onNewVideo === 'function') {
-          await onNewVideo(newVideo);
+        const newContent = await this.checkForNewContent();
+        if (newContent && typeof onNewContent === 'function') {
+          await onNewContent(newContent);
         }
       } catch (error) {
         this.logger.error('Error in YouTube scraper monitoring loop', {
@@ -357,8 +422,9 @@ export class YouTubeScraperService {
       successRate: Math.round(successRate * 100) / 100,
       isInitialized: this.isInitialized,
       isRunning: this.isRunning,
-      lastKnownVideoId: this.lastKnownVideoId,
-      channelUrl: this.channelUrl,
+      lastKnownContentId: this.lastKnownContentId,
+      videosUrl: this.videosUrl,
+      liveStreamUrl: this.liveStreamUrl,
       configuration: {
         minInterval: this.minInterval,
         maxInterval: this.maxInterval,
@@ -372,13 +438,13 @@ export class YouTubeScraperService {
    * Update the known video ID (useful for initial sync)
    * @param {string} videoId - Video ID to set as last known
    */
-  updateLastKnownVideoId(videoId) {
-    const previousId = this.lastKnownVideoId;
-    this.lastKnownVideoId = videoId;
+  updateLastKnownContentId(contentId) {
+    const previousId = this.lastKnownContentId;
+    this.lastKnownContentId = contentId;
 
-    this.logger.debug('Updated last known video ID', {
+    this.logger.debug('Updated last known content ID', {
       previousId,
-      newId: videoId,
+      newId: contentId,
     });
   }
 
@@ -411,8 +477,8 @@ export class YouTubeScraperService {
 
       if (testVideo) {
         health.status = 'healthy';
-        health.details.lastVideoId = testVideo.id;
-        health.details.lastVideoTitle = testVideo.title;
+        health.details.lastContentId = testVideo.id;
+        health.details.lastContentTitle = testVideo.title;
       } else {
         health.status = 'no_videos_found';
         health.details.warning = 'No videos found during health check';
@@ -441,8 +507,9 @@ export class YouTubeScraperService {
     }
 
     this.isInitialized = false;
-    this.lastKnownVideoId = null;
-    this.channelUrl = null;
+    this.lastKnownContentId = null;
+    this.videosUrl = null;
+    this.liveStreamUrl = null;
   }
 
   /**
