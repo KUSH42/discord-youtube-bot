@@ -30,6 +30,29 @@ export class ContentAnnouncer {
   }
 
   /**
+   * Sanitize content to prevent Discord-specific exploits
+   * Note: Discord handles HTML safely in embeds, so we only sanitize Discord-specific attacks
+   * @param {string} content - Content to sanitize
+   * @returns {string} Sanitized content
+   */
+  sanitizeContent(content) {
+    if (typeof content !== 'string') {
+      return content;
+    }
+
+    return (
+      content
+        // Only sanitize Discord-specific mentions that could be used for spam/abuse
+        .replace(/@everyone/gi, '[@]everyone')
+        .replace(/@here/gi, '[@]here')
+        // Remove obvious script injection attempts (but preserve legitimate HTML for embeds)
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        // Remove javascript: URLs but preserve other data URLs
+        .replace(/javascript:/gi, 'blocked:')
+    );
+  }
+
+  /**
    * Announce content to the appropriate Discord channel
    * @param {Object} content - Content object with type, platform, and data
    * @param {Object} options - Announcement options
@@ -283,8 +306,8 @@ export class ContentAnnouncer {
       return {
         embeds: [
           {
-            title: `🔴 ${channelTitle || 'Channel'} is now live!`,
-            description: title,
+            title: `🔴 ${this.sanitizeContent(channelTitle) || 'Channel'} is now live!`,
+            description: this.sanitizeContent(title),
             url,
             color: 0xff0000, // Red for live
             timestamp: new Date().toISOString(),
@@ -300,7 +323,7 @@ export class ContentAnnouncer {
       };
     }
 
-    return `${emoji} **${channelTitle || 'Channel'}** ${typeText}:\n**${title}**\n${url}`;
+    return `${emoji} **${this.sanitizeContent(channelTitle) || 'Channel'}** ${typeText}:\n**${this.sanitizeContent(title)}**\n${url}`;
   }
 
   /**

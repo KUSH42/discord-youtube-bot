@@ -81,6 +81,11 @@ export class CommandProcessor {
       return { success: false, error: 'Invalid user ID.' };
     }
 
+    // Validate Discord user ID format (should be 17-19 digits)
+    if (!/^\d{17,19}$/.test(userId)) {
+      return { success: false, error: 'Invalid user ID format.' };
+    }
+
     // Command-specific validation
     if (command === 'announce' || command === 'vxtwitter') {
       if (args.length > 0) {

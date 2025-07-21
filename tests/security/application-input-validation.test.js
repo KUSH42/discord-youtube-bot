@@ -235,11 +235,11 @@ describe('Application Input Validation Security Tests', () => {
         const currentUrl = url; // Capture variable for safe closure
         const classifier = contentClassifier; // Capture outer scope variable
         expect(() => {
-          classifier.classifyVideoContent({ videoUrl: currentUrl });
+          classifier.classifyYouTubeContent({ videoUrl: currentUrl });
         }).not.toThrow();
 
         expect(() => {
-          classifier.classifyXPost({ entities: { urls: [{ expanded_url: currentUrl }] } });
+          classifier.classifyXContent(currentUrl, 'test content');
         }).not.toThrow();
       }
     });
@@ -300,7 +300,14 @@ describe('Application Input Validation Security Tests', () => {
         const classifier = contentClassifier; // Capture outer scope variable
         expect(() => {
           classifier.classifyYouTubeContent(currentContent);
-          classifier.classifyXContent('https://x.com/test/status/123', JSON.stringify(currentContent));
+          // Use safe stringification to avoid circular reference errors
+          let contentStr;
+          try {
+            contentStr = JSON.stringify(currentContent);
+          } catch (e) {
+            contentStr = '[Circular Content]';
+          }
+          classifier.classifyXContent('https://x.com/test/status/123', contentStr);
         }).not.toThrow();
       }
     });
