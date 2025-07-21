@@ -416,6 +416,18 @@ export class YouTubeScraperService {
       // Wait for the page to load and videos to appear
       await this.browserService.waitFor(2000);
 
+      // Debug: Log page content for troubleshooting
+      await this.browserService.evaluate(() => {
+        /* eslint-disable no-undef */
+        console.log('Page title:', document.title);
+        console.log('URL:', window.location.href);
+        console.log('ytd-rich-grid-media count:', document.querySelectorAll('ytd-rich-grid-media').length);
+        console.log('ytd-rich-item-renderer count:', document.querySelectorAll('ytd-rich-item-renderer').length);
+        console.log('a#video-title count:', document.querySelectorAll('a#video-title').length);
+        console.log('#video-title-link count:', document.querySelectorAll('#video-title-link').length);
+        /* eslint-enable no-undef */
+      });
+
       // Extract latest video information using multiple selector strategies
       const latestVideo = await this.browserService.evaluate(() => {
         // Strategy 1: Try modern YouTube layout
@@ -438,6 +450,18 @@ export class YouTubeScraperService {
         if (!videoElement) {
           // eslint-disable-next-line no-undef
           videoElement = document.querySelector('#contents ytd-video-renderer:first-child a#video-title');
+        }
+
+        // Strategy 5: Try more generic approach
+        if (!videoElement) {
+          // eslint-disable-next-line no-undef
+          videoElement = document.querySelector('a[href*="/watch?v="]');
+        }
+
+        // Strategy 6: Try shorts or other video formats
+        if (!videoElement) {
+          // eslint-disable-next-line no-undef
+          videoElement = document.querySelector('a[href*="/shorts/"], a[title][href*="youtube.com/watch"]');
         }
 
         if (!videoElement) {
