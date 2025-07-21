@@ -462,8 +462,12 @@ export class BotApplication {
 
         { name: '⏱️ System Uptime', value: uptimeStr, inline: true },
         { name: '💾 Memory Usage', value: formatMemory(system.memory.heapUsed), inline: true },
-        { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
 
+        {
+          name: 'Error Info',
+          value: `Scraper Fails: ${scraper.failedRuns}\nXML Fails: ${monitor.xmlParseFailures}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`,
+          inline: true,
+        },
         {
           name: 'YouTube Stats',
           value: `Subs: ${monitor.subscriptions}\nWebhooks: ${monitor.webhooksReceived}\nProcessed: ${monitor.videosProcessed}\nAnnounced: ${monitor.videosAnnounced}`,
@@ -474,11 +478,8 @@ export class BotApplication {
           value: `Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFound: ${scraper.totalTweetsFound}\nAnnounced: ${scraper.totalTweetsAnnounced}`,
           inline: true,
         },
-        {
-          name: 'Error Info',
-          value: `Scraper Fails: ${scraper.failedRuns}\nXML Fails: ${monitor.xmlParseFailures}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`,
-          inline: true,
-        },
+
+        { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
       ],
       timestamp: system.timestamp,
       footer: {
