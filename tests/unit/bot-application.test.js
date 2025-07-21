@@ -106,9 +106,9 @@ describe('BotApplication', () => {
   });
 
   describe('_formatGitPullOutput', () => {
-    const green = '\\u001b[32m';
-    const red = '\\u001b[31m';
-    const reset = '\\u001b[0m';
+    const green = '\x1b[32m';
+    const red = '\x1b[31m';
+    const reset = '\x1b[0m';
 
     it('should colorize addition and deletion lines', () => {
       const input = `
@@ -145,13 +145,16 @@ ${green}+  console.log('new');${reset}
       expect(botApplication._formatGitPullOutput(input)).toBe(input);
     });
 
-    it('should correctly colorize git pull summary lines', () => {
-      const input = ' src/bot.js | 2 +-';
-      const expected = ` src/bot.js | 2 ${green}+${reset}${red}-${reset}`;
-      // Note: The regex match and replacement can sometimes have subtle differences.
-      // We are re-creating the expected output here based on the function's logic.
-      const actualOutput = botApplication._formatGitPullOutput(input);
-      expect(actualOutput).toBe(expected);
+    it('should correctly colorize git pull summary lines with mixed changes', () => {
+      const input = ' src/bot.js | 4 ++--';
+      const expected = ` src/bot.js | 4 ${green}++${reset}${red}--${reset}`;
+      expect(botApplication._formatGitPullOutput(input)).toBe(expected);
+    });
+
+    it('should handle contiguous blocks of additions in summary', () => {
+      const input = ' test.js | 5 +++++';
+      const expected = ` test.js | 5 ${green}+++++${reset}`;
+      expect(botApplication._formatGitPullOutput(input)).toBe(expected);
     });
 
     it('should handle empty and no-change strings gracefully', () => {

@@ -715,29 +715,37 @@ export class BotApplication {
    * @private
    */
   _formatGitPullOutput(text) {
-    const green = '\\u001b[32m';
-    const red = '\\u001b[31m';
-    const reset = '\\u001b[0m';
+    const green = '\x1b[32m';
+    const red = '\x1b[31m';
+    const reset = '\x1b[0m';
 
     return text
       .split('\n')
       .map(line => {
-        // First, check for the summary line format
+        // Regex for git pull summary line: " filename | 15 +++++++++------"
         const summaryRegex = /^(\s*[\w./-]+\s*\|\s*\d+\s+)([+-]+)$/;
         const summaryMatch = line.match(summaryRegex);
 
         if (summaryMatch) {
           const prefix = summaryMatch[1];
           const changes = summaryMatch[2];
-          const coloredChanges = changes.replace(/\+/g, `${green}+${reset}`).replace(/-/g, `${red}-${reset}`);
+
+          // Use a replacer function to wrap contiguous blocks of '+' or '-'
+          const coloredChanges = changes.replace(/(\++|-+)/g, match => {
+            if (match.startsWith('+')) {
+              return `${green}${match}${reset}`;
+            }
+            return `${red}${match}${reset}`;
+          });
+
           return `${prefix}${coloredChanges}`;
         }
 
-        // Fallback for standard diff lines
-        if (line.trim().startsWith('+') && !/^\+\+\+/.test(line.trim())) {
+        // Regex for standard diff lines
+        if (line.startsWith('+') && !line.startsWith('+++')) {
           return `${green}${line}${reset}`;
         }
-        if (line.trim().startsWith('-') && !/^---/.test(line.trim())) {
+        if (line.startsWith('-') && !line.startsWith('---')) {
           return `${red}${line}${reset}`;
         }
 
