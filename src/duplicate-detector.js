@@ -172,8 +172,10 @@ export class DuplicateDetector {
     if (!url) {
       return null;
     }
-    videoUrlRegex.lastIndex = 0; // Reset regex state for global regex
-    const match = videoUrlRegex.exec(url);
+    // Create a non-global version for single extraction
+    const videoRegex =
+      /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(videoRegex);
     return match ? match[1] : null;
   }
 
@@ -181,8 +183,10 @@ export class DuplicateDetector {
     if (!url) {
       return null;
     }
-    tweetUrlRegex.lastIndex = 0; // Reset regex state for global regex
-    const match = tweetUrlRegex.exec(url);
+    // Create a non-global version for single extraction
+    const tweetRegex =
+      /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d{10,})/;
+    const match = url.match(tweetRegex);
     return match ? match[1] : null;
   }
 

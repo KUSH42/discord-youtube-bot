@@ -148,10 +148,13 @@ describe('Logger Utils Tests', () => {
     });
 
     it('should handle periodic flushing', async () => {
+      // Manually start flushing since it's disabled in test environment
+      transport.startFlushing();
+
       const callback = jest.fn();
       await transport.log({ level: 'info', message: 'Periodic test' }, callback);
 
-      // Wait for periodic flush
+      // Wait for periodic flush (flushInterval is 100ms in test setup)
       await new Promise(resolve => setTimeout(resolve, 150));
       expect(mockChannel.send).toHaveBeenCalled();
     });
