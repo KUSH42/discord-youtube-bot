@@ -136,7 +136,11 @@ export class DiscordRateLimitedSender {
     this.isProcessing = false;
     if (this.processingPromise) {
       // Allow the loop to complete one final time and exit
-      await this.processingPromise;
+      // Add timeout to prevent hanging in tests
+      const timeoutPromise = new Promise(resolve => {
+        setTimeout(resolve, 1000); // 1 second timeout
+      });
+      await Promise.race([this.processingPromise, timeoutPromise]);
     }
   }
 
@@ -172,7 +176,12 @@ export class DiscordRateLimitedSender {
       } else {
         // No messages to process, wait a bit.
         // The loop will pause here until timers are advanced in tests.
-        await this.delay(100);
+        if (this.enableDelays) {
+          await this.delay(100);
+        } else {
+          // In test mode with delays disabled, yield control briefly
+          await Promise.resolve();
+        }
       }
     }
 

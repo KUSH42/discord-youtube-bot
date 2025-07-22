@@ -57,7 +57,7 @@ describe('DiscordRateLimitedSender', () => {
     });
 
     // Mock the delay method to work with Jest fake timers
-    sender.delay = jest.fn().mockImplementation(ms => {
+    sender.delay = jest.fn().mockImplementation(_ms => {
       // Return a promise that resolves immediately for deterministic testing
       return Promise.resolve();
     });
