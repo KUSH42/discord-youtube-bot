@@ -520,6 +520,14 @@ export class DuplicateDetector {
   }
 
   /**
+   * Add a video ID to the known set (legacy compatibility method)
+   * @param {string} videoId - YouTube video ID
+   */
+  addVideoId(videoId) {
+    this.knownVideoIds.add(videoId);
+  }
+
+  /**
    * Check if a tweet ID is known
    * @param {string} tweetId - Tweet ID
    * @returns {boolean} True if tweet ID is known

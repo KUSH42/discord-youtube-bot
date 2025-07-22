@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-// import { createMockClient, createMockChannel } from '../mocks/discord.mock.js';
-// import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
+import { createMockChannel } from '../mocks/discord.mock.js';
+import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 import { DuplicateDetector } from '../../src/duplicate-detector.js';
-// import { createDiscordManager } from '../../src/discord-utils.js';
 import { createWebhookLimiter, createCommandRateLimiter } from '../../src/rate-limiter.js';
 
 describe('Performance and Load Tests', () => {
@@ -102,7 +101,7 @@ describe('Performance and Load Tests', () => {
         },
       };
 
-      const initialMemory = process.memoryUsage().heapUsed;
+      const _initialMemory = process.memoryUsage().heapUsed;
 
       // Add entries up to limit
       for (let i = 0; i < 15000; i++) {
@@ -165,7 +164,7 @@ describe('Performance and Load Tests', () => {
 
   describe('Regex Performance at Scale', () => {
     it('should handle large text with many URLs efficiently', () => {
-      const duplicateDetector = new DuplicateDetector();
+      const _duplicateDetector = new DuplicateDetector();
 
       // Define regex patterns locally
       const videoUrlRegex =
@@ -382,7 +381,7 @@ describe('Performance and Load Tests', () => {
 
       for (const size of payloadSizes) {
         const payload = createLargePayload(size);
-        const req = createMockRequest({
+        const _req = createMockRequest({
           body: `<feed>${payload}</feed>`,
           headers: { 'content-length': payload.length.toString() },
         });
@@ -480,7 +479,7 @@ describe('Performance and Load Tests', () => {
       }
 
       const finalMemory = process.memoryUsage();
-      const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
+      const memoryIncrease = finalMemory.heapUsed - _initialMemory.heapUsed;
 
       // Memory increase should be reasonable (less than 15MB)
       expect(memoryIncrease).toBeLessThan(15 * 1024 * 1024);
@@ -492,15 +491,13 @@ describe('Performance and Load Tests', () => {
       if (gcAvailable) {
         global.gc();
         const afterGCMemory = process.memoryUsage();
-        afterGCIncrease = afterGCMemory.heapUsed - initialMemory.heapUsed;
+        afterGCIncrease = afterGCMemory.heapUsed - _initialMemory.heapUsed;
       }
 
-      // Test GC effectiveness when available, otherwise test reasonable memory behavior
-      if (gcAvailable) {
-        expect(afterGCIncrease).toBeLessThan(5 * 1024 * 1024);
-      } else {
-        expect(memoryIncrease).toBeLessThan(20 * 1024 * 1024);
-      }
+      // Test memory behavior - different thresholds based on GC availability
+      const expectedThreshold = gcAvailable ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+      const actualIncrease = gcAvailable ? afterGCIncrease : memoryIncrease;
+      expect(actualIncrease).toBeLessThan(expectedThreshold);
     });
 
     it('should handle circular reference cleanup', () => {
@@ -533,7 +530,7 @@ describe('Performance and Load Tests', () => {
       }
 
       const finalMemory = process.memoryUsage();
-      const netIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
+      const netIncrease = finalMemory.heapUsed - _initialMemory.heapUsed;
 
       // Memory should be cleaned up properly (allow some variance for GC timing)
       expect(netIncrease).toBeLessThan(5 * 1024 * 1024); // Less than 5MB net increase

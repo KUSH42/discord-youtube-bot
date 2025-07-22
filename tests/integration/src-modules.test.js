@@ -35,7 +35,19 @@ describe('Source Module Integration Tests', () => {
       expect(rateLimiter.isAllowed('user1')).toBe(true);
 
       // Test that validated config works with duplicate detector
-      const duplicateDetector = new DuplicateDetector();
+      const mockPersistentStorage = {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      };
+      const mockLogger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+      const duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
       expect(duplicateDetector.isVideoIdKnown('test-id')).toBe(false);
       duplicateDetector.addVideoId('test-id');
       expect(duplicateDetector.isVideoIdKnown('test-id')).toBe(true);
@@ -53,7 +65,19 @@ describe('Source Module Integration Tests', () => {
       const rateLimiter = new CommandRateLimit(5, 60000);
       expect(rateLimiter.isAllowed('user1')).toBe(true);
 
-      const duplicateDetector = new DuplicateDetector();
+      const mockPersistentStorage = {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      };
+      const mockLogger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+      const duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
       expect(duplicateDetector.isVideoIdKnown('test-id')).toBe(false);
 
       // Clean up
@@ -63,9 +87,23 @@ describe('Source Module Integration Tests', () => {
 
   describe('Duplicate Detection and URL Regex Integration', () => {
     let duplicateDetector;
+    let mockPersistentStorage;
+    let mockLogger;
 
     beforeEach(() => {
-      duplicateDetector = new DuplicateDetector();
+      mockPersistentStorage = {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      };
+      mockLogger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+      duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
     });
 
     afterEach(() => {
@@ -86,7 +124,7 @@ describe('Source Module Integration Tests', () => {
       expect(duplicateDetector.isVideoIdKnown(videoId)).toBe(true);
     });
 
-    it('should extract and track Twitter/X post IDs', () => {
+    it('should extract and track Twitter/X post IDs', async () => {
       const testText = 'Check out this tweet: https://x.com/user/status/1234567890123456789';
       const matches = [...testText.matchAll(tweetUrlRegex)];
 
@@ -96,12 +134,12 @@ describe('Source Module Integration Tests', () => {
 
       // Test with duplicate detector using unified interface
       const tweetUrl = `https://x.com/user/status/${tweetId}`;
-      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(false);
-      duplicateDetector.markAsSeen(tweetUrl);
-      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
+      expect(await duplicateDetector.isDuplicate(tweetUrl)).toBe(false);
+      await duplicateDetector.markAsSeen(tweetUrl);
+      expect(await duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
     });
 
-    it('should handle mixed content with both YouTube and Twitter URLs', () => {
+    it('should handle mixed content with both YouTube and Twitter URLs', async () => {
       const testText = 'Video: https://youtu.be/dQw4w9WgXcQ and tweet: https://x.com/user/status/1234567890123456789';
 
       const videoMatches = [...testText.matchAll(videoUrlRegex)];
@@ -116,11 +154,11 @@ describe('Source Module Integration Tests', () => {
       // Both should be trackable using unified interface
       const videoUrl = `https://youtu.be/${videoId}`;
       const tweetUrl = `https://x.com/user/status/${tweetId}`;
-      duplicateDetector.markAsSeen(videoUrl);
-      duplicateDetector.markAsSeen(tweetUrl);
+      await duplicateDetector.markAsSeen(videoUrl);
+      await duplicateDetector.markAsSeen(tweetUrl);
 
-      expect(duplicateDetector.isDuplicate(videoUrl)).toBe(true);
-      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
+      expect(await duplicateDetector.isDuplicate(videoUrl)).toBe(true);
+      expect(await duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
     });
   });
 
@@ -311,18 +349,30 @@ describe('Source Module Integration Tests', () => {
       const tweetId = tweetMatches[0][1];
 
       // 3. Duplicate detection using unified interface
-      const duplicateDetector = new DuplicateDetector();
+      const mockPersistentStorage = {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      };
+      const mockLogger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+      const duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
       const videoUrl = `https://youtu.be/${videoId}`;
       const tweetUrl = `https://x.com/user/status/${tweetId}`;
 
-      expect(duplicateDetector.isDuplicate(videoUrl)).toBe(false);
-      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(false);
+      expect(await duplicateDetector.isDuplicate(videoUrl)).toBe(false);
+      expect(await duplicateDetector.isDuplicate(tweetUrl)).toBe(false);
 
-      duplicateDetector.markAsSeen(videoUrl);
-      duplicateDetector.markAsSeen(tweetUrl);
+      await duplicateDetector.markAsSeen(videoUrl);
+      await duplicateDetector.markAsSeen(tweetUrl);
 
-      expect(duplicateDetector.isDuplicate(videoUrl)).toBe(true);
-      expect(duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
+      expect(await duplicateDetector.isDuplicate(videoUrl)).toBe(true);
+      expect(await duplicateDetector.isDuplicate(tweetUrl)).toBe(true);
 
       // 4. Rate limiting
       const rateLimiter = new CommandRateLimit(5, 60000);
@@ -340,13 +390,13 @@ describe('Source Module Integration Tests', () => {
         },
       };
 
-      const mockLogger = {
+      const mockDiscordLogger = {
         info: jest.fn(),
         error: jest.fn(),
         warn: jest.fn(),
       };
 
-      const discordManager = new DiscordManager(mockClient, mockLogger, {
+      const discordManager = new DiscordManager(mockClient, mockDiscordLogger, {
         isPostingEnabled: true,
         mirrorMessage: false,
         supportChannelId: 'support123',

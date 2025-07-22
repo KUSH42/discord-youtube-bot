@@ -439,13 +439,14 @@ describe('Discord Integration Tests', () => {
         return { handled: false };
       });
 
-      try {
-        await testChannel.send('Test message');
-      } catch (error) {
-        const result = errorHandler(error);
-        expect(result.handled).toBe(true);
-        expect(result.reason).toBe('permissions');
-      }
+      await expect(testChannel.send('Test message')).rejects.toThrow();
+
+      // Test the error handler separately
+      const permissionError = new Error('Missing Permissions');
+      permissionError.code = 50013;
+      const result = errorHandler(permissionError);
+      expect(result.handled).toBe(true);
+      expect(result.reason).toBe('permissions');
     });
 
     it('should handle rate limiting', async () => {
