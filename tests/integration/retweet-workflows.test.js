@@ -15,14 +15,14 @@ describe('Retweet Workflows Integration', () => {
   // Helper function to create mock config
   const createMockConfig = (overrides = {}) => {
     const defaultValues = {
-      DISCORD_X_CHANNEL_ID: '123456789',
-      DISCORD_X_RETWEETS_CHANNEL_ID: '987654321',
-      DISCORD_SUPPORT_CHANNEL_ID: '555666777',
-      DISCORD_YOUTUBE_CHANNEL_ID: '111222333',
-      DISCORD_X_POSTS_CHANNEL_ID: '123456789',
-      DISCORD_X_REPLIES_CHANNEL_ID: '123456789',
-      DISCORD_X_QUOTES_CHANNEL_ID: '123456789',
-      DISCORD_BOT_SUPPORT_LOG_CHANNEL: '555666777',
+      DISCORD_X_CHANNEL_ID: '123456789012345678',
+      DISCORD_X_RETWEETS_CHANNEL_ID: '987654321098765432',
+      DISCORD_SUPPORT_CHANNEL_ID: '555666777123456789',
+      DISCORD_YOUTUBE_CHANNEL_ID: '111222333456789012',
+      DISCORD_X_POSTS_CHANNEL_ID: '123456789012345678',
+      DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345678',
+      DISCORD_X_QUOTES_CHANNEL_ID: '123456789012345678',
+      DISCORD_BOT_SUPPORT_LOG_CHANNEL: '555666777123456789',
       ...overrides,
     };
 
@@ -114,8 +114,8 @@ describe('Retweet Workflows Integration', () => {
       const result = await announcer.announceContent(content);
 
       expect(result.success).toBe(true);
-      expect(result.channelId).toBe('987654321');
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
+      expect(result.channelId).toBe('987654321098765432');
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321098765432', expect.any(String));
     });
 
     it('should fallback to regular channel when retweet channel not configured', async () => {
@@ -153,9 +153,9 @@ describe('Retweet Workflows Integration', () => {
 
       const result = await announcerWithoutRetweets.announceContent(retweetContent);
 
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('123456789', expect.any(String));
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('123456789012345678', expect.any(String));
       expect(result.success).toBe(true);
-      expect(result.channelId).toBe('123456789');
+      expect(result.channelId).toBe('123456789012345678');
     });
 
     it('should handle retweet detection with multiple strategies', async () => {
@@ -221,7 +221,7 @@ describe('Retweet Workflows Integration', () => {
 
       // Verify retweet indicator is included
       expect(sentMessage).toContain('testuser');
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321098765432', expect.any(String));
     });
   });
 
@@ -229,7 +229,7 @@ describe('Retweet Workflows Integration', () => {
     it('should validate retweet channel configuration', () => {
       const validConfig = createMockConfig();
 
-      expect(validConfig.get('DISCORD_X_RETWEETS_CHANNEL_ID')).toBe('987654321');
+      expect(validConfig.get('DISCORD_X_RETWEETS_CHANNEL_ID')).toBe('987654321098765432');
       expect(validConfig.isRetweetChannelConfigured()).toBe(true);
     });
 
@@ -265,7 +265,7 @@ describe('Retweet Workflows Integration', () => {
       const result = await announcer.announceContent(retweetContent);
 
       // Should handle error gracefully
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321098765432', expect.any(String));
       expect(result.success).toBe(false);
       expect(result.reason).toBe('Discord API error');
     });
