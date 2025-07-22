@@ -24,19 +24,30 @@ export class DiscordTransport extends Transport {
     this.flushTimer = null;
     this.isDestroyed = false;
 
+<<<<<<< HEAD
     // New event-driven message sender for improved Discord API handling
     // More conservative settings for Discord logging to prevent rate limiting
     const logger =
       process.env.NODE_ENV === 'test' ? { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } : console;
     this.messageSender = new DiscordMessageSender(logger, {
+=======
+    // Message sender for improved Discord API handling
+    // More conservative settings for Discord logging to prevent rate limiting
+    this.messageSender = new DiscordMessageSender(console, {
+>>>>>>> 338c3f4 (feat: Complete Phase 4 - Remove legacy adapter and resolve hanging tests)
       baseSendDelay: opts.baseSendDelay || 2000, // 2 seconds between sends for logging
       burstAllowance: opts.burstAllowance || 2, // Only 2 quick messages per minute for logging
       burstResetTime: opts.burstResetTime || 90000, // 1.5 minutes burst reset (more conservative)
       maxRetries: opts.maxRetries || 2,
       backoffMultiplier: 2,
       maxBackoffDelay: opts.maxBackoffDelay || 60000, // 1 minute max backoff for logging
+<<<<<<< HEAD
       testMode: process.env.NODE_ENV === 'test', // Use test mode in test environment
       autoStart: true, // Auto-start processing
+=======
+      testMode: process.env.NODE_ENV === 'test', // Enable test mode in test environment
+      autoStart: process.env.NODE_ENV !== 'test', // Don't auto-start in test environment
+>>>>>>> 338c3f4 (feat: Complete Phase 4 - Remove legacy adapter and resolve hanging tests)
     });
 
     // Don't start periodic flushing in test environment to prevent test timeouts
@@ -141,7 +152,11 @@ export class DiscordTransport extends Transport {
 
     const combinedMessage = messagesToFlush.join('\n');
     try {
+<<<<<<< HEAD
       // Use event-driven message sender for improved Discord API handling
+=======
+      // Use message sender for improved Discord API handling
+>>>>>>> 338c3f4 (feat: Complete Phase 4 - Remove legacy adapter and resolve hanging tests)
       for (const part of splitMessage(combinedMessage, { maxLength: 1980 })) {
         if (part) {
           await this.messageSender.queueMessage(this.channel, part, {
@@ -156,7 +171,11 @@ export class DiscordTransport extends Transport {
 
         // Log rate limiting metrics for debugging
         const metrics = this.messageSender.getMetrics();
+<<<<<<< HEAD
         console.error('[DiscordTransport] Rate limiter metrics:', {
+=======
+        console.error('[DiscordTransport] Message sender metrics:', {
+>>>>>>> 338c3f4 (feat: Complete Phase 4 - Remove legacy adapter and resolve hanging tests)
           successRate: metrics.successRate,
           rateLimitHits: metrics.rateLimitHits,
           currentQueueSize: metrics.currentQueueSize,

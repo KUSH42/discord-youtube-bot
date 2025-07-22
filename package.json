@@ -39,7 +39,13 @@
       "prettier --write"
     ]
   },
-  "keywords": ["Discord", "Twitter", "X", "X.com", "YouTube"],
+  "keywords": [
+    "Discord",
+    "Twitter",
+    "X",
+    "X.com",
+    "YouTube"
+  ],
   "author": "Marco Keller",
   "license": "MIT",
   "dependencies": {
