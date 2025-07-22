@@ -119,11 +119,21 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
     };
 
     monitorApp = new MonitorApplication(dependencies);
+
+    // Clear DuplicateDetector cache at the start of each test
+    if (monitorApp && monitorApp.duplicateDetector) {
+      monitorApp.duplicateDetector.destroy();
+    }
   });
 
   afterEach(() => {
     jest.useRealTimers();
     jest.clearAllMocks();
+
+    // Clear DuplicateDetector cache to prevent test interference
+    if (monitorApp && monitorApp.duplicateDetector) {
+      monitorApp.duplicateDetector.destroy();
+    }
   });
 
   describe('Error-Triggered Fallback Integration', () => {

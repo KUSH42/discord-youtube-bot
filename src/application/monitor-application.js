@@ -728,7 +728,7 @@ export class MonitorApplication {
       const url = `https://www.youtube.com/watch?v=${videoId}`;
 
       // Check for duplicates
-      if (this.duplicateDetector.isDuplicate(url)) {
+      if (await this.duplicateDetector.isDuplicate(url)) {
         this.logger.debug(`Duplicate video detected: ${title} (${videoId})`);
         return;
       }
