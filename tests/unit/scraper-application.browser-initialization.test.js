@@ -96,6 +96,13 @@ describe('Browser Initialization', () => {
       isAuthenticated: jest.fn().mockResolvedValue(true),
     };
 
+    // Mock persistent storage
+    const mockPersistentStorage = {
+      read: jest.fn(),
+      write: jest.fn(),
+      exists: jest.fn().mockReturnValue(false),
+    };
+
     // Create scraper application instance
     scraperApp = new ScraperApplication({
       browserService: mockBrowserService,
@@ -106,6 +113,7 @@ describe('Browser Initialization', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: mockPersistentStorage,
     });
   });
 
