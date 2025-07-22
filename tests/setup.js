@@ -16,9 +16,25 @@ beforeEach(() => {
   process.env.LOG_LEVEL = 'error'; // Suppress logs during tests
 });
 
-afterEach(() => {
-  // Clean up any timers or async operations
-  jest.useRealTimers();
+afterEach(async () => {
+  // Clean up any remaining mocks and timers as safety net
+  jest.clearAllMocks();
+  jest.clearAllTimers();
+
+  // Clear any module registry entries that might be holding references
+  jest.resetModules();
+
+  // Clear global test helpers
+  delete global.mockTimeSource;
+  delete global.advanceAsyncTimers;
+
+  // Force garbage collection if available (helps with memory leaks in tests)
+  if (global.gc) {
+    global.gc();
+  }
+
+  // Small delay to allow cleanup to complete
+  await new Promise(resolve => setImmediate(resolve));
 });
 
 // Global error handler for unhandled rejections

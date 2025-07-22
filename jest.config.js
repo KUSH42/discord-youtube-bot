@@ -50,10 +50,13 @@ export default {
   },
   testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js', '**/__tests__/**/*.js'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-  testTimeout: 30000,
+  testTimeout: 10000, // Reduce timeout to catch hangs faster
   verbose: false,
   forceExit: true,
   detectOpenHandles: true,
+  // Additional cleanup options
+  resetMocks: true,
+  resetModules: true,
   moduleFileExtensions: ['js', 'json'],
   transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
   // Performance optimizations

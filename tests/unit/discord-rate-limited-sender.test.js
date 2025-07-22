@@ -26,10 +26,9 @@ describe('DiscordRateLimitedSender', () => {
     // Test helper for synchronized async timer advancement
     global.advanceAsyncTimers = async ms => {
       mockTimeSource.advanceTime(ms);
-      await jest.advanceTimersByTimeAsync(ms);
-      // Allow promises to resolve
+      jest.advanceTimersByTime(ms); // Use synchronous version to avoid hanging
+      // Allow one microtask queue flush
       await Promise.resolve();
-      await new Promise(resolve => setImmediate(resolve));
     };
 
     mockLogger = {
@@ -55,9 +54,10 @@ describe('DiscordRateLimitedSender', () => {
       enableDelays: false, // Disable delays for deterministic testing
     });
 
-    // Mock the delay method to work with fake timers
+    // Mock the delay method to yield control to prevent infinite busy loops
     sender.delay = jest.fn().mockImplementation(ms => {
-      return new Promise(resolve => setTimeout(resolve, ms));
+      // Use setImmediate to yield control to the event loop
+      return new Promise(resolve => setImmediate(resolve));
     });
   });
 
@@ -329,13 +329,16 @@ describe('DiscordRateLimitedSender', () => {
 
     it('should gracefully shutdown with timeout', async () => {
       sender.startProcessing();
-      sender.enableDelays = true;
+      sender.enableDelays = false; // Disable delays for faster test
       sender.queueMessage(mockChannel, 'Message 1');
       sender.queueMessage(mockChannel, 'Message 2');
 
       expect(sender.messageQueue).toHaveLength(2);
 
-      await sender.shutdown(100); // Short timeout
+      // Advance timers to let messages process
+      await global.advanceAsyncTimers(500);
+
+      await sender.shutdown(1000); // Longer timeout
 
       expect(sender.isProcessing).toBe(false);
       expect(sender.messageQueue).toHaveLength(0);

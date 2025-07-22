@@ -1,3 +1,5 @@
+import { delay } from '../../utils/delay.js';
+
 /**
  * Discord Rate-Limited Message Sender
  * Implements a sophisticated queue and retry system for Discord API rate limiting
@@ -28,6 +30,9 @@ export class DiscordRateLimitedSender {
 
     // Delay behavior control for testing
     this.enableDelays = options.enableDelays !== false; // Default true, can disable for tests
+
+    // Delay function (make the imported delay available as instance method)
+    this.delay = delay;
 
     // Burst tracking
     this.burstCounter = 0;
@@ -460,7 +465,9 @@ export class DiscordRateLimitedSender {
     // Wait for queue to empty or timeout
     while (this.messageQueue.length > 0 && this.timeSource() - startTime < timeoutMs) {
       if (this.enableDelays) {
-        await this.delay(1000);
+        // Use smaller delay than timeout to avoid immediate timeout
+        const checkInterval = Math.min(100, timeoutMs / 10);
+        await this.delay(checkInterval);
       } else {
         // In testing, just yield control
         await Promise.resolve();

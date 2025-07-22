@@ -24,7 +24,11 @@ describe('Playwright Browser Service', () => {
     browserService = new PlaywrightBrowserService({ logger: mockLogger });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clean up browser service if it was launched
+    if (browserService && browserService.browser) {
+      await browserService.close();
+    }
     jest.clearAllMocks();
   });
 

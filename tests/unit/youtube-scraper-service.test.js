@@ -70,7 +70,12 @@ describe('YouTubeScraperService', () => {
   });
 
   afterEach(async () => {
-    await scraperService.cleanup();
+    // Ensure service is properly cleaned up and timers are cleared
+    if (scraperService) {
+      await scraperService.cleanup();
+    }
+    // Clear any remaining timers
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
@@ -293,28 +298,36 @@ describe('YouTubeScraperService', () => {
         type: 'video',
       };
 
-      // Mock the sequence of fetches
-      scraperService.scanForContent = jest
-        .fn()
-        .mockResolvedValueOnce(null) // First check finds nothing new
-        .mockResolvedValueOnce(newVideo); // Second check finds the new video
+      // Mock content coordinator to verify it's called
+      const mockContentCoordinator = scraperService.contentCoordinator;
 
-      await scraperService.startMonitoring(onNewContentCallback);
+      // Reset evaluate mock for cleaner test
+      mockBrowserService.evaluate.mockReset();
+
+      // For scanForContent calls: fetchActiveLiveStream returns null, fetchLatestVideo returns new video
+      mockBrowserService.evaluate
+        .mockResolvedValueOnce(null) // fetchActiveLiveStream in first scan
+        .mockResolvedValueOnce(null) // fetchLatestVideo in first scan
+        .mockResolvedValueOnce(null) // fetchActiveLiveStream in second scan
+        .mockResolvedValueOnce(newVideo); // fetchLatestVideo in second scan finds new video
+
+      await scraperService.startMonitoring();
 
       expect(scraperService.isRunning).toBe(true);
       expect(mockLogger.info).toHaveBeenCalledWith('Starting YouTube scraper monitoring', {
         nextCheckInMs: expect.any(Number),
       });
 
-      // Fast-forward time to trigger monitoring loop twice
-      await jest.advanceTimersByTimeAsync(scraperService.maxInterval * 2 + 5000);
+      // Fast-forward time to trigger monitoring loop twice (use reasonable test intervals)
+      const testInterval = Math.min(scraperService.maxInterval, 30000); // Cap at 30 seconds for tests
+      await jest.advanceTimersByTimeAsync(testInterval * 2 + 1000);
 
-      expect(onNewContentCallback).toHaveBeenCalledWith(newVideo);
-      expect(onNewContentCallback).toHaveBeenCalledTimes(1);
+      // Verify content coordinator was called with the new video
+      expect(mockContentCoordinator.processContent).toHaveBeenCalledWith(newVideo.id, 'scraper', newVideo);
     });
 
     it('should stop monitoring when requested', async () => {
-      await scraperService.startMonitoring(onNewContentCallback);
+      await scraperService.startMonitoring();
       expect(scraperService.isRunning).toBe(true);
 
       await scraperService.stopMonitoring();
@@ -326,20 +339,21 @@ describe('YouTubeScraperService', () => {
     it('should handle errors in monitoring loop gracefully', async () => {
       mockBrowserService.goto.mockRejectedValue(new Error('Monitoring error'));
 
-      await scraperService.startMonitoring(onNewContentCallback);
+      await scraperService.startMonitoring();
 
-      // Advance timer to trigger monitoring loop
-      await jest.advanceTimersByTimeAsync(scraperService.maxInterval);
+      // Advance timer to trigger monitoring loop (use reasonable test interval)
+      const testInterval = Math.min(scraperService.maxInterval, 30000); // Cap at 30 seconds for tests
+      await jest.advanceTimersByTimeAsync(testInterval);
 
+      // The error occurs in the individual fetch methods, not the monitoring loop itself
       expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to scrape'), expect.any(Object));
-      expect(onNewContentCallback).not.toHaveBeenCalled();
       expect(scraperService.isRunning).toBe(true); // Should continue running despite error
     });
 
     it('should warn if monitoring is already running', async () => {
-      await scraperService.startMonitoring(onNewContentCallback);
+      await scraperService.startMonitoring();
 
-      await scraperService.startMonitoring(onNewContentCallback);
+      await scraperService.startMonitoring();
 
       expect(mockLogger.warn).toHaveBeenCalledWith('YouTube scraper monitoring is already running');
     });
@@ -354,9 +368,7 @@ describe('YouTubeScraperService', () => {
         contentCoordinator: mockContentCoordinator,
       });
 
-      await expect(uninitializedScraper.startMonitoring(onNewContentCallback)).rejects.toThrow(
-        'YouTube scraper is not initialized'
-      );
+      await expect(uninitializedScraper.startMonitoring()).rejects.toThrow('YouTube scraper is not initialized');
     });
   });
 
@@ -465,7 +477,7 @@ describe('YouTubeScraperService', () => {
     });
 
     it('should cleanup resources properly', async () => {
-      await scraperService.startMonitoring(jest.fn());
+      await scraperService.startMonitoring();
       expect(scraperService.isRunning).toBe(true);
 
       await scraperService.cleanup();
@@ -511,7 +523,7 @@ describe('YouTubeScraperService', () => {
       expect(customScraper.timeoutMs).toBe(60000);
     });
 
-    it('should handle null/undefined callback in monitoring', async () => {
+    it('should handle monitoring without errors when content coordinator processes content', async () => {
       mockBrowserService.evaluate.mockResolvedValue({
         id: 'initial123',
         title: 'Initial Video',
@@ -519,8 +531,8 @@ describe('YouTubeScraperService', () => {
       });
       await scraperService.initialize('testchannel');
 
-      // Should not throw error with null callback
-      await expect(scraperService.startMonitoring(null)).resolves.not.toThrow();
+      // Should not throw error during monitoring
+      await expect(scraperService.startMonitoring()).resolves.not.toThrow();
 
       // Advance timer to trigger monitoring loop
       mockBrowserService.evaluate.mockResolvedValue({
@@ -531,7 +543,7 @@ describe('YouTubeScraperService', () => {
 
       await jest.advanceTimersByTimeAsync(15000);
 
-      // Should not have thrown error despite null callback
+      // Should continue running without errors
       expect(scraperService.isRunning).toBe(true);
     });
   });
@@ -577,7 +589,10 @@ describe('YouTubeScraperService', () => {
     });
 
     afterEach(async () => {
-      await authenticatedService.cleanup();
+      if (authenticatedService) {
+        await authenticatedService.cleanup();
+      }
+      jest.clearAllTimers();
     });
 
     describe('Authentication Configuration', () => {

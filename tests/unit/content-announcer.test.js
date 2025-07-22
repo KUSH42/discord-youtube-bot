@@ -6,6 +6,7 @@ describe('ContentAnnouncer', () => {
   let mockDiscordService;
   let mockConfig;
   let mockStateManager;
+  let mockLogger;
 
   beforeEach(() => {
     // Mock Discord service
@@ -18,18 +19,18 @@ describe('ContentAnnouncer', () => {
     mockConfig = {
       getRequired: jest.fn(key => {
         const values = {
-          DISCORD_YOUTUBE_CHANNEL_ID: 'youtube-channel-123',
-          DISCORD_X_POSTS_CHANNEL_ID: 'x-posts-channel-123',
-          DISCORD_X_REPLIES_CHANNEL_ID: 'x-replies-channel-123',
-          DISCORD_X_QUOTES_CHANNEL_ID: 'x-quotes-channel-123',
-          DISCORD_X_RETWEETS_CHANNEL_ID: 'x-retweets-channel-123',
+          DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345678',
+          DISCORD_X_POSTS_CHANNEL_ID: '123456789012345679',
+          DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345680',
+          DISCORD_X_QUOTES_CHANNEL_ID: '123456789012345681',
+          DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345682',
         };
         return values[key] || `mock-${key}`;
       }),
       get: jest.fn((key, defaultValue) => {
         const values = {
-          DISCORD_BOT_SUPPORT_LOG_CHANNEL: 'support-channel-123',
-          DISCORD_X_RETWEETS_CHANNEL_ID: 'x-retweets-channel-123',
+          DISCORD_BOT_SUPPORT_LOG_CHANNEL: '123456789012345683',
+          DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345682',
         };
         return values[key] || defaultValue;
       }),
@@ -58,8 +59,16 @@ describe('ContentAnnouncer', () => {
       _state: state,
     };
 
+    // Mock logger
+    mockLogger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+    };
+
     // Create content announcer instance
-    contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager);
+    contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager, mockLogger);
   });
 
   afterEach(() => {
@@ -81,9 +90,10 @@ describe('ContentAnnouncer', () => {
 
       const result = await contentAnnouncer.announceContent(content);
 
+      expect(result.reason).toBeNull();
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
-        'x-posts-channel-123',
+        '123456789012345679',
         '🐦 **testuser** posted:\nhttps://x.com/testuser/status/1234567890'
       );
     });
@@ -104,7 +114,7 @@ describe('ContentAnnouncer', () => {
 
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
-        'x-replies-channel-123',
+        '123456789012345680',
         '↩️ **testuser** replied:\nhttps://x.com/testuser/status/1234567890'
       );
     });
@@ -125,7 +135,7 @@ describe('ContentAnnouncer', () => {
 
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
-        'x-quotes-channel-123',
+        '123456789012345681',
         '💬 **testuser** quoted:\nhttps://x.com/testuser/status/1234567890'
       );
     });
@@ -146,7 +156,7 @@ describe('ContentAnnouncer', () => {
 
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
-        'x-retweets-channel-123',
+        '123456789012345682',
         '🔄 **testuser** retweeted:\nhttps://x.com/testuser/status/1234567890'
       );
     });
@@ -169,7 +179,7 @@ describe('ContentAnnouncer', () => {
 
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledWith(
-        'x-posts-channel-123',
+        '123456789012345679',
         '🐦 **testuser** posted:\nhttps://vxtwitter.com/testuser/status/1234567890'
       );
     });
@@ -331,7 +341,7 @@ describe('ContentAnnouncer', () => {
         type: 'post',
       });
 
-      expect(channelId).toBe('x-posts-channel-123');
+      expect(channelId).toBe('123456789012345679');
     });
 
     it('should route X replies to correct channel', () => {
@@ -340,7 +350,7 @@ describe('ContentAnnouncer', () => {
         type: 'reply',
       });
 
-      expect(channelId).toBe('x-replies-channel-123');
+      expect(channelId).toBe('123456789012345680');
     });
 
     it('should route YouTube videos to correct channel', () => {
@@ -349,7 +359,7 @@ describe('ContentAnnouncer', () => {
         type: 'video',
       });
 
-      expect(channelId).toBe('youtube-channel-123');
+      expect(channelId).toBe('123456789012345678');
     });
 
     it('should return null for unsupported platform/type combinations', () => {
