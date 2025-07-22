@@ -4,7 +4,7 @@
 import Transport from 'winston-transport';
 import * as winston from 'winston';
 import { splitMessage } from './discord-utils.js';
-import { DiscordRateLimitedSender } from './services/implementations/discord-rate-limited-sender.js';
+import { DiscordMessageSender } from './services/implementations/message-sender/discord-message-sender.js';
 
 /**
  * Discord Transport for Winston logger
@@ -24,14 +24,17 @@ export class DiscordTransport extends Transport {
     this.flushTimer = null;
     this.isDestroyed = false;
 
-    // Rate-limited sender for improved Discord API handling
+    // New event-driven message sender for improved Discord API handling
     // More conservative settings for Discord logging to prevent rate limiting
-    this.rateLimitedSender = new DiscordRateLimitedSender(console, {
+    this.messageSender = new DiscordMessageSender(console, {
       baseSendDelay: opts.baseSendDelay || 2000, // 2 seconds between sends for logging
       burstAllowance: opts.burstAllowance || 2, // Only 2 quick messages per minute for logging
       burstResetTime: opts.burstResetTime || 90000, // 1.5 minutes burst reset (more conservative)
       maxRetries: opts.maxRetries || 2,
+      backoffMultiplier: 2,
       maxBackoffDelay: opts.maxBackoffDelay || 60000, // 1 minute max backoff for logging
+      testMode: process.env.NODE_ENV === 'test', // Use test mode in test environment
+      autoStart: true, // Auto-start processing
     });
 
     // Don't start periodic flushing in test environment to prevent test timeouts
@@ -62,9 +65,9 @@ export class DiscordTransport extends Transport {
     // Flush any remaining messages
     await this.flush();
 
-    // Gracefully shutdown the rate-limited sender
-    if (this.rateLimitedSender) {
-      await this.rateLimitedSender.shutdown(5000); // 5 second timeout
+    // Gracefully shutdown the message sender
+    if (this.messageSender) {
+      await this.messageSender.shutdown(5000); // 5 second timeout
     }
 
     this.emit('close');
@@ -136,10 +139,10 @@ export class DiscordTransport extends Transport {
 
     const combinedMessage = messagesToFlush.join('\n');
     try {
-      // Use rate-limited sender for improved Discord API handling
+      // Use event-driven message sender for improved Discord API handling
       for (const part of splitMessage(combinedMessage, { maxLength: 1980 })) {
         if (part) {
-          await this.rateLimitedSender.queueMessage(this.channel, part, {
+          await this.messageSender.queueMessage(this.channel, part, {
             priority: 1, // Logging messages have normal priority
           });
         }
@@ -150,7 +153,7 @@ export class DiscordTransport extends Transport {
         console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
 
         // Log rate limiting metrics for debugging
-        const metrics = this.rateLimitedSender.getMetrics();
+        const metrics = this.messageSender.getMetrics();
         console.error('[DiscordTransport] Rate limiter metrics:', {
           successRate: metrics.successRate,
           rateLimitHits: metrics.rateLimitHits,
