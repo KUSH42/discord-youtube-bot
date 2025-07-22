@@ -16,7 +16,7 @@ export default {
   collectCoverage: false,
 
   // Shorter timeout for faster feedback
-  testTimeout: 15000,
+  testTimeout: 10000,
 
   // Watch mode optimizations
   watchman: true,

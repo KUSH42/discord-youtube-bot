@@ -194,8 +194,8 @@ jobs:
             --coverage \
             --coverageDirectory=coverage/unit \
             --coverageReporters=lcov \
-            --maxWorkers=4 \
-            --testTimeout=30000 \
+            --maxWorkers=1 \
+            --testTimeout=10000 \
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests \
@@ -418,7 +418,8 @@ jobs:
           mkdir -p coverage/integration
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
-            --testTimeout=45000 \
+            --maxWorkers=1 \
+            --testTimeout=15000 \
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests \
@@ -495,8 +496,8 @@ jobs:
           mkdir -p test-results/e2e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config tests/configs/jest.e2e.config.js \
-            --maxWorkers=2 \
-            --testTimeout=60000 \
+            --maxWorkers=1 \
+            --testTimeout=30000 \
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests
@@ -544,8 +545,8 @@ jobs:
             --coverage \
             --coverageDirectory=coverage/performance \
             --coverageReporters=lcov \
-            --maxWorkers=2 \
-            --testTimeout=120000 \
+            --maxWorkers=1 \
+            --testTimeout=60000 \
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests \
@@ -639,8 +640,8 @@ jobs:
           mkdir -p test-results/security
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npx jest --config tests/configs/jest.security.config.js \
-            --maxWorkers=4 \
-            --testTimeout=45000 \
+            --maxWorkers=1 \
+            --testTimeout=20000 \
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests

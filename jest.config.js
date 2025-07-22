@@ -60,8 +60,8 @@ export default {
   resetModules: true,
   moduleFileExtensions: ['js', 'json'],
   transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
-  // Performance optimizations
-  maxWorkers: '50%',
+  // Performance optimizations - conservative for hanging tests
+  maxWorkers: 1,
   cache: true,
   cacheDirectory: '<rootDir>/.jest-cache',
   clearMocks: true,
