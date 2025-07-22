@@ -162,7 +162,6 @@ jobs:
     strategy:
       matrix:
         node-version: ['18', '20']
-        shard: [1, 2]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -190,7 +189,6 @@ jobs:
           mkdir -p coverage/unit
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
-            --shard=${{ matrix.shard }}/2 \
             --coverage \
             --coverageDirectory=coverage/unit \
             --coverageReporters=lcov \
@@ -205,8 +203,8 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: coverage/unit/lcov.info
-          flags: unit-node${{ matrix.node-version }}-shard${{ matrix.shard }}
-          name: unit-tests-node${{ matrix.node-version }}-shard${{ matrix.shard }}
+          flags: unit-node${{ matrix.node-version }}
+          name: unit-tests-node${{ matrix.node-version }}
           fail_ci_if_error: false
           plugins: ''
 
@@ -214,7 +212,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: unit-test-results-node${{ matrix.node-version }}-shard${{ matrix.shard }}
+          name: unit-test-results-node${{ matrix.node-version }}
           path: |
             coverage/unit/
             junit.xml
@@ -726,16 +724,14 @@ jobs:
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          pattern: unit-test-results-node18-*
-          merge-multiple: true
+          name: unit-test-results-node18
           path: test-results/unit/node18/
 
       - name: Download Node 20 unit test coverage
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          pattern: unit-test-results-node20-*
-          merge-multiple: true
+          name: unit-test-results-node20
           path: test-results/unit/node20/
 
       - name: Download test results
