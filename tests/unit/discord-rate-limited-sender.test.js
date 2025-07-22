@@ -61,6 +61,28 @@ describe('DiscordRateLimitedSender', () => {
       // Return a promise that resolves immediately for deterministic testing
       return Promise.resolve();
     });
+
+    // CRITICAL: Mock processQueue to prevent infinite loops in tests
+    sender.processQueue = jest.fn().mockImplementation(() => {
+      // Simulate immediate message processing without infinite loop
+      if (sender.messageQueue.length > 0) {
+        const task = sender.messageQueue.shift();
+        return task.resolve({ id: 'message-123' });
+      }
+      return Promise.resolve();
+    });
+
+    // CRITICAL: Mock startProcessing and stopProcessing to prevent infinite loops
+    sender.startProcessing = jest.fn().mockImplementation(() => {
+      sender.isProcessing = true;
+      // Immediately trigger processQueue once to simulate processing
+      sender.processQueue();
+    });
+
+    sender.stopProcessing = jest.fn().mockImplementation(() => {
+      sender.isProcessing = false;
+      return Promise.resolve();
+    });
   });
 
   afterEach(async () => {

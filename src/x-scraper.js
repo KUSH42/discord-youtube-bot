@@ -16,8 +16,16 @@ config();
 
 /**
  * Standalone X (Twitter) Scraper application
+ * WARNING: This starts real production scraper with infinite background processes
+ * DO NOT call this function in tests - it will cause hanging and memory leaks
  */
 async function main() {
+  // Safety guard to prevent accidental execution in test environment
+  if (process.env.NODE_ENV === 'test') {
+    throw new Error(
+      'x-scraper main() should not be called in test environment - it starts infinite background processes'
+    );
+  }
   let container, logger;
 
   try {

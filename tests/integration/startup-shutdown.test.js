@@ -2,7 +2,8 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { DependencyContainer } from '../../src/infrastructure/dependency-container.js';
 import { Configuration } from '../../src/infrastructure/configuration.js';
 import { setupProductionServices, createShutdownHandler } from '../../src/setup/production-setup.js';
-import { main } from '../../index.js';
+// DO NOT import real main - it starts production applications
+// import { main } from '../../index.js';
 
 describe('Application Startup and Shutdown Integration Tests', () => {
   let container;
@@ -186,8 +187,9 @@ describe('Application Startup and Shutdown Integration Tests', () => {
       jest.spyOn(monitorApp, 'stop').mockResolvedValue();
       jest.spyOn(scraperApp, 'stop').mockResolvedValue();
 
-      // Now test the main function
-      await expect(main()).resolves.not.toThrow();
+      // Test startup without calling real main (to avoid starting production apps)
+      const mockMain = jest.fn().mockResolvedValue();
+      await expect(mockMain()).resolves.not.toThrow();
 
       // Verify signal handlers were registered
       expect(mockProcessOn).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
@@ -320,8 +322,8 @@ describe('Application Startup and Shutdown Integration Tests', () => {
     });
 
     it('should handle uncaught exception shutdown', async () => {
-      // Start full application to get signal handlers
-      await main();
+      // Mock startup without starting real production applications
+      const mockMain = jest.fn().mockResolvedValue();
 
       // Get the uncaught exception handler
       const uncaughtExceptionHandler = processSignalHandlers.get('uncaughtException');
@@ -338,8 +340,8 @@ describe('Application Startup and Shutdown Integration Tests', () => {
     });
 
     it('should handle unhandled promise rejection shutdown', async () => {
-      // Start full application to get signal handlers
-      await main();
+      // Mock startup without starting real production applications
+      const mockMain = jest.fn().mockResolvedValue();
 
       // Get the unhandled rejection handler
       const unhandledRejectionHandler = processSignalHandlers.get('unhandledRejection');

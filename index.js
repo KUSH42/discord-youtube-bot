@@ -18,8 +18,14 @@ config();
 
 /**
  * Main application entry point
+ * WARNING: This starts real production applications with infinite background processes
+ * DO NOT call this function in tests - it will cause hanging and memory leaks
  */
 async function startBot() {
+  // Safety guard to prevent accidental execution in test environment
+  if (process.env.NODE_ENV === 'test') {
+    throw new Error('startBot() should not be called in test environment - it starts infinite background processes');
+  }
   let container;
   try {
     const configuration = new Configuration();
@@ -46,6 +52,12 @@ async function startBot() {
 }
 
 async function main() {
+  // Safety guard to prevent accidental execution in test environment
+  if (process.env.NODE_ENV === 'test') {
+    throw new Error(
+      'main() should not be called in test environment - it starts infinite background processes via startBot()'
+    );
+  }
   let container;
   try {
     container = await startBot();
