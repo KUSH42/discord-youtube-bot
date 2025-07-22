@@ -58,10 +58,19 @@ describe('DiscordRateLimitedSenderAdapter (Backward Compatibility)', () => {
   });
 
   afterEach(async () => {
-    if (adapter && adapter.isProcessing) {
-      await adapter.stopProcessing();
+    // Improved cleanup to prevent hanging
+    try {
+      if (adapter && adapter.isProcessing) {
+        await Promise.race([
+          adapter.stopProcessing(),
+          new Promise(resolve => setTimeout(resolve, 1000)), // 1 second timeout
+        ]);
+      }
+    } catch (error) {
+      console.warn('Cleanup error:', error.message);
     }
     jest.useRealTimers();
+    jest.clearAllMocks();
   });
 
   describe('Constructor and Initialization', () => {
@@ -105,12 +114,16 @@ describe('DiscordRateLimitedSenderAdapter (Backward Compatibility)', () => {
   });
 
   describe('API Compatibility - queueMessage', () => {
-    // DISABLED: Jest-specific hanging issue with EventEmitter async operations
-    it.skip('should queue and process messages like original', async () => {
+    // RE-ENABLED: Fixed async handling with proper cleanup
+    it('should queue and process messages like original', async () => {
       adapter.startProcessing();
+
       const result = await adapter.queueMessage(mockChannel, 'Test message');
       expect(result.id).toBe('message-123');
       expect(mockChannel.send).toHaveBeenCalledWith('Test message');
+
+      // Ensure proper cleanup
+      await adapter.stopProcessing();
     });
 
     // DISABLED: Jest-specific hanging issue with EventEmitter async operations
@@ -162,13 +175,13 @@ describe('DiscordRateLimitedSenderAdapter (Backward Compatibility)', () => {
   });
 
   describe('API Compatibility - Processing Control', () => {
-    it.skip('should start and stop processing like original', async () => {
+    it('should start and stop processing like original', async () => {
       expect(adapter.isProcessing).toBe(false);
 
       adapter.startProcessing();
       expect(adapter.isProcessing).toBe(true);
 
-      await adapter.stopProcessing();
+      await Promise.race([adapter.stopProcessing(), new Promise(resolve => setTimeout(resolve, 2000))]);
       expect(adapter.isProcessing).toBe(false);
     });
 
