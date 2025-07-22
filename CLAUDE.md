@@ -318,6 +318,27 @@ npm run format            # Check Prettier formatting
 - **Quality Gates**: All code must meet established coverage thresholds
 - **CI/CD**: Full test suite with coverage enforcement
 
+### ⚠️ Critical Memory Leak Prevention
+
+**IMPORTANT**: This project previously experienced severe memory leaks and hanging tests caused by tests calling real production `main()` functions that start infinite background processes. This has been resolved with comprehensive fixes.
+
+**🛡️ Safety Guards in Place:**
+All main() functions (`index.js`, `src/x-scraper.js`, `src/youtube-monitor.js`) now include:
+```javascript
+if (process.env.NODE_ENV === 'test') {
+  throw new Error('main() should not be called in test environment - it starts infinite background processes');
+}
+```
+
+**📋 For AI Agents and Developers:**
+1. **NEVER call `main()` functions in tests** - They start production applications with infinite loops
+2. **Use mock functions** instead of real entry points in integration tests
+3. **Add explicit cleanup** (`stopMonitoring()`, `stopProcessing()`) in tests that start services
+4. **Monitor memory usage** during test development
+5. **Reference `docs/HANGING-TESTS-ANALYSIS.md`** for complete details on the resolution
+
+**✅ Current Status**: All memory leak and hanging test issues have been resolved. Tests now complete in reasonable time without memory overflow.
+
 ## 7. Discord Bot Command System
 
 ### Command Processing Architecture
