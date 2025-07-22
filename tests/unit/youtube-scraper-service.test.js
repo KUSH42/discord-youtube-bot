@@ -109,7 +109,6 @@ describe('YouTubeScraperService', () => {
       await scraperService.initialize('emptychannel');
 
       expect(scraperService.isInitialized).toBe(true);
-      expect(scraperService.lastKnownContentId).toBeNull();
       expect(mockLogger.warn).toHaveBeenCalledWith('YouTube scraper initialized but no videos found', {
         videosUrl: 'https://www.youtube.com/@emptychannel/videos',
       });
@@ -202,7 +201,14 @@ describe('YouTubeScraperService', () => {
     });
 
     it('should throw error if not initialized', async () => {
-      const uninitializedScraper = new YouTubeScraperService(mockLogger, mockConfig);
+      const mockContentCoordinator = {
+        processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+      };
+      const uninitializedScraper = new YouTubeScraperService({
+        logger: mockLogger,
+        config: mockConfig,
+        contentCoordinator: mockContentCoordinator,
+      });
 
       await expect(uninitializedScraper.fetchLatestVideo()).rejects.toThrow('YouTube scraper is not initialized');
     });
@@ -259,111 +265,6 @@ describe('YouTubeScraperService', () => {
     });
   });
 
-  describe('New Content Detection', () => {
-    beforeEach(async () => {
-      mockBrowserService.evaluate.mockResolvedValue({
-        id: 'initial123',
-        title: 'Initial Video',
-        url: 'https://www.youtube.com/watch?v=initial123',
-      });
-      await scraperService.initialize('testchannel');
-      jest.clearAllMocks();
-
-      // Reset metrics after initialization for clean test state
-      scraperService.metrics.totalScrapingAttempts = 0;
-      scraperService.metrics.successfulScrapes = 0;
-      scraperService.metrics.failedScrapes = 0;
-      scraperService.metrics.videosDetected = 0;
-    });
-
-    it('should detect new video when video ID changes', async () => {
-      const newVideo = {
-        id: 'new456',
-        title: 'New Video',
-        url: 'https://www.youtube.com/watch?v=new456',
-        publishedText: '5 minutes ago',
-        type: 'video',
-      };
-
-      // Mock live stream to return null to force video check
-      scraperService.fetchActiveLiveStream = jest.fn().mockResolvedValue(null);
-      mockBrowserService.evaluate.mockResolvedValue(newVideo);
-
-      const result = await scraperService.checkForNewContent();
-
-      expect(result).toEqual(newVideo);
-      expect(scraperService.lastKnownContentId).toBe('new456');
-      expect(scraperService.metrics.videosDetected).toBe(1);
-      expect(mockLogger.info).toHaveBeenCalledWith('New video detected via scraping', {
-        contentId: 'new456',
-        title: 'New Video',
-        previousContentId: 'initial123',
-      });
-    });
-
-    it('should return null when no new video is found', async () => {
-      const sameVideo = {
-        id: 'initial123',
-        title: 'Initial Video (updated)',
-        url: 'https://www.youtube.com/watch?v=initial123',
-      };
-
-      mockBrowserService.evaluate.mockResolvedValue(sameVideo);
-
-      const result = await scraperService.checkForNewContent();
-
-      expect(result).toBeNull();
-      expect(scraperService.lastKnownContentId).toBe('initial123');
-      expect(scraperService.metrics.videosDetected).toBe(0);
-    });
-
-    it('should return null when fetching fails', async () => {
-      mockBrowserService.goto.mockRejectedValue(new Error('Network error'));
-
-      const result = await scraperService.checkForNewContent();
-
-      expect(result).toBeNull();
-      expect(scraperService.metrics.failedScrapes).toBe(1);
-    });
-
-    it('should prioritize a new live stream over a new video', async () => {
-      const liveStream = { id: 'live123', title: 'Live Stream', type: 'livestream' };
-      const newVideo = { id: 'newVideo456', title: 'New Video', type: 'video' };
-
-      // Mock both fetches
-      scraperService.fetchActiveLiveStream = jest.fn().mockResolvedValue(liveStream);
-      scraperService.fetchLatestVideo = jest.fn().mockResolvedValue(newVideo);
-
-      const result = await scraperService.checkForNewContent();
-
-      expect(result).toEqual(liveStream); // Live stream should be returned
-      expect(scraperService.lastKnownContentId).toBe('live123');
-      expect(scraperService.fetchLatestVideo).not.toHaveBeenCalled(); // Should not even check for videos
-    });
-
-    it('should fall back to video check when no live stream is active', async () => {
-      const newVideo = { id: 'newVideo456', title: 'New Video', type: 'video' };
-      scraperService.fetchActiveLiveStream = jest.fn().mockResolvedValue(null);
-      scraperService.fetchLatestVideo = jest.fn().mockResolvedValue(newVideo);
-
-      const result = await scraperService.checkForNewContent();
-      expect(result).toEqual(newVideo);
-      expect(scraperService.lastKnownContentId).toBe('newVideo456');
-    });
-
-    it('should return null if live stream is found but is not new', async () => {
-      const liveStream = { id: 'initial123', title: 'Live Stream', type: 'livestream' };
-      scraperService.lastKnownContentId = 'initial123';
-      scraperService.fetchActiveLiveStream = jest.fn().mockResolvedValue(liveStream);
-      scraperService.fetchLatestVideo = jest.fn();
-
-      const result = await scraperService.checkForNewContent();
-      expect(result).toBeNull();
-      // Should fall back and check for videos
-      expect(scraperService.fetchLatestVideo).toHaveBeenCalled();
-    });
-  });
-
   describe('Continuous Monitoring', () => {
     let onNewContentCallback;
 
@@ -393,7 +294,7 @@ describe('YouTubeScraperService', () => {
       };
 
       // Mock the sequence of fetches
-      scraperService.checkForNewContent = jest
+      scraperService.scanForContent = jest
         .fn()
         .mockResolvedValueOnce(null) // First check finds nothing new
         .mockResolvedValueOnce(newVideo); // Second check finds the new video
@@ -444,7 +345,14 @@ describe('YouTubeScraperService', () => {
     });
 
     it('should throw error if not initialized', async () => {
-      const uninitializedScraper = new YouTubeScraperService(mockLogger, mockConfig);
+      const mockContentCoordinator = {
+        processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+      };
+      const uninitializedScraper = new YouTubeScraperService({
+        logger: mockLogger,
+        config: mockConfig,
+        contentCoordinator: mockContentCoordinator,
+      });
 
       await expect(uninitializedScraper.startMonitoring(onNewContentCallback)).rejects.toThrow(
         'YouTube scraper is not initialized'
@@ -511,7 +419,14 @@ describe('YouTubeScraperService', () => {
     });
 
     it('should detect unhealthy state when not initialized', async () => {
-      const uninitializedScraper = new YouTubeScraperService(mockLogger, mockConfig);
+      const mockContentCoordinator = {
+        processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+      };
+      const uninitializedScraper = new YouTubeScraperService({
+        logger: mockLogger,
+        config: mockConfig,
+        contentCoordinator: mockContentCoordinator,
+      });
 
       const health = await uninitializedScraper.healthCheck();
 
@@ -549,16 +464,6 @@ describe('YouTubeScraperService', () => {
       jest.clearAllMocks();
     });
 
-    it('should update last known content ID', () => {
-      scraperService.updateLastKnownContentId('new789');
-
-      expect(scraperService.lastKnownContentId).toBe('new789');
-      expect(mockLogger.debug).toHaveBeenCalledWith('Updated last known content ID', {
-        previousId: 'initial123',
-        newId: 'new789',
-      });
-    });
-
     it('should cleanup resources properly', async () => {
       await scraperService.startMonitoring(jest.fn());
       expect(scraperService.isRunning).toBe(true);
@@ -567,7 +472,6 @@ describe('YouTubeScraperService', () => {
 
       expect(scraperService.isRunning).toBe(false);
       expect(scraperService.isInitialized).toBe(false);
-      expect(scraperService.lastKnownContentId).toBeNull();
       expect(scraperService.videosUrl).toBeNull();
       expect(scraperService.liveStreamUrl).toBeNull();
       expect(mockBrowserService.close).toHaveBeenCalled();
@@ -591,7 +495,14 @@ describe('YouTubeScraperService', () => {
         getBoolean: jest.fn(() => false),
       };
 
-      const customScraper = new YouTubeScraperService(mockLogger, customConfig);
+      const mockContentCoordinator = {
+        processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+      };
+      const customScraper = new YouTubeScraperService({
+        logger: mockLogger,
+        config: customConfig,
+        contentCoordinator: mockContentCoordinator,
+      });
 
       expect(customScraper.minInterval).toBe(10000);
       expect(customScraper.maxInterval).toBe(20000);
@@ -654,7 +565,14 @@ describe('YouTubeScraperService', () => {
         }),
       };
 
-      authenticatedService = new YouTubeScraperService(mockLogger, authConfig);
+      const mockContentCoordinator = {
+        processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+      };
+      authenticatedService = new YouTubeScraperService({
+        logger: mockLogger,
+        config: authConfig,
+        contentCoordinator: mockContentCoordinator,
+      });
       authenticatedService.browserService = mockBrowserService;
     });
 
@@ -675,7 +593,14 @@ describe('YouTubeScraperService', () => {
           get: jest.fn(() => ''),
           getBoolean: jest.fn(() => false),
         };
-        const noAuthService = new YouTubeScraperService(mockLogger, noAuthConfig);
+        const mockContentCoordinator = {
+          processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+        };
+        const noAuthService = new YouTubeScraperService({
+          logger: mockLogger,
+          config: noAuthConfig,
+          contentCoordinator: mockContentCoordinator,
+        });
         expect(noAuthService.authEnabled).toBe(false);
       });
 
@@ -962,7 +887,14 @@ describe('YouTubeScraperService', () => {
       });
 
       it('should skip authentication during initialization when disabled', async () => {
-        const noAuthService = new YouTubeScraperService(mockLogger, mockConfig);
+        const mockContentCoordinator = {
+          processContent: jest.fn().mockResolvedValue({ action: 'announced' }),
+        };
+        const noAuthService = new YouTubeScraperService({
+          logger: mockLogger,
+          config: mockConfig,
+          contentCoordinator: mockContentCoordinator,
+        });
         noAuthService.browserService = mockBrowserService;
         const authSpy = jest.spyOn(noAuthService, 'authenticateWithYouTube');
 
