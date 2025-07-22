@@ -71,6 +71,36 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnValue({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      }),
+    };
+
+    const mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
+      destroy: jest.fn().mockResolvedValue(),
+    };
+
+    const mockContentStateManager = {
+      getContentState: jest.fn().mockReturnValue({ isProcessed: false }),
+      setContentState: jest.fn(),
+      cleanupOldStates: jest.fn(),
+    };
+
+    const mockLivestreamStateMachine = {
+      transitionState: jest.fn(),
+      getCurrentState: jest.fn().mockReturnValue('published'),
+    };
+
+    const mockContentCoordinator = {
+      processContent: jest.fn().mockResolvedValue({ processed: true }),
     };
 
     const dependencies = {
@@ -82,6 +112,10 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       stateManager: mockStateManager,
       eventBus: mockEventBus,
       logger: mockLogger,
+      persistentStorage: mockPersistentStorage,
+      contentStateManager: mockContentStateManager,
+      livestreamStateMachine: mockLivestreamStateMachine,
+      contentCoordinator: mockContentCoordinator,
     };
 
     monitorApp = new MonitorApplication(dependencies);

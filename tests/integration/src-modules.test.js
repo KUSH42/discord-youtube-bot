@@ -46,6 +46,13 @@ describe('Source Module Integration Tests', () => {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        child: jest.fn().mockReturnValue({
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          child: jest.fn().mockReturnThis(),
+        }),
       };
       const duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
       expect(duplicateDetector.isVideoIdKnown('test-id')).toBe(false);
@@ -76,6 +83,13 @@ describe('Source Module Integration Tests', () => {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        child: jest.fn().mockReturnValue({
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          child: jest.fn().mockReturnThis(),
+        }),
       };
       const duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
       expect(duplicateDetector.isVideoIdKnown('test-id')).toBe(false);
@@ -102,6 +116,13 @@ describe('Source Module Integration Tests', () => {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        child: jest.fn().mockReturnValue({
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          child: jest.fn().mockReturnThis(),
+        }),
       };
       duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
     });
@@ -186,6 +207,12 @@ describe('Source Module Integration Tests', () => {
         info: jest.fn(),
         error: jest.fn(),
         warn: jest.fn(),
+        child: jest.fn().mockReturnValue({
+          info: jest.fn(),
+          error: jest.fn(),
+          warn: jest.fn(),
+          child: jest.fn().mockReturnThis(),
+        }),
       };
 
       discordManager = new DiscordManager(mockClient, mockLogger, {
@@ -360,6 +387,13 @@ describe('Source Module Integration Tests', () => {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        child: jest.fn().mockReturnValue({
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          child: jest.fn().mockReturnThis(),
+        }),
       };
       const duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
       const videoUrl = `https://youtu.be/${videoId}`;

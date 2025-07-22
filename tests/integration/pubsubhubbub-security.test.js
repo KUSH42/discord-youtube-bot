@@ -14,6 +14,14 @@ describe('PubSubHubbub Security Integration Tests', () => {
       error: jest.fn(),
       debug: jest.fn(),
       verbose: jest.fn(),
+      child: jest.fn().mockReturnValue({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      }),
     };
 
     mockResponse = {
