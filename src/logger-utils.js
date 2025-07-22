@@ -93,8 +93,8 @@ export class DiscordTransport extends Transport {
         const fetchedChannel = await this.client.channels.fetch(this.channelId);
         if (fetchedChannel && fetchedChannel.isTextBased()) {
           this.channel = fetchedChannel;
-          // Send initialization message using rate-limited sender
-          this.rateLimitedSender
+          // Send initialization message using message sender
+          this.messageSender
             .sendImmediate(this.channel, '✅ **Winston logging transport initialized for this channel.**')
             .catch(error => {
               console.error('[DiscordTransport] Failed to send initialization message:', error);
