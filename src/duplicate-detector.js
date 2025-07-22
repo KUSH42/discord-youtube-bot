@@ -150,6 +150,10 @@ export class DuplicateDetector {
   }
 
   _normalizeUrl(url) {
+    if (!url) {
+      return url;
+    }
+
     const videoId = this._extractVideoId(url);
     if (videoId) {
       return `https://www.youtube.com/watch?v=${videoId}`;
@@ -168,7 +172,8 @@ export class DuplicateDetector {
     if (!url) {
       return null;
     }
-    const match = url.match(videoUrlRegex);
+    videoUrlRegex.lastIndex = 0; // Reset regex state for global regex
+    const match = videoUrlRegex.exec(url);
     return match ? match[1] : null;
   }
 
@@ -176,12 +181,13 @@ export class DuplicateDetector {
     if (!url) {
       return null;
     }
-    const match = url.match(tweetUrlRegex);
+    tweetUrlRegex.lastIndex = 0; // Reset regex state for global regex
+    const match = tweetUrlRegex.exec(url);
     return match ? match[1] : null;
   }
 
   _extractContentId(url) {
-    return this._extractVideoId(url) || this._extractTweetId(url) || url;
+    return this._extractVideoId(url) || this._extractTweetId(url) || null;
   }
 
   _normalizeTitle(title) {
@@ -281,7 +287,7 @@ export class DuplicateDetector {
     if (this._extractVideoId(url)) {
       return 'youtube_video';
     }
-    if (tweetUrlRegex.test(url)) {
+    if (this._extractTweetId(url)) {
       return 'x_tweet';
     }
     return 'unknown';

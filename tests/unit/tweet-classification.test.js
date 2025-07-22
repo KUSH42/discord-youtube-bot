@@ -72,6 +72,7 @@ describe('Tweet Category Classification', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(), // Support logger.child() calls
     };
 
     // Create scraper application instance
