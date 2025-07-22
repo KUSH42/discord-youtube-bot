@@ -275,10 +275,10 @@ describe('YouTubeScraperService', () => {
   });
 
   describe('Continuous Monitoring', () => {
-    let onNewContentCallback;
+    let _onNewContentCallback;
 
     beforeEach(async () => {
-      onNewContentCallback = jest.fn();
+      _onNewContentCallback = jest.fn();
       mockBrowserService.evaluate.mockResolvedValue({
         id: 'initial123',
         title: 'Initial Video',
@@ -315,16 +315,20 @@ describe('YouTubeScraperService', () => {
         .mockResolvedValueOnce(null) // fetchActiveLiveStream in second scan
         .mockResolvedValueOnce(newVideo); // fetchLatestVideo in second scan finds new video
 
+      // CRITICAL: Mock _getNextInterval to return predictable values for testing
+      const testInterval = 1000; // Use 1 second for fast tests
+      jest.spyOn(scraperService, '_getNextInterval').mockReturnValue(testInterval);
+
       await scraperService.startMonitoring();
 
       expect(scraperService.isRunning).toBe(true);
       expect(mockLogger.info).toHaveBeenCalledWith('Starting YouTube scraper monitoring', {
-        nextCheckInMs: expect.any(Number),
+        nextCheckInMs: testInterval,
       });
 
-      // Fast-forward time to trigger monitoring loop twice (use reasonable test intervals)
-      const testInterval = Math.min(scraperService.maxInterval, 30000); // Cap at 30 seconds for tests
-      await jest.advanceTimersByTimeAsync(testInterval * 2 + 1000);
+      // Fast-forward time to trigger monitoring loop twice with predictable intervals
+      await jest.advanceTimersByTimeAsync(testInterval + 100); // First scan (no new content)
+      await jest.advanceTimersByTimeAsync(testInterval + 100); // Second scan (finds new video)
 
       // Verify content coordinator was called with the new video
       expect(mockContentCoordinator.processContent).toHaveBeenCalledWith(newVideo.id, 'scraper', newVideo);
@@ -346,11 +350,14 @@ describe('YouTubeScraperService', () => {
     it('should handle errors in monitoring loop gracefully', async () => {
       mockBrowserService.goto.mockRejectedValue(new Error('Monitoring error'));
 
+      // CRITICAL: Mock _getNextInterval to return predictable values for testing
+      const testInterval = 1000; // Use 1 second for fast tests
+      jest.spyOn(scraperService, '_getNextInterval').mockReturnValue(testInterval);
+
       await scraperService.startMonitoring();
 
-      // Advance timer to trigger monitoring loop (use reasonable test interval)
-      const testInterval = Math.min(scraperService.maxInterval, 30000); // Cap at 30 seconds for tests
-      await jest.advanceTimersByTimeAsync(testInterval);
+      // Advance timer to trigger monitoring loop with predictable interval
+      await jest.advanceTimersByTimeAsync(testInterval + 100);
 
       // The error occurs in the individual fetch methods, not the monitoring loop itself
       expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to scrape'), expect.any(Object));
@@ -544,6 +551,10 @@ describe('YouTubeScraperService', () => {
       });
       await scraperService.initialize('testchannel');
 
+      // CRITICAL: Mock _getNextInterval to return predictable values for testing
+      const testInterval = 1000; // Use 1 second for fast tests
+      jest.spyOn(scraperService, '_getNextInterval').mockReturnValue(testInterval);
+
       // Should not throw error during monitoring
       await expect(scraperService.startMonitoring()).resolves.not.toThrow();
 
@@ -554,7 +565,7 @@ describe('YouTubeScraperService', () => {
         url: 'https://www.youtube.com/watch?v=new123',
       });
 
-      await jest.advanceTimersByTimeAsync(15000);
+      await jest.advanceTimersByTimeAsync(testInterval + 100);
 
       // Should continue running without errors
       expect(scraperService.isRunning).toBe(true);

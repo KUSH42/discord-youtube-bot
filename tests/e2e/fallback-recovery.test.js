@@ -235,7 +235,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       } catch (error) {
         retryError = error;
       }
-      
+
       // Retry should fail for malformed XML
       expect(retryError).toBeTruthy();
       expect(retryError.message).toContain('XML structure');

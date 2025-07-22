@@ -54,43 +54,15 @@ describe('DiscordRateLimitedSender', () => {
       autoStart: false, // Disable auto-start for manual test control
       timeSource: global.mockTimeSource, // Use controllable time source
       enableDelays: false, // Disable delays for deterministic testing
+      testMode: true, // Enable synchronous processing for tests
     });
 
-    // Mock the delay method to work with Jest fake timers
-    sender.delay = jest.fn().mockImplementation(_ms => {
-      // Return a promise that resolves immediately for deterministic testing
-      return Promise.resolve();
-    });
-
-    // CRITICAL: Mock processQueue to prevent infinite loops in tests
-    sender.processQueue = jest.fn().mockImplementation(() => {
-      // Simulate immediate message processing without infinite loop
-      if (sender.messageQueue.length > 0) {
-        const task = sender.messageQueue.shift();
-        return task.resolve({ id: 'message-123' });
-      }
-      return Promise.resolve();
-    });
-
-    // CRITICAL: Mock startProcessing and stopProcessing to prevent infinite loops
-    sender.startProcessing = jest.fn().mockImplementation(() => {
-      sender.isProcessing = true;
-      // Immediately trigger processQueue once to simulate processing
-      sender.processQueue();
-    });
-
-    sender.stopProcessing = jest.fn().mockImplementation(() => {
-      sender.isProcessing = false;
-      return Promise.resolve();
-    });
+    // No need for extensive mocking since we fixed the core infinite loop issue
   });
 
   afterEach(async () => {
-    if (sender) {
-      if (sender.isProcessing) {
-        await sender.stopProcessing(); // Use proper shutdown method
-      }
-      sender.clearQueue('Test cleanup');
+    if (sender && sender.isProcessing) {
+      await sender.stopProcessing();
     }
     jest.useRealTimers();
   });
@@ -99,7 +71,7 @@ describe('DiscordRateLimitedSender', () => {
     it('should queue and send messages successfully', async () => {
       sender.startProcessing();
       const messagePromise = sender.queueMessage(mockChannel, 'Test message');
-      await global.advanceAsyncTimers(200);
+      // In testMode, processing is synchronous, so no need to advance timers
       const result = await messagePromise;
       expect(result.id).toBe('message-123');
       expect(mockChannel.send).toHaveBeenCalledWith('Test message');

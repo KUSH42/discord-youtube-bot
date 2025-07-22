@@ -31,6 +31,9 @@ export class DiscordRateLimitedSender {
     // Delay behavior control for testing
     this.enableDelays = options.enableDelays !== false; // Default true, can disable for tests
 
+    // Test mode for synchronous processing
+    this.testMode = options.testMode || false;
+
     // Delay function (make the imported delay available as instance method)
     this.delay = delay;
 
@@ -94,6 +97,19 @@ export class DiscordRateLimitedSender {
         priority: messageTask.priority,
         isPaused: this.isPaused,
       });
+
+      // In test mode, process messages immediately when they are queued
+      if (this.testMode && this.isProcessing) {
+        // Process this message immediately in testMode
+        setImmediate(async () => {
+          if (this.messageQueue.includes(messageTask)) {
+            const taskIndex = this.messageQueue.indexOf(messageTask);
+            const task = this.messageQueue.splice(taskIndex, 1)[0];
+            await this.processMessage(task);
+            this.updateQueueMetrics();
+          }
+        });
+      }
     });
   }
 
@@ -148,7 +164,21 @@ export class DiscordRateLimitedSender {
    * Process messages in the queue
    */
   async processQueue() {
-    while (this.isProcessing) {
+    // In test mode, process all messages synchronously without infinite loop
+    if (this.testMode) {
+      while (this.messageQueue.length > 0 && this.isProcessing) {
+        const task = this.messageQueue.shift();
+        await this.processMessage(task);
+        this.updateQueueMetrics();
+      }
+      if (this._processingResolve) {
+        this._processingResolve();
+      }
+      return;
+    }
+
+    // Production mode with controlled processing loop
+    const processBatch = async () => {
       // Check if we need to wait due to rate limiting
       if (this.isPaused && this.pauseUntil && this.timeSource() < this.pauseUntil) {
         const remainingPause = this.pauseUntil - this.timeSource();
@@ -158,7 +188,7 @@ export class DiscordRateLimitedSender {
         if (this.enableDelays) {
           await this.delay(Math.min(remainingPause, 1000)); // Check every second
         }
-        continue;
+        return;
       }
 
       // Clear pause if time has elapsed
@@ -173,15 +203,19 @@ export class DiscordRateLimitedSender {
         const task = this.messageQueue.shift();
         await this.processMessage(task);
         this.updateQueueMetrics();
+      }
+    };
+
+    // Use a controlled loop instead of infinite while loop
+    while (this.isProcessing) {
+      await processBatch();
+
+      // Yield control properly to prevent hanging tests
+      if (this.enableDelays) {
+        await this.delay(100);
       } else {
-        // No messages to process, wait a bit.
-        // The loop will pause here until timers are advanced in tests.
-        if (this.enableDelays) {
-          await this.delay(100);
-        } else {
-          // In test mode with delays disabled, yield control briefly
-          await Promise.resolve();
-        }
+        // In test mode, yield control and give time for timers/promises to resolve
+        await new Promise(resolve => setImmediate(resolve));
       }
     }
 
