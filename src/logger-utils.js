@@ -26,7 +26,9 @@ export class DiscordTransport extends Transport {
 
     // New event-driven message sender for improved Discord API handling
     // More conservative settings for Discord logging to prevent rate limiting
-    this.messageSender = new DiscordMessageSender(console, {
+    const logger =
+      process.env.NODE_ENV === 'test' ? { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } : console;
+    this.messageSender = new DiscordMessageSender(logger, {
       baseSendDelay: opts.baseSendDelay || 2000, // 2 seconds between sends for logging
       burstAllowance: opts.burstAllowance || 2, // Only 2 quick messages per minute for logging
       burstResetTime: opts.burstResetTime || 90000, // 1.5 minutes burst reset (more conservative)

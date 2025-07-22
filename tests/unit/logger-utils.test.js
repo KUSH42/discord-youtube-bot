@@ -30,8 +30,15 @@ describe('Logger Utils Tests', () => {
     });
 
     afterEach(() => {
+      // Clear the timer first to prevent issues
+      if (transport.flushTimer) {
+        clearInterval(transport.flushTimer);
+        transport.flushTimer = null;
+      }
       transport.close();
       jest.clearAllMocks();
+      // Reset the mock channel send function to resolve
+      mockChannel.send.mockReset().mockResolvedValue(true);
     });
 
     it('should initialize transport with options', () => {
@@ -157,6 +164,12 @@ describe('Logger Utils Tests', () => {
       // Wait for periodic flush (flushInterval is 100ms in test setup)
       await new Promise(resolve => setTimeout(resolve, 150));
       expect(mockChannel.send).toHaveBeenCalled();
+
+      // Clear the timer to prevent interference with other tests
+      if (transport.flushTimer) {
+        clearInterval(transport.flushTimer);
+        transport.flushTimer = null;
+      }
     });
   });
 
