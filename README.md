@@ -33,8 +33,9 @@ The project is designed with a clear separation of concerns, making it easy for 
 - **🛡️ Security & Reliability**
     - **Credential Encryption**: Securely stores API keys and passwords using `.envx` encryption.
     - **Webhook Signature Verification**: Cryptographically validates incoming YouTube notifications.
-    - **Advanced Rate Limiting**: Sophisticated Discord API rate limiting with 429 error handling and exponential backoff.
-    - **Queue Management**: Intelligent message queue with priority support and graceful degradation.
+    - **Advanced Rate Limiting**: Modern event-driven Discord API rate limiting with burst allowances, 429 error handling, and exponential backoff.
+    - **Event-Driven Message Processing**: Replaces infinite-loop architecture with EventEmitter patterns for better testing and reliability.
+    - **Queue Management**: Priority-based message queue with deterministic test execution and graceful degradation.
     - **Configuration Validation**: Ensures all required configurations are present on startup.
 
 - **🏗️ Architecture & Extensibility**
@@ -73,6 +74,26 @@ src/
 ├── ⚙️ setup/                 # Production dependency wiring
 └── 🛠️ utilities/             # Shared utilities (e.g., logger, validator)
 ```
+
+## Recent Architectural Improvements
+
+**🚀 Event-Driven Message Processing Migration (2025)**
+The bot recently underwent a comprehensive architectural migration to modernize the Discord message processing system:
+
+- **✅ Eliminated Infinite Loops**: Replaced problematic infinite `while` loops with event-driven patterns
+- **✅ Modern Architecture**: Implemented proven patterns from Bull Queue, Express.js, and EventEmitter systems  
+- **✅ Zero Downtime Migration**: 4-phase migration maintained 100% backward compatibility during transition
+- **✅ Improved Testing**: Deterministic test execution with proper async handling eliminates hanging tests
+- **✅ Better Performance**: Event-driven processing with priority-based message queuing
+
+**Key Components Added**:
+- `MessageQueue`: Priority-based message management with comprehensive lifecycle tracking
+- `RateLimiter`: Burst allowances and reactive rate limiting with Discord 429 handling
+- `MessageProcessor`: Command pattern implementation for processing lifecycle management  
+- `ProcessingScheduler`: Test vs production mode for deterministic testing
+- `RetryHandler`: Exponential backoff with error classification
+
+For complete migration details, see [`DISCORD-RATE-LIMITED-SENDER-MIGRATION.md`](./DISCORD-RATE-LIMITED-SENDER-MIGRATION.md).
 
 ## YouTube Content Detection Reliability
 
@@ -360,14 +381,16 @@ This project is committed to high quality through a comprehensive and automated 
 Our testing philosophy emphasizes fast feedback, high confidence in critical paths, and maintainability. All tests are executed automatically on every push and pull request via GitHub Actions.
 
 **Recent Testing Enhancements:**
+- **Event-Driven Architecture**: Modern testing patterns for EventEmitter-based message processing
+- **Deterministic Test Execution**: Eliminated hanging tests with proper async timer handling and test mode support
+- **Rate Limiting Testing**: Comprehensive tests for burst allowances, 429 handling, and exponential backoff
+- **Message Queue Testing**: Priority-based queuing, processing lifecycle, and graceful shutdown testing
 - **Enhanced Duplicate Detection**: Comprehensive tests for content fingerprinting, URL normalization, and cross-restart persistence
 - **Content State Management**: Tests for unified state tracking, livestream transitions, and persistent storage
 - **Race Condition Prevention**: Tests for ContentCoordinator's processing locks and source priority handling
 - **Comprehensive Command Testing**: Complete workflow tests for all Discord bot commands (!health, !announce, !restart, etc.)
 - **YouTube Content Monitoring**: End-to-end tests for the complete YouTube announcement pipeline
 - **Fallback Recovery**: Tests for YouTube API failure scenarios and recovery mechanisms
-- **Rate Limiting**: Tests for Discord API rate limiting and 429 error handling
-- **Authorization**: Comprehensive tests for user authorization and command validation
 
 -   **Run all tests locally:**
     ```sh

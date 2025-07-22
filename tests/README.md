@@ -33,7 +33,14 @@ Our testing strategy is guided by the following core principles:
 - **YouTube Scraper Updates:** Updated tests for new architecture with content coordinator integration
 - **CI/CD Reliability:** Resolved hanging tests and improved GitHub Actions execution time
 
-For detailed information on recent fixes, see `docs/TEST-INFRASTRUCTURE-FIXES.md`.
+**Event-Driven Architecture Migration (2025-07-22):**
+- **Modern Message Processing:** Migrated from infinite-loop to EventEmitter-based architecture with deterministic testing
+- **Comprehensive Component Testing:** Added tests for MessageQueue, RateLimiter, MessageProcessor, and ProcessingScheduler
+- **Test Mode Support:** Implemented proper test vs production mode handling for reliable test execution
+- **Jest Compatibility Improvements:** Resolved EventEmitter async operation issues in Jest environment
+- **Backward Compatibility Validation:** Ensured seamless migration with adapter pattern testing
+
+For detailed information on recent fixes, see `docs/TEST-INFRASTRUCTURE-FIXES.md` and `DISCORD-RATE-LIMITED-SENDER-MIGRATION.md`.
 
 ## 3. Test Types & Scope
 
