@@ -72,6 +72,10 @@ describe('YouTubeScraperService', () => {
   afterEach(async () => {
     // Ensure service is properly cleaned up and timers are cleared
     if (scraperService) {
+      // Force stop monitoring first
+      if (scraperService.isRunning) {
+        await scraperService.stopMonitoring();
+      }
       await scraperService.cleanup();
     }
     // Clear any remaining timers
@@ -324,6 +328,9 @@ describe('YouTubeScraperService', () => {
 
       // Verify content coordinator was called with the new video
       expect(mockContentCoordinator.processContent).toHaveBeenCalledWith(newVideo.id, 'scraper', newVideo);
+
+      // Explicitly stop monitoring to prevent hanging
+      await scraperService.stopMonitoring();
     });
 
     it('should stop monitoring when requested', async () => {
@@ -348,6 +355,9 @@ describe('YouTubeScraperService', () => {
       // The error occurs in the individual fetch methods, not the monitoring loop itself
       expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to scrape'), expect.any(Object));
       expect(scraperService.isRunning).toBe(true); // Should continue running despite error
+
+      // Explicitly stop monitoring to prevent hanging
+      await scraperService.stopMonitoring();
     });
 
     it('should warn if monitoring is already running', async () => {
@@ -356,6 +366,9 @@ describe('YouTubeScraperService', () => {
       await scraperService.startMonitoring();
 
       expect(mockLogger.warn).toHaveBeenCalledWith('YouTube scraper monitoring is already running');
+
+      // Explicitly stop monitoring to prevent hanging
+      await scraperService.stopMonitoring();
     });
 
     it('should throw error if not initialized', async () => {
@@ -545,6 +558,9 @@ describe('YouTubeScraperService', () => {
 
       // Should continue running without errors
       expect(scraperService.isRunning).toBe(true);
+
+      // Explicitly stop monitoring to prevent hanging
+      await scraperService.stopMonitoring();
     });
   });
 

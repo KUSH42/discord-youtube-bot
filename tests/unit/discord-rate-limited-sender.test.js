@@ -27,8 +27,10 @@ describe('DiscordRateLimitedSender', () => {
     global.advanceAsyncTimers = async ms => {
       mockTimeSource.advanceTime(ms);
       jest.advanceTimersByTime(ms); // Use synchronous version to avoid hanging
-      // Allow one microtask queue flush
+      // Allow multiple microtask queue flushes for setImmediate
       await Promise.resolve();
+      await Promise.resolve();
+      await new Promise(resolve => setImmediate(resolve));
     };
 
     mockLogger = {
@@ -54,10 +56,10 @@ describe('DiscordRateLimitedSender', () => {
       enableDelays: false, // Disable delays for deterministic testing
     });
 
-    // Mock the delay method to yield control to prevent infinite busy loops
+    // Mock the delay method to work with Jest fake timers
     sender.delay = jest.fn().mockImplementation(ms => {
-      // Use setImmediate to yield control to the event loop
-      return new Promise(resolve => setImmediate(resolve));
+      // Return a promise that resolves immediately for deterministic testing
+      return Promise.resolve();
     });
   });
 
@@ -79,6 +81,9 @@ describe('DiscordRateLimitedSender', () => {
       const result = await messagePromise;
       expect(result.id).toBe('message-123');
       expect(mockChannel.send).toHaveBeenCalledWith('Test message');
+
+      // Explicitly stop processing to prevent hanging
+      await sender.stopProcessing();
     }, 5000);
 
     it('should handle multiple messages in queue order', async () => {
@@ -91,6 +96,9 @@ describe('DiscordRateLimitedSender', () => {
       expect(mockChannel.send).toHaveBeenNthCalledWith(1, 'Message 1');
       expect(mockChannel.send).toHaveBeenNthCalledWith(2, 'Message 2');
       expect(mockChannel.send).toHaveBeenNthCalledWith(3, 'Message 3');
+
+      // Explicitly stop processing to prevent hanging
+      await sender.stopProcessing();
     }, 5000);
 
     it('should respect message priority ordering', async () => {

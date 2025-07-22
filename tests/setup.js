@@ -21,20 +21,18 @@ afterEach(async () => {
   jest.clearAllMocks();
   jest.clearAllTimers();
 
-  // Clear any module registry entries that might be holding references
-  jest.resetModules();
-
-  // Clear global test helpers
-  delete global.mockTimeSource;
-  delete global.advanceAsyncTimers;
+  // Clear global test helpers (avoid Jest's soft-delete warnings)
+  if (global.mockTimeSource) {
+    global.mockTimeSource = undefined;
+  }
+  if (global.advanceAsyncTimers) {
+    global.advanceAsyncTimers = undefined;
+  }
 
   // Force garbage collection if available (helps with memory leaks in tests)
   if (global.gc) {
     global.gc();
   }
-
-  // Small delay to allow cleanup to complete
-  await new Promise(resolve => setImmediate(resolve));
 });
 
 // Global error handler for unhandled rejections
@@ -42,12 +40,14 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-// Mock console methods to reduce noise in tests
+// Mock console methods to reduce noise in tests (avoid overriding completely)
+const originalConsole = global.console;
 global.console = {
-  ...console,
+  ...originalConsole,
   log: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn(),
   debug: jest.fn(),
+  // Keep error for debugging and Jest internal operations
+  error: originalConsole.error,
 };
