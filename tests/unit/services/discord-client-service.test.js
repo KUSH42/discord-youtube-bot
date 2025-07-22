@@ -24,6 +24,7 @@ describe('Discord Client Service', () => {
       channels: {
         fetch: jest.fn().mockResolvedValue(mockChannel),
       },
+      destroy: jest.fn().mockResolvedValue(undefined),
     };
 
     // Correctly instantiate the service with the mock client
@@ -120,8 +121,6 @@ describe('Discord Client Service', () => {
     });
 
     it('should destroy connection properly', async () => {
-      mockClient.destroy = jest.fn().mockResolvedValue(undefined);
-
       await discordClientService.destroy();
 
       expect(mockClient.destroy).toHaveBeenCalled();
