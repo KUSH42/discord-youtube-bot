@@ -154,7 +154,13 @@ export class DuplicateDetector {
     if (videoId) {
       return `https://www.youtube.com/watch?v=${videoId}`;
     }
-    // Add normalizers for other platforms (e.g., Twitter) if needed
+
+    // Normalize X/Twitter URLs
+    const tweetId = this._extractTweetId(url);
+    if (tweetId) {
+      return `https://x.com/i/status/${tweetId}`;
+    }
+
     return url;
   }
 
@@ -166,8 +172,16 @@ export class DuplicateDetector {
     return match ? match[1] : null;
   }
 
+  _extractTweetId(url) {
+    if (!url) {
+      return null;
+    }
+    const match = url.match(tweetUrlRegex);
+    return match ? match[1] : null;
+  }
+
   _extractContentId(url) {
-    return this._extractVideoId(url) || url;
+    return this._extractVideoId(url) || this._extractTweetId(url) || url;
   }
 
   _normalizeTitle(title) {
@@ -239,11 +253,14 @@ export class DuplicateDetector {
     const videoMatches = [...(content.url || '').matchAll(videoUrlRegex)];
     const tweetMatches = [...(content.url || '').matchAll(tweetUrlRegex)];
 
+    // Check if fingerprinting is meaningful (has title or publishedAt)
+    const fingerprintingEnabled = !!fingerprint && (!!content.title || !!content.publishedAt);
+
     const result = {
       videos: videoMatches.map(match => match[1]).filter(Boolean),
       tweets: tweetMatches.map(match => match[1]).filter(Boolean),
       fingerprint: {
-        enabled: !!fingerprint,
+        enabled: fingerprintingEnabled,
         generated: fingerprint,
         isDuplicate: isDuplicateFingerprint || isDuplicateUrl,
       },

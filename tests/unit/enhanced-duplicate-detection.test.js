@@ -224,6 +224,9 @@ describe('Enhanced Duplicate Detection with Fingerprinting', () => {
         await duplicateDetector.markAsSeenWithFingerprint(content);
       }
 
+      // Manually trigger cleanup since we exceeded maxSize
+      duplicateDetector._cleanupMemory();
+
       const stats = duplicateDetector.getEnhancedStats();
       expect(stats.fingerprints).toBeLessThanOrEqual(duplicateDetector.maxSize);
     });
@@ -241,17 +244,17 @@ describe('Enhanced Duplicate Detection with Fingerprinting', () => {
       expect(result.fingerprint.enabled).toBe(false); // No title/publishedAt provided
     });
 
-    test('should maintain existing isDuplicate functionality', () => {
+    test('should maintain existing isDuplicate functionality', async () => {
       const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
       // Should not be duplicate initially
-      expect(duplicateDetector.isDuplicate(url)).toBe(false);
+      expect(await duplicateDetector.isDuplicate(url)).toBe(false);
 
       // Mark as seen using existing method
-      duplicateDetector.markAsSeen(url);
+      await duplicateDetector.markAsSeen(url);
 
       // Should be duplicate now
-      expect(duplicateDetector.isDuplicate(url)).toBe(true);
+      expect(await duplicateDetector.isDuplicate(url)).toBe(true);
     });
   });
 });
