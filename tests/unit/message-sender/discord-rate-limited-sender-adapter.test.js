@@ -7,7 +7,30 @@ describe('DiscordRateLimitedSenderAdapter (Backward Compatibility)', () => {
   let mockChannel;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.useFakeTimers();
+
+    // Mock time source for deterministic testing (same pattern as main tests)
+    let currentTime = 0;
+    const mockTimeSource = jest.fn(() => currentTime);
+    mockTimeSource.advanceTime = ms => {
+      currentTime += ms;
+      return currentTime;
+    };
+    mockTimeSource.setTime = time => {
+      currentTime = time;
+      return currentTime;
+    };
+    global.mockTimeSource = mockTimeSource;
+
+    // Test helper for synchronized async timer advancement
+    global.advanceAsyncTimers = async ms => {
+      mockTimeSource.advanceTime(ms);
+      jest.advanceTimersByTime(ms);
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise(resolve => setImmediate(resolve));
+    };
 
     mockLogger = {
       debug: jest.fn(),
@@ -25,18 +48,19 @@ describe('DiscordRateLimitedSenderAdapter (Backward Compatibility)', () => {
     adapter = new DiscordRateLimitedSenderAdapter(mockLogger, {
       testMode: true,
       autoStart: false,
-      baseSendDelay: 1000,
-      burstAllowance: 5,
-      maxRetries: 3,
+      baseSendDelay: 1000, // Match test expectations
+      burstAllowance: 5, // Match test expectations
+      burstResetTime: 60000, // Match test expectations
+      maxRetries: 3, // Match test expectations
+      timeSource: global.mockTimeSource, // Use controllable time source
+      enableDelays: false, // CRITICAL: Disable delays for deterministic testing
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     if (adapter && adapter.isProcessing) {
-      adapter.newSender.isProcessing = false;
-      adapter.newSender.scheduler?.stop();
+      await adapter.stopProcessing();
     }
-    jest.clearAllTimers();
     jest.useRealTimers();
   });
 

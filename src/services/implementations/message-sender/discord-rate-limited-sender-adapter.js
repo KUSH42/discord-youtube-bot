@@ -66,9 +66,12 @@ export class DiscordRateLimitedSenderAdapter {
    * @returns {Object} Options for new DiscordMessageSender
    */
   mapOptionsToNewArchitecture(oldOptions) {
+    // Determine if we're in test mode - either explicit testMode or enableDelays=false
+    const isTestMode = oldOptions.testMode || oldOptions.enableDelays === false;
+
     return {
-      // Core options
-      testMode: oldOptions.testMode || false,
+      // Core options - use testMode for deterministic testing
+      testMode: isTestMode,
       autoStart: oldOptions.autoStart !== false,
 
       // Rate limiting options
@@ -81,13 +84,13 @@ export class DiscordRateLimitedSenderAdapter {
       backoffMultiplier: oldOptions.backoffMultiplier || 2,
       maxBackoffDelay: oldOptions.maxBackoffDelay || 30000,
 
-      // Timing options
+      // Timing options for new architecture
       timeSource: oldOptions.timeSource,
-      baseCheckInterval: 100,
-      idleCheckInterval: 1000,
+      baseCheckInterval: isTestMode ? 0 : 100, // No delays in test mode
+      idleCheckInterval: isTestMode ? 0 : 1000, // No delays in test mode
 
       // Test mode options
-      enableJitter: !oldOptions.testMode,
+      enableJitter: !isTestMode, // No jitter in test mode
       maxConcurrentProcessing: 1,
     };
   }
