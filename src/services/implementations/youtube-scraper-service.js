@@ -1,4 +1,5 @@
 import { PlaywrightBrowserService } from './playwright-browser-service.js';
+import { AsyncMutex } from '../../utilities/async-mutex.js';
 
 /**
  * YouTube web scraper service for near-instantaneous content detection
@@ -10,6 +11,8 @@ export class YouTubeScraperService {
     this.config = config;
     this.contentCoordinator = contentCoordinator;
     this.browserService = new PlaywrightBrowserService();
+    this.browserMutex = new AsyncMutex(); // Prevent concurrent browser operations
+    this.isShuttingDown = false; // Flag to coordinate graceful shutdown
     this.videosUrl = null;
     this.liveStreamUrl = null;
     this.isInitialized = false;
@@ -484,192 +487,201 @@ export class YouTubeScraperService {
       throw new Error('YouTube scraper is not initialized');
     }
 
-    this.metrics.totalScrapingAttempts++;
-
-    try {
-      // Navigate to channel videos page
-      await this.browserService.goto(this.videosUrl, {
-        waitUntil: 'networkidle',
-        timeout: this.timeoutMs,
-      });
-
-      // Handle consent page if redirected
-      await this.handleConsentPageRedirect();
-
-      // Wait for the page to load and videos to appear
-      await this.browserService.waitFor(2000);
-
-      // Debug: Log page content for troubleshooting
-      let debugInfo = null;
-      try {
-        debugInfo = await this.browserService.evaluate(() => {
-          /* eslint-disable no-undef */
-          return {
-            title: document.title,
-            url: window.location.href,
-            ytdRichGridMedia: document.querySelectorAll('ytd-rich-grid-media').length,
-            ytdRichItemRenderer: document.querySelectorAll('ytd-rich-item-renderer').length,
-            videoTitleById: document.querySelectorAll('a#video-title').length,
-            videoTitleLinkById: document.querySelectorAll('#video-title-link').length,
-            genericVideoLinks: document.querySelectorAll('a[href*="/watch?v="]').length,
-            shortsLinks: document.querySelectorAll('a[href*="/shorts/"]').length,
-          };
-          /* eslint-enable no-undef */
-        });
-
-        this.logger.debug(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
-      } catch (error) {
-        this.logger.error('Failed to get YouTube page debug info:', error.message);
-        debugInfo = { error: 'Failed to evaluate page' };
+    // Use mutex to prevent concurrent browser operations
+    return await this.browserMutex.runExclusive(async () => {
+      // Check if shutting down before starting operation
+      if (this.isShuttingDown) {
+        this.logger.debug('Skipping fetchLatestVideo due to shutdown');
+        return null;
       }
 
-      // Extract latest video information using multiple selector strategies
-      let latestVideo = null;
+      this.metrics.totalScrapingAttempts++;
+
       try {
-        latestVideo = await this.browserService.evaluate(() => {
-          const selectors = [
-            { name: 'modern-grid', selector: 'ytd-rich-grid-media:first-child #video-title-link' },
-            { name: 'rich-item', selector: 'ytd-rich-item-renderer:first-child #video-title-link' },
-            { name: 'grid-with-contents', selector: '#contents ytd-rich-grid-media:first-child a#video-title' },
-            { name: 'list-renderer', selector: '#contents ytd-video-renderer:first-child a#video-title' },
-            { name: 'generic-watch', selector: 'a[href*="/watch?v="]' },
-            { name: 'shorts-and-titled', selector: 'a[href*="/shorts/"], a[title][href*="youtube.com/watch"]' },
-          ];
-
-          let videoElement = null;
-          let usedStrategy = null;
-
-          for (const strategy of selectors) {
-            // eslint-disable-next-line no-undef
-            videoElement = document.querySelector(strategy.selector);
-            if (videoElement) {
-              usedStrategy = strategy.name;
-              break;
-            }
-          }
-
-          if (!videoElement) {
-            return { success: false, strategies: selectors.map(s => s.name) };
-          }
-
-          // Extract video ID from URL
-          const videoUrl = videoElement.href;
-          let videoIdMatch = videoUrl.match(/[?&]v=([^&]+)/);
-
-          // If no standard video ID, try shorts format
-          if (!videoIdMatch) {
-            videoIdMatch = videoUrl.match(/\/shorts\/([^?&]+)/);
-          }
-
-          if (!videoIdMatch) {
-            return { success: false, error: 'Could not extract video ID', url: videoUrl };
-          }
-
-          const videoId = videoIdMatch[1];
-          const title = videoElement.textContent?.trim() || 'Unknown Title';
-
-          // Try to get additional metadata
-          const videoContainer = videoElement.closest(
-            'ytd-rich-grid-media, ytd-rich-item-renderer, ytd-video-renderer'
-          );
-          let publishedText = 'Unknown';
-          let viewsText = 'Unknown';
-          let thumbnailUrl = null;
-
-          if (videoContainer) {
-            // Try to find published time
-            const metadataElements = videoContainer.querySelectorAll(
-              '#metadata-line span, #published-time-text, .ytd-video-meta-block span'
-            );
-            for (const element of metadataElements) {
-              const text = element.textContent?.trim();
-              if (
-                text &&
-                (text.includes('ago') ||
-                  text.includes('hour') ||
-                  text.includes('day') ||
-                  text.includes('week') ||
-                  text.includes('month'))
-              ) {
-                publishedText = text;
-                break;
-              }
-            }
-
-            // Try to find view count
-            for (const element of metadataElements) {
-              const text = element.textContent?.trim();
-              if (text && (text.includes('view') || text.includes('watching'))) {
-                viewsText = text;
-                break;
-              }
-            }
-
-            // Try to find thumbnail
-            const thumbnail = videoContainer.querySelector('img[src*="i.ytimg.com"]');
-            if (thumbnail) {
-              thumbnailUrl = thumbnail.src;
-            }
-          }
-
-          return {
-            success: true,
-            strategy: usedStrategy,
-            id: videoId,
-            title,
-            url: videoUrl,
-            publishedText,
-            viewsText,
-            thumbnailUrl,
-            type: 'video',
-            scrapedAt: new Date().toISOString(),
-          };
+        // Navigate to channel videos page
+        await this.browserService.goto(this.videosUrl, {
+          waitUntil: 'networkidle',
+          timeout: this.timeoutMs,
         });
-      } catch (error) {
-        this.logger.error('Failed to extract video information:', error.message);
-        latestVideo = { success: false, error: `Video extraction failed: ${error.message}` };
-      }
 
-      if (latestVideo && latestVideo.success) {
-        this.metrics.successfulScrapes++;
-        this.metrics.lastSuccessfulScrape = new Date();
+        // Handle consent page if redirected
+        await this.handleConsentPageRedirect();
 
-        this.logger.info('Successfully scraped latest video', {
-          strategy: latestVideo.strategy,
-          videoId: latestVideo.id,
-          title: latestVideo.title,
-          publishedText: latestVideo.publishedText,
-        });
-      } else {
-        const failureInfo = {
-          videosUrl: this.videosUrl,
-          debugInfo,
-        };
+        // Wait for the page to load and videos to appear
+        await this.browserService.waitFor(2000);
 
-        if (latestVideo && !latestVideo.success) {
-          failureInfo.attemptedStrategies = latestVideo.strategies;
+        // Debug: Log page content for troubleshooting
+        let debugInfo = null;
+        try {
+          debugInfo = await this.browserService.evaluate(() => {
+            /* eslint-disable no-undef */
+            return {
+              title: document.title,
+              url: window.location.href,
+              ytdRichGridMedia: document.querySelectorAll('ytd-rich-grid-media').length,
+              ytdRichItemRenderer: document.querySelectorAll('ytd-rich-item-renderer').length,
+              videoTitleById: document.querySelectorAll('a#video-title').length,
+              videoTitleLinkById: document.querySelectorAll('#video-title-link').length,
+              genericVideoLinks: document.querySelectorAll('a[href*="/watch?v="]').length,
+              shortsLinks: document.querySelectorAll('a[href*="/shorts/"]').length,
+            };
+            /* eslint-enable no-undef */
+          });
+
+          this.logger.debug(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
+        } catch (error) {
+          this.logger.error('Failed to get YouTube page debug info:', error.message);
+          debugInfo = { error: 'Failed to evaluate page' };
         }
 
-        this.logger.warn('No videos found during scraping', failureInfo);
+        // Extract latest video information using multiple selector strategies
+        let latestVideo = null;
+        try {
+          latestVideo = await this.browserService.evaluate(() => {
+            const selectors = [
+              { name: 'modern-grid', selector: 'ytd-rich-grid-media:first-child #video-title-link' },
+              { name: 'rich-item', selector: 'ytd-rich-item-renderer:first-child #video-title-link' },
+              { name: 'grid-with-contents', selector: '#contents ytd-rich-grid-media:first-child a#video-title' },
+              { name: 'list-renderer', selector: '#contents ytd-video-renderer:first-child a#video-title' },
+              { name: 'generic-watch', selector: 'a[href*="/watch?v="]' },
+              { name: 'shorts-and-titled', selector: 'a[href*="/shorts/"], a[title][href*="youtube.com/watch"]' },
+            ];
+
+            let videoElement = null;
+            let usedStrategy = null;
+
+            for (const strategy of selectors) {
+              // eslint-disable-next-line no-undef
+              videoElement = document.querySelector(strategy.selector);
+              if (videoElement) {
+                usedStrategy = strategy.name;
+                break;
+              }
+            }
+
+            if (!videoElement) {
+              return { success: false, strategies: selectors.map(s => s.name) };
+            }
+
+            // Extract video ID from URL
+            const videoUrl = videoElement.href;
+            let videoIdMatch = videoUrl.match(/[?&]v=([^&]+)/);
+
+            // If no standard video ID, try shorts format
+            if (!videoIdMatch) {
+              videoIdMatch = videoUrl.match(/\/shorts\/([^?&]+)/);
+            }
+
+            if (!videoIdMatch) {
+              return { success: false, error: 'Could not extract video ID', url: videoUrl };
+            }
+
+            const videoId = videoIdMatch[1];
+            const title = videoElement.textContent?.trim() || 'Unknown Title';
+
+            // Try to get additional metadata
+            const videoContainer = videoElement.closest(
+              'ytd-rich-grid-media, ytd-rich-item-renderer, ytd-video-renderer'
+            );
+            let publishedText = 'Unknown';
+            let viewsText = 'Unknown';
+            let thumbnailUrl = null;
+
+            if (videoContainer) {
+              // Try to find published time
+              const metadataElements = videoContainer.querySelectorAll(
+                '#metadata-line span, #published-time-text, .ytd-video-meta-block span'
+              );
+              for (const element of metadataElements) {
+                const text = element.textContent?.trim();
+                if (
+                  text &&
+                  (text.includes('ago') ||
+                    text.includes('hour') ||
+                    text.includes('day') ||
+                    text.includes('week') ||
+                    text.includes('month'))
+                ) {
+                  publishedText = text;
+                  break;
+                }
+              }
+
+              // Try to find view count
+              for (const element of metadataElements) {
+                const text = element.textContent?.trim();
+                if (text && (text.includes('view') || text.includes('watching'))) {
+                  viewsText = text;
+                  break;
+                }
+              }
+
+              // Try to find thumbnail
+              const thumbnail = videoContainer.querySelector('img[src*="i.ytimg.com"]');
+              if (thumbnail) {
+                thumbnailUrl = thumbnail.src;
+              }
+            }
+
+            return {
+              success: true,
+              strategy: usedStrategy,
+              id: videoId,
+              title,
+              url: videoUrl,
+              publishedText,
+              viewsText,
+              thumbnailUrl,
+              type: 'video',
+              scrapedAt: new Date().toISOString(),
+            };
+          });
+        } catch (error) {
+          this.logger.error('Failed to extract video information:', error.message);
+          latestVideo = { success: false, error: `Video extraction failed: ${error.message}` };
+        }
+
+        if (latestVideo && latestVideo.success) {
+          this.metrics.successfulScrapes++;
+          this.metrics.lastSuccessfulScrape = new Date();
+
+          this.logger.info('Successfully scraped latest video', {
+            strategy: latestVideo.strategy,
+            videoId: latestVideo.id,
+            title: latestVideo.title,
+            publishedText: latestVideo.publishedText,
+          });
+        } else {
+          const failureInfo = {
+            videosUrl: this.videosUrl,
+            debugInfo,
+          };
+
+          if (latestVideo && !latestVideo.success) {
+            failureInfo.attemptedStrategies = latestVideo.strategies;
+          }
+
+          this.logger.warn('No videos found during scraping', failureInfo);
+        }
+
+        return latestVideo;
+      } catch (error) {
+        this.metrics.failedScrapes++;
+        this.metrics.lastError = {
+          message: error.message,
+          timestamp: new Date(),
+        };
+
+        this.logger.error('Failed to scrape YouTube channel', {
+          error: error.message,
+          stack: error.stack,
+          videosUrl: this.videosUrl,
+          attempt: this.metrics.totalScrapingAttempts,
+        });
+
+        return null;
       }
-
-      return latestVideo;
-    } catch (error) {
-      this.metrics.failedScrapes++;
-      this.metrics.lastError = {
-        message: error.message,
-        timestamp: new Date(),
-      };
-
-      this.logger.error('Failed to scrape YouTube channel', {
-        error: error.message,
-        stack: error.stack,
-        videosUrl: this.videosUrl,
-        attempt: this.metrics.totalScrapingAttempts,
-      });
-
-      return null;
-    }
+    }); // End of browserMutex.runExclusive
   }
 
   /**
@@ -681,49 +693,58 @@ export class YouTubeScraperService {
       throw new Error('YouTube scraper is not initialized');
     }
 
-    try {
-      await this.browserService.goto(this.liveStreamUrl, {
-        waitUntil: 'networkidle',
-        timeout: this.timeoutMs,
-      });
-
-      const liveStream = await this.browserService.evaluate(() => {
-        // eslint-disable-next-line no-undef
-        const liveElement = document.querySelector('ytd-channel-featured-content-renderer a#video-title-link');
-        if (!liveElement) {
-          return null;
-        }
-
-        const url = liveElement.href;
-        const videoIdMatch = url.match(/[?&]v=([^&]+)/);
-        if (!videoIdMatch) {
-          return null;
-        }
-
-        return {
-          id: videoIdMatch[1],
-          title: liveElement.getAttribute('title') || 'Live Stream',
-          url,
-          type: 'livestream',
-          scrapedAt: new Date().toISOString(),
-        };
-      });
-
-      if (liveStream) {
-        this.logger.debug('Successfully scraped active live stream', {
-          videoId: liveStream.id,
-          title: liveStream.title,
-        });
+    // Use mutex to prevent concurrent browser operations
+    return await this.browserMutex.runExclusive(async () => {
+      // Check if shutting down before starting operation
+      if (this.isShuttingDown) {
+        this.logger.debug('Skipping fetchActiveLiveStream due to shutdown');
+        return null;
       }
 
-      return liveStream;
-    } catch (error) {
-      this.logger.error('Failed to scrape for active live stream', {
-        error: error.message,
-        liveStreamUrl: this.liveStreamUrl,
-      });
-      return null;
-    }
+      try {
+        await this.browserService.goto(this.liveStreamUrl, {
+          waitUntil: 'networkidle',
+          timeout: this.timeoutMs,
+        });
+
+        const liveStream = await this.browserService.evaluate(() => {
+          // eslint-disable-next-line no-undef
+          const liveElement = document.querySelector('ytd-channel-featured-content-renderer a#video-title-link');
+          if (!liveElement) {
+            return null;
+          }
+
+          const url = liveElement.href;
+          const videoIdMatch = url.match(/[?&]v=([^&]+)/);
+          if (!videoIdMatch) {
+            return null;
+          }
+
+          return {
+            id: videoIdMatch[1],
+            title: liveElement.getAttribute('title') || 'Live Stream',
+            url,
+            type: 'livestream',
+            scrapedAt: new Date().toISOString(),
+          };
+        });
+
+        if (liveStream) {
+          this.logger.debug('Successfully scraped active live stream', {
+            videoId: liveStream.id,
+            title: liveStream.title,
+          });
+        }
+
+        return liveStream;
+      } catch (error) {
+        this.logger.error('Failed to scrape for active live stream', {
+          error: error.message,
+          liveStreamUrl: this.liveStreamUrl,
+        });
+        return null;
+      }
+    }); // End of browserMutex.runExclusive
   }
 
   /**
@@ -914,7 +935,25 @@ export class YouTubeScraperService {
   async cleanup() {
     this.logger.info('Cleaning up YouTube scraper service');
 
+    // Set shutdown flag to prevent new operations
+    this.isShuttingDown = true;
+
     await this.stopMonitoring();
+
+    // Wait for any ongoing browser operations to complete
+    if (this.browserMutex.locked) {
+      this.logger.info('Waiting for ongoing browser operations to complete...');
+      const maxWaitTime = 30000; // 30 seconds
+      const startTime = Date.now();
+
+      while (this.browserMutex.locked && Date.now() - startTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      if (this.browserMutex.locked) {
+        this.logger.warn('Timeout waiting for browser operations, proceeding with cleanup');
+      }
+    }
 
     if (this.browserService) {
       await this.browserService.close();
@@ -923,6 +962,7 @@ export class YouTubeScraperService {
     this.isInitialized = false;
     this.videosUrl = null;
     this.liveStreamUrl = null;
+    this.isShuttingDown = false; // Reset flag after cleanup
   }
 
   /**
