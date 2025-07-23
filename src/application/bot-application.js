@@ -170,6 +170,11 @@ export class BotApplication {
       return;
     }
 
+    // Send initial update message
+    if (message) {
+      await message.reply('🚀 Initiating update... Pulling latest changes, please wait for confirmation.');
+    }
+
     this.exec('git pull', async (error, stdout) => {
       if (error) {
         this.logger.error(`git pull failed: ${error}`);

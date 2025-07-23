@@ -401,7 +401,7 @@ describe('BotApplication', () => {
     });
 
     describe('handleUpdate', () => {
-      it('should call git pull', () => {
+      it('should call git pull', async () => {
         const mockMessage = {
           reply: jest.fn().mockResolvedValue(),
         };
@@ -412,9 +412,12 @@ describe('BotApplication', () => {
           }
         });
 
-        botApplication.handleUpdate(mockMessage);
+        await botApplication.handleUpdate(mockMessage);
 
         expect(mockExec).toHaveBeenCalledWith('git pull', expect.any(Function));
+        expect(mockMessage.reply).toHaveBeenCalledWith(
+          '🚀 Initiating update... Pulling latest changes, please wait for confirmation.'
+        );
       });
 
       it('should handle missing systemd service name', async () => {

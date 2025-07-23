@@ -232,7 +232,7 @@ describe('CommandProcessor', () => {
 
       expect(result.success).toBe(true);
       expect(result.requiresUpdate).toBe(true);
-      expect(result.message).toContain('Initiating update... Pulling latest changes, please wait for confirmation.');
+      expect(result.message).toBeNull(); // No message - handleUpdate will send its own messages
     });
 
     it('should handle unknown command', async () => {

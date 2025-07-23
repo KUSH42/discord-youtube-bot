@@ -213,12 +213,12 @@ export class CommandProcessor {
   }
 
   /**
-   * Handle restart command
+   * Handle update command
    */
   async handleUpdate(userId) {
     return {
       success: true,
-      message: '🚀 Initiating update... Pulling latest changes, please wait for confirmation.',
+      message: null, // No message here - handleUpdate will send its own messages
       requiresUpdate: true,
       userId,
     };
