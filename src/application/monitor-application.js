@@ -20,7 +20,7 @@ export class MonitorApplication {
     this.contentCoordinator = dependencies.contentCoordinator;
 
     // Polling configuration
-    this.scheduledContentPollInterval = this.config.get('SCHEDULED_CONTENT_POLL_INTERVAL_MS', 600000); // 10 minutes
+    this.scheduledContentPollInterval = this.config.get('SCHEDULED_CONTENT_POLL_INTERVAL_MS', 3600000); // 1 hour (was 10 min - too aggressive for quota)
     this.liveStatePollInterval = this.config.get('LIVE_STATE_POLL_INTERVAL_MS', 60000); // 1 minute
 
     // YouTube configuration
@@ -50,6 +50,8 @@ export class MonitorApplication {
     this.fallbackTimerId = null;
     this.scheduledContentPollTimerId = null;
     this.liveStatePollTimerId = null;
+    this.lastQuotaError = null; // Track quota errors for backoff
+    this.lastSuccessfulScheduledPoll = null; // Track successful polls
 
     // Statistics
     this.stats = {
@@ -867,26 +869,64 @@ export class MonitorApplication {
 
   /**
    * Fetches upcoming streams and adds them to the state manager.
+   * Implements smart polling with quota error backoff.
    */
   async pollScheduledContent() {
-    this.logger.debug('Polling for scheduled content...');
-    const scheduledVideos = await this.youtube.getScheduledContent(this.youtubeChannelId);
+    // Check if we should skip polling due to recent quota errors
+    if (this.lastQuotaError) {
+      const timeSinceQuotaError = Date.now() - this.lastQuotaError;
+      const backoffTime = 4 * 60 * 60 * 1000; // 4 hours backoff after quota error
 
-    for (const video of scheduledVideos) {
-      if (!this.contentStateManager.hasContent(video.id)) {
-        await this.contentStateManager.addContent(video.id, {
-          type: 'youtube_livestream',
-          state: 'scheduled',
-          source: 'api',
-          publishedAt: video.publishedAt,
-          url: `https://www.youtube.com/watch?v=${video.id}`,
-          title: video.title,
-          metadata: { scheduledStartTime: video.scheduledStartTime },
+      if (timeSinceQuotaError < backoffTime) {
+        this.logger.debug('Skipping scheduled content poll due to recent quota error', {
+          timeSinceError: Math.round(timeSinceQuotaError / 1000 / 60),
+          backoffMinutes: Math.round(backoffTime / 1000 / 60),
         });
+        return;
+      } else {
+        // Clear quota error after backoff period
+        this.lastQuotaError = null;
       }
     }
-    // Start or restart the live state polling after discovering new content
-    this.startLiveStatePolling();
+
+    this.logger.debug('Polling for scheduled content...');
+
+    try {
+      const scheduledVideos = await this.youtube.getScheduledContent(this.youtubeChannelId);
+      this.lastSuccessfulScheduledPoll = Date.now();
+
+      for (const video of scheduledVideos) {
+        if (!this.contentStateManager.hasContent(video.id)) {
+          await this.contentStateManager.addContent(video.id, {
+            type: 'youtube_livestream',
+            state: 'scheduled',
+            source: 'api',
+            publishedAt: video.publishedAt,
+            url: `https://www.youtube.com/watch?v=${video.id}`,
+            title: video.title,
+            metadata: { scheduledStartTime: video.scheduledStartTime },
+          });
+        }
+      }
+      // Start or restart the live state polling after discovering new content
+      this.startLiveStatePolling();
+
+      this.logger.debug('Scheduled content polling completed', {
+        foundVideos: scheduledVideos.length,
+        newVideos: scheduledVideos.filter(v => !this.contentStateManager.hasContent(v.id)).length,
+      });
+    } catch (error) {
+      // Check if this was a quota error
+      if (error.message && error.message.includes('quota')) {
+        this.lastQuotaError = Date.now();
+        this.logger.warn('YouTube API quota exceeded during scheduled content polling - implementing 4 hour backoff', {
+          nextAttemptTime: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        });
+      } else {
+        // Re-throw non-quota errors
+        throw error;
+      }
+    }
   }
 
   /**

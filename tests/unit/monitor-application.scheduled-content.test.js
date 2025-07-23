@@ -62,7 +62,7 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
       const values = {
         PSH_SECRET: 'test-secret',
         PSH_VERIFY_TOKEN: 'verify-token',
-        SCHEDULED_CONTENT_POLL_INTERVAL_MS: 600000,
+        SCHEDULED_CONTENT_POLL_INTERVAL_MS: 3600000,
         LIVE_STATE_POLL_INTERVAL_MS: 60000,
       };
       return values[key] || 'default-value';
@@ -140,7 +140,7 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
 
       expect(monitorApp.scheduledContentPollTimerId).toBeTruthy();
       expect(mockLogger.info).toHaveBeenCalledWith('Scheduled content polling started', {
-        interval: 600000,
+        interval: 3600000,
       });
     });
 
@@ -176,7 +176,7 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
       jest.spyOn(monitorApp, 'pollScheduledContent').mockClear();
 
       // Fast forward to next poll
-      jest.advanceTimersByTime(600000);
+      jest.advanceTimersByTime(3600000);
       await Promise.resolve();
 
       expect(monitorApp.pollScheduledContent).toHaveBeenCalledTimes(1);
@@ -211,7 +211,7 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
       expect(mockLogger.error).toHaveBeenCalledWith('Error in scheduled content polling loop:', error);
 
       // Should continue polling despite error
-      jest.advanceTimersByTime(600000);
+      jest.advanceTimersByTime(3600000);
       await Promise.resolve();
 
       expect(monitorApp.pollScheduledContent).toHaveBeenCalledTimes(2);
@@ -302,6 +302,47 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
       mockYoutubeService.getScheduledContent.mockRejectedValue(error);
 
       await expect(monitorApp.pollScheduledContent()).rejects.toThrow('YouTube API error');
+    });
+
+    it('should handle quota exceeded errors with backoff', async () => {
+      const quotaError = new Error('The request cannot be completed because you have exceeded your quota.');
+      mockYoutubeService.getScheduledContent.mockRejectedValue(quotaError);
+
+      await monitorApp.pollScheduledContent();
+
+      expect(monitorApp.lastQuotaError).toBeTruthy();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'YouTube API quota exceeded during scheduled content polling - implementing 4 hour backoff',
+        expect.objectContaining({
+          nextAttemptTime: expect.any(String),
+        })
+      );
+    });
+
+    it('should skip polling during quota backoff period', async () => {
+      // Set recent quota error
+      monitorApp.lastQuotaError = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
+
+      await monitorApp.pollScheduledContent();
+
+      expect(mockYoutubeService.getScheduledContent).not.toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Skipping scheduled content poll due to recent quota error',
+        expect.objectContaining({
+          timeSinceError: expect.any(Number),
+          backoffMinutes: expect.any(Number),
+        })
+      );
+    });
+
+    it('should resume polling after quota backoff period expires', async () => {
+      // Set old quota error (beyond backoff period)
+      monitorApp.lastQuotaError = Date.now() - 5 * 60 * 60 * 1000; // 5 hours ago
+
+      await monitorApp.pollScheduledContent();
+
+      expect(monitorApp.lastQuotaError).toBeNull();
+      expect(mockYoutubeService.getScheduledContent).toHaveBeenCalledWith('UCTestChannel');
     });
   });
 

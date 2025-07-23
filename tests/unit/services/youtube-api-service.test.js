@@ -799,6 +799,19 @@ describe('YouTubeApiService', () => {
         `Failed to fetch scheduled content for ${validChannelId}: Search API failed`
       );
     });
+
+    it('should handle quota exceeded errors gracefully', async () => {
+      const quotaError = new Error('The request cannot be completed because you have exceeded your quota.');
+      mockSearchList.mockRejectedValue(quotaError);
+
+      const result = await youtubeService.getScheduledContent(validChannelId);
+
+      expect(result).toEqual([]);
+      expect(mockLogger.warn).toHaveBeenCalledWith('YouTube API quota exceeded while fetching scheduled content', {
+        channelId: validChannelId,
+        error: quotaError.message,
+      });
+    });
   });
 
   describe('checkScheduledContentStates', () => {

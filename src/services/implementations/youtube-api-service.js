@@ -323,6 +323,16 @@ export class YouTubeApiService extends YouTubeService {
         channelTitle: item.snippet.channelTitle,
       }));
     } catch (error) {
+      // Check if this is a quota exceeded error
+      if (error.message && error.message.includes('quota')) {
+        this.logger.warn('YouTube API quota exceeded while fetching scheduled content', {
+          channelId,
+          error: error.message,
+        });
+        // Return empty array instead of throwing - allows system to continue
+        return [];
+      }
+
       this.logger.error('Failed to fetch scheduled content', {
         channelId,
         error: error.message,
