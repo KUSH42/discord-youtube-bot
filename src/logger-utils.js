@@ -24,17 +24,17 @@ export class DiscordTransport extends Transport {
     this.flushTimer = null;
     this.isDestroyed = false;
 
-    // New event-driven message sender for improved Discord API handling
-    // More conservative settings for Discord logging to prevent rate limiting
+    // New event-driven message sender for real-time Discord logging
+    // Optimized settings for ≤2s delay real-time logging while respecting Discord limits
     const logger =
       process.env.NODE_ENV === 'test' ? { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } : console;
     this.messageSender = new DiscordMessageSender(logger, {
-      baseSendDelay: opts.baseSendDelay || 2000, // 2 seconds between sends for logging
-      burstAllowance: opts.burstAllowance || 2, // Only 2 quick messages per minute for logging
-      burstResetTime: opts.burstResetTime || 90000, // 1.5 minutes burst reset (more conservative)
-      maxRetries: opts.maxRetries || 2,
-      backoffMultiplier: 2,
-      maxBackoffDelay: opts.maxBackoffDelay || 60000, // 1 minute max backoff for logging
+      baseSendDelay: opts.baseSendDelay || 1000, // 1 second between sends for real-time logging
+      burstAllowance: opts.burstAllowance || 10, // Allow 10 quick messages per minute for real-time logging
+      burstResetTime: opts.burstResetTime || 60000, // 1 minute burst reset (Discord standard)
+      maxRetries: opts.maxRetries || 3,
+      backoffMultiplier: 1.5,
+      maxBackoffDelay: opts.maxBackoffDelay || 30000, // 30 second max backoff for responsive logging
       testMode: process.env.NODE_ENV === 'test', // Enable test mode in test environment
       autoStart: process.env.NODE_ENV !== 'test', // Don't auto-start in test environment
     });
