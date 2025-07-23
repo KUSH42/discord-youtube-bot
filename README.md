@@ -75,26 +75,6 @@ src/
 └── 🛠️ utilities/             # Shared utilities (e.g., logger, validator)
 ```
 
-## Recent Architectural Improvements
-
-**🚀 Event-Driven Message Processing Migration (2025)**
-The bot recently underwent a comprehensive architectural migration to modernize the Discord message processing system:
-
-- **✅ Eliminated Infinite Loops**: Replaced problematic infinite `while` loops with event-driven patterns
-- **✅ Modern Architecture**: Implemented proven patterns from Bull Queue, Express.js, and EventEmitter systems  
-- **✅ Zero Downtime Migration**: 4-phase migration maintained 100% backward compatibility during transition
-- **✅ Improved Testing**: Deterministic test execution with proper async handling eliminates hanging tests
-- **✅ Better Performance**: Event-driven processing with priority-based message queuing
-
-**Key Components Added**:
-- `MessageQueue`: Priority-based message management with comprehensive lifecycle tracking
-- `RateLimiter`: Burst allowances and reactive rate limiting with Discord 429 handling
-- `MessageProcessor`: Command pattern implementation for processing lifecycle management  
-- `ProcessingScheduler`: Test vs production mode for deterministic testing
-- `RetryHandler`: Exponential backoff with error classification
-
-For complete migration details, see [`DISCORD-RATE-LIMITED-SENDER-MIGRATION.md`](./DISCORD-RATE-LIMITED-SENDER-MIGRATION.md).
-
 ## YouTube Content Detection Reliability
 
 The bot features a sophisticated multi-layered system for reliable YouTube content detection, designed to prevent missed content and eliminate duplicate announcements.
