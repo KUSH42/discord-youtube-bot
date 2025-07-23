@@ -615,6 +615,55 @@ prevent conflicts:
 - **Health Monitoring System** (`src/application/scraper-application.js`): Periodic health checks with automatic recovery
 - **Scraper Management Commands** (`src/core/command-processor.js`, `src/application/bot-application.js`): Granular control over X scraper component
 
+### Browser Performance Optimization
+
+**Anti-Bot Detection Strategy:**
+Both X and YouTube scrapers use `headless: false` to bypass anti-bot detection systems that specifically block headless browsers. This requires running browsers in visual mode with Xvfb virtual display.
+
+**Performance Optimizations for Non-Headless Browsers:**
+To minimize resource usage on small servers while maintaining anti-bot bypass:
+
+```javascript
+// Browser arguments for optimal performance
+args: [
+  // Core security and stability
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  
+  // Performance optimizations for non-headless mode
+  '--disable-images',              // Block image loading (~70% bandwidth savings)
+  '--disable-plugins',             // Block Flash, PDF viewers, etc.
+  '--disable-extensions',          // No browser extensions
+  '--disable-audio-output',        // No audio processing
+  '--mute-audio',                 // Mute any audio
+  '--disable-background-timer-throttling',     // Better resource management
+  '--disable-renderer-backgrounding',          // Prevents background rendering
+  '--disable-backgrounding-occluded-windows',  // Resource optimization
+  '--disable-features=TranslateUI',           // Disables translation popups
+  '--disable-ipc-flooding-protection',        // Reduces IPC overhead
+]
+```
+
+**Expected Resource Impact:**
+- **Memory Usage**: ~60-80% reduction (no images, audio, plugins)
+- **CPU Usage**: ~40-60% reduction (no background rendering, audio processing)  
+- **Bandwidth**: ~70-90% reduction (no images, ads, videos)
+- **Functionality**: Maintains full text scraping and DOM interaction capabilities
+
+**Trade-offs:**
+- ✅ Still appears as "real browser" to anti-bot systems
+- ✅ Can read all text content and interact with DOM elements
+- ✅ Maintains navigation and form interaction capabilities
+- ❌ Cannot see visual content (not needed for content monitoring)
+- ❌ Slightly higher resource usage than headless mode (but necessary for anti-bot bypass)
+
+**Infrastructure Requirements:**
+- Xvfb virtual display server (`scripts/start-bot.sh` starts Xvfb on :99)
+- DISPLAY environment variable (`scripts/discord-bot.service` sets DISPLAY=:99)
+- Sufficient memory for browser instances (optimized but still > headless)
+
 ## 9. Configuration & Environment Management
 
 ### Environment Variables

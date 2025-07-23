@@ -309,6 +309,18 @@ export class ScraperApplication {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
+        // Performance optimizations for non-headless mode
+        '--disable-images',
+        '--disable-plugins',
+        '--disable-extensions',
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-audio-output',
+        '--mute-audio',
+        '--disable-web-security',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
       ],
     };
 

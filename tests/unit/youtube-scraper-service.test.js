@@ -102,8 +102,14 @@ describe('YouTubeScraperService', () => {
       // lastKnownContentId is no longer tracked directly - content state is managed by contentCoordinator
       // expect(scraperService.lastKnownContentId).toBe('dQw4w9WgXcQ');
       expect(mockBrowserService.launch).toHaveBeenCalledWith({
-        headless: true,
-        args: expect.arrayContaining(['--no-sandbox', '--disable-setuid-sandbox']),
+        headless: false,
+        args: expect.arrayContaining([
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-images',
+          '--disable-plugins',
+          '--disable-extensions',
+        ]),
       });
       expect(mockLogger.info).toHaveBeenCalledWith('YouTube scraper initialized', {
         videosUrl: 'https://www.youtube.com/@testchannel/videos',

@@ -59,7 +59,7 @@ export class YouTubeScraperService {
     try {
       // Launch browser with optimized settings for scraping
       await this.browserService.launch({
-        headless: true,
+        headless: false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -69,6 +69,17 @@ export class YouTubeScraperService {
           '--no-zygote',
           '--disable-gpu',
           '--disable-web-security',
+          // Performance optimizations for non-headless mode
+          '--disable-images',
+          '--disable-plugins',
+          '--disable-extensions',
+          '--disable-background-timer-throttling',
+          '--disable-renderer-backgrounding',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-audio-output',
+          '--mute-audio',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
         ],
       });
 
