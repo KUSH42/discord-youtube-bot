@@ -310,7 +310,7 @@ describe('ScraperApplication Core Operations', () => {
       await scraperApp.initializeBrowser();
 
       expect(mockBrowserService.launch).toHaveBeenCalledWith({
-        headless: true,
+        headless: false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -338,7 +338,7 @@ describe('ScraperApplication Core Operations', () => {
       await scraperApp.initializeBrowser();
 
       expect(mockBrowserService.launch).toHaveBeenCalledWith({
-        headless: true,
+        headless: false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
