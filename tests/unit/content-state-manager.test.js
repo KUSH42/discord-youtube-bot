@@ -429,6 +429,37 @@ describe('ContentStateManager', () => {
 
       expect(result).toBe(true);
     });
+
+    it('should return false for missing publishedAt parameter', () => {
+      const result = stateManager.isNewContent(contentId, null);
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith('isNewContent called with missing publishedAt', { contentId });
+    });
+
+    it('should return false for undefined publishedAt parameter', () => {
+      const result = stateManager.isNewContent(contentId, undefined);
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith('isNewContent called with missing publishedAt', { contentId });
+    });
+
+    it('should return false for invalid date string', () => {
+      const result = stateManager.isNewContent(contentId, 'invalid-date');
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith('isNewContent called with invalid publishedAt', {
+        contentId,
+        publishedAt: 'invalid-date',
+      });
+    });
+
+    it('should return false for empty string publishedAt', () => {
+      const result = stateManager.isNewContent(contentId, '');
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith('isNewContent called with missing publishedAt', { contentId });
+    });
   });
 
   describe('markAsAnnounced', () => {

@@ -164,8 +164,24 @@ export class ContentStateManager {
       return !existingState.announced; // New if not yet announced
     }
 
+    // Validate publishedAt parameter
+    if (!publishedAt) {
+      this.logger.warn('isNewContent called with missing publishedAt', { contentId });
+      return false; // Treat content with no publish date as old
+    }
+
     // Check content age against configuration
     const publishTime = new Date(publishedAt);
+
+    // Validate that the date is valid
+    if (isNaN(publishTime.getTime())) {
+      this.logger.warn('isNewContent called with invalid publishedAt', {
+        contentId,
+        publishedAt: String(publishedAt),
+      });
+      return false; // Treat content with invalid date as old
+    }
+
     const maxAge = this.getMaxContentAgeMs();
     const contentAge = detectionTime.getTime() - publishTime.getTime();
 
