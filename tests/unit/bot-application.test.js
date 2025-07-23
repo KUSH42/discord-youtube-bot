@@ -310,7 +310,7 @@ describe('BotApplication', () => {
         mockDiscordService.login.mockRejectedValue(new Error('Login failed'));
 
         await expect(botApplication.start()).rejects.toThrow('Login failed');
-        expect(mockLogger.error).toHaveBeenCalledWith('❌ Failed to start YouTube Scraper:', expect.any(Error));
+        expect(mockLogger.error).toHaveBeenCalledWith('❌ Failed to start bot application:', expect.any(Error));
       });
 
       it('should set bot presence after starting', async () => {

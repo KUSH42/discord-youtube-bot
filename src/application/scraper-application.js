@@ -108,7 +108,7 @@ export class ScraperApplication {
         pollingInterval: this.getNextInterval(),
       });
     } catch (error) {
-      this.logger.error('Failed to start scraper application:', error);
+      this.logger.error('❌ Failed to start scraper application:', error);
       await this.stop();
       throw error;
     }

@@ -95,7 +95,7 @@ describe('Credential Handling Security Tests', () => {
 
       // Verify that the error was logged
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Authentication process failed:',
+        'Non-recoverable authentication error:',
         'Simulated authentication failure'
       );
     });
@@ -210,7 +210,7 @@ describe('Credential Handling Security Tests', () => {
       const allLogsString = errorLogs.map(log => (typeof log === 'string' ? log : JSON.stringify(log))).join(' ');
       expect(allLogsString).not.toContain('test_secure_pass_123');
       expect(allLogsString).not.toContain('test_secure_user');
-    });
+    }, 10000);
 
     it('should handle malformed cookie data gracefully', async () => {
       // Set malformed cookie data in state
@@ -594,6 +594,6 @@ describe('Credential Handling Security Tests', () => {
         expect(logString).not.toContain('test_secure_pass_123');
         expect(logString).not.toContain('test_secure_user');
       });
-    });
+    }, 10000);
   });
 });

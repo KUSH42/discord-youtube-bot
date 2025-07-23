@@ -500,7 +500,15 @@ describe('End-to-End Command Processing Workflows', () => {
     it('should simulate unauthorized user attempting restricted commands', async () => {
       // Unauthorized user tries to access restricted commands
 
-      const restrictedCommands = ['restart', 'kill', 'update'];
+      const restrictedCommands = [
+        'restart',
+        'kill',
+        'update',
+        'restart-scraper',
+        'stop-scraper',
+        'start-scraper',
+        'force-reauth',
+      ];
 
       for (const command of restrictedCommands) {
         const result = await commandProcessor.processCommand(command, [], unauthorizedUser.id);
@@ -533,9 +541,23 @@ describe('End-to-End Command Processing Workflows', () => {
         'hd',
         'readme',
         'update',
+        'restart-scraper',
+        'stop-scraper',
+        'start-scraper',
+        'auth-status',
+        'force-reauth',
+        'scraper-health',
       ]);
 
-      expect(stats).toHaveProperty('restrictedCommands', ['restart', 'kill', 'update']);
+      expect(stats).toHaveProperty('restrictedCommands', [
+        'restart',
+        'kill',
+        'update',
+        'restart-scraper',
+        'stop-scraper',
+        'start-scraper',
+        'force-reauth',
+      ]);
       expect(stats).toHaveProperty('allowedUsers', 2); // Two users in ALLOWED_USER_IDS
       expect(stats).toHaveProperty('commandPrefix', '!');
     });

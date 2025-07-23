@@ -154,6 +154,9 @@ describe('ScraperApplication Authentication Verification', () => {
     });
 
     it('should evaluate login status correctly', async () => {
+      // First call refreshAuth to trigger the evaluate call
+      await scraperApp.refreshAuth();
+
       const evaluateFunction = mockBrowserService.evaluate.mock.calls[0]?.[0];
 
       // Ensure evaluate function was called

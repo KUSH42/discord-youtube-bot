@@ -102,7 +102,7 @@ export class BotApplication {
             this.logger.info('YOUTUBE_CHANNEL_HANDLE not configured, YouTube scraper will not start.');
           }
         } catch (error) {
-          this.logger.error('Failed to start YouTube Scraper:', error);
+          this.logger.error('❌ Failed to start YouTube Scraper:', error);
         }
       }
 
@@ -115,7 +115,7 @@ export class BotApplication {
         config: this.config.getAllConfig(false), // Don't include secrets
       });
     } catch (error) {
-      this.logger.error('Failed to start bot application:', error);
+      this.logger.error('❌ Failed to start bot application:', error);
       await this.stop();
       throw error;
     }

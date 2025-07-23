@@ -119,39 +119,50 @@ describe('AuthManager', () => {
 
   describe('isAuthenticated', () => {
     beforeEach(() => {
-      // Mock browser.evaluate for isAuthenticated
-      mockBrowserService.evaluate = jest.fn();
+      // Mock methods for cookie-based authentication
+      mockBrowserService.getCookies = jest.fn();
+      mockBrowserService.getUrl = jest.fn();
     });
 
-    it('should return true when logged-in elements are present', async () => {
-      mockBrowserService.evaluate.mockResolvedValue(true);
+    it('should return true when valid cookies are present and navigation succeeds', async () => {
+      // Mock valid cookies
+      mockBrowserService.getCookies.mockResolvedValue([
+        { name: 'auth_token', value: 'valid_auth_token' },
+        { name: 'ct0', value: 'valid_ct0_token' },
+      ]);
+
+      // Mock successful navigation to home page
+      mockBrowserService.getUrl.mockResolvedValue('https://x.com/home');
 
       const result = await authManager.isAuthenticated();
 
       expect(result).toBe(true);
+      expect(mockBrowserService.getCookies).toHaveBeenCalled();
       expect(mockBrowserService.goto).toHaveBeenCalledWith('https://x.com/home', {
-        timeout: 15000,
+        timeout: 10000,
         waitUntil: 'domcontentloaded',
       });
-      expect(mockBrowserService.evaluate).toHaveBeenCalled();
+      expect(mockBrowserService.getUrl).toHaveBeenCalled();
     });
 
-    it('should return false when logged-in elements are not present', async () => {
-      mockBrowserService.evaluate.mockResolvedValue(false);
+    it('should return false when valid cookies are not present', async () => {
+      // Mock missing or invalid cookies
+      mockBrowserService.getCookies.mockResolvedValue([{ name: 'other_cookie', value: 'some_value' }]);
 
       const result = await authManager.isAuthenticated();
 
       expect(result).toBe(false);
+      expect(mockBrowserService.getCookies).toHaveBeenCalled();
     });
 
-    it('should return false and log warning on evaluation error', async () => {
-      const error = new Error('Evaluation failed');
-      mockBrowserService.evaluate.mockRejectedValue(error);
+    it('should return false and log warning on cookie check error', async () => {
+      const error = new Error('Cookie check failed');
+      mockBrowserService.getCookies.mockRejectedValue(error);
 
       const result = await authManager.isAuthenticated();
 
       expect(result).toBe(false);
-      expect(mockLogger.warn).toHaveBeenCalledWith('Error checking authentication status:', 'Evaluation failed');
+      expect(mockLogger.warn).toHaveBeenCalledWith('Error checking authentication status:', 'Cookie check failed');
     });
 
     it('should return false if browser or page is not available', async () => {
