@@ -615,49 +615,59 @@ prevent conflicts:
 - **Health Monitoring System** (`src/application/scraper-application.js`): Periodic health checks with automatic recovery
 - **Scraper Management Commands** (`src/core/command-processor.js`, `src/application/bot-application.js`): Granular control over X scraper component
 
-### Browser Performance Optimization
+### Browser Configuration & Anti-Bot Detection
 
 **Anti-Bot Detection Strategy:**
 Both X and YouTube scrapers use `headless: false` to bypass anti-bot detection systems that specifically block headless browsers. This requires running browsers in visual mode with Xvfb virtual display.
 
-**Performance Optimizations for Non-Headless Browsers:**
-To minimize resource usage on small servers while maintaining anti-bot bypass:
+**Safe Browser Configuration:**
+After extensive testing, the optimal browser configuration balances performance with anti-bot detection avoidance:
 
 ```javascript
-// Browser arguments for optimal performance
+// Browser arguments for reliable operation
 args: [
-  // Core security and stability
+  // Core security and stability (required)
   '--no-sandbox',
   '--disable-setuid-sandbox',
   '--disable-dev-shm-usage',
+  '--disable-accelerated-2d-canvas',
+  '--no-first-run',
+  '--no-zygote',
   '--disable-gpu',
   
-  // Performance optimizations for non-headless mode
+  // Minimal performance optimizations (safe from detection)
   '--disable-images',              // Block image loading (~70% bandwidth savings)
   '--disable-plugins',             // Block Flash, PDF viewers, etc.
-  '--disable-extensions',          // No browser extensions
-  '--disable-audio-output',        // No audio processing
-  '--mute-audio',                 // Mute any audio
-  '--disable-background-timer-throttling',     // Better resource management
-  '--disable-renderer-backgrounding',          // Prevents background rendering
-  '--disable-backgrounding-occluded-windows',  // Resource optimization
-  '--disable-features=TranslateUI',           // Disables translation popups
-  '--disable-ipc-flooding-protection',        // Reduces IPC overhead
+  '--mute-audio',                 // Mute any audio processing
 ]
 ```
 
-**Expected Resource Impact:**
-- **Memory Usage**: ~60-80% reduction (no images, audio, plugins)
-- **CPU Usage**: ~40-60% reduction (no background rendering, audio processing)  
-- **Bandwidth**: ~70-90% reduction (no images, ads, videos)
-- **Functionality**: Maintains full text scraping and DOM interaction capabilities
+**⚠️ Flags to AVOID (Trigger Bot Detection):**
+These flags were found to trigger anti-bot detection and cause authentication failures:
+- `--disable-web-security` ❌ **Major red flag for anti-bot systems**
+- `--disable-ipc-flooding-protection` ❌ **Unusual flag detected by systems**
+- `--disable-extensions` ❌ **Can trigger detection algorithms**
+- `--disable-background-timer-throttling` ❌ **Suspicious browser behavior**
+- `--disable-renderer-backgrounding` ❌ **Detected as automation**
+- `--disable-backgrounding-occluded-windows` ❌ **Bot-like configuration**
+- `--disable-features=TranslateUI` ❌ **Unusual feature disabling**
 
-**Trade-offs:**
-- ✅ Still appears as "real browser" to anti-bot systems
-- ✅ Can read all text content and interact with DOM elements
-- ✅ Maintains navigation and form interaction capabilities
-- ❌ Cannot see visual content (not needed for content monitoring)
-- ❌ Slightly higher resource usage than headless mode (but necessary for anti-bot bypass)
+**Authentication Detection:**
+X authentication now uses **cookie-based validation** for reliable detection:
+
+```javascript
+// Check for X authentication cookies
+const authToken = cookies.find(cookie => cookie.name === 'auth_token');
+const ct0Token = cookies.find(cookie => cookie.name === 'ct0');
+const hasValidCookies = authToken && authToken.value && ct0Token && ct0Token.value;
+```
+
+**Expected Resource Impact:**
+- **Memory Usage**: ~40-50% reduction (no images, plugins, audio)
+- **CPU Usage**: ~30-40% reduction (no audio processing, plugins)  
+- **Bandwidth**: ~70% reduction (no images, ads)
+- **Reliability**: ✅ No false authentication failures
+- **Functionality**: Maintains full text scraping and DOM interaction capabilities
 
 **Infrastructure Requirements:**
 - Xvfb virtual display server (`scripts/start-bot.sh` starts Xvfb on :99)
