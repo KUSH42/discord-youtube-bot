@@ -197,7 +197,8 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests \
-            --coverageThreshold='{}'
+            --coverageThreshold='{}' \
+            --verbose=true
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -421,7 +422,8 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests \
-            --coverageThreshold='{}'
+            --coverageThreshold='{}' \
+            --verbose=true
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -548,7 +550,8 @@ jobs:
             --forceExit \
             --detectOpenHandles \
             --passWithNoTests \
-            --coverageThreshold='{}'
+            --coverageThreshold='{}' \
+            --verbose=true
 
       - name: Generate performance report
         run: |
