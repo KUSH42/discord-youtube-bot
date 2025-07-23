@@ -14,10 +14,7 @@ module.exports = {
       },
     ],
   ],
-  plugins: [
-    '@babel/plugin-transform-optional-chaining',
-    '@babel/plugin-transform-nullish-coalescing-operator',
-  ],
+  plugins: ['@babel/plugin-transform-optional-chaining', '@babel/plugin-transform-nullish-coalescing-operator'],
   env: {
     test: {
       presets: [

@@ -37,48 +37,57 @@ export default [
       ...pluginJs.configs.recommended.rules,
       ...prettierConfig.rules,
       'prettier/prettier': 'warn',
-      
+
       // Variable and function rules
-      'no-unused-vars': ['warn', {
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_'
-      }],
-      
+      'no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+
       // Console rules - allow in specific contexts
-      'no-console': ['warn', {
-        allow: ['warn', 'error', 'info']
-      }],
-      
+      'no-console': [
+        'warn',
+        {
+          allow: ['warn', 'error', 'info'],
+        },
+      ],
+
       // Code quality rules
       'no-useless-escape': 'error',
       'prefer-const': 'warn',
       'no-var': 'error',
-      'eqeqeq': ['error', 'always', { null: 'ignore' }],
-      'curly': ['error', 'all'],
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
+      curly: ['error', 'all'],
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',
-      
+
       // ES6+ rules
       'prefer-arrow-callback': 'warn',
       'prefer-template': 'warn',
       'object-shorthand': 'warn',
-      'prefer-destructuring': ['warn', {
-        array: false,
-        object: true
-      }],
-      
+      'prefer-destructuring': [
+        'warn',
+        {
+          array: false,
+          object: true,
+        },
+      ],
+
       // Performance rules
       'no-loop-func': 'error',
       'no-constant-condition': 'error',
-      
+
       // Security rules
       'no-script-url': 'error',
       'no-octal-escape': 'error',
     },
   },
-  
+
   // Test-specific configuration
   {
     files: ['**/*.test.js', '**/tests/**/*.js'],
@@ -102,7 +111,7 @@ export default [
       'jest/valid-expect': 'error',
     },
   },
-  
+
   // Script-specific configuration
   {
     files: ['scripts/**/*.js', 'setup-*.js', '*.config.*'],
@@ -110,14 +119,17 @@ export default [
       'no-console': 'off', // Allow console in scripts
     },
   },
-  
+
   // Main entry point configuration
   {
     files: ['index.js', 'src/x-scraper.js', 'src/youtube-monitor.js'],
     rules: {
-      'no-console': ['warn', {
-        allow: ['warn', 'error', 'info', 'log']
-      }], // More permissive for main files
+      'no-console': [
+        'warn',
+        {
+          allow: ['warn', 'error', 'info', 'log'],
+        },
+      ], // More permissive for main files
     },
   },
 ];

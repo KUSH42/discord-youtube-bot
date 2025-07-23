@@ -736,7 +736,7 @@ export const testScenarios = {
       testUrls: testDatasets.performance.largeUrlSet(config.videos + config.tweets),
       duplicateUrls: testDatasets.performance.duplicateTestSet(
         Math.floor(config.videos * (1 - config.duplicateRatio)),
-        Math.floor(config.duplicateRatio * 5),
+        Math.floor(config.duplicateRatio * 5)
       ),
       expectedMetrics: {
         processingTime: scale === 'large' ? 5000 : 2000, // ms

@@ -14,12 +14,12 @@ describe('Security and Input Validation Tests', () => {
   });
 
   afterEach(() => {
-    Object.values(consoleSpy).forEach((spy) => spy.mockRestore());
+    Object.values(consoleSpy).forEach(spy => spy.mockRestore());
   });
 
   describe('Input Sanitization and Validation', () => {
     it('should sanitize Discord message content to prevent XSS', () => {
-      const sanitizeMessage = (content) => {
+      const sanitizeMessage = content => {
         if (typeof content !== 'string') {
           throw new Error('Content must be a string');
         }
@@ -46,7 +46,7 @@ describe('Security and Input Validation Tests', () => {
         '"><script>alert(1)</script>',
       ];
 
-      maliciousInputs.forEach((input) => {
+      maliciousInputs.forEach(input => {
         const sanitized = sanitizeMessage(input);
 
         expect(sanitized).not.toContain('<script>');
@@ -67,14 +67,14 @@ describe('Security and Input Validation Tests', () => {
         'Message with numbers 123 and symbols !@#$%',
       ];
 
-      validInputs.forEach((input) => {
+      validInputs.forEach(input => {
         const sanitized = sanitizeMessage(input);
         expect(sanitized).toBe(input);
       });
     });
 
     it('should validate URL inputs to prevent SSRF attacks', () => {
-      const validateUrl = (url) => {
+      const validateUrl = url => {
         if (typeof url !== 'string') {
           throw new Error('URL must be a string');
         }
@@ -101,16 +101,14 @@ describe('Security and Input Validation Tests', () => {
             /^fe80:/, // IPv6 link-local
           ];
 
-          if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
+          if (blockedPatterns.some(pattern => pattern.test(hostname))) {
             throw new Error('Blocked internal IP range');
           }
 
           // Validate allowed domains for webhooks
           const allowedDomains = ['youtube.com', 'youtu.be', 'x.com', 'twitter.com', 'vxtwitter.com', 'fxtwitter.com'];
 
-          const isAllowedDomain = allowedDomains.some(
-            (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-          );
+          const isAllowedDomain = allowedDomains.some(domain => hostname === domain || hostname.endsWith(`.${domain}`));
 
           if (!isAllowedDomain) {
             throw new Error('Domain not in allowlist');
@@ -135,7 +133,7 @@ describe('Security and Input Validation Tests', () => {
         'http://malicious.com/webhook',
       ];
 
-      maliciousUrls.forEach((url) => {
+      maliciousUrls.forEach(url => {
         const result = validateUrl(url);
         expect(result.valid).toBe(false);
         expect(result.error).toBeDefined();
@@ -149,7 +147,7 @@ describe('Security and Input Validation Tests', () => {
         'https://vxtwitter.com/user/status/123456789',
       ];
 
-      validUrls.forEach((url) => {
+      validUrls.forEach(url => {
         const result = validateUrl(url);
         expect(result.valid).toBe(true);
         expect(result.url).toBe(url);
@@ -312,7 +310,7 @@ describe('Security and Input Validation Tests', () => {
         const requests = rateLimitTracker.get(identifier);
 
         // Remove old requests outside the window
-        const validRequests = requests.filter((timestamp) => timestamp > windowStart);
+        const validRequests = requests.filter(timestamp => timestamp > windowStart);
 
         if (validRequests.length >= maxRequests) {
           return {
@@ -355,7 +353,7 @@ describe('Security and Input Validation Tests', () => {
 
       // If multiple IPs from same range exceed limits, should trigger alert
       let blockedIPs = 0;
-      suspiciousIPs.forEach((ip) => {
+      suspiciousIPs.forEach(ip => {
         for (let i = 0; i < 6; i++) {
           const result = checkRateLimit(ip);
           if (!result.allowed) {
@@ -382,7 +380,7 @@ describe('Security and Input Validation Tests', () => {
           }
 
           const requests = this.ipRequests.get(ip);
-          const recentRequests = requests.filter((timestamp) => timestamp > windowStart);
+          const recentRequests = requests.filter(timestamp => timestamp > windowStart);
           recentRequests.push(now);
           this.ipRequests.set(ip, recentRequests);
 
@@ -398,13 +396,13 @@ describe('Security and Input Validation Tests', () => {
 
           // Check for coordinated attacks (multiple IPs with similar patterns)
           const subnet = ip.split('.').slice(0, 3).join('.');
-          const subnetIPs = Array.from(this.ipRequests.keys()).filter((testIP) => testIP.startsWith(subnet));
+          const subnetIPs = Array.from(this.ipRequests.keys()).filter(testIP => testIP.startsWith(subnet));
 
           if (subnetIPs.length > 5) {
             // More than 5 IPs from same subnet
             const totalRequests = subnetIPs.reduce((sum, testIP) => {
               const ipRequests = this.ipRequests.get(testIP) || [];
-              return sum + ipRequests.filter((timestamp) => timestamp > windowStart).length;
+              return sum + ipRequests.filter(timestamp => timestamp > windowStart).length;
             }, 0);
 
             if (totalRequests > threshold * 3) {
@@ -426,7 +424,7 @@ describe('Security and Input Validation Tests', () => {
       const attackIPs = Array.from({ length: 10 }, (_, i) => `192.168.1.${i + 1}`);
       const results = [];
 
-      attackIPs.forEach((ip) => {
+      attackIPs.forEach(ip => {
         for (let i = 0; i < 15; i++) {
           const result = distributedAttackDetector.checkForDistributedAttack(ip);
           if (result.suspicious) {
@@ -437,20 +435,20 @@ describe('Security and Input Validation Tests', () => {
       });
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results.some((r) => r.reason === 'High request frequency')).toBe(true);
-      expect(results.some((r) => r.reason === 'Coordinated subnet attack')).toBe(true);
+      expect(results.some(r => r.reason === 'High request frequency')).toBe(true);
+      expect(results.some(r => r.reason === 'Coordinated subnet attack')).toBe(true);
     });
   });
 
   describe('Command Injection Prevention', () => {
     it('should prevent command injection in bot commands', () => {
-      const sanitizeCommandArgs = (args) => {
+      const sanitizeCommandArgs = args => {
         if (!Array.isArray(args)) {
           throw new Error('Arguments must be an array');
         }
 
         return args
-          .map((arg) => {
+          .map(arg => {
             if (typeof arg !== 'string') {
               return '';
             }
@@ -463,7 +461,7 @@ describe('Security and Input Validation Tests', () => {
               .trim()
               .substring(0, 100); // Limit length
           })
-          .filter((arg) => arg.length > 0);
+          .filter(arg => arg.length > 0);
       };
 
       const validateCommand = (command, args) => {
@@ -555,13 +553,13 @@ describe('Security and Input Validation Tests', () => {
           return { valid: false, error: 'Path traversal not allowed' };
         }
 
-        if (normalizedPath.startsWith('/') && !allowedDirectories.some((dir) => normalizedPath.startsWith(dir))) {
+        if (normalizedPath.startsWith('/') && !allowedDirectories.some(dir => normalizedPath.startsWith(dir))) {
           return { valid: false, error: 'Absolute paths not allowed outside permitted directories' };
         }
 
         // Check for dangerous file extensions
         const dangerousExtensions = ['.exe', '.sh', '.bat', '.cmd', '.ps1', '.php', '.asp', '.jsp'];
-        if (dangerousExtensions.some((ext) => normalizedPath.toLowerCase().endsWith(ext))) {
+        if (dangerousExtensions.some(ext => normalizedPath.toLowerCase().endsWith(ext))) {
           return { valid: false, error: 'Dangerous file extension' };
         }
 
@@ -588,7 +586,7 @@ describe('Security and Input Validation Tests', () => {
         '.htaccess',
       ];
 
-      maliciousPaths.forEach((path) => {
+      maliciousPaths.forEach(path => {
         const result = validateFilePath(path, ['/var/log/', '/tmp/']);
         expect(result.valid).toBe(false);
       });
@@ -602,7 +600,7 @@ describe('Security and Input Validation Tests', () => {
         '/tmp/upload_123.tmp',
       ];
 
-      validPaths.forEach((path) => {
+      validPaths.forEach(path => {
         const result = validateFilePath(path, ['/var/log/', '/tmp/']);
         expect(result.valid).toBe(true);
       });
@@ -611,24 +609,24 @@ describe('Security and Input Validation Tests', () => {
 
   describe('Data Exposure Prevention', () => {
     it('should redact sensitive information from logs', () => {
-      const redactSensitiveData = (data) => {
+      const redactSensitiveData = data => {
         if (typeof data === 'string') {
           return data
             .replace(/bearer\s+([a-zA-Z0-9+/=]{8,})/gi, (match, token) => match.replace(token, '*'.repeat(8)))
             .replace(/(?:password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi, (match, value) =>
-              match.replace(value, '*'.repeat(Math.min(value.length, 8))),
+              match.replace(value, '*'.repeat(Math.min(value.length, 8)))
             )
             .replace(/(?:api[_-]?key|access[_-]?token)\s*[:=]?\s*['"]?([a-zA-Z0-9+/=]{8,})/gi, (match, token) =>
-              match.replace(token, '*'.repeat(8)),
+              match.replace(token, '*'.repeat(8))
             )
             .replace(/(?:key|token)\s*[:=]\s*['"]?([a-zA-Z0-9+/=]{8,})/gi, (match, token) =>
-              match.replace(token, '*'.repeat(8)),
+              match.replace(token, '*'.repeat(8))
             )
             .replace(/['"]([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})['"](?:\s+is\s+invalid)?/gi, (match, token) =>
-              match.replace(token, '*'.repeat(8)),
+              match.replace(token, '*'.repeat(8))
             )
             .replace(/(?:discord[_-]?token|bot[_-]?token)['"]?([a-zA-Z0-9._-]{50,})/gi, (match, token) =>
-              match.replace(token, '*'.repeat(8)),
+              match.replace(token, '*'.repeat(8))
             )
             .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL_REDACTED]')
             .replace(/(?:\d{1,3}\.){3}\d{1,3}/g, '[IP_REDACTED]');
@@ -679,7 +677,7 @@ describe('Security and Input Validation Tests', () => {
       expect(redacted.config.database_password).toBe('********');
       expect(redacted.config.oauth_secret).toBe('********');
 
-      redacted.logs.forEach((log) => {
+      redacted.logs.forEach(log => {
         expect(log).not.toContain('mypassword123');
         expect(log).not.toContain('abc123456789');
         expect(log).not.toContain('eyJhbGciOiJIUzI1NiJ9');
@@ -713,12 +711,12 @@ describe('Security and Input Validation Tests', () => {
             'Service unavailable',
           ];
 
-          if (!allowedErrors.some((allowed) => sanitizedMessage.includes(allowed))) {
+          if (!allowedErrors.some(allowed => sanitizedMessage.includes(allowed))) {
             sanitizedMessage = 'Internal server error';
           }
         } else {
           // In development, sanitize but keep useful information
-          sensitivePatterns.forEach((pattern) => {
+          sensitivePatterns.forEach(pattern => {
             sanitizedMessage = sanitizedMessage.replace(pattern, '[SENSITIVE]');
           });
 
@@ -726,7 +724,7 @@ describe('Security and Input Validation Tests', () => {
           sanitizedMessage = sanitizedMessage
             .replace(/"([a-zA-Z0-9]{2,}-[a-zA-Z0-9]{4,})"/g, '"[REDACTED]"') // API keys like "sk-12345"
             .replace(/"([a-zA-Z0-9._-]{20,})"/g, '"[REDACTED]"') // Long tokens
-            .replace(/([a-zA-Z0-9]{6,})/g, (match) => {
+            .replace(/([a-zA-Z0-9]{6,})/g, match => {
               // Redact if it looks like a secret value (alphanumeric mix of 6+ chars)
               if (/[0-9]/.test(match) && /[a-zA-Z]/.test(match)) {
                 return '[REDACTED]';
@@ -734,7 +732,7 @@ describe('Security and Input Validation Tests', () => {
               return match;
             });
 
-          systemPaths.forEach((pattern) => {
+          systemPaths.forEach(pattern => {
             sanitizedMessage = sanitizedMessage.replace(pattern, '[PATH_REDACTED]');
           });
         }
@@ -755,7 +753,7 @@ describe('Security and Input Validation Tests', () => {
         new Error('Authentication failed: invalid session token abc123'),
       ];
 
-      sensitiveErrors.forEach((error) => {
+      sensitiveErrors.forEach(error => {
         const prodResult = sanitizeError(error, true);
         const devResult = sanitizeError(error, false);
 
@@ -776,7 +774,7 @@ describe('Security and Input Validation Tests', () => {
         new Error('Rate limit exceeded'),
       ];
 
-      allowedErrors.forEach((error) => {
+      allowedErrors.forEach(error => {
         const result = sanitizeError(error, true);
         expect(result.message).toBe(error.message);
       });
@@ -785,7 +783,7 @@ describe('Security and Input Validation Tests', () => {
 
   describe('Security Headers and Configuration', () => {
     it('should validate secure webhook configuration', () => {
-      const validateWebhookConfig = (config) => {
+      const validateWebhookConfig = config => {
         const issues = [];
 
         // Check HTTPS requirement
@@ -843,7 +841,7 @@ describe('Security and Input Validation Tests', () => {
         },
       ];
 
-      insecureConfigs.forEach((config) => {
+      insecureConfigs.forEach(config => {
         const result = validateWebhookConfig(config);
         expect(result.secure).toBe(false);
         expect(result.issues.length).toBeGreaterThan(0);
@@ -873,7 +871,7 @@ describe('Security and Input Validation Tests', () => {
 
         // Validate allowed origins
         if (Array.isArray(corsConfig.origin)) {
-          corsConfig.origin.forEach((origin) => {
+          corsConfig.origin.forEach(origin => {
             if (!origin.startsWith('https://') && origin !== 'http://localhost') {
               issues.push(`Insecure origin: ${origin}`);
             }
@@ -884,7 +882,7 @@ describe('Security and Input Validation Tests', () => {
         const dangerousHeaders = ['authorization', 'cookie', 'x-auth-token'];
         if (corsConfig.allowedHeaders) {
           const hasCredentials = corsConfig.credentials === true;
-          const hasDangerousHeaders = dangerousHeaders.some((header) => corsConfig.allowedHeaders.includes(header));
+          const hasDangerousHeaders = dangerousHeaders.some(header => corsConfig.allowedHeaders.includes(header));
 
           if (hasCredentials && hasDangerousHeaders && corsConfig.origin === '*') {
             issues.push('Cannot use credentials with wildcard origin and sensitive headers');
@@ -920,7 +918,7 @@ describe('Security and Input Validation Tests', () => {
 
       const mockRequest = { origin: 'https://evil.com' };
 
-      insecureCorsConfigs.forEach((config) => {
+      insecureCorsConfigs.forEach(config => {
         const result = validateCorsConfig(config, mockRequest);
         expect(result.secure).toBe(false);
       });

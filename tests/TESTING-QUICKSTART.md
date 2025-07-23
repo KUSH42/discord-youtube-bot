@@ -6,7 +6,7 @@
 # Start here - Development optimized testing
 npm run test:dev           # Fast feedback, single worker, bail on first failure
 
-# Watch mode for continuous development  
+# Watch mode for continuous development
 npm run test:watch         # Auto-run tests on file changes
 
 # Only test what you've changed
@@ -21,7 +21,7 @@ npm test                   # All tests with coverage
 ```bash
 # Target specific test types
 npm run test:unit          # Unit tests only
-npm run test:integration   # Integration tests  
+npm run test:integration   # Integration tests
 npm run test:e2e           # End-to-end tests
 
 # Test specific files/patterns
@@ -84,7 +84,7 @@ npm run test:debug -- failing-test
 ```
 tests/
 ├── unit/           # Individual component tests
-├── integration/    # Component interaction tests  
+├── integration/    # Component interaction tests
 ├── e2e/           # End-to-end workflow tests
 ├── performance/   # Performance benchmarks
 ├── security/      # Security validation tests
@@ -94,11 +94,11 @@ tests/
 
 ## ✅ Coverage Requirements
 
-| Component Type | Statements | Branches | Functions | Lines |
-|---------------|------------|----------|-----------|-------|
-| **Global** | 25% | 20% | 25% | 25% |
-| **Core Modules** | 50% | 40% | 55% | 50% |
-| **Critical Components** | 85-90% | 75-85% | 90% | 85-90% |
+| Component Type          | Statements | Branches | Functions | Lines  |
+| ----------------------- | ---------- | -------- | --------- | ------ |
+| **Global**              | 25%        | 20%      | 25%       | 25%    |
+| **Core Modules**        | 50%        | 40%      | 55%       | 50%    |
+| **Critical Components** | 85-90%     | 75-85%   | 90%       | 85-90% |
 
 ## 🎨 Interactive Test Runner
 
@@ -108,25 +108,27 @@ npm run test:runner --help
 
 # Examples
 npm run test:runner unit              # Run unit tests
-npm run test:runner coverage          # Generate coverage  
+npm run test:runner coverage          # Generate coverage
 npm run test:runner watch --bail      # Watch mode with fail-fast
 npm run test:runner dev               # Development mode
 ```
 
 ## 📋 Quick Commands Reference
 
-| Command | Purpose |
-|---------|---------|
-| `npm run test:dev` | Fast development testing |
-| `npm run test:watch` | Auto-run on file changes |
-| `npm run test:changed` | Git-aware testing |
+| Command                 | Purpose                   |
+| ----------------------- | ------------------------- |
+| `npm run test:dev`      | Fast development testing  |
+| `npm run test:watch`    | Auto-run on file changes  |
+| `npm run test:changed`  | Git-aware testing         |
 | `npm run test:parallel` | Faster parallel execution |
-| `npm run test:debug` | Debug with breakpoints |
-| `npm run test:runner` | Interactive test runner |
-| `npm run test:coverage` | Generate coverage report |
+| `npm run test:debug`    | Debug with breakpoints    |
+| `npm run test:runner`   | Interactive test runner   |
+| `npm run test:coverage` | Generate coverage report  |
 
 ---
 
-💡 **Pro Tip**: Start with `npm run test:dev -- --watch` for the fastest development experience!
+💡 **Pro Tip**: Start with `npm run test:dev -- --watch` for the fastest
+development experience!
 
-📚 **Full Documentation**: See `tests/README.md` and `CLAUDE.md` for comprehensive testing guidelines.
+📚 **Full Documentation**: See `tests/README.md` and `CLAUDE.md` for
+comprehensive testing guidelines.
