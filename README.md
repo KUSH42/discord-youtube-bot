@@ -105,7 +105,7 @@ src/
 ├── ⚙️ config/                # Configuration modules
 │   └── content-detection.js  # Content detection reliability configuration
 ├── ⚙️ setup/                 # Production dependency wiring
-└── 🛠️ utilities/             # Shared utilities (e.g., logger, validator)
+└── 🛠️ utilities/             # Shared utilities (e.g., logger, validator, AsyncMutex)
 ```
 
 ## YouTube Content Detection Reliability
@@ -159,6 +159,25 @@ the same content simultaneously:
   detections
 - **Unified Processing**: Single pipeline for all content regardless of
   detection source
+
+### Browser Automation Reliability
+
+The bot uses **Playwright** for X and YouTube web scraping with comprehensive reliability improvements to prevent browser closure race conditions:
+
+#### **Enhanced Browser State Validation**
+- **Connection Health Checks**: Validates browser connectivity and page status before each operation
+- **Graceful Error Handling**: Detects browser closure scenarios and provides clear error messages
+- **State Recovery**: Automatically handles browser disconnections without crashing the scraper
+
+#### **Operation Synchronization**
+- **AsyncMutex Protection**: Custom mutex utility prevents concurrent browser operations that could cause race conditions
+- **Sequential Processing**: Browser operations are queued and executed sequentially to prevent conflicts
+- **Graceful Shutdown Coordination**: Waits for ongoing operations before browser cleanup during restarts
+
+#### **Improved Retry Logic**
+- **Smart Retry Strategy**: Distinguishes between retryable errors (network timeouts) and permanent failures (browser closure)
+- **Safe Delay Handling**: Uses `setTimeout` instead of browser-dependent delays during retries
+- **Error Classification**: Detects "Target page, context or browser has been closed" errors and handles them appropriately
 
 ### Configuration
 
@@ -530,6 +549,8 @@ and pull request via GitHub Actions.
   announcement pipeline
 - **Fallback Recovery**: Tests for YouTube API failure scenarios and recovery
   mechanisms
+- **Browser Automation Reliability**: Tests for AsyncMutex operation synchronization, 
+  browser state validation, and race condition prevention in Playwright operations
 
 - **Run all tests locally:**
   ```sh
@@ -573,6 +594,7 @@ and pull request via GitHub Actions.
 - **X Authentication Failures**: The bot uses cookie-based authentication detection for reliability. Check `!auth-status` and `!scraper-health` commands for diagnostics. The bot looks for `auth_token` and `ct0` cookies to verify login status. Use `!force-reauth` to clear cached credentials and retry authentication. For persistent issues, verify credentials are correct and the account isn't locked. Authentication failures are often caused by browser configuration triggering anti-bot detection (see Browser Issues below).
 - **X Scraper Not Running**: Use `!scraper-health` to check status. The health monitoring system will attempt automatic recovery every 5 minutes. Manual recovery options: `!restart-scraper` (restart with retry logic) or `!start-scraper` if stopped.
 - **Browser Anti-Bot Detection Issues**: If authentication succeeds but the bot reports failure, aggressive browser optimization flags may be triggering detection. The bot uses a carefully tuned browser configuration with only essential optimizations (`--disable-images`, `--disable-plugins`, `--mute-audio`) while avoiding detection-triggering flags like `--disable-web-security`. Both X and YouTube scrapers use `headless: false` with Xvfb virtual display. See `CLAUDE.md` for the complete safe browser configuration.
+- **"Target page, context or browser has been closed" Errors**: These browser closure race conditions have been resolved through comprehensive fixes including AsyncMutex operation synchronization, enhanced browser state validation, and graceful shutdown coordination. The bot now properly handles concurrent browser operations and validates browser health before each action.
 - **Startup Status Accuracy**: The bot now provides accurate startup messages. ✅ "Bot startup completed successfully" appears only when all components start without errors. ⚠️ "Bot startup completed with some components disabled due to errors" indicates one or more components failed to start, but core functionality remains operational.
 - **Commands Not Working**: Confirm you are using the correct `COMMAND_PREFIX`
   in the designated support channel. Ensure your user ID is in

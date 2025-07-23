@@ -105,7 +105,7 @@ src/
 ├── infrastructure/       # DI container, configuration, event bus, state management
 ├── services/             # External service abstractions and implementations
 ├── setup/                # Production dependency wiring
-└── utilities/            # Shared utilities (logger, delay functions)
+└── utilities/            # Shared utilities (logger, delay functions, AsyncMutex)
 ```
 
 ### Data Flow Patterns
@@ -202,6 +202,66 @@ try {
 - **Async Operations**: Use Promise.all() for parallel operations when safe
 - **Resource Cleanup**: Implement disposal patterns for browser instances and
   network connections
+
+### Browser Automation Reliability Guidelines
+
+When working with Playwright browser automation, follow these patterns to prevent race conditions and browser closure errors:
+
+#### **AsyncMutex for Operation Synchronization**
+- Use `AsyncMutex` utility (`src/utilities/async-mutex.js`) to prevent concurrent browser operations
+- Apply mutex protection to all browser-dependent methods in scraper services
+- Example implementation:
+```javascript
+// In constructor
+this.browserMutex = new AsyncMutex();
+
+// Wrapping browser operations
+async fetchContent() {
+  return await this.browserMutex.runExclusive(async () => {
+    if (this.isShuttingDown) {
+      return null; // Early exit during shutdown
+    }
+    // Browser operations here
+  });
+}
+```
+
+#### **Enhanced Browser State Validation**
+- Always validate browser and page health before operations
+- Use `browserService.isHealthy()` to check connection status
+- Implement proper error classification for retry logic
+- Example validation pattern:
+```javascript
+// Before browser operations
+if (!this.browser || !this.page || !this.browser.isConnected() || this.page.isClosed()) {
+  throw new Error('Browser or page not available');
+}
+```
+
+#### **Graceful Shutdown Coordination**
+- Implement `isShuttingDown` flags in scraper services
+- Wait for ongoing operations before browser cleanup
+- Use timeout-based waiting to prevent infinite hangs
+- Example cleanup pattern:
+```javascript
+async cleanup() {
+  this.isShuttingDown = true;
+  
+  // Wait for ongoing operations
+  while (this.browserMutex.locked && !timeout) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  await this.browserService.close();
+  this.isShuttingDown = false;
+}
+```
+
+#### **Safe Retry Logic**
+- Use `setTimeout` instead of `page.waitForTimeout` for delays during retries
+- Detect and don't retry browser closure errors
+- Implement exponential backoff for network-related failures
+- Distinguish between recoverable and permanent errors
 
 ## 5. Testing & Validation Standards
 
