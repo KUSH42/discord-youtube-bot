@@ -84,17 +84,17 @@ concerns, high testability, and maintainability.
 ```bash
 src/
 ├── 🎯 application/           # Application layer (orchestrators) - Comprehensive test coverage
-│   ├── auth-manager.js       # X/Twitter authentication and session management (91.5% test coverage)
-│   ├── bot-application.js    # Discord bot orchestrator and command processing (89.02% test coverage)
+│   ├── auth-manager.js       # X/Twitter authentication and session management (93.12% test coverage)
+│   ├── bot-application.js    # Discord bot orchestrator and command processing (70.51% test coverage)
 │   ├── monitor-application.js # YouTube monitoring and PubSubHubbub handling (95.84% test coverage)
-│   └── scraper-application.js # X/Twitter content scraping orchestrator (77.83% test coverage)
+│   └── scraper-application.js # X/Twitter content scraping orchestrator (70.06% test coverage)
 ├── 💼 core/                  # Business logic layer
-│   ├── command-processor.js  # Discord command processing (100% test coverage)
+│   ├── command-processor.js  # Discord command processing (89.47% test coverage)
 │   ├── content-announcer.js  # Content announcement formatting and routing
 │   ├── content-classifier.js # Content type classification and validation
 │   ├── content-coordinator.js # Multi-source content coordination with race condition prevention (100% test coverage)
 │   ├── content-state-manager.js # Unified content state management and persistence (100% test coverage)
-│   └── livestream-state-machine.js # Livestream transition tracking (scheduled → live → ended) (95% test coverage)
+│   └── livestream-state-machine.js # Livestream transition tracking (scheduled → live → ended) (95.37% test coverage)
 ├── 🏗️ infrastructure/        # Foundation layer
 │   ├── configuration.js      # Environment configuration management
 │   ├── dependency-container.js # Dependency injection container
@@ -492,13 +492,13 @@ and pull request via GitHub Actions.
 
 **Recent Testing Enhancements:**
 
-- **Application Layer Coverage**: Achieved exceptional test coverage for all
+- **Application Layer Coverage**: Achieved strong test coverage for all
   application orchestrators:
-  - **bot-application.js**: 89.02% statement coverage with comprehensive command
+  - **bot-application.js**: 70.51% statement coverage with comprehensive command
     processing tests
   - **monitor-application.js**: 95.84% statement coverage with full PubSubHubbub,
     video processing, and scheduled content polling tests  
-  - **scraper-application.js**: 77.83% statement coverage with authentication,
+  - **scraper-application.js**: 70.06% statement coverage with authentication,
     content detection, and tweet processing tests
 - **Critical Component Coverage**: Achieved 95%+ test coverage for core content
   pipeline components (LivestreamStateMachine, ContentCoordinator,
