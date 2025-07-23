@@ -64,14 +64,23 @@ async function main() {
     );
   }
   let container;
+  let restartUnsubscribe;
   try {
     container = await startBot();
     const eventBus = container.resolve('eventBus');
-    eventBus.on('bot.request_restart', async () => {
+    restartUnsubscribe = eventBus.on('bot.request_restart', async () => {
       const logger = container.resolve('logger');
       logger.info('Restarting bot...');
+      // Clean up the restart listener before disposing
+      if (restartUnsubscribe) {
+        restartUnsubscribe();
+        restartUnsubscribe = null;
+      }
       await container.dispose();
       container = await startBot();
+      // Re-register the restart listener for the new container
+      const newEventBus = container.resolve('eventBus');
+      restartUnsubscribe = newEventBus.on('bot.request_restart', arguments.callee);
     });
   } catch (error) {
     // Logger is not available here if startBot fails, so we log to console.
@@ -79,6 +88,13 @@ async function main() {
     console.error('❌ Bot startup failed in main:', error.message);
 
     // Clean up on error
+    if (restartUnsubscribe) {
+      try {
+        restartUnsubscribe();
+      } catch (unsubscribeError) {
+        console.error('Error cleaning up restart listener:', unsubscribeError);
+      }
+    }
     if (container) {
       try {
         await container.dispose();
