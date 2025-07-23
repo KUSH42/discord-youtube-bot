@@ -135,7 +135,9 @@ export class DiscordClientService extends DiscordService {
    * Destroy the Discord client connection
    */
   async destroy() {
-    await this.client.destroy();
+    if (this.client && typeof this.client.destroy === 'function') {
+      await this.client.destroy();
+    }
   }
 
   /**

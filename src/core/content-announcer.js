@@ -466,7 +466,11 @@ export class ContentAnnouncer {
       }
     } catch (error) {
       // Log error but don't fail the main announcement
-      console.warn(`Failed to send mirror message: ${error.message}`);
+      this.logger.error('Failed to send mirror message', {
+        error: error.message,
+        originalChannelId,
+        supportChannelId: this.supportChannelId,
+      });
     }
   }
 

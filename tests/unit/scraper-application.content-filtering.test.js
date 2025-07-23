@@ -88,6 +88,7 @@ describe('Content Filtering Logic', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(), // Support logger.child() calls
     };
 
     // Mock discord service

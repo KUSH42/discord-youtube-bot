@@ -56,6 +56,7 @@ describe('MonitorApplication', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     const dependencies = {
@@ -67,6 +68,7 @@ describe('MonitorApplication', () => {
       stateManager: mockStateManager,
       eventBus: mockEventBus,
       logger: mockLogger,
+      persistentStorage: { get: jest.fn(), set: jest.fn(), delete: jest.fn() },
     };
 
     monitorApp = new MonitorApplication(dependencies);

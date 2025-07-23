@@ -161,7 +161,8 @@ describe('Browser Service Dependency Injection', () => {
           config,
           stateManager: { get: () => ({}) },
           eventBus: { emit: jest.fn() },
-          logger: { info: jest.fn(), error: jest.fn() },
+          logger: { info: jest.fn(), error: jest.fn(), child: jest.fn().mockReturnThis() },
+          persistentStorage: { get: jest.fn(), set: jest.fn(), delete: jest.fn() },
         });
       }).not.toThrow();
     });
@@ -174,7 +175,8 @@ describe('Browser Service Dependency Injection', () => {
         config,
         stateManager: { get: () => ({}) },
         eventBus: { emit: jest.fn() },
-        logger: { info: jest.fn(), error: jest.fn() },
+        logger: { info: jest.fn(), error: jest.fn(), child: jest.fn().mockReturnThis() },
+        persistentStorage: { get: jest.fn(), set: jest.fn(), delete: jest.fn() },
       });
 
       await expect(scraperApp.start()).rejects.toThrow();
@@ -228,7 +230,8 @@ describe('Browser Service Dependency Injection', () => {
           config,
           stateManager: { get: () => ({}) },
           eventBus: { emit: jest.fn() },
-          logger: { info: jest.fn(), error: jest.fn() },
+          logger: { info: jest.fn(), error: jest.fn(), child: jest.fn().mockReturnThis() },
+          persistentStorage: { get: jest.fn(), set: jest.fn(), delete: jest.fn() },
         });
       });
 

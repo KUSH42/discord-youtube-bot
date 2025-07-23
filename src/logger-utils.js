@@ -87,7 +87,7 @@ export class DiscordTransport extends Transport {
       return callback();
     }
     // Channel initialization logic
-    if (!this.client.isReady() || this.channel === 'errored') {
+    if (!this.client || !this.client.isReady || !this.client.isReady() || this.channel === 'errored') {
       return callback();
     }
     if (this.channel === null) {
@@ -135,7 +135,7 @@ export class DiscordTransport extends Transport {
     this.buffer = [];
 
     // Don't actually send if transport is destroyed or client is not ready
-    if (this.isDestroyed || !this.client.isReady()) {
+    if (this.isDestroyed || !this.client || !this.client.isReady || !this.client.isReady()) {
       return;
     }
 
@@ -165,7 +165,13 @@ export class DiscordTransport extends Transport {
       }
 
       // Re-add messages to buffer if sending failed and transport is still active
-      if (!this.isDestroyed && messagesToFlush.length > 0 && this.client.isReady()) {
+      if (
+        !this.isDestroyed &&
+        messagesToFlush.length > 0 &&
+        this.client &&
+        this.client.isReady &&
+        this.client.isReady()
+      ) {
         this.buffer.unshift(...messagesToFlush);
       }
     }

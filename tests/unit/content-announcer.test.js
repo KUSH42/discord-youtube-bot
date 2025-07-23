@@ -622,6 +622,9 @@ describe('ContentAnnouncer', () => {
         return `mock-${key}`;
       });
 
+      // Create new instance with the overridden config
+      const testContentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager, mockLogger);
+
       const content = {
         platform: 'youtube',
         type: 'video',
@@ -632,7 +635,7 @@ describe('ContentAnnouncer', () => {
         publishedAt: '2024-01-01T00:01:00Z',
       };
 
-      const result = await contentAnnouncer.announceContent(content);
+      const result = await testContentAnnouncer.announceContent(content);
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('Invalid or missing channel ID: invalid-id');
@@ -670,7 +673,7 @@ describe('ContentAnnouncer', () => {
       const result = await contentAnnouncer.announceContent(content);
 
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('Content is too old');
+      expect(result.reason).toBe('Content was published before bot started');
     });
 
     it('should provide correct skip reason for old X content', async () => {
@@ -730,12 +733,13 @@ describe('ContentAnnouncer', () => {
       expect(mockDiscordService.sendMessage).toHaveBeenNthCalledWith(
         2,
         '123456789012345683',
-        expect.stringContaining('[Mirror]')
+        expect.stringContaining('[Bot message from #')
       );
     });
 
     it('should not mirror to the same channel', async () => {
-      // Set mirror channel to be the same as YouTube channel
+      // Reset and set mirror channel to be the same as YouTube channel
+      mockConfig.get.mockReset();
       mockConfig.get.mockImplementation((key, defaultValue) => {
         if (key === 'DISCORD_BOT_SUPPORT_LOG_CHANNEL') {
           return '123456789012345678'; // Same as YouTube channel

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { ContentClassifier } from '../../src/core/content-classifier.js';
 
 describe('ContentClassifier', () => {
@@ -526,7 +526,7 @@ describe('ContentClassifier', () => {
 
     it('should handle empty text for indicators', () => {
       const retweetIndicators = classifier.getRetweetIndicators('');
-      const quoteIndicators = classifier.getQuoteIndicators('');
+      const quoteIndicators = classifier.getQuoteIndicators('', {});
 
       expect(Array.isArray(retweetIndicators)).toBe(true);
       expect(Array.isArray(quoteIndicators)).toBe(true);
@@ -535,12 +535,12 @@ describe('ContentClassifier', () => {
 
   describe('URL Pattern Extraction Edge Cases', () => {
     it('should extract YouTube channel ID from URL', () => {
-      const url = 'https://youtube.com/channel/UC1234567890';
+      const url = 'https://youtube.com/channel/UC1234567890123456789012';
       const result = classifier.extractContentId(url);
 
       expect(result.platform).toBe('youtube');
       expect(result.type).toBe('channel');
-      expect(result.id).toBe('UC1234567890');
+      expect(result.id).toBe('UC1234567890123456789012');
     });
 
     it('should extract X profile from URL', () => {
