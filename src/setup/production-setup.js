@@ -343,6 +343,9 @@ async function setupDiscordLogging(container, config) {
       channelId: supportChannelId,
       flushInterval: 2000,
       maxBufferSize: 20,
+      burstAllowance: 20, // Increase burst allowance to handle startup log bursts
+      burstResetTime: 60000, // 1 minute
+      baseSendDelay: 1000, // 1 second between sends
     });
 
     logger.add(discordTransport);

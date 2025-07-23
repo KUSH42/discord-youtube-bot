@@ -15,10 +15,10 @@ fi
 
 # Start the Node.js bot using system node or nvm if available
 if command -v node &> /dev/null; then
-    node index.js
+    npm run decrypt
 elif [ -s "$HOME/.nvm/nvm.sh" ]; then
     source "$HOME/.nvm/nvm.sh"
-    node index.js
+    npm run decrypt
 else
     echo "Node.js not found. Please install Node.js or NVM."
     exit 1

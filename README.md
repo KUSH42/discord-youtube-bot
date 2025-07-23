@@ -236,6 +236,10 @@ Follow these steps to get the bot running quickly for local development.
 
 5.  **Start the bot:**
     ```sh
+    # For production with encrypted credentials (recommended)
+    npm run decrypt
+    
+    # For development with unencrypted credentials
     npm start
     ```
 
@@ -333,11 +337,11 @@ All configuration is managed through the `.env` file.
 
 ### Running the Bot
 
-- **Standard start**: Validates configuration and starts the bot.
+- **Standard start**: Validates configuration and starts the bot (for development).
   ```sh
   npm start
   ```
-- **Start with encrypted credentials**:
+- **Start with encrypted credentials** (recommended for production):
   ```sh
   npm run decrypt
   ```

@@ -1,5 +1,5 @@
 [Unit]
-Description=Discord Content Announcement Bot Service
+Description=Discord Content Announcement Bot Service (with encrypted credentials)
 After=network.target
 
 [Service]
