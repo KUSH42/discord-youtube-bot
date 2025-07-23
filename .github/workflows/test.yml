@@ -349,7 +349,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Docker/Dockerfile
+          file: ./docker/Dockerfile
           platforms: linux/amd64
           target: test-runner
           push: true
@@ -386,7 +386,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Docker/Dockerfile
+          file: ./docker/Dockerfile
           platforms: linux/amd64
           target: test-runner
           push: true
