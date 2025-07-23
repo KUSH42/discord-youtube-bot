@@ -108,7 +108,7 @@ describe('YouTubeScraperService', () => {
           '--disable-setuid-sandbox',
           '--disable-images',
           '--disable-plugins',
-          '--disable-extensions',
+          '--mute-audio',
         ]),
       });
       expect(mockLogger.info).toHaveBeenCalledWith('YouTube scraper initialized', {

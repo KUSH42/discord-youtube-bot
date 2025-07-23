@@ -238,7 +238,7 @@ describe('ScraperApplication Core Operations', () => {
       await expect(scraperApp.start()).rejects.toThrow('Browser launch failed');
 
       expect(scraperApp.stop).toHaveBeenCalled();
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to start scraper application:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith('❌ Failed to start scraper application:', expect.any(Error));
     });
 
     it('should emit start event on successful start', async () => {
@@ -319,18 +319,10 @@ describe('ScraperApplication Core Operations', () => {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
-          // Performance optimizations for non-headless mode
+          // Minimal performance optimizations to avoid bot detection
           '--disable-images',
           '--disable-plugins',
-          '--disable-extensions',
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-audio-output',
           '--mute-audio',
-          '--disable-web-security',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
         ],
       });
       expect(mockBrowserService.setUserAgent).toHaveBeenCalledWith(
@@ -359,6 +351,10 @@ describe('ScraperApplication Core Operations', () => {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
+          // Minimal performance optimizations to avoid bot detection
+          '--disable-images',
+          '--disable-plugins',
+          '--mute-audio',
           '--display=:0',
         ],
       });

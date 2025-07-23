@@ -209,31 +209,40 @@ export class AuthManager {
       return false;
     }
     try {
-      // Navigate to a page that requires authentication to be sure
-      await this.browser.goto('https://x.com/home', { timeout: 15000, waitUntil: 'domcontentloaded' });
+      // Check for X authentication cookies
+      const cookies = await this.browser.getCookies();
 
-      // Check for multiple indicators of being logged in
-      const isLoggedIn = await this.browser.evaluate(() => {
-        /* eslint-disable no-undef */
-        const homeTimeline = document.querySelector('[aria-label="Home timeline"]');
-        const profileButton = document.querySelector('[data-testid="AppTabBar_Profile_Link"]');
-        const loginButton = document.querySelector('a[href="/i/flow/login"]');
-        const primaryColumn = document.querySelector('[data-testid="primaryColumn"]');
+      // X uses 'auth_token' and 'ct0' cookies for authentication
+      const authToken = cookies.find(cookie => cookie.name === 'auth_token');
+      const ct0Token = cookies.find(cookie => cookie.name === 'ct0');
 
-        // If a login button is visible, we are definitely not logged in
-        if (loginButton) {
-          return false;
+      // Both cookies should be present and non-empty for valid authentication
+      const hasValidCookies = authToken && authToken.value && ct0Token && ct0Token.value;
+
+      this.logger.info(
+        `Authentication check result: ${hasValidCookies ? 'authenticated (valid cookies)' : 'not authenticated (missing/invalid cookies)'}`
+      );
+
+      if (hasValidCookies) {
+        // Optional: Do a quick navigation test to confirm cookies work
+        try {
+          await this.browser.goto('https://x.com/home', { timeout: 10000, waitUntil: 'domcontentloaded' });
+          // If we can navigate to home without being redirected to login, we're good
+          const currentUrl = await this.browser.getUrl();
+          const isOnHomePage = currentUrl.includes('/home') || currentUrl === 'https://x.com/';
+
+          this.logger.info(`Navigation check: ${isOnHomePage ? 'success' : 'redirected to login'}`);
+          return isOnHomePage;
+        } catch (navError) {
+          this.logger.warn('Navigation test failed, but cookies present:', this.sanitizeErrorMessage(navError.message));
+          // If navigation fails but cookies are present, assume authenticated
+          return true;
         }
+      }
 
-        // A combination of home timeline and profile button is a strong indicator
-        return (homeTimeline && profileButton) || (primaryColumn && !loginButton);
-        /* eslint-enable no-undef */
-      });
-
-      return isLoggedIn;
+      return false;
     } catch (error) {
       this.logger.warn('Error checking authentication status:', this.sanitizeErrorMessage(error.message));
-      // In case of timeout or navigation error, assume not authenticated
       return false;
     }
   }

@@ -33,10 +33,15 @@ async function startBot() {
     await setupProductionServices(container, configuration);
     const logger = container.resolve('logger');
     logger.info('🚀 Starting Discord YouTube Bot...');
-    await startApplications(container, configuration);
+    const { hasErrors } = await startApplications(container, configuration);
     await startWebServer(container, configuration);
     setupGracefulShutdown(container);
-    logger.info('✅ Bot startup completed successfully');
+
+    if (hasErrors) {
+      logger.warn('⚠️ Bot startup completed with some components disabled due to errors');
+    } else {
+      logger.info('✅ Bot startup completed successfully');
+    }
     return container;
   } catch (error) {
     if (container && container.isRegistered('logger')) {
@@ -92,6 +97,7 @@ async function main() {
  */
 async function startApplications(container, config) {
   const logger = container.resolve('logger').child({ service: 'Main' });
+  let hasErrors = false;
 
   // Start Discord Bot
   const botApp = container.resolve('botApplication');
@@ -108,12 +114,15 @@ async function startApplications(container, config) {
       const scraperApp = container.resolve('scraperApplication');
       await scraperApp.start();
     } catch (error) {
-      logger.error('Failed to start X Scraper application:', error.message);
+      hasErrors = true;
+      logger.error('❌ Failed to start X Scraper application:', error.message);
       logger.warn('X Scraper will be disabled - YouTube monitoring will continue normally');
     }
   } else {
     logger.info('X Scraper disabled (no X_USER_HANDLE configured)');
   }
+
+  return { hasErrors };
 }
 
 /**

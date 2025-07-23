@@ -79,7 +79,7 @@ async function createIsolatedMainFunction(mocks = {}) {
             await scraperApp.start();
           } catch (error) {
             const logger = container.resolve('logger');
-            logger.child().error('Failed to start X Scraper application:', error.message);
+            logger.child().error('❌ Failed to start X Scraper application:', error.message);
             logger.child().warn('X Scraper will be disabled - YouTube monitoring will continue normally');
           }
         }
@@ -250,7 +250,10 @@ describe('Main Entry Point Error Handling', () => {
       });
 
       await expect(main()).rejects.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to start bot:'), expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Failed to start bot:'),
+        expect.any(Error)
+      );
     });
 
     it('should properly dispose container on startup failure', async () => {
@@ -394,7 +397,7 @@ describe('Main Entry Point Error Handling', () => {
               await scraperApp.start();
             } catch (error) {
               const logger = _container.resolve('logger');
-              logger.child().error('Failed to start X Scraper application:', error.message);
+              logger.child().error('❌ Failed to start X Scraper application:', error.message);
               logger.child().warn('X Scraper will be disabled - YouTube monitoring will continue normally');
             }
           }
@@ -406,7 +409,7 @@ describe('Main Entry Point Error Handling', () => {
 
       expect(mockScraperStart).toHaveBeenCalledTimes(1);
       expect(mockLoggerChild.error).toHaveBeenCalledWith(
-        'Failed to start X Scraper application:',
+        '❌ Failed to start X Scraper application:',
         'Scraper start failed'
       );
       expect(mockLoggerChild.warn).toHaveBeenCalledWith(

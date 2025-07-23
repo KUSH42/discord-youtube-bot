@@ -68,18 +68,10 @@ export class YouTubeScraperService {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
-          '--disable-web-security',
-          // Performance optimizations for non-headless mode
+          // Minimal performance optimizations to avoid bot detection
           '--disable-images',
           '--disable-plugins',
-          '--disable-extensions',
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-audio-output',
           '--mute-audio',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
         ],
       });
 
