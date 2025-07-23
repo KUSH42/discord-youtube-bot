@@ -491,7 +491,7 @@ describe('ScraperApplication Core Operations', () => {
       mockAuthManager.ensureAuthenticated.mockRejectedValue(authError);
 
       await expect(scraperApp.ensureAuthenticated()).rejects.toThrow('Auth failed');
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication failed:', authError);
+      expect(mockLogger.error).toHaveBeenCalledWith('Authentication failed after all retry attempts:', authError);
     });
   });
 

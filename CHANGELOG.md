@@ -8,6 +8,40 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-01-23
+
+### Added
+
+- **X (Twitter) Authentication Recovery System**: Comprehensive recovery mechanisms for authentication failures
+  - Smart retry logic with exponential backoff (3 attempts by default, 2s base delay)
+  - Error classification to distinguish recoverable vs non-recoverable authentication errors
+  - Automatic recovery for network timeouts, connection errors, and temporary failures
+- **Health Monitoring & Automatic Recovery**: Proactive monitoring system for X scraper component
+  - Periodic health checks every 5 minutes monitoring authentication, browser, and application state
+  - Automatic restart attempts when health checks detect failures
+  - Event emissions for external monitoring when recovery attempts fail
+- **Granular Scraper Management Commands**: Fine-grained control over X scraper without affecting YouTube monitoring
+  - `!restart-scraper` - Restart only the X scraper with retry logic
+  - `!stop-scraper` - Stop X scraper application
+  - `!start-scraper` - Start X scraper application
+  - `!auth-status` - Check X authentication status
+  - `!scraper-health` - Detailed scraper health diagnostics
+  - `!force-reauth` - Force re-authentication (clears cookies and restarts)
+
+### Changed
+
+- **Enhanced AuthManager**: Replaced single-attempt authentication with intelligent retry system
+- **Improved ScraperApplication**: Added health monitoring, restart capabilities, and graceful error handling
+- **Updated Command System**: Extended command processor with new scraper management commands and updated help text
+
+### Fixed
+
+- **Authentication Failure Recovery**: Single authentication failure no longer causes permanent scraper shutdown
+- **Network Resilience**: Temporary network issues, timeouts, and connection problems now trigger automatic recovery
+- **Browser Crash Recovery**: Health monitoring detects and recovers from browser crashes automatically
+
+## [0.2.0] - Previous Release
+
 ### Added
 
 - Comprehensive migration documentation in

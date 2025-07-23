@@ -86,7 +86,7 @@ export class ScraperApplication {
       // Initialize browser
       await this.initializeBrowser();
 
-      // Perform initial login
+      // Perform initial login with retry logic
       await this.ensureAuthenticated();
 
       // Initialize with recent content to prevent announcing old posts
@@ -94,6 +94,9 @@ export class ScraperApplication {
 
       // Start polling
       this.startPolling();
+
+      // Start health monitoring for automatic recovery
+      this.startHealthMonitoring();
 
       this.isRunning = true;
       this.logger.info('✅ X scraper application started successfully');
@@ -123,6 +126,9 @@ export class ScraperApplication {
     try {
       this.logger.info('Stopping X scraper application...');
 
+      // Stop health monitoring
+      this.stopHealthMonitoring();
+
       // Stop polling
       this.stopPolling();
 
@@ -140,6 +146,152 @@ export class ScraperApplication {
     } catch (error) {
       this.logger.error('Error stopping scraper application:', error);
     }
+  }
+
+  /**
+   * Restart the scraper application with retry logic
+   * @param {Object} options - Restart options
+   * @param {number} options.maxRetries - Maximum restart attempts (default: 3)
+   * @param {number} options.baseDelay - Base delay between restart attempts (default: 5000ms)
+   * @returns {Promise<void>}
+   */
+  async restart(options = {}) {
+    const { maxRetries = 3, baseDelay = 5000 } = options;
+
+    this.logger.info('Restarting X scraper application...');
+
+    // Stop current instance
+    await this.stop();
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.info(`Restart attempt ${attempt}/${maxRetries}`);
+        await this.start();
+        this.logger.info('✅ Scraper application restarted successfully');
+        return;
+      } catch (error) {
+        this.logger.error(`Restart attempt ${attempt} failed:`, error.message);
+
+        if (attempt === maxRetries) {
+          this.logger.error(`Failed to restart scraper after ${maxRetries} attempts`);
+          throw new Error(`Scraper restart failed after ${maxRetries} attempts: ${error.message}`);
+        }
+
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        this.logger.info(`Waiting ${delay}ms before next restart attempt...`);
+        await this.delay(delay);
+      }
+    }
+  }
+
+  /**
+   * Start periodic health monitoring with automatic recovery
+   * @param {number} intervalMs - Health check interval in milliseconds (default: 300000 = 5 minutes)
+   */
+  startHealthMonitoring(intervalMs = 300000) {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+
+    this.logger.info(`Starting health monitoring (check every ${intervalMs / 1000}s)`);
+
+    this.healthCheckInterval = setInterval(async () => {
+      try {
+        await this.performHealthCheck();
+      } catch (error) {
+        this.logger.error('Health check failed:', error.message);
+        await this.handleHealthCheckFailure(error);
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Stop health monitoring
+   */
+  stopHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+      this.logger.info('Health monitoring stopped');
+    }
+  }
+
+  /**
+   * Perform health check on the scraper
+   * @returns {Promise<Object>} Health check results
+   */
+  async performHealthCheck() {
+    const health = {
+      timestamp: new Date(),
+      isRunning: this.isRunning,
+      authenticated: false,
+      browserHealthy: false,
+      errors: [],
+    };
+
+    try {
+      // Check if application is running
+      if (!this.isRunning) {
+        health.errors.push('Application not running');
+        return health;
+      }
+
+      // Check browser health
+      if (this.browser && !this.browser.isClosed()) {
+        health.browserHealthy = true;
+      } else {
+        health.errors.push('Browser not available or closed');
+      }
+
+      // Check authentication status
+      if (health.browserHealthy) {
+        try {
+          const authStatus = await this.authManager.verifyAuthentication();
+          health.authenticated = authStatus;
+          if (!authStatus) {
+            health.errors.push('Authentication verification failed');
+          }
+        } catch (error) {
+          health.errors.push(`Authentication check failed: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      health.errors.push(`Health check error: ${error.message}`);
+    }
+
+    return health;
+  }
+
+  /**
+   * Handle health check failure with automatic recovery
+   * @param {Error} error - The health check error
+   */
+  async handleHealthCheckFailure(error) {
+    this.logger.warn('Attempting automatic recovery due to health check failure');
+
+    try {
+      // Attempt to restart the scraper
+      await this.restart({ maxRetries: 2, baseDelay: 3000 });
+      this.logger.info('✅ Automatic recovery successful');
+    } catch (recoveryError) {
+      this.logger.error('❌ Automatic recovery failed:', recoveryError.message);
+
+      // Emit event for external monitoring
+      this.eventBus.emit('scraper.recovery.failed', {
+        originalError: error.message,
+        recoveryError: recoveryError.message,
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Delay helper function
+   * @param {number} ms - Milliseconds to delay
+   * @returns {Promise<void>}
+   */
+  async delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -1013,11 +1165,17 @@ export class ScraperApplication {
    * Ensure user is authenticated (alias for loginToX)
    * @returns {Promise<void>}
    */
-  async ensureAuthenticated() {
+  async ensureAuthenticated(options = {}) {
+    const defaultOptions = {
+      maxRetries: 3,
+      baseDelay: 2000,
+      ...options,
+    };
+
     try {
-      await this.authManager.ensureAuthenticated();
+      await this.authManager.ensureAuthenticated(defaultOptions);
     } catch (err) {
-      this.logger.error('Authentication failed:', err);
+      this.logger.error('Authentication failed after all retry attempts:', err);
       throw err;
     }
   }

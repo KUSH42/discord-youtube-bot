@@ -366,6 +366,11 @@ export class BotApplication {
       if (result.newLogLevel) {
         this.handleLogLevelChange(result.newLogLevel);
       }
+
+      // Handle scraper actions
+      if (result.scraperAction) {
+        await this.handleScraperAction(result.scraperAction, result.userId, message);
+      }
     } catch (error) {
       this.logger.error('Error handling command result:', error);
     }
@@ -696,6 +701,127 @@ export class BotApplication {
       eventBusStats: this.eventBus.getStats(),
       stateStats: this.state.getStats(),
     };
+  }
+
+  /**
+   * Handle scraper action commands
+   * @param {string} action - The scraper action to perform
+   * @param {string} userId - The user ID who issued the command
+   * @param {Object} message - The Discord message object
+   * @returns {Promise<void>}
+   */
+  async handleScraperAction(action, userId, message) {
+    try {
+      const scraperApp = this.scraperApplication;
+
+      if (!scraperApp) {
+        await message.channel.send('❌ X scraper application is not available.');
+        return;
+      }
+
+      switch (action) {
+        case 'restart':
+          try {
+            await message.channel.send('🔄 Restarting X scraper application...');
+            await scraperApp.restart();
+            await message.channel.send('✅ X scraper application restarted successfully!');
+            this.logger.info(`Scraper restarted by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to restart X scraper: ${error.message}`);
+            this.logger.error(`Scraper restart failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'stop':
+          try {
+            await message.channel.send('⏹️ Stopping X scraper application...');
+            await scraperApp.stop();
+            await message.channel.send('✅ X scraper application stopped successfully!');
+            this.logger.info(`Scraper stopped by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to stop X scraper: ${error.message}`);
+            this.logger.error(`Scraper stop failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'start':
+          try {
+            await message.channel.send('▶️ Starting X scraper application...');
+            await scraperApp.start();
+            await message.channel.send('✅ X scraper application started successfully!');
+            this.logger.info(`Scraper started by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to start X scraper: ${error.message}`);
+            this.logger.error(`Scraper start failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'auth-status':
+          try {
+            const health = await scraperApp.performHealthCheck();
+            const statusIcon = health.authenticated ? '✅' : '❌';
+            const statusText = health.authenticated ? 'Authenticated' : 'Not authenticated';
+            const errors = health.errors.length > 0 ? `\n⚠️ Issues: ${health.errors.join(', ')}` : '';
+
+            await message.channel.send(`🔐 **X Authentication Status**\n${statusIcon} ${statusText}${errors}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to check authentication status: ${error.message}`);
+            this.logger.error(`Auth status check failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'force-reauth':
+          try {
+            await message.channel.send('🔑 Forcing re-authentication...');
+
+            // Clear saved cookies
+            this.state.delete('x_session_cookies');
+
+            // Restart scraper to trigger fresh authentication
+            await scraperApp.restart();
+
+            await message.channel.send('✅ Re-authentication completed! X scraper restarted with fresh login.');
+            this.logger.info(`Force re-authentication completed by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to force re-authentication: ${error.message}`);
+            this.logger.error(`Force re-authentication failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'health':
+          try {
+            const health = await scraperApp.performHealthCheck();
+            const runningIcon = health.isRunning ? '✅' : '❌';
+            const authIcon = health.authenticated ? '✅' : '❌';
+            const browserIcon = health.browserHealthy ? '✅' : '❌';
+
+            const healthMessage = [
+              '🩺 **X Scraper Health Status**',
+              `${runningIcon} Running: ${health.isRunning}`,
+              `${authIcon} Authenticated: ${health.authenticated}`,
+              `${browserIcon} Browser: ${health.browserHealthy ? 'Healthy' : 'Unhealthy'}`,
+              `📅 Last Check: ${health.timestamp.toLocaleString()}`,
+            ];
+
+            if (health.errors.length > 0) {
+              healthMessage.push(`⚠️ Issues: ${health.errors.join(', ')}`);
+            }
+
+            await message.channel.send(healthMessage.join('\n'));
+          } catch (error) {
+            await message.channel.send(`❌ Failed to check scraper health: ${error.message}`);
+            this.logger.error(`Scraper health check failed (user ${userId}):`, error);
+          }
+          break;
+
+        default:
+          await message.channel.send(`❓ Unknown scraper action: ${action}`);
+          this.logger.warn(`Unknown scraper action requested: ${action} by user ${userId}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error handling scraper action ${action}:`, error);
+      await message.channel.send('❌ An error occurred while processing the scraper command.');
+    }
   }
 
   /**

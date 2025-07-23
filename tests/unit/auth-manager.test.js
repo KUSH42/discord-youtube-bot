@@ -329,7 +329,7 @@ describe('AuthManager', () => {
       authManager.loginToX.mockRejectedValue(new Error('Login failed'));
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', 'Login failed');
+      expect(mockLogger.error).toHaveBeenCalledWith('Non-recoverable authentication error:', 'Login failed');
     });
 
     it('should handle browser navigation errors during cookie validation', async () => {
@@ -480,7 +480,7 @@ describe('AuthManager', () => {
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', 'State read error');
+      expect(mockLogger.error).toHaveBeenCalledWith('Non-recoverable authentication error:', 'State read error');
     });
 
     it('should log an error but still attempt to login if stateManager.delete fails', async () => {

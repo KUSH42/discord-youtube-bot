@@ -172,7 +172,10 @@ describe('Persistent Cookie Storage', () => {
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', 'State manager read error');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Non-recoverable authentication error:',
+        'State manager read error'
+      );
       expect(loginSpy).not.toHaveBeenCalled(); // Should fail before calling login
     });
   });

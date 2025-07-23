@@ -510,15 +510,24 @@ resolved. Tests now complete in reasonable time without memory overflow.
 
 ### Available Commands
 
+**General Commands:**
 - `!health` - Basic health status and system information
 - `!health-detailed` - Comprehensive component status
 - `!announce <true|false>` - Toggle announcement posting
 - `!vxtwitter <true|false>` - Toggle URL conversion
 - `!loglevel <level>` - Change logging level
-- `!restart` - Full bot restart (authorized users only)
-- `!kill` - Stop all Discord posting (authorized users only)
-- `!update` - Git pull and restart (authorized users only)
+- `!auth-status` - Show X authentication status
+- `!scraper-health` - Show X scraper health status
 - `!readme` - Display command help
+
+**Administrative Commands (authorized users only):**
+- `!restart` - Full bot restart
+- `!kill` - Stop all Discord posting
+- `!update` - Git pull and restart
+- `!restart-scraper` - Restart only X scraper with retry logic
+- `!stop-scraper` - Stop X scraper application
+- `!start-scraper` - Start X scraper application
+- `!force-reauth` - Force re-authentication with X (clears cookies)
 
 ### Command Implementation Guidelines
 
@@ -564,7 +573,10 @@ prevent conflicts:
 
 ### X (Twitter) Monitoring (Web Scraping)
 
-- **Authentication**: Managed by `AuthManager` with persistent cookie storage
+- **Robust Authentication**: Managed by `AuthManager` with persistent cookie storage and automatic recovery
+- **Smart Retry Logic**: Exponential backoff retry system for temporary authentication failures
+- **Health Monitoring**: Periodic authentication and browser health checks with automatic recovery
+- **Error Classification**: Distinguishes recoverable vs permanent authentication errors
 - **Content Classification**: Distinguish posts, replies, quotes, and retweets
 - **Advanced Scraping**: Search-based scraping with enhanced scrolling
 - **Rate Limiting**: Respectful scraping with configurable intervals
@@ -586,6 +598,7 @@ prevent conflicts:
 
 ### Key Components Added
 
+**Content Processing Components:**
 - **ContentStateManager** (`src/core/content-state-manager.js`): Unified content
   state with persistent storage
 - **LivestreamStateMachine** (`src/core/livestream-state-machine.js`): Handles
@@ -596,6 +609,11 @@ prevent conflicts:
   storage for content states
 - **Enhanced DuplicateDetector**: Content fingerprinting with normalized titles
   and timestamps
+
+**Authentication Recovery Components:**
+- **Enhanced AuthManager** (`src/application/auth-manager.js`): Smart retry logic with exponential backoff and error classification
+- **Health Monitoring System** (`src/application/scraper-application.js`): Periodic health checks with automatic recovery
+- **Scraper Management Commands** (`src/core/command-processor.js`, `src/application/bot-application.js`): Granular control over X scraper component
 
 ## 9. Configuration & Environment Management
 

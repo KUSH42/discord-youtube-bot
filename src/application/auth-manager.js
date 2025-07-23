@@ -13,58 +13,120 @@ export class AuthManager {
 
   /**
    * Ensures the user is authenticated, using cookies if available, otherwise performing a full login.
+   * @param {Object} options - Configuration options
+   * @param {number} options.maxRetries - Maximum number of retry attempts (default: 3)
+   * @param {number} options.baseDelay - Base delay between retries in ms (default: 2000)
    * @returns {Promise<void>}
    */
-  async ensureAuthenticated() {
-    try {
-      this.logger.info('Ensuring authentication...');
-      const savedCookies = this.state.get('x_session_cookies');
+  async ensureAuthenticated(options = {}) {
+    const { maxRetries = 3, baseDelay = 2000 } = options;
 
-      if (savedCookies && this.validateCookieFormat(savedCookies)) {
-        this.logger.info('Attempting to use saved session cookies');
-        try {
-          await this.browser.setCookies(savedCookies);
-          await this.browser.goto('https://x.com/home', { waitUntil: 'domcontentloaded' });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.info(`Ensuring authentication... (attempt ${attempt}/${maxRetries})`);
+        const savedCookies = this.state.get('x_session_cookies');
 
-          if (await this.isAuthenticated()) {
-            this.logger.info('✅ Successfully authenticated using saved cookies.');
-            this.clearSensitiveData();
-            return;
-          } else {
-            this.logger.warn('Saved cookies failed, attempting login');
-            try {
-              this.state.delete('x_session_cookies');
-              this.logger.warn('Clearing expired session cookies');
-            } catch (deleteError) {
-              this.logger.error('Failed to delete session cookies from state:', deleteError);
+        if (savedCookies && this.validateCookieFormat(savedCookies)) {
+          this.logger.info('Attempting to use saved session cookies');
+          try {
+            await this.browser.setCookies(savedCookies);
+            await this.browser.goto('https://x.com/home', { waitUntil: 'domcontentloaded' });
+
+            if (await this.isAuthenticated()) {
+              this.logger.info('✅ Successfully authenticated using saved cookies.');
+              this.clearSensitiveData();
+              return;
+            } else {
+              this.logger.warn('Saved cookies failed, attempting login');
+              try {
+                this.state.delete('x_session_cookies');
+                this.logger.warn('Clearing expired session cookies');
+              } catch (deleteError) {
+                this.logger.error('Failed to delete session cookies from state:', deleteError);
+              }
+              await this.loginToX();
+              this.logger.info('✅ Authentication successful');
+              return;
             }
+          } catch (error) {
+            this.logger.error(
+              'Error validating saved cookies, falling back to login:',
+              this.sanitizeErrorMessage(error.message)
+            );
             await this.loginToX();
+            this.logger.info('✅ Authentication successful');
+            return;
           }
-        } catch (error) {
-          this.logger.error(
-            'Error validating saved cookies, falling back to login:',
-            this.sanitizeErrorMessage(error.message)
-          );
+        } else if (savedCookies) {
+          this.logger.warn('Invalid saved cookies format, performing login');
+          try {
+            this.state.delete('x_session_cookies');
+          } catch (deleteError) {
+            this.logger.error('Failed to delete session cookies from state:', deleteError);
+          }
           await this.loginToX();
+          this.logger.info('✅ Authentication successful');
+          return;
+        } else {
+          this.logger.info('No saved cookies found, performing login');
+          await this.loginToX();
+          this.logger.info('✅ Authentication successful');
+          return;
         }
-      } else if (savedCookies) {
-        this.logger.warn('Invalid saved cookies format, performing login');
-        try {
-          this.state.delete('x_session_cookies');
-        } catch (deleteError) {
-          this.logger.error('Failed to delete session cookies from state:', deleteError);
+      } catch (error) {
+        const sanitizedMessage =
+          error && error.message
+            ? this.sanitizeErrorMessage(error.message)
+            : 'An unknown authentication error occurred.';
+
+        if (attempt === maxRetries) {
+          this.logger.error(`Authentication failed after ${maxRetries} attempts:`, sanitizedMessage);
+          throw new Error('Authentication failed');
         }
-        await this.loginToX();
-      } else {
-        this.logger.info('No saved cookies found, performing login');
-        await this.loginToX();
+
+        // Check if this is a recoverable error
+        const isRecoverable = this.isRecoverableError(error);
+        if (!isRecoverable) {
+          this.logger.error('Non-recoverable authentication error:', sanitizedMessage);
+          throw new Error('Authentication failed');
+        }
+
+        const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+        this.logger.warn(`Authentication attempt ${attempt} failed, retrying in ${delay}ms:`, sanitizedMessage);
+        await this.delay(delay);
       }
-    } catch (error) {
-      const sanitizedMessage =
-        error && error.message ? this.sanitizeErrorMessage(error.message) : 'An unknown authentication error occurred.';
-      this.logger.error('Authentication process failed:', sanitizedMessage);
-      throw new Error('Authentication failed');
     }
+  }
+
+  /**
+   * Check if an authentication error is recoverable
+   * @param {Error} error - The error to check
+   * @returns {boolean} True if the error is recoverable
+   */
+  isRecoverableError(error) {
+    const recoverableMessages = [
+      'timeout',
+      'network',
+      'connection',
+      'temporarily unavailable',
+      'server error',
+      'loading',
+      'page crash',
+      'navigation timeout',
+      'protocol error',
+    ];
+
+    const errorMessage = error.message.toLowerCase();
+    return recoverableMessages.some(msg => errorMessage.includes(msg));
+  }
+
+  /**
+   * Delay helper function
+   * @param {number} ms - Milliseconds to delay
+   * @returns {Promise<void>}
+   */
+  async delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

@@ -42,7 +42,7 @@ developers (and AI agents) to maintain, test, and extend.
   - **Race Condition Prevention**: ContentCoordinator ensures same content from
     multiple sources doesn't cause duplicate announcements.
   - **X (Twitter) Scraping**: Monitors profiles for new posts, replies, quotes,
-    and retweets with enhanced authentication.
+    and retweets with robust authentication recovery and health monitoring.
   - **Persistent Duplicate Detection**: Scans channel history on startup to
     prevent re-announcing content across restarts.
   - **Advanced Retweet Classification**: Uses multiple strategies to accurately
@@ -169,6 +169,43 @@ All reliability features are configurable through environment variables (see
 - `ENABLE_CONTENT_FINGERPRINTING=true` - Enable advanced duplicate detection
 - `ENABLE_LIVESTREAM_MONITORING=true` - Enable livestream state tracking
 - `CONTENT_STORAGE_DIR=data` - Directory for persistent storage
+
+## X (Twitter) Authentication Recovery & Health Monitoring
+
+The bot features a robust authentication recovery system for X (Twitter) scraping, designed to handle temporary network issues, authentication failures, and browser crashes without manual intervention.
+
+### Authentication Recovery Features
+
+- **🔄 Smart Retry Logic**: Automatic retry with exponential backoff (3 attempts by default) for recoverable errors
+- **🧠 Error Classification**: Distinguishes between temporary network issues and permanent credential problems
+- **💾 Session Persistence**: Saves authentication cookies across restarts to minimize re-authentication
+- **⚡ Intelligent Fallback**: Automatically switches from cookie-based to credential-based authentication when needed
+
+### Health Monitoring System
+
+- **🩺 Periodic Health Checks**: Monitors authentication status, browser health, and application state every 5 minutes
+- **🚀 Automatic Recovery**: Detects failures and automatically attempts to restart the scraper component
+- **📊 Comprehensive Status**: Tracks running status, authentication state, and browser connectivity
+- **🔔 Event Notifications**: Emits events for external monitoring when recovery attempts fail
+
+### Recovery Process Flow
+
+1. **Authentication Failure Detection** → Classify error type (recoverable vs permanent)
+2. **Smart Retry Strategy** → Exponential backoff for network/timeout issues
+3. **Health Monitoring** → Continuous monitoring detects persistent failures
+4. **Automatic Recovery** → Restart scraper component with fresh authentication
+5. **Manual Intervention** → Discord commands available for admin control
+
+### Granular Management Commands
+
+The bot provides fine-grained control over the X scraper component without affecting YouTube monitoring:
+
+- `!restart-scraper` - Restart only the X scraper with retry logic
+- `!auth-status` - Check current authentication status
+- `!scraper-health` - Detailed health diagnostics
+- `!force-reauth` - Clear cookies and force fresh authentication
+
+This system ensures maximum uptime and reduces the need for manual intervention when temporary issues occur.
 
 ## Getting Started (Quick Start)
 
@@ -309,17 +346,30 @@ All configuration is managed through the `.env` file.
 
 Commands are used in the channel specified by `DISCORD_BOT_SUPPORT_LOG_CHANNEL`.
 
-| Command                   | Description                                                             | Authorization    |
-| ------------------------- | ----------------------------------------------------------------------- | ---------------- |
-| `!health`                 | Shows a summary of the bot's health and status.                         | Anyone           |
-| `!health-detailed`        | Shows a detailed breakdown of each component's status.                  | Anyone           |
-| `!announce <true/false>`  | Toggles all content announcements on or off.                            | Anyone           |
-| `!vxtwitter <true/false>` | Toggles automatic `twitter.com` to `vxtwitter.com` URL conversion.      | Anyone           |
-| `!loglevel <level>`       | Changes the logging level (`info`, `debug`, `warn`, `error`).           | Anyone           |
-| `!readme`                 | Displays a summary of available commands.                               | Anyone           |
-| `!restart`                | Restarts the bot process, reloading all configurations.                 | Authorized Users |
-| `!update`                 | Pulls the latest changes from git, installs dependencies, and restarts. | Authorized Users |
-| `!kill`                   | Immediately stops all announcement-posting activities.                  | Authorized Users |
+#### General Commands
+
+| Command                   | Description                                                             | Authorization |
+| ------------------------- | ----------------------------------------------------------------------- | ------------- |
+| `!health`                 | Shows a summary of the bot's health and status.                        | Anyone        |
+| `!health-detailed`        | Shows a detailed breakdown of each component's status.                 | Anyone        |
+| `!announce <true/false>`  | Toggles all content announcements on or off.                           | Anyone        |
+| `!vxtwitter <true/false>` | Toggles automatic `twitter.com` to `vxtwitter.com` URL conversion.     | Anyone        |
+| `!loglevel <level>`       | Changes the logging level (`info`, `debug`, `warn`, `error`).          | Anyone        |
+| `!auth-status`            | Shows X (Twitter) authentication status.                               | Anyone        |
+| `!scraper-health`         | Shows detailed X scraper health status.                                | Anyone        |
+| `!readme`                 | Displays a summary of available commands.                              | Anyone        |
+
+#### Administrative Commands
+
+| Command           | Description                                                                       | Authorization    |
+| ----------------- | --------------------------------------------------------------------------------- | ---------------- |
+| `!restart`        | Restarts the entire bot process, reloading all configurations.                   | Authorized Users |
+| `!update`         | Pulls the latest changes from git, installs dependencies, and restarts.          | Authorized Users |
+| `!kill`           | Immediately stops all announcement-posting activities.                           | Authorized Users |
+| `!restart-scraper`| Restarts only the X scraper application with automatic retry logic.             | Authorized Users |
+| `!stop-scraper`   | Stops the X scraper application (YouTube monitoring continues).                  | Authorized Users |
+| `!start-scraper`  | Starts the X scraper application.                                                | Authorized Users |
+| `!force-reauth`   | Forces re-authentication with X, clearing saved cookies and restarting scraper. | Authorized Users |
 
 ## Deployment (Production)
 
@@ -516,11 +566,11 @@ and pull request via GitHub Actions.
   content is being rejected as too old. The default is 2 hours.
 - **Storage Issues**: If the bot can't write to the storage directory, ensure
   the `CONTENT_STORAGE_DIR` path is writable and has sufficient disk space.
-- **No X Announcements**: Double-check your X account credentials and ensure
-  they are not locked or requiring a CAPTCHA. Review logs for scraping errors.
+- **X Authentication Failures**: The bot now includes automatic recovery for temporary authentication issues. Check `!auth-status` and `!scraper-health` commands for diagnostics. Use `!force-reauth` to clear cached credentials and retry authentication. For persistent issues, verify credentials are correct and the account isn't locked.
+- **X Scraper Not Running**: Use `!scraper-health` to check status. The health monitoring system will attempt automatic recovery every 5 minutes. Manual recovery options: `!restart-scraper` (restart with retry logic) or `!start-scraper` if stopped.
 - **Commands Not Working**: Confirm you are using the correct `COMMAND_PREFIX`
   in the designated support channel. Ensure your user ID is in
-  `ALLOWED_USER_IDS` for admin commands.
+  `ALLOWED_USER_IDS` for admin commands. New scraper management commands are also admin-restricted.
 - **Webhook Issues**: Set `WEBHOOK_DEBUG_LOGGING=true` in your `.env` file to
   get comprehensive debugging information about PubSubHubbub webhooks, including
   request details, signature verification, and processing flow.
