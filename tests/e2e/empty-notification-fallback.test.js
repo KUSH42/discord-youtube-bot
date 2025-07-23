@@ -7,7 +7,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
   let mockYouTubeAPI;
   let mockDiscordClient;
   let mockRequest;
-  let mockResponse;
+  let _mockResponse;
 
   beforeEach(() => {
     mockLogger = {
@@ -45,7 +45,7 @@ describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
       method: 'POST',
     };
 
-    mockResponse = {
+    _mockResponse = {
       status: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),

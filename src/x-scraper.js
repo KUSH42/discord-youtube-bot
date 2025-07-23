@@ -65,7 +65,7 @@ async function main() {
       shutdownHandler('uncaughtException');
     });
 
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on('unhandledRejection', (reason, _promise) => {
       logger.error(`Unhandled Rejection: ${reason.stack || reason}`);
       shutdownHandler('unhandledRejection');
     });

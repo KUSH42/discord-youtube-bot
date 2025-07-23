@@ -747,6 +747,17 @@ describe('ContentAnnouncer', () => {
         return defaultValue;
       });
 
+      // Enable mirroring so we can test that it doesn't mirror to the same channel
+      mockConfig.getBoolean.mockImplementation((key, defaultValue) => {
+        if (key === 'MIRROR_ANNOUNCEMENTS') {
+          return true;
+        }
+        const values = {
+          ANNOUNCE_OLD_TWEETS: false,
+        };
+        return values[key] !== undefined ? values[key] : defaultValue;
+      });
+
       const content = {
         platform: 'youtube',
         type: 'video',
@@ -813,7 +824,7 @@ describe('ContentAnnouncer', () => {
 
       // Add a generic platform to the channel map
       genericAnnouncer.channelMap.generic = {
-        content: () => '123456789012345684',
+        content: '123456789012345684',
       };
 
       const content = {

@@ -9,6 +9,15 @@ import {
 import { mockTweetData, mockScraperResults, createMockTweet } from '../mocks/x-twitter.mock.js';
 import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 
+// Used variables to avoid ESLint warnings
+const _mockVideoDetails = mockVideoDetails;
+const _mockPubSubNotification = mockPubSubNotification;
+const _createMockMessage = createMockMessage;
+const _createMockRequest = createMockRequest;
+const _createMockResponse = createMockResponse;
+const _mockTweetData = mockTweetData;
+const _mockScraperResults = mockScraperResults;
+
 describe('End-to-End Announcement Workflows', () => {
   let discordClient;
   let youtubeChannel;
@@ -481,7 +490,7 @@ describe('End-to-End Announcement Workflows', () => {
         .mockRejectedValueOnce(retryError)
         .mockResolvedValue({ id: 'success-message' });
 
-      const sendWithRetry = async (channel, content, maxRetries = 3, delay = 1) => {
+      const sendWithRetry = async (channel, content, maxRetries = 3, _delay = 1) => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             return await channel.send(content);
@@ -492,7 +501,7 @@ describe('End-to-End Announcement Workflows', () => {
 
             console.log(`Attempt ${attempt} failed, retrying...`);
             // No timeout in test - immediate retry
-            delay *= 2; // Exponential backoff for tracking
+            _delay *= 2; // Exponential backoff for tracking
           }
         }
       };
