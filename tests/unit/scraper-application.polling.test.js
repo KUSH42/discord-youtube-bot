@@ -106,6 +106,12 @@ describe('Polling Logic', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
   });
 

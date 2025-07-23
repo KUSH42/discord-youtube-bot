@@ -113,6 +113,12 @@ describe('Content Filtering Logic', () => {
       logger: mockLogger,
       discord: mockDiscordService,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
   });
 

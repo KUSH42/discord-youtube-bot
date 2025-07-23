@@ -90,6 +90,7 @@ describe('Search and Retweet Logic', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     // Mock discord service
@@ -117,6 +118,12 @@ describe('Search and Retweet Logic', () => {
       discord: mockDiscordService,
       authManager: mockAuthManager,
       delay: mockDelay,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
 
     // Set up browser and other dependencies

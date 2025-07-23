@@ -86,6 +86,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     // Mock auth manager
@@ -104,6 +105,12 @@ describe('Tweet Processing and Duplicate Detection', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
   });
 
@@ -310,6 +317,7 @@ describe('Tweet Processing Pipeline', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     // Mock auth manager
@@ -328,6 +336,12 @@ describe('Tweet Processing Pipeline', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
   });
 

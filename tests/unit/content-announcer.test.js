@@ -738,25 +738,45 @@ describe('ContentAnnouncer', () => {
     });
 
     it('should not mirror to the same channel', async () => {
-      // Reset and set mirror channel to be the same as YouTube channel
-      mockConfig.get.mockReset();
-      mockConfig.get.mockImplementation((key, defaultValue) => {
-        if (key === 'DISCORD_BOT_SUPPORT_LOG_CHANNEL') {
-          return '123456789012345678'; // Same as YouTube channel
-        }
-        return defaultValue;
-      });
+      // Create a new config with same channel for mirroring
+      const sameChannelConfig = {
+        getRequired: jest.fn(key => {
+          const values = {
+            DISCORD_YOUTUBE_CHANNEL_ID: '123456789012345678',
+            DISCORD_X_POSTS_CHANNEL_ID: '123456789012345679',
+            DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345680',
+            DISCORD_X_QUOTES_CHANNEL_ID: '123456789012345681',
+            DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345682',
+          };
+          return values[key] || `mock-${key}`;
+        }),
+        get: jest.fn((key, defaultValue) => {
+          if (key === 'DISCORD_BOT_SUPPORT_LOG_CHANNEL') {
+            return '123456789012345678'; // Same as YouTube channel
+          }
+          const values = {
+            DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345682',
+          };
+          return values[key] || defaultValue;
+        }),
+        getBoolean: jest.fn((key, defaultValue) => {
+          if (key === 'MIRROR_ANNOUNCEMENTS') {
+            return true; // Enable mirroring to test the same-channel logic
+          }
+          const values = {
+            ANNOUNCE_OLD_TWEETS: false,
+          };
+          return values[key] !== undefined ? values[key] : defaultValue;
+        }),
+      };
 
-      // Enable mirroring so we can test that it doesn't mirror to the same channel
-      mockConfig.getBoolean.mockImplementation((key, defaultValue) => {
-        if (key === 'MIRROR_ANNOUNCEMENTS') {
-          return true;
-        }
-        const values = {
-          ANNOUNCE_OLD_TWEETS: false,
-        };
-        return values[key] !== undefined ? values[key] : defaultValue;
-      });
+      // Create a new ContentAnnouncer instance with the same-channel configuration
+      const sameChannelAnnouncer = new ContentAnnouncer(
+        mockDiscordService,
+        sameChannelConfig,
+        mockStateManager,
+        mockLogger
+      );
 
       const content = {
         platform: 'youtube',
@@ -768,7 +788,7 @@ describe('ContentAnnouncer', () => {
         publishedAt: '2024-01-01T00:01:00Z',
       };
 
-      const result = await contentAnnouncer.announceContent(content);
+      const result = await sameChannelAnnouncer.announceContent(content);
 
       expect(result.success).toBe(true);
       expect(mockDiscordService.sendMessage).toHaveBeenCalledTimes(1); // Only main message, no mirror

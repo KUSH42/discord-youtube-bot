@@ -328,7 +328,7 @@ export class ContentAnnouncer {
       };
     }
 
-    return `${emoji} **${this.sanitizeContent(channelTitle) || 'Channel'}** ${typeText}:\n**${this.sanitizeContent(title)}**\n${url}`;
+    return `${emoji} **${this.sanitizeContent(channelTitle) || 'Channel'}** ${typeText}:\n**${this.sanitizeContent(title)}**\n${this.sanitizeContent(url)}`;
   }
 
   /**

@@ -5,7 +5,7 @@ import { jest } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
 
 describe('Tweet Category Classification', () => {
-  let scraperApp;
+  let _scraperApp;
   let mockBrowserService;
   let mockConfig;
   let mockStateManager;
@@ -76,12 +76,18 @@ describe('Tweet Category Classification', () => {
     };
 
     // Create scraper application instance
-    scraperApp = new ScraperApplication({
+    _scraperApp = new ScraperApplication({
       browserService: mockBrowserService,
       config: mockConfig,
       stateManager: mockStateManager,
       eventBus: mockEventBus,
       logger: mockLogger,
+      persistentStorage: {
+        get: jest.fn(),
+        set: jest.fn(),
+        has: jest.fn(),
+        delete: jest.fn(),
+      },
     });
   });
 
@@ -165,7 +171,7 @@ describe('Tweet Category Classification', () => {
       // Test that author mismatch takes precedence
       const monitoredUser = 'testuser';
       const author = 'differentuser'; // Different from monitored user
-      const text = 'This is a regular tweet about RT something';
+      const _text = 'This is a regular tweet about RT something';
 
       // Simulate the classification logic
       let isRetweet = false;

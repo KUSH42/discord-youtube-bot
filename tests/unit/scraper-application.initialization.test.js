@@ -49,6 +49,7 @@ describe('ScraperApplication Initialization', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     mockAuthManager = {
@@ -71,6 +72,12 @@ describe('ScraperApplication Initialization', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     };
 
     // Setup config defaults
@@ -143,8 +150,12 @@ describe('ScraperApplication Initialization', () => {
       expect(scraperApp.navigateToProfileTimeline).toHaveBeenCalledWith('testuser');
 
       // Verify tweets were marked as seen
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(true);
+      expect(await scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(
+        true
+      );
+      expect(await scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(
+        true
+      );
 
       // Verify logging
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -178,8 +189,12 @@ describe('ScraperApplication Initialization', () => {
       await scraperApp.initializeRecentContent();
 
       // Only recent tweet should be marked as seen
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(false);
+      expect(await scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(
+        true
+      );
+      expect(await scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(
+        false
+      );
     });
 
     it('should handle initialization errors gracefully', async () => {
@@ -222,8 +237,12 @@ describe('ScraperApplication Initialization', () => {
       await scraperApp.initializeRecentContent();
 
       // Only tweet within 6-hour window should be marked
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(true);
-      expect(scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(false);
+      expect(await scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/1234567890123456789')).toBe(
+        true
+      );
+      expect(await scraperApp.duplicateDetector.isDuplicate('https://x.com/testuser/status/9876543210987654321')).toBe(
+        false
+      );
     });
   });
 

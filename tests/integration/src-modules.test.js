@@ -311,7 +311,11 @@ describe('Source Module Integration Tests', () => {
       // Manually trigger flush since periodic flushing is disabled in test mode
       await transport.flush();
 
+      // Wait for any async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Should have called send multiple times due to message splitting
+      // The init message and message chunks may vary due to rate limiting
       expect(mockChannel.send).toHaveBeenCalledTimes(3); // Init message + 2 chunks
     });
 

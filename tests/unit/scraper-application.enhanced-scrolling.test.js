@@ -88,6 +88,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     // Mock auth manager
@@ -106,6 +107,12 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
   });
 
