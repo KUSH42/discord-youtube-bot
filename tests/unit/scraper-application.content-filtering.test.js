@@ -119,6 +119,10 @@ describe('Content Filtering Logic', () => {
         hasUrl: jest.fn().mockResolvedValue(false),
         addUrl: jest.fn().mockResolvedValue(),
       },
+      duplicateDetector: {
+        isDuplicate: jest.fn().mockReturnValue(false),
+        markAsSeen: jest.fn(),
+      },
     });
   });
 

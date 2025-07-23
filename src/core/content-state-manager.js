@@ -261,7 +261,14 @@ export class ContentStateManager {
     toRemove.forEach(id => this.contentStates.delete(id));
 
     // Remove from persistent storage
-    await this.storage.removeContentStates(toRemove);
+    try {
+      await this.storage.removeContentStates(toRemove);
+    } catch (error) {
+      this.logger.warn('Failed to remove content states from storage', {
+        error: error.message,
+        removedFromMemory: toRemove.length,
+      });
+    }
 
     if (toRemove.length > 0) {
       this.logger.info('Content state cleanup completed', {

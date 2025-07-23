@@ -16,7 +16,11 @@ export class ContentCoordinator {
     this.lockTimeout = config?.getNumber('PROCESSING_LOCK_TIMEOUT_MS', 30000);
 
     // Source priority (highest to lowest)
-    this.sourcePriority = config?.get('SOURCE_PRIORITY', ['webhook', 'api', 'scraper']);
+    this.sourcePriority = config?.get('SOURCE_PRIORITY', ['webhook', 'api', 'scraper']) || [
+      'webhook',
+      'api',
+      'scraper',
+    ];
 
     // Processing metrics
     this.metrics = {
