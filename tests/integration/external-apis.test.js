@@ -5,20 +5,25 @@ import {
   mockLiveStreamDetails,
   mockPubSubNotification,
   createMockVideoDetails,
-  createMockPubSubNotification,
+  createMockPubSubNotification as _createMockPubSubNotification,
   createMockSignature,
 } from '../mocks/youtube.mock.js';
 import {
-  mockTweetData,
-  mockPage,
-  mockBrowser,
+  mockTweetData as _mockTweetData,
+  mockPage as _mockPage,
+  mockBrowser as _mockBrowser,
   mockXCookies,
-  mockScraperResults,
+  mockScraperResults as _mockScraperResults,
   createMockTweet,
   createMockPage,
   createMockBrowser,
 } from '../mocks/x-twitter.mock.js';
-import { mockRequest, mockResponse, createMockRequest, createMockResponse } from '../mocks/express.mock.js';
+import {
+  mockRequest as _mockRequest,
+  mockResponse as _mockResponse,
+  createMockRequest,
+  createMockResponse,
+} from '../mocks/express.mock.js';
 
 describe('External API Integration Tests', () => {
   beforeEach(() => {
@@ -245,7 +250,7 @@ describe('External API Integration Tests', () => {
       const handleChallenge = (req, res) => {
         const challenge = req.query['hub.challenge'];
         const mode = req.query['hub.mode'];
-        const topic = req.query['hub.topic'];
+        const _topic = req.query['hub.topic'];
         const verifyToken = req.query['hub.verify_token'];
 
         if (mode === 'subscribe' && verifyToken === 'expected-token') {
@@ -434,9 +439,9 @@ describe('External API Integration Tests', () => {
         try {
           await page.goto(url);
           return { success: true, data: [] };
-        } catch (error) {
-          console.error('Scraping failed:', error.message);
-          return { success: false, error: error.message };
+        } catch (_error) {
+          // Silenced in tests - scraping failure is expected test scenario
+          return { success: false, error: _error.message };
         }
       };
 
@@ -466,7 +471,7 @@ describe('External API Integration Tests', () => {
           // Process notification
           console.log('Processing YouTube notification');
           res.status(200).json({ received: true });
-        } catch (error) {
+        } catch (_error) {
           res.status(500).json({ error: 'Processing failed' });
         }
       });
@@ -589,7 +594,7 @@ describe('External API Integration Tests', () => {
           return await mockYouTubeAPI.videos.list({ id: videoId });
         } catch (error) {
           if (error.code === 401) {
-            console.error('API authentication failed - check API key');
+            // Silenced in tests - auth failure is expected test scenario
             throw new Error('Authentication failed');
           }
           throw error;
@@ -613,8 +618,8 @@ describe('External API Integration Tests', () => {
           }
 
           return response.data.items;
-        } catch (error) {
-          console.error('API call failed:', error.message);
+        } catch (_error) {
+          // Silenced in tests - API failure is expected test scenario
           return [];
         }
       };

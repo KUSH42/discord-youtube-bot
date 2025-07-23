@@ -461,14 +461,14 @@ describe('End-to-End Announcement Workflows', () => {
         try {
           await primaryChannel.send(content);
           return { success: true, channel: 'primary' };
-        } catch (error) {
-          console.error('Primary channel failed:', error.message);
+        } catch (_error) {
+          // Silenced in tests - error is handled and returned in result
 
           try {
             await fallbackChannel.send(`[Fallback] ${content}`);
             return { success: true, channel: 'fallback' };
           } catch (fallbackError) {
-            console.error('Fallback channel failed:', fallbackError.message);
+            // Silenced in tests - error is handled and returned in result
             return { success: false, error: fallbackError.message };
           }
         }

@@ -35,12 +35,15 @@ afterEach(async () => {
   }
 });
 
-// Global error handler for unhandled rejections
+// Global error handler for unhandled rejections (silenced in tests)
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Only log in non-test environments or if explicitly needed for debugging
+  if (process.env.NODE_ENV !== 'test' || process.env.DEBUG_UNHANDLED_REJECTIONS === 'true') {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  }
 });
 
-// Mock console methods to reduce noise in tests (avoid overriding completely)
+// Mock console methods to reduce noise in tests
 const originalConsole = global.console;
 global.console = {
   ...originalConsole,
@@ -48,6 +51,9 @@ global.console = {
   info: jest.fn(),
   warn: jest.fn(),
   debug: jest.fn(),
-  // Keep error for debugging and Jest internal operations
-  error: originalConsole.error,
+  // Mock error by default to silence false positives, but allow override
+  error: jest.fn(),
 };
+
+// Provide access to original console for tests that need it
+global.originalConsole = originalConsole;

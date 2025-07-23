@@ -250,12 +250,108 @@ it('should handle delayed operations', async () => {
 });
 ```
 
+### Error Log Silencing in Tests
+
+The project uses global console mocking in `tests/setup.js` to prevent false positive error logs during test execution. This ensures clean test output while preserving the ability to test error handling behavior.
+
+#### ✅ **Automatic Console Silencing**
+All `console.error`, `console.warn`, `console.log`, and `console.info` calls are automatically mocked in the test environment:
+
+```javascript
+// These are automatically silenced in tests
+console.error('This error message will not appear in test output');
+console.warn('This warning will not appear in test output');
+```
+
+#### ✅ **Testing Error Handling Without Log Noise**
+When testing error scenarios, focus on the error handling logic rather than logging:
+
+```javascript
+// ✅ Good: Test validates error handling without generating log noise
+describe('Error Handling', () => {
+  it('should handle API failures gracefully', async () => {
+    mockApiService.getData.mockRejectedValue(new Error('API Error'));
+    
+    const result = await service.fetchData();
+    
+    // Focus on the error handling outcome, not logging
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('API Error');
+  });
+});
+```
+
+#### ✅ **When Testing Error Logging Behavior is Required**
+For tests that specifically validate logging behavior, use explicit console spies:
+
+```javascript
+// ✅ Good: For tests that specifically validate error logging behavior
+it('should log critical errors to console', async () => {
+  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  
+  await service.handleCriticalError(new Error('Critical failure'));
+  
+  expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect.stringContaining('Critical error:'),
+    expect.any(Error)
+  );
+  
+  consoleErrorSpy.mockRestore();
+});
+```
+
+#### ❌ **Avoid Adding Console Calls in Test Mocks**
+Don't add console.error calls in test mock implementations as they create noise:
+
+```javascript
+// ❌ Avoid: This creates false positive error logs
+const mockHandler = async (data) => {
+  try {
+    return await processData(data);
+  } catch (error) {
+    console.error('Processing failed:', error.message); // Creates noise!
+    throw error;
+  }
+};
+
+// ✅ Better: Silent error handling in test mocks
+const mockHandler = async (data) => {
+  try {
+    return await processData(data);
+  } catch (error) {
+    // Silenced in tests - error is re-thrown for Jest to handle
+    throw error;
+  }
+};
+```
+
+#### **Global Test Setup Benefits**
+- **Clean Output:** No false positive error logs cluttering test results
+- **Test Integrity:** Tests that validate logging behavior still work correctly
+- **Debugging Support:** Access to original console via `global.originalConsole` when needed
+- **Unhandled Rejection Silence:** Unhandled rejections are silenced in test environment
+
+#### **Debugging When Needed**
+If you need to see actual console output during debugging:
+
+```javascript
+// Use original console for debugging
+global.originalConsole.error('This will actually appear in output');
+
+// Or temporarily restore console for a test
+beforeEach(() => {
+  console.error = global.originalConsole.error; // Restore for debugging
+});
+```
+
 ### Common Pitfalls to Avoid
 - **Don't** use duplicate `beforeEach` blocks - this causes test interference
 - **Don't** mock class constructors directly in test files
 - **Don't** forget to wait for `setImmediate` callbacks in async tests
+- **Don't** add console.error calls in test mock implementations (creates false positives)
 - **Do** use `jest.clearAllMocks()` in `beforeEach` to ensure clean test state
 - **Do** restore timers with `jest.useRealTimers()` after fake timer tests
+- **Do** focus on error handling outcomes rather than logging in most tests
 
 ## 6. Continuous Integration (CI) Framework
 

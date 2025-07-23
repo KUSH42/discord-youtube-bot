@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import {
-  mockClient,
-  mockChannel,
-  mockMessage,
-  mockUser,
+  mockClient as _mockClient,
+  mockChannel as _mockChannel,
+  mockMessage as _mockMessage,
+  mockUser as _mockUser,
   createMockClient,
   createMockChannel,
   createMockMessage,
@@ -413,7 +413,7 @@ describe('Discord Integration Tests', () => {
           await channel.send(content);
           return { success: true };
         } catch (error) {
-          console.error('Failed to send announcement:', error.message);
+          // Silenced in tests - error is expected test scenario
           return { success: false, error: error.message };
         }
       };
@@ -433,7 +433,7 @@ describe('Discord Integration Tests', () => {
 
       const errorHandler = jest.fn(error => {
         if (error.code === 50013) {
-          console.error('Missing permissions to send message');
+          // Silenced in tests - missing permissions is expected test scenario
           return { handled: true, reason: 'permissions' };
         }
         return { handled: false };
@@ -608,7 +608,7 @@ describe('Discord Integration Tests', () => {
         errors: 0,
       };
 
-      const metricsTracker = jest.fn((eventType, data = {}) => {
+      const metricsTracker = jest.fn((eventType, _data = {}) => {
         switch (eventType) {
           case 'message_processed':
             metrics.messagesProcessed++;

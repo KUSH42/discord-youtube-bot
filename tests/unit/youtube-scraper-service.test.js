@@ -178,15 +178,10 @@ describe('YouTubeScraperService', () => {
       mockBrowserService.evaluate.mockReset();
       mockBrowserService.evaluate.mockResolvedValue(mockVideo);
 
-      try {
-        const result = await scraperService.fetchLatestVideo();
-        expect(result).not.toBeNull();
-        expect(result.id).toBe(mockVideo.id);
-        expect(scraperService.metrics.successfulScrapes).toBe(1);
-      } catch (error) {
-        console.error('Test failed with error:', error);
-        throw error;
-      }
+      const result = await scraperService.fetchLatestVideo();
+      expect(result).not.toBeNull();
+      expect(result.id).toBe(mockVideo.id);
+      expect(scraperService.metrics.successfulScrapes).toBe(1);
     });
 
     it('should handle scraping failures gracefully', async () => {

@@ -255,6 +255,64 @@ it('should handle delays', async () => {
 });
 ```
 
+**Error Log Silencing in Tests:**
+The project uses global console mocking in `tests/setup.js` to prevent false positive error logs during test execution. When testing error scenarios, follow these patterns:
+
+```javascript
+// ✅ Good: Test validates error handling without generating log noise
+describe('Error Handling', () => {
+  it('should handle API failures gracefully', async () => {
+    mockApiService.getData.mockRejectedValue(new Error('API Error'));
+    
+    const result = await service.fetchData();
+    
+    // Error is handled gracefully, no console.error needed
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('API Error');
+  });
+});
+
+// ✅ Good: For tests that specifically validate error logging behavior
+it('should log critical errors', async () => {
+  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  
+  await service.handleCriticalError(new Error('Critical'));
+  
+  expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect.stringContaining('Critical error:'),
+    expect.any(Error)
+  );
+  
+  consoleErrorSpy.mockRestore();
+});
+
+// ❌ Avoid: Adding console.error calls in test mock implementations
+const mockHandler = async (data) => {
+  try {
+    return await processData(data);
+  } catch (error) {
+    console.error('Processing failed:', error.message); // This creates noise
+    throw error;
+  }
+};
+
+// ✅ Better: Silent error handling in test mocks
+const mockHandler = async (data) => {
+  try {
+    return await processData(data);
+  } catch (error) {
+    // Silenced in tests - error is re-thrown for Jest to handle
+    throw error;
+  }
+};
+```
+
+**Global Test Setup Benefits:**
+- All `console.error` calls are automatically mocked to prevent log noise
+- Tests that specifically validate logging behavior still work correctly
+- Unhandled rejections are silenced in test environment
+- Access to original console via `global.originalConsole` when needed for debugging
+
 ### CI/CD Test Execution
 - **Automated Testing**: All tests run on GitHub Actions for every push and PR
 - **Parallel Execution**: Tests run with 50% worker utilization for optimal performance
