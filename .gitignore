@@ -160,7 +160,7 @@ dist
 merge-strategies.md
 testing-gap-analysis.md
 COVERAGE_*.md
-*-analysis.md
+#*-analysis.md
 *-plan.md
 
 # Secrets and credentials

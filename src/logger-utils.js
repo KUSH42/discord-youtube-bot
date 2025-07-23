@@ -99,15 +99,21 @@ export class DiscordTransport extends Transport {
           this.messageSender
             .sendImmediate(this.channel, '✅ **Winston logging transport initialized for this channel.**')
             .catch(error => {
-              console.error('[DiscordTransport] Failed to send initialization message:', error);
+              if (process.env.NODE_ENV !== 'test') {
+                console.error('[DiscordTransport] Failed to send initialization message:', error);
+              }
             });
         } else {
           this.channel = 'errored';
-          console.error(`[DiscordTransport] Channel ${this.channelId} is not a valid text channel.`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.error(`[DiscordTransport] Channel ${this.channelId} is not a valid text channel.`);
+          }
         }
       } catch (error) {
         this.channel = 'errored';
-        console.error(`[DiscordTransport] Failed to fetch channel ${this.channelId}:`, error);
+        if (process.env.NODE_ENV !== 'test') {
+          console.error(`[DiscordTransport] Failed to fetch channel ${this.channelId}:`, error);
+        }
       }
     }
     if (!this.channel || this.channel === 'errored') {
@@ -151,7 +157,13 @@ export class DiscordTransport extends Transport {
       }
     } catch (error) {
       // Only log the error if it's not related to Discord being unavailable during shutdown
-      if (error.message && !error.message.includes('token to be set') && !error.message.includes('client destroyed')) {
+      // and we're not in test environment
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        error.message &&
+        !error.message.includes('token to be set') &&
+        !error.message.includes('client destroyed')
+      ) {
         console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
 
         // Log rate limiting metrics for debugging

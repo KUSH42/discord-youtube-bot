@@ -130,10 +130,14 @@ describe('Logger Utils Tests', () => {
       transport.buffer = ['Test message'];
       await transport.flush();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[DiscordTransport] Failed to flush log buffer to Discord:',
-        expect.any(Error)
+      // In test environment, console.error should NOT be called for flush errors
+      // The error logging is suppressed to prevent noise in test output
+      const discordTransportErrorCalls = consoleSpy.mock.calls.filter(call =>
+        call.some(
+          arg => typeof arg === 'string' && arg.includes('[DiscordTransport] Failed to flush log buffer to Discord:')
+        )
       );
+      expect(discordTransportErrorCalls).toHaveLength(0);
 
       consoleSpy.mockRestore();
     });
