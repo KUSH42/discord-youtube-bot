@@ -757,7 +757,12 @@ describe('YouTubeApiService', () => {
 
     it('should handle search returning no video IDs', async () => {
       const noVideoIdResponse = {
-        items: [{ snippet: { title: 'No video ID' } }],
+        items: [
+          {
+            snippet: { title: 'No video ID' },
+            id: {}, // Empty id object without videoId
+          },
+        ],
       };
       mockSearchList.mockResolvedValue({ data: noVideoIdResponse });
 

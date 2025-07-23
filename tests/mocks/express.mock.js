@@ -14,6 +14,17 @@ export const mockRequest = {
   ip: '127.0.0.1',
   get: jest.fn(header => mockRequest.headers[header.toLowerCase()]),
   header: jest.fn(header => mockRequest.headers[header.toLowerCase()]),
+  // Add properties that express-rate-limit expects
+  connection: {
+    remoteAddress: '127.0.0.1',
+  },
+  socket: {
+    remoteAddress: '127.0.0.1',
+  },
+  ips: [],
+  app: {
+    get: jest.fn(() => false), // trustProxy setting
+  },
 };
 
 // Mock Express response object
@@ -115,6 +126,19 @@ export const createMockRequest = (overrides = {}) => ({
     const headers = { ...mockRequest.headers, ...(overrides.headers || {}) };
     return headers[header.toLowerCase()];
   }),
+  // Add additional properties that express-rate-limit expects
+  connection: {
+    remoteAddress: overrides.ip || mockRequest.ip,
+  },
+  socket: {
+    remoteAddress: overrides.ip || mockRequest.ip,
+  },
+  // Add x-forwarded-for header handling
+  ips: [],
+  // Add app property that express-rate-limit might access
+  app: {
+    get: jest.fn(() => false), // trustProxy setting
+  },
 });
 
 export const createMockResponse = (overrides = {}) => ({
