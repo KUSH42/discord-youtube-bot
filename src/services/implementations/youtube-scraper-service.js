@@ -58,7 +58,7 @@ export class YouTubeScraperService {
 
     try {
       // Launch browser with optimized settings for scraping
-      await this.browserService.launch({
+      const browserOptions = {
         headless: false,
         args: [
           '--no-sandbox',
@@ -73,7 +73,14 @@ export class YouTubeScraperService {
           '--disable-plugins',
           '--mute-audio',
         ],
-      });
+      };
+
+      // Add display if running in headless environment
+      if (process.env.DISPLAY) {
+        browserOptions.args.push(`--display=${process.env.DISPLAY}`);
+      }
+
+      await this.browserService.launch(browserOptions);
 
       // Set user agent to appear as regular browser
       await this.browserService.setUserAgent(
