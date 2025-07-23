@@ -246,7 +246,7 @@ export class ScraperApplication {
       // Check authentication status
       if (health.browserHealthy) {
         try {
-          const authStatus = await this.authManager.verifyAuthentication();
+          const authStatus = await this.authManager.isAuthenticated();
           health.authenticated = authStatus;
           if (!authStatus) {
             health.errors.push('Authentication verification failed');
