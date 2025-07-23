@@ -667,6 +667,448 @@ describe('YouTubeApiService', () => {
     });
   });
 
+  describe('getScheduledContent', () => {
+    const validChannelId = 'UC_x5XG1OV2P6uZZ5FSM9Ttw';
+    const mockSearchResponse = {
+      items: [
+        {
+          id: { videoId: 'scheduled1' },
+          snippet: { title: 'Scheduled Stream 1' },
+        },
+        {
+          id: { videoId: 'scheduled2' },
+          snippet: { title: 'Scheduled Stream 2' },
+        },
+      ],
+    };
+
+    const mockVideosResponse = {
+      items: [
+        {
+          id: 'scheduled1',
+          snippet: {
+            title: 'Scheduled Stream 1',
+            description: 'Test scheduled stream',
+            publishedAt: '2023-01-01T00:00:00Z',
+            liveBroadcastContent: 'upcoming',
+            channelId: validChannelId,
+            channelTitle: 'Test Channel',
+            thumbnails: { default: { url: 'test.jpg' } },
+          },
+          liveStreamingDetails: {
+            scheduledStartTime: '2023-01-01T12:00:00Z',
+          },
+        },
+        {
+          id: 'scheduled2',
+          snippet: {
+            title: 'Scheduled Stream 2',
+            description: 'Another test stream',
+            publishedAt: '2023-01-01T01:00:00Z',
+            liveBroadcastContent: 'upcoming',
+            channelId: validChannelId,
+            channelTitle: 'Test Channel',
+            thumbnails: { default: { url: 'test2.jpg' } },
+          },
+          liveStreamingDetails: {
+            scheduledStartTime: '2023-01-01T15:00:00Z',
+          },
+        },
+      ],
+    };
+
+    it('should fetch scheduled content successfully', async () => {
+      mockSearchList.mockResolvedValue({ data: mockSearchResponse });
+      mockVideosList.mockResolvedValue({ data: mockVideosResponse });
+
+      const result = await youtubeService.getScheduledContent(validChannelId, 25);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        id: 'scheduled1',
+        title: 'Scheduled Stream 1',
+        state: 'scheduled',
+        scheduledStartTime: '2023-01-01T12:00:00Z',
+      });
+
+      expect(mockSearchList).toHaveBeenCalledWith({
+        part: ['snippet'],
+        channelId: validChannelId,
+        eventType: 'upcoming',
+        type: 'video',
+        maxResults: 25,
+        order: 'date',
+      });
+
+      expect(mockVideosList).toHaveBeenCalledWith({
+        part: 'snippet,liveStreamingDetails,contentDetails',
+        id: 'scheduled1,scheduled2',
+      });
+    });
+
+    it('should return empty array when no scheduled content found', async () => {
+      mockSearchList.mockResolvedValue({ data: { items: [] } });
+
+      const result = await youtubeService.getScheduledContent(validChannelId);
+
+      expect(result).toEqual([]);
+      expect(mockVideosList).not.toHaveBeenCalled();
+    });
+
+    it('should handle search returning no video IDs', async () => {
+      const noVideoIdResponse = {
+        items: [{ snippet: { title: 'No video ID' } }],
+      };
+      mockSearchList.mockResolvedValue({ data: noVideoIdResponse });
+
+      const result = await youtubeService.getScheduledContent(validChannelId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should limit maxResults to 50', async () => {
+      mockSearchList.mockResolvedValue({ data: { items: [] } });
+
+      await youtubeService.getScheduledContent(validChannelId, 100);
+
+      expect(mockSearchList).toHaveBeenCalledWith({
+        part: ['snippet'],
+        channelId: validChannelId,
+        eventType: 'upcoming',
+        type: 'video',
+        maxResults: 50,
+        order: 'date',
+      });
+    });
+
+    it('should throw error for invalid channel ID', async () => {
+      await expect(youtubeService.getScheduledContent('')).rejects.toThrow('Invalid channel ID:');
+      await expect(youtubeService.getScheduledContent(null)).rejects.toThrow('Invalid channel ID:');
+    });
+
+    it('should handle API errors', async () => {
+      const apiError = new Error('Search API failed');
+      mockSearchList.mockRejectedValue(apiError);
+
+      await expect(youtubeService.getScheduledContent(validChannelId)).rejects.toThrow(
+        `Failed to fetch scheduled content for ${validChannelId}: Search API failed`
+      );
+    });
+  });
+
+  describe('checkScheduledContentStates', () => {
+    const videoIds = ['video1', 'video2', 'video3'];
+    const mockStatesResponse = {
+      items: [
+        {
+          id: 'video1',
+          snippet: { liveBroadcastContent: 'upcoming' },
+          liveStreamingDetails: {
+            scheduledStartTime: '2023-01-01T12:00:00Z',
+          },
+        },
+        {
+          id: 'video2',
+          snippet: { liveBroadcastContent: 'live' },
+          liveStreamingDetails: {
+            scheduledStartTime: '2023-01-01T11:00:00Z',
+            actualStartTime: '2023-01-01T11:01:00Z',
+          },
+        },
+        {
+          id: 'video3',
+          snippet: { liveBroadcastContent: 'none' },
+          liveStreamingDetails: {
+            scheduledStartTime: '2023-01-01T10:00:00Z',
+            actualStartTime: '2023-01-01T10:01:00Z',
+            actualEndTime: '2023-01-01T11:30:00Z',
+          },
+        },
+      ],
+    };
+
+    it('should check scheduled content states successfully', async () => {
+      mockVideosList.mockResolvedValue({ data: mockStatesResponse });
+
+      const result = await youtubeService.checkScheduledContentStates(videoIds);
+
+      expect(result).toHaveLength(3);
+      expect(result[0]).toMatchObject({
+        id: 'video1',
+        state: 'scheduled',
+        liveBroadcastContent: 'upcoming',
+        scheduledStartTime: '2023-01-01T12:00:00Z',
+      });
+
+      expect(result[1]).toMatchObject({
+        id: 'video2',
+        state: 'live',
+        liveBroadcastContent: 'live',
+        actualStartTime: '2023-01-01T11:01:00Z',
+      });
+
+      expect(result[2]).toMatchObject({
+        id: 'video3',
+        state: 'ended',
+        liveBroadcastContent: 'none',
+        actualEndTime: '2023-01-01T11:30:00Z',
+      });
+
+      expect(mockVideosList).toHaveBeenCalledWith({
+        part: 'snippet,liveStreamingDetails',
+        id: 'video1,video2,video3',
+      });
+    });
+
+    it('should return empty array for empty video IDs', async () => {
+      const result = await youtubeService.checkScheduledContentStates([]);
+      expect(result).toEqual([]);
+      expect(mockVideosList).not.toHaveBeenCalled();
+    });
+
+    it('should return empty array for non-array input', async () => {
+      const result = await youtubeService.checkScheduledContentStates(null);
+      expect(result).toEqual([]);
+      expect(mockVideosList).not.toHaveBeenCalled();
+    });
+
+    it('should handle API errors', async () => {
+      const apiError = new Error('Videos API failed');
+      mockVideosList.mockRejectedValue(apiError);
+
+      await expect(youtubeService.checkScheduledContentStates(videoIds)).rejects.toThrow(
+        'Failed to check content states: Videos API failed'
+      );
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to check scheduled content states',
+        expect.objectContaining({
+          videoIds: ['video1', 'video2', 'video3'],
+          error: 'Videos API failed',
+        })
+      );
+    });
+
+    it('should limit logged video IDs to first 5', async () => {
+      const manyVideoIds = Array.from({ length: 10 }, (_, i) => `video${i + 1}`);
+      const apiError = new Error('Too many videos');
+      mockVideosList.mockRejectedValue(apiError);
+
+      await expect(youtubeService.checkScheduledContentStates(manyVideoIds)).rejects.toThrow();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to check scheduled content states',
+        expect.objectContaining({
+          videoIds: ['video1', 'video2', 'video3', 'video4', 'video5'],
+          error: 'Too many videos',
+        })
+      );
+    });
+  });
+
+  describe('pollScheduledContent', () => {
+    const scheduledContent = [
+      {
+        id: 'video1',
+        state: 'scheduled',
+        title: 'Upcoming Stream',
+      },
+      {
+        id: 'video2',
+        state: 'scheduled',
+        title: 'Another Stream',
+      },
+    ];
+
+    const mockCurrentStates = [
+      {
+        id: 'video1',
+        state: 'live',
+        liveBroadcastContent: 'live',
+        scheduledStartTime: '2023-01-01T12:00:00Z',
+        actualStartTime: '2023-01-01T12:01:00Z',
+      },
+      {
+        id: 'video2',
+        state: 'scheduled',
+        liveBroadcastContent: 'upcoming',
+        scheduledStartTime: '2023-01-01T15:00:00Z',
+      },
+    ];
+
+    beforeEach(() => {
+      // Mock current time to be after video1's scheduled start but before video2's
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2023-01-01T13:00:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should detect state changes in scheduled content', async () => {
+      jest.spyOn(youtubeService, 'checkScheduledContentStates').mockResolvedValue(mockCurrentStates);
+
+      const result = await youtubeService.pollScheduledContent(scheduledContent);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'video1',
+        title: 'Upcoming Stream',
+        newState: 'live',
+        oldState: 'scheduled',
+        actualStartTime: '2023-01-01T12:01:00Z',
+        stateChangeDetected: true,
+      });
+
+      expect(youtubeService.checkScheduledContentStates).toHaveBeenCalledWith(['video1', 'video2']);
+    });
+
+    it('should warn about scheduled content that should be live but API shows scheduled', async () => {
+      const pastScheduledContent = [
+        {
+          id: 'video1',
+          state: 'scheduled',
+          title: 'Past Stream',
+        },
+      ];
+
+      const stillScheduledStates = [
+        {
+          id: 'video1',
+          state: 'scheduled',
+          liveBroadcastContent: 'upcoming',
+          scheduledStartTime: '2023-01-01T11:00:00Z', // In the past
+        },
+      ];
+
+      jest.spyOn(youtubeService, 'checkScheduledContentStates').mockResolvedValue(stillScheduledStates);
+
+      const result = await youtubeService.pollScheduledContent(pastScheduledContent);
+
+      expect(result).toHaveLength(0);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Scheduled content may have started but API not updated',
+        expect.objectContaining({
+          videoId: 'video1',
+          scheduledStart: '2023-01-01T11:00:00.000Z',
+          currentTime: '2023-01-01T13:00:00.000Z',
+        })
+      );
+    });
+
+    it('should return empty array for empty scheduled content', async () => {
+      const result = await youtubeService.pollScheduledContent([]);
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array for non-array input', async () => {
+      const result = await youtubeService.pollScheduledContent(null);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle missing original content gracefully', async () => {
+      const missingCurrentStates = [
+        {
+          id: 'nonexistent',
+          state: 'live',
+          liveBroadcastContent: 'live',
+        },
+      ];
+
+      jest.spyOn(youtubeService, 'checkScheduledContentStates').mockResolvedValue(missingCurrentStates);
+
+      const result = await youtubeService.pollScheduledContent(scheduledContent);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle API errors and return empty array', async () => {
+      const apiError = new Error('States check failed');
+      jest.spyOn(youtubeService, 'checkScheduledContentStates').mockRejectedValue(apiError);
+
+      const result = await youtubeService.pollScheduledContent(scheduledContent);
+
+      expect(result).toEqual([]);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to poll scheduled content',
+        expect.objectContaining({
+          contentCount: 2,
+          error: 'States check failed',
+        })
+      );
+    });
+  });
+
+  describe('determineLivestreamState', () => {
+    it('should return "scheduled" for upcoming broadcasts', () => {
+      const videoData = {
+        snippet: { liveBroadcastContent: 'upcoming' },
+        liveStreamingDetails: {
+          scheduledStartTime: '2023-01-01T12:00:00Z',
+        },
+      };
+
+      const result = youtubeService.determineLivestreamState(videoData);
+      expect(result).toBe('scheduled');
+    });
+
+    it('should return "live" for live broadcasts', () => {
+      const videoData = {
+        snippet: { liveBroadcastContent: 'live' },
+        liveStreamingDetails: {
+          actualStartTime: '2023-01-01T12:01:00Z',
+        },
+      };
+
+      const result = youtubeService.determineLivestreamState(videoData);
+      expect(result).toBe('live');
+    });
+
+    it('should return "ended" for completed livestreams', () => {
+      const videoData = {
+        snippet: { liveBroadcastContent: 'none' },
+        liveStreamingDetails: {
+          actualStartTime: '2023-01-01T12:01:00Z',
+          actualEndTime: '2023-01-01T13:30:00Z',
+        },
+      };
+
+      const result = youtubeService.determineLivestreamState(videoData);
+      expect(result).toBe('ended');
+    });
+
+    it('should return "published" for livestreams without end time', () => {
+      const videoData = {
+        snippet: { liveBroadcastContent: 'none' },
+        liveStreamingDetails: {
+          actualStartTime: '2023-01-01T12:01:00Z',
+        },
+      };
+
+      const result = youtubeService.determineLivestreamState(videoData);
+      expect(result).toBe('published');
+    });
+
+    it('should return "published" for regular videos', () => {
+      const videoData = {
+        snippet: { liveBroadcastContent: 'none' },
+      };
+
+      const result = youtubeService.determineLivestreamState(videoData);
+      expect(result).toBe('published');
+    });
+
+    it('should return "unknown" for unrecognized broadcast content', () => {
+      const videoData = {
+        snippet: { liveBroadcastContent: 'mysterious' },
+      };
+
+      const result = youtubeService.determineLivestreamState(videoData);
+      expect(result).toBe('unknown');
+    });
+  });
+
   describe('error handling', () => {
     it('should handle network errors gracefully', async () => {
       const networkError = new Error('ECONNREFUSED');
