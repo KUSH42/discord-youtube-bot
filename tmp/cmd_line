@@ -1,1 +1,0 @@
-genhtml coverage/merged/lcov.info --output-directory lcov-html-report --css-file lcov-dark-theme.css --title 'Code Coverage Report' --branch-coverage --rc lcov_html_css_file=lcov-dark-theme.css --prefix /home/runner/work/discord-bot/discord-bot
