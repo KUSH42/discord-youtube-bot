@@ -656,6 +656,10 @@ export class YouTubeScraperService {
             title: latestVideo.title,
             publishedText: latestVideo.publishedText,
             url: latestVideo.url,
+            type: latestVideo.type,
+            scrapedAt: latestVideo.scrapedAt,
+            publishedAt: latestVideo.publishedAt,
+            fullObject: JSON.stringify(latestVideo, null, 2),
           });
         } else {
           const failureInfo = {
