@@ -1,3 +1,5 @@
+import { nowUTC, timestampUTC } from '../utilities/utc-time.js';
+
 /**
  * Content Coordinator
  * Prevents race conditions between webhook and scraper systems
@@ -92,7 +94,7 @@ export class ContentCoordinator {
    * @returns {Promise<Object>} Processing result
    */
   async doProcessContent(contentId, source, contentData) {
-    const startTime = Date.now();
+    const startTime = timestampUTC();
 
     try {
       this.logger.debug('Starting content processing', {
@@ -147,7 +149,7 @@ export class ContentCoordinator {
       }
 
       // Check if content is new enough to announce
-      const isNew = this.contentStateManager.isNewContent(contentId, contentData.publishedAt, new Date());
+      const isNew = this.contentStateManager.isNewContent(contentId, contentData.publishedAt, nowUTC());
 
       if (!isNew) {
         return {
@@ -174,7 +176,7 @@ export class ContentCoordinator {
         // Update existing state with new source information
         await this.contentStateManager.updateContentState(contentId, {
           source: this.selectBestSource(existingState.source, source),
-          lastUpdated: new Date(),
+          lastUpdated: nowUTC(),
         });
       }
 
@@ -189,7 +191,7 @@ export class ContentCoordinator {
 
       this.metrics.totalProcessed++;
 
-      const processingTime = Date.now() - startTime;
+      const processingTime = timestampUTC() - startTime;
 
       this.logger.info('Content processed successfully', {
         contentId,
@@ -209,7 +211,7 @@ export class ContentCoordinator {
     } catch (error) {
       this.metrics.processingErrors++;
 
-      const processingTime = Date.now() - startTime;
+      const processingTime = timestampUTC() - startTime;
 
       this.logger.error('Content processing failed', {
         contentId,
@@ -342,7 +344,7 @@ export class ContentCoordinator {
     }
 
     if (contentData.scheduledStartTime) {
-      const now = new Date();
+      const now = nowUTC();
       const scheduledStart = new Date(contentData.scheduledStartTime);
       return now < scheduledStart ? 'scheduled' : 'live';
     }
@@ -362,11 +364,11 @@ export class ContentCoordinator {
       ...contentData,
       id: contentId,
       source,
-      detectionTime: new Date(),
+      detectionTime: nowUTC(),
       contentType: this.determineContentType(contentData),
     };
 
-    return await this.contentAnnouncer.announce(announcementData);
+    return await this.contentAnnouncer.announceContent(announcementData);
   }
 
   /**
