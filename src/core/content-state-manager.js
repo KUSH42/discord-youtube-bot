@@ -46,7 +46,7 @@ export class ContentStateManager {
         botStartTime: this.botStartTime.toISOString(),
       });
     } catch (error) {
-      this.logger.warn('Failed to initialize from storage, starting fresh', {
+      this.logger.warn('❌ Failed to initialize from storage, starting fresh', {
         error: error.message,
       });
     }

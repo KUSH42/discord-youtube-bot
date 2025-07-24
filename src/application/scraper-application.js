@@ -601,7 +601,7 @@ export class ScraperApplication {
       if (!this.shouldProcessRetweets()) {
         return;
       }
-      this.logger.info('Performing enhanced retweet detection...');
+      this.logger.debug('Performing enhanced retweet detection...');
       await this.navigateToProfileTimeline(this.xUser);
 
       const tweets = await this.extractTweets();
@@ -793,7 +793,7 @@ export class ScraperApplication {
     let duplicateCount = 0;
     let oldContentCount = 0;
 
-    this.logger.debug(`Starting to filter ${tweets.length} tweets`);
+    this.logger.verbose(`Starting to filter ${tweets.length} tweets`);
 
     for (const tweet of tweets) {
       if (!this.duplicateDetector.isDuplicate(tweet.url)) {
@@ -823,7 +823,7 @@ export class ScraperApplication {
       }
     }
 
-    this.logger.info(
+    this.logger.verbose(
       `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`
     );
 

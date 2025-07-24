@@ -118,7 +118,7 @@ export class YouTubeScraperService {
       }
     } catch (error) {
       this.isInitialized = false;
-      this.logger.error('Failed to initialize YouTube scraper', {
+      this.logger.error('❌ Failed to initialize YouTube scraper', {
         error: error.message,
         stack: error.stack,
         videosUrl: this.videosUrl,
@@ -219,10 +219,10 @@ export class YouTubeScraperService {
         this.isAuthenticated = true;
         this.logger.info('✅ Successfully authenticated with YouTube');
       } else {
-        this.logger.warn('YouTube authentication may have failed - proceeding without authentication');
+        this.logger.warn('⚠️ YouTube authentication may have failed - proceeding without authentication');
       }
     } catch (error) {
-      this.logger.error('Failed to authenticate with YouTube:', {
+      this.logger.error('⚠️Failed to authenticate with YouTube:', {
         error: error.message,
         stack: error.stack,
       });
@@ -650,12 +650,16 @@ export class YouTubeScraperService {
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
-          this.logger.debug('Successfully scraped latest video', {
-            strategy: latestVideo.strategy,
-            videoId: latestVideo.id,
-            title: latestVideo.title,
-            publishedText: latestVideo.publishedText,
-          });
+          this.logger.info(
+            'Successfully scraped latest video',
+            {
+              strategy: latestVideo.strategy,
+              videoId: latestVideo.id,
+              title: latestVideo.title,
+              publishedText: latestVideo.publishedText,
+              url: latestVideo.url,
+            }.JSON.stringify()
+          );
         } else {
           const failureInfo = {
             videosUrl: this.videosUrl,

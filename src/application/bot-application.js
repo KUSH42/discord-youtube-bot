@@ -322,14 +322,10 @@ export class BotApplication {
         // ATOMICALLY mark as processing (first instance wins)
         globalMessageTracker.set(globalKey, 1);
 
-        this.logger.info(
+        this.logger.debug(
           `🎯 COMMAND accepted for processing - ID: ${message.id}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
         );
       }
-
-      this.logger.info(
-        `🔥 NEW CODE RUNNING - handleMessage called for: "${message.content?.substring(0, 30) || 'empty'}"`
-      );
 
       // Ignore bot messages and non-command messages
       if (message.author.bot || !message.content.startsWith(this.commandPrefix)) {
@@ -644,6 +640,9 @@ export class BotApplication {
   async handleReady() {
     this.logger.info(`Discord bot is ready! Logged in as ${await this.getCurrentUserTag()}`);
 
+    // Add delay before Discord history scanning to prevent startup rate limiting
+    await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay
+
     // Initialize Discord history scanning for duplicate detection
     await this.initializeDiscordHistoryScanning();
 
@@ -659,12 +658,13 @@ export class BotApplication {
    */
   async initializeDiscordHistoryScanning() {
     try {
-      this.logger.info('Initializing Discord history scanning for duplicate detection...');
+      // Use debug level to reduce Discord logging during startup
+      this.logger.debug('Initializing Discord history scanning for duplicate detection...');
 
       // Get duplicate detector from monitor application
       const duplicateDetector = this.monitorApplication?.duplicateDetector;
       if (!duplicateDetector) {
-        this.logger.warn('Duplicate detector not available, skipping Discord history scanning');
+        this.logger.debug('Duplicate detector not available, skipping Discord history scanning');
         return;
       }
 
@@ -674,28 +674,25 @@ export class BotApplication {
         try {
           const youtubeChannel = await this.discord.fetchChannel(youtubeChannelId);
           if (youtubeChannel) {
-            this.logger.info(`Scanning YouTube channel history (${youtubeChannelId})...`);
+            // Suppress Discord history scanning logs - only log summary
             const videoResults = await duplicateDetector.scanDiscordChannelForVideos(youtubeChannel, 1000);
 
+            // Single summary log for Discord history scan (not actual YouTube scraping)
             this.logger.info(
-              `YouTube channel scan completed: ${videoResults.messagesScanned} messages, ${videoResults.videoIdsAdded} new video IDs found`
+              `Discord YouTube history: ${videoResults.messagesScanned} messages scanned, ${videoResults.videoIdsAdded} videos cached`
             );
-
-            if (videoResults.errors.length > 0) {
-              this.logger.warn(`YouTube channel scan had ${videoResults.errors.length} errors`);
-            }
-          } else {
-            this.logger.warn(`Could not fetch YouTube channel: ${youtubeChannelId}`);
           }
         } catch (error) {
-          this.logger.error(`Failed to scan YouTube channel history: ${error.message}`);
+          this.logger.debug(`Failed to scan YouTube channel history: ${error.message}`);
         }
       } else {
-        this.logger.info('No YouTube channel ID configured, skipping YouTube history scanning');
+        this.logger.debug('No YouTube channel ID configured, skipping YouTube history scanning');
       }
 
       // Scan X/Twitter announcement channels if scraper application has duplicate detector
       const scraperDuplicateDetector = this.scraperApplication?.duplicateDetector;
+      const totalTwitterResults = { messagesScanned: 0, tweetIdsAdded: 0, channelsScanned: 0, errors: 0 };
+
       if (scraperDuplicateDetector) {
         const twitterChannels = [
           { id: this.config.get('DISCORD_X_POSTS_CHANNEL_ID'), name: 'X posts' },
@@ -709,31 +706,33 @@ export class BotApplication {
             try {
               const channel = await this.discord.fetchChannel(channelConfig.id);
               if (channel) {
-                this.logger.info(`Scanning ${channelConfig.name} channel history (${channelConfig.id})...`);
                 const tweetResults = await scraperDuplicateDetector.scanDiscordChannelForTweets(channel, 1000);
+                totalTwitterResults.messagesScanned += tweetResults.messagesScanned;
+                totalTwitterResults.tweetIdsAdded += tweetResults.tweetIdsAdded;
+                totalTwitterResults.channelsScanned++;
+                totalTwitterResults.errors += tweetResults.errors?.length || 0;
 
-                this.logger.info(
-                  `${channelConfig.name} channel scan completed: ${tweetResults.messagesScanned} messages, ${tweetResults.tweetIdsAdded} new tweet IDs found`
-                );
-
-                if (tweetResults.errors.length > 0) {
-                  this.logger.warn(`${channelConfig.name} channel scan had ${tweetResults.errors.length} errors`);
-                }
-              } else {
-                this.logger.warn(`Could not fetch ${channelConfig.name} channel: ${channelConfig.id}`);
+                // Small delay between channels to prevent rate limiting
+                await new Promise(resolve => setTimeout(resolve, 1000));
               }
             } catch (error) {
-              this.logger.error(`Failed to scan ${channelConfig.name} channel history: ${error.message}`);
+              totalTwitterResults.errors++;
+              this.logger.debug(`Failed to scan ${channelConfig.name} channel: ${error.message}`);
             }
           }
         }
-      } else {
-        this.logger.info('No scraper duplicate detector available, skipping X/Twitter history scanning');
+
+        // Single summary log for all X/Twitter channels
+        if (totalTwitterResults.channelsScanned > 0) {
+          this.logger.info(
+            `Discord X/Twitter history: ${totalTwitterResults.channelsScanned} channels, ${totalTwitterResults.messagesScanned} messages scanned, ${totalTwitterResults.tweetIdsAdded} tweets cached`
+          );
+        }
       }
 
-      this.logger.info('Discord history scanning initialization completed');
+      this.logger.info('Discord history caching completed (for duplicate detection only)');
     } catch (error) {
-      this.logger.error('Failed to initialize Discord history scanning:', error);
+      this.logger.error('❌ Failed to initialize Discord history scanning:', error);
       // Don't throw - let bot continue running even if scanning fails
     }
   }
