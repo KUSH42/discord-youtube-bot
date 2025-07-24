@@ -805,6 +805,20 @@ export class YouTubeScraperService {
           error: error.message,
           stack: error.stack,
         });
+
+        // Check if this is a browser connection error that requires recovery
+        if (this._isBrowserConnectionError(error)) {
+          this.logger.warn('Browser connection lost, attempting recovery...');
+          try {
+            await this._recoverBrowser();
+            this.logger.info('Browser recovery successful');
+          } catch (recoveryError) {
+            this.logger.error('Browser recovery failed', {
+              error: recoveryError.message,
+              stack: recoveryError.stack,
+            });
+          }
+        }
       }
 
       // Schedule next check
@@ -969,6 +983,62 @@ export class YouTubeScraperService {
     this.videosUrl = null;
     this.liveStreamUrl = null;
     this.isShuttingDown = false; // Reset flag after cleanup
+  }
+
+  /**
+   * Check if error is related to browser connection loss
+   * @param {Error} error - Error to check
+   * @returns {boolean} True if error indicates browser connection lost
+   * @private
+   */
+  _isBrowserConnectionError(error) {
+    const browserErrors = [
+      'Browser connection lost',
+      'Browser or page not available',
+      'Page has been closed',
+      'Target page, context or browser has been closed',
+      'Browser is not running',
+      'No page available',
+    ];
+
+    return browserErrors.some(errorMsg => error.message && error.message.includes(errorMsg));
+  }
+
+  /**
+   * Attempt to recover from browser connection loss
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _recoverBrowser() {
+    try {
+      // Close existing browser if it exists
+      if (this.browserService) {
+        try {
+          await this.browserService.close();
+        } catch (closeError) {
+          this.logger.debug('Error closing browser during recovery', {
+            error: closeError.message,
+          });
+        }
+      }
+
+      // Mark as not initialized to force re-initialization
+      this.isInitialized = false;
+
+      // Wait a moment before attempting recovery
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Re-initialize the browser
+      await this.initialize();
+
+      this.logger.info('Browser recovery completed successfully');
+    } catch (error) {
+      this.logger.error('Browser recovery failed', {
+        error: error.message,
+        stack: error.stack,
+      });
+      throw error;
+    }
   }
 
   /**
