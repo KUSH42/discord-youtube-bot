@@ -142,6 +142,31 @@ describe('CommandProcessor', () => {
       expect(result.message).toContain('not authorized');
     });
 
+    it('should reject scraper commands for unauthorized users', async () => {
+      const scraperCommands = ['restart-scraper', 'stop-scraper', 'start-scraper', 'force-reauth'];
+      const unauthorizedUserId = '999888777666555444';
+
+      for (const command of scraperCommands) {
+        const result = await processor.processCommand(command, [], unauthorizedUserId);
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('not authorized');
+      }
+    });
+
+    it('should allow non-restricted scraper commands for any user', async () => {
+      const nonRestrictedCommands = ['auth-status', 'scraper-health'];
+      const anyUserId = '999888777666555444'; // Not in allowed users list
+
+      for (const command of nonRestrictedCommands) {
+        const result = await processor.processCommand(command, [], anyUserId);
+
+        expect(result.success).toBe(true);
+        expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+        expect(result.scraperAction).toBeDefined();
+      }
+    });
+
     it('should process announce command with arguments', async () => {
       const result = await processor.processCommand('announce', ['true'], '123456789012345678');
 
@@ -233,6 +258,66 @@ describe('CommandProcessor', () => {
       expect(result.success).toBe(true);
       expect(result.requiresUpdate).toBe(true);
       expect(result.message).toBeNull(); // No message - handleUpdate will send its own messages
+    });
+
+    it('should process restart-scraper command', async () => {
+      const result = await processor.processCommand('restart-scraper', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('restart');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process stop-scraper command', async () => {
+      const result = await processor.processCommand('stop-scraper', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('stop');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process start-scraper command', async () => {
+      const result = await processor.processCommand('start-scraper', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('start');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process auth-status command', async () => {
+      const result = await processor.processCommand('auth-status', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('auth-status');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process force-reauth command', async () => {
+      const result = await processor.processCommand('force-reauth', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('force-reauth');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process scraper-health command', async () => {
+      const result = await processor.processCommand('scraper-health', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('health');
+      expect(result.userId).toBe('123456789012345678');
     });
 
     it('should handle unknown command', async () => {
