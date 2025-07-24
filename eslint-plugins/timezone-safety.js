@@ -4,19 +4,21 @@
  */
 
 const enforceUtcTimestamps = {
-  type: 'problem',
-  docs: {
-    description: 'Enforce UTC timestamp usage for consistency across timezones',
-    category: 'Best Practices',
-    recommended: true,
-  },
-  fixable: 'code',
-  schema: [],
-  messages: {
-    noLocalDateMethods: 'Use UTC methods instead of local timezone methods. Use {{suggestion}} instead.',
-    noDirectDateStorage: 'Store timestamps in UTC format. Use .toISOString() or UTC utility functions.',
-    preferUtcUtilities: 'Use UTC utility functions from utilities/utc-time.js instead of {{method}}.',
-    noTimezoneDependent: 'Avoid timezone-dependent operations. Use UTC-based alternatives.',
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'Enforce UTC timestamp usage for consistency across timezones',
+      category: 'Best Practices',
+      recommended: true,
+    },
+    fixable: 'code',
+    schema: [],
+    messages: {
+      noLocalDateMethods: 'Use UTC methods instead of local timezone methods. Use {{suggestion}} instead.',
+      noDirectDateStorage: 'Store timestamps in UTC format. Use .toISOString() or UTC utility functions.',
+      preferUtcUtilities: 'Use UTC utility functions from utilities/utc-time.js instead of {{method}}.',
+      noTimezoneDependent: 'Avoid timezone-dependent operations. Use UTC-based alternatives.',
+    },
   },
   create(context) {
     // Method mappings from problematic to UTC equivalents
@@ -180,16 +182,18 @@ const enforceUtcTimestamps = {
 };
 
 const requireUtcImports = {
-  type: 'suggestion',
-  docs: {
-    description: 'Require importing UTC utilities when using date operations',
-    category: 'Best Practices',
-    recommended: true,
-  },
-  schema: [],
-  messages: {
-    missingUtcImport:
-      'Import UTC utility functions when performing date operations. Add: import { {{functions}} } from "../utilities/utc-time.js"',
+  meta: {
+    type: 'suggestion',
+    docs: {
+      description: 'Require importing UTC utilities when using date operations',
+      category: 'Best Practices',
+      recommended: true,
+    },
+    schema: [],
+    messages: {
+      missingUtcImport:
+        'Import UTC utility functions when performing date operations. Add: import { {{functions}} } from "../utilities/utc-time.js"',
+    },
   },
   create(context) {
     let hasUtcImport = false;

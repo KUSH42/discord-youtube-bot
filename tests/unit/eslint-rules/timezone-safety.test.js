@@ -2,22 +2,31 @@
  * @jest-environment node
  */
 
-import { ESLint } from 'eslint';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { ESLint } = require('eslint');
+const path = require('path');
 
 describe('Timezone Safety ESLint Rules', () => {
   let eslint;
 
-  beforeAll(() => {
-    // Create ESLint instance with our custom rules
+  beforeAll(async () => {
+    // Import the timezone safety plugin
+    const timezoneSafety = await import(path.resolve(__dirname, '../../../eslint-plugins/timezone-safety.js'));
+
+    // Create ESLint instance with inline configuration
     eslint = new ESLint({
-      cwd: path.resolve(__dirname, '../../../'),
-      useEslintrc: false,
-      overrideConfigFile: path.resolve(__dirname, '../../../eslint.config.mjs'),
+      baseConfig: {
+        plugins: {
+          'timezone-safety': timezoneSafety.default,
+        },
+        rules: {
+          'timezone-safety/enforce-utc-timestamps': 'error',
+          'timezone-safety/require-utc-imports': 'warn',
+        },
+        languageOptions: {
+          ecmaVersion: 'latest',
+          sourceType: 'module',
+        },
+      },
     });
   });
 

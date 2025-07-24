@@ -88,9 +88,9 @@ export default [
       'no-script-url': 'error',
       'no-octal-escape': 'error',
 
-      // Timezone safety rules (temporarily disabled for commit - plugin needs debugging)
-      // 'timezone-safety/enforce-utc-timestamps': 'error',
-      // 'timezone-safety/require-utc-imports': 'warn',
+      // Timezone safety rules
+      'timezone-safety/enforce-utc-timestamps': 'error',
+      'timezone-safety/require-utc-imports': 'warn',
     },
   },
 

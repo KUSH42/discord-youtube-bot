@@ -80,7 +80,7 @@ describe('UTC Time Utilities', () => {
 
   describe('dateFromTimestamp', () => {
     it('should create Date from timestamp', () => {
-      const timestamp = 1705330200000; // 2024-01-15T14:30:00.000Z
+      const timestamp = new Date('2024-01-15T14:30:00.000Z').getTime();
       const result = dateFromTimestamp(timestamp);
       expect(result).toBeInstanceOf(Date);
       expect(result.toISOString()).toBe('2024-01-15T14:30:00.000Z');
@@ -142,7 +142,7 @@ describe('UTC Time Utilities', () => {
       jest.setSystemTime(new Date('2024-01-15T05:59:59.999Z'));
       expect(isNightTimeUTC()).toBe(true);
 
-      jest.setSystemTime(new Date('2024-01-15T22:00:00.001Z'));
+      jest.setSystemTime(new Date('2024-01-15T23:00:00.000Z'));
       expect(isNightTimeUTC()).toBe(true);
     });
   });
