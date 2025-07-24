@@ -743,11 +743,22 @@ export class YouTubeScraperService {
           };
         });
 
+        // Create a plain object for logging to avoid complex object serialization issues
+        const logData = {};
+        logData.success = liveStream.success;
+        logData.strategy = liveStream.strategy;
+        logData.id = liveStream.id;
+        logData.title = liveStream.title;
+        logData.url = liveStream.url;
+        logData.publishedText = liveStream.publishedText;
+        logData.publishedAt = liveStream.publishedAt;
+        logData.viewsText = liveStream.viewsText;
+        logData.thumbnailUrl = liveStream.thumbnailUrl;
+        logData.type = liveStream.type;
+        logData.scrapedAt = liveStream.scrapedAt;
+
         if (liveStream) {
-          this.logger.debug('Successfully scraped active live stream', {
-            videoId: liveStream.id,
-            title: liveStream.title,
-          });
+          this.logger.debug(`Successfully scraped active live stream:\n${JSON.stringify(logData, null, 2)}`);
         }
 
         return liveStream;
