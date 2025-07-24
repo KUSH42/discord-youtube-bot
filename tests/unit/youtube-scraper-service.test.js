@@ -16,6 +16,7 @@ describe('YouTubeScraperService', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      silly: jest.fn(),
     };
 
     mockConfig = {
@@ -93,7 +94,20 @@ describe('YouTubeScraperService', () => {
         publishedText: '1 hour ago',
       };
 
-      mockBrowserService.evaluate.mockResolvedValue(mockVideo);
+      // Mock the sequence of evaluate calls during initialization
+      mockBrowserService.evaluate
+        .mockResolvedValueOnce({
+          title: 'Test Channel',
+          url: 'https://www.youtube.com/@testchannel/videos',
+          ytdRichGridMedia: 1,
+          ytdRichItemRenderer: 0,
+          videoTitleById: 1,
+          videoTitleLinkById: 1,
+          genericVideoLinks: 1,
+          shortsLinks: 0,
+        }) // Debug info call
+        .mockResolvedValueOnce('https://www.youtube.com/@testchannel/videos') // handleConsentPageRedirect call
+        .mockResolvedValueOnce(mockVideo); // Actual video extraction call
 
       await scraperService.initialize('testchannel');
 
@@ -184,7 +198,20 @@ describe('YouTubeScraperService', () => {
       };
 
       mockBrowserService.evaluate.mockReset();
-      mockBrowserService.evaluate.mockResolvedValue(mockVideo);
+      // Mock the sequence: debug info, consent check, video extraction
+      mockBrowserService.evaluate
+        .mockResolvedValueOnce({
+          title: 'Test Channel',
+          url: 'https://www.youtube.com/@testchannel/videos',
+          ytdRichGridMedia: 1,
+          ytdRichItemRenderer: 0,
+          videoTitleById: 1,
+          videoTitleLinkById: 1,
+          genericVideoLinks: 1,
+          shortsLinks: 0,
+        }) // Debug info call
+        .mockResolvedValueOnce('https://www.youtube.com/@testchannel/videos') // handleConsentPageRedirect call
+        .mockResolvedValueOnce(mockVideo); // Video extraction call
 
       const result = await scraperService.fetchLatestVideo();
       expect(result).not.toBeNull();
@@ -204,9 +231,8 @@ describe('YouTubeScraperService', () => {
         message: 'Page timeout',
         timestamp: expect.any(Date),
       });
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to scrape YouTube channel', {
+      expect(mockLogger.warn).toHaveBeenCalledWith('Failed to scrape YouTube channel', {
         error: 'Page timeout',
-        stack: expect.any(String),
         videosUrl: 'https://www.youtube.com/@testchannel/videos',
         attempt: 1,
       });
@@ -278,10 +304,7 @@ describe('YouTubeScraperService', () => {
   });
 
   describe('Continuous Monitoring', () => {
-    let _onNewContentCallback;
-
     beforeEach(async () => {
-      _onNewContentCallback = jest.fn();
       mockBrowserService.evaluate.mockResolvedValue({
         id: 'initial123',
         title: 'Initial Video',
@@ -312,11 +335,32 @@ describe('YouTubeScraperService', () => {
       mockBrowserService.evaluate.mockReset();
 
       // For scanForContent calls: fetchActiveLiveStream returns null, fetchLatestVideo returns new video
+      // fetchActiveLiveStream calls evaluate once, fetchLatestVideo calls evaluate 3 times (debug, consent, extraction)
       mockBrowserService.evaluate
         .mockResolvedValueOnce(null) // fetchActiveLiveStream in first scan
-        .mockResolvedValueOnce(null) // fetchLatestVideo in first scan
+        .mockResolvedValueOnce({
+          title: 'Debug',
+          ytdRichGridMedia: 1,
+          ytdRichItemRenderer: 0,
+          videoTitleById: 1,
+          videoTitleLinkById: 1,
+          genericVideoLinks: 1,
+          shortsLinks: 0,
+        }) // fetchLatestVideo debug info in first scan
+        .mockResolvedValueOnce('https://www.youtube.com/@testchannel/videos') // fetchLatestVideo consent check in first scan
+        .mockResolvedValueOnce(null) // fetchLatestVideo extraction in first scan (null = no new video)
         .mockResolvedValueOnce(null) // fetchActiveLiveStream in second scan
-        .mockResolvedValueOnce(newVideo); // fetchLatestVideo in second scan finds new video
+        .mockResolvedValueOnce({
+          title: 'Debug',
+          ytdRichGridMedia: 1,
+          ytdRichItemRenderer: 0,
+          videoTitleById: 1,
+          videoTitleLinkById: 1,
+          genericVideoLinks: 1,
+          shortsLinks: 0,
+        }) // fetchLatestVideo debug info in second scan
+        .mockResolvedValueOnce('https://www.youtube.com/@testchannel/videos') // fetchLatestVideo consent check in second scan
+        .mockResolvedValueOnce(newVideo); // fetchLatestVideo extraction in second scan finds new video
 
       // CRITICAL: Mock _getNextInterval to return predictable values for testing
       const testInterval = 1000; // Use 1 second for fast tests
@@ -709,7 +753,7 @@ describe('YouTubeScraperService', () => {
         await authenticatedService.authenticateWithYouTube();
 
         expect(authenticatedService.isAuthenticated).toBe(false);
-        expect(mockLogger.error).toHaveBeenCalledWith('Failed to authenticate with YouTube:', {
+        expect(mockLogger.error).toHaveBeenCalledWith('⚠️Failed to authenticate with YouTube:', {
           error: 'Navigation failed',
           stack: expect.any(String),
         });
@@ -732,7 +776,7 @@ describe('YouTubeScraperService', () => {
 
         expect(authenticatedService.isAuthenticated).toBe(false);
         expect(mockLogger.warn).toHaveBeenCalledWith(
-          'YouTube authentication may have failed - proceeding without authentication'
+          '⚠️ YouTube authentication may have failed - proceeding without authentication'
         );
       });
     });
@@ -756,7 +800,7 @@ describe('YouTubeScraperService', () => {
 
         await authenticatedService.handleCookieConsent();
 
-        expect(mockLogger.debug).toHaveBeenCalledWith('No cookie consent banner found');
+        expect(mockLogger.info).toHaveBeenCalledWith('No cookie consent banner found');
       });
 
       it('should try multiple consent selectors', async () => {
@@ -1005,9 +1049,8 @@ describe('YouTubeScraperService', () => {
         // but logs the error details
         expect(health.status).toBe('no_videos_found');
         expect(health.details.warning).toBe('No videos found during health check');
-        expect(mockLogger.error).toHaveBeenCalledWith('Failed to scrape YouTube channel', {
+        expect(mockLogger.warn).toHaveBeenCalledWith('Failed to scrape YouTube channel', {
           error: 'Health check network error',
-          stack: expect.any(String),
           videosUrl: 'https://www.youtube.com/@testchannel/videos',
           attempt: expect.any(Number),
         });

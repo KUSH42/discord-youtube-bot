@@ -539,6 +539,8 @@ describe('End-to-End Command Processing Workflows', () => {
         'health',
         'health-detailed',
         'hd',
+        'youtube-health',
+        'x-health',
         'readme',
         'update',
         'restart-scraper',

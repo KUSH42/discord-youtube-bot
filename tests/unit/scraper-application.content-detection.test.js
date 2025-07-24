@@ -28,6 +28,7 @@ describe('ScraperApplication Content Detection', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      verbose: jest.fn(),
       child: jest.fn().mockReturnThis(),
     };
 
@@ -121,7 +122,7 @@ describe('ScraperApplication Content Detection', () => {
       expect(newTweets).toHaveLength(1);
       expect(newTweets[0].tweetID).toBe('2');
       expect(mockDuplicateDetector.markAsSeen).toHaveBeenCalledWith(tweets[1].url);
-      expect(mockLogger.info).toHaveBeenCalledWith('Filtering results: 1 new, 1 duplicates, 0 old content');
+      expect(mockLogger.verbose).toHaveBeenCalledWith('Filtering results: 1 new, 1 duplicates, 0 old content');
     });
 
     it('should filter out old content', () => {
@@ -150,7 +151,7 @@ describe('ScraperApplication Content Detection', () => {
 
       expect(newTweets).toHaveLength(1);
       expect(newTweets[0].tweetID).toBe('2');
-      expect(mockLogger.info).toHaveBeenCalledWith('Filtering results: 1 new, 0 duplicates, 1 old content');
+      expect(mockLogger.verbose).toHaveBeenCalledWith('Filtering results: 1 new, 0 duplicates, 1 old content');
     });
 
     it('should log debug information with sampling', () => {
@@ -337,7 +338,7 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.performEnhancedRetweetDetection();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Performing enhanced retweet detection...');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Performing enhanced retweet detection...');
       expect(scraperApp.navigateToProfileTimeline).toHaveBeenCalledWith('testuser');
       expect(scraperApp.processNewTweet).toHaveBeenCalled();
       expect(scraperApp.stats.totalTweetsAnnounced).toBe(1);

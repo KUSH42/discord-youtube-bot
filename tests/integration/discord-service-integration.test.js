@@ -32,6 +32,7 @@ describe('Discord Service Integration', () => {
       },
       on: jest.fn(),
       removeListener: jest.fn(),
+      listenerCount: jest.fn().mockReturnValue(0),
     };
 
     mockLogger = {
@@ -39,10 +40,12 @@ describe('Discord Service Integration', () => {
       info: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      silly: jest.fn(),
       child: jest.fn().mockReturnValue({
         info: jest.fn(),
         error: jest.fn(),
         debug: jest.fn(),
+        silly: jest.fn(),
         child: jest.fn().mockReturnThis(),
       }),
     };

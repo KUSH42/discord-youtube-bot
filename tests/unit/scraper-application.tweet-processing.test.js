@@ -86,6 +86,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      verbose: jest.fn(),
       child: jest.fn().mockReturnThis(),
     };
 
@@ -317,6 +318,7 @@ describe('Tweet Processing Pipeline', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      verbose: jest.fn(),
       child: jest.fn().mockReturnThis(),
     };
 

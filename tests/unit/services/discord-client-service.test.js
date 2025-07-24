@@ -13,6 +13,7 @@ describe('Discord Client Service', () => {
       info: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      silly: jest.fn(),
     };
 
     mockSend = jest.fn();
@@ -274,6 +275,7 @@ describe('Discord Client Service', () => {
       // Mock client event handling
       mockClient.on = jest.fn();
       mockClient.off = jest.fn();
+      mockClient.listenerCount = jest.fn().mockReturnValue(0);
 
       const unregister = discordClientService.onMessage(mockHandler);
 
@@ -325,6 +327,7 @@ describe('Discord Client Service', () => {
       const mockHandler = jest.fn();
       mockClient.on = jest.fn();
       mockClient.off = jest.fn();
+      mockClient.listenerCount = jest.fn().mockReturnValue(0);
 
       const unregister = discordClientService.onReady(mockHandler);
 
@@ -364,6 +367,7 @@ describe('Discord Client Service', () => {
       const mockError = new Error('Test error');
       mockClient.on = jest.fn();
       mockClient.off = jest.fn();
+      mockClient.listenerCount = jest.fn().mockReturnValue(0);
 
       const unregister = discordClientService.onError(mockHandler);
 
