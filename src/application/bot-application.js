@@ -411,7 +411,7 @@ export class BotApplication {
           botInstanceId: this.instanceId,
           discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
           isReady: this.discord.isReady(),
-        }.JSON.stringify()
+        }.JSON.toString()
       );
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
       this.logger.debug(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`, {
