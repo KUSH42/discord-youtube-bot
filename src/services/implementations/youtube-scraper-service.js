@@ -624,9 +624,6 @@ export class YouTubeScraperService {
               }
             }
 
-            // Parse publishedText to create publishedAt Date object
-            const publishedAt = parseRelativeTime(publishedText);
-
             return {
               success: true,
               strategy: usedStrategy,
@@ -634,7 +631,6 @@ export class YouTubeScraperService {
               title,
               url: videoUrl,
               publishedText,
-              publishedAt: publishedAt ? publishedAt.toISOString() : new Date().toISOString(),
               viewsText,
               thumbnailUrl,
               type: 'video',
@@ -647,6 +643,10 @@ export class YouTubeScraperService {
         }
 
         if (latestVideo && latestVideo.success) {
+          // Parse publishedText to create publishedAt Date object (outside browser context)
+          const publishedAt = parseRelativeTime(latestVideo.publishedText);
+          latestVideo.publishedAt = publishedAt ? publishedAt.toISOString() : new Date().toISOString();
+
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
