@@ -436,6 +436,50 @@ it('should log critical errors to console', async () => {
 });
 ```
 
+#### ✅ **Retry Logic and Promise Rejection Testing**
+
+For testing retry logic with setTimeout delays, use these proven patterns:
+
+```javascript
+// ✅ Method 1: Global advanceAsyncTimers (for complex timer scenarios)
+it('should retry with proper time advancement', async () => {
+  // Set up fake timers and global.advanceAsyncTimers helper
+  // See tests/TIMER-TESTING-GUIDE.md for complete setup
+  
+  mockService.operation.mockRejectedValue(new Error('Retry Error'));
+  const promise = service.operationWithRetry();
+  
+  await global.advanceAsyncTimers(10000); // Advance through all retry delays
+  await expect(promise).rejects.toThrow('Retry Error');
+  expect(mockService.operation).toHaveBeenCalledTimes(3);
+});
+
+// ✅ Method 2: setTimeout Override (for simple retry scenarios)
+it('should retry navigation and succeed', async () => {
+  mockPage.goto
+    .mockRejectedValueOnce(new Error('net::ERR_ABORTED'))
+    .mockRejectedValueOnce(new Error('net::ERR_ABORTED'))
+    .mockResolvedValueOnce('success');
+
+  // Override setTimeout to make delays instant for testing
+  const originalSetTimeout = global.setTimeout;
+  global.setTimeout = (fn, _delay) => originalSetTimeout(fn, 0);
+
+  try {
+    const result = await browserService.goto('https://example.com');
+    expect(result).toBe('success');
+    expect(mockPage.goto).toHaveBeenCalledTimes(3);
+  } finally {
+    global.setTimeout = originalSetTimeout;
+  }
+});
+```
+
+**Key points for retry testing:**
+- Use `mockRejectedValueOnce` per retry attempt to avoid Jest error display issues
+- Always restore overridden globals in finally blocks
+- Choose setTimeout override for simple cases, advanceAsyncTimers for complex scenarios
+
 #### ❌ **Avoid Adding Console Calls in Test Mocks**
 
 Don't add console.error calls in test mock implementations as they create noise:

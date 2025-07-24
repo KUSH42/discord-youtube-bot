@@ -449,10 +449,10 @@ export class BotApplication {
     }
 
     return {
-      title: '📊 Detailed Bot Health Status',
+      title: '🤖 Detailed Bot Health Status 📊',
       color: this.discord.isReady() ? 0x00ff00 : 0xff0000,
       fields: [
-        { name: '🤖 Bot', value: `Status: ${bot.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
+        { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
         {
           name: '▶️ YouTube Monitor',
           value: `Status: ${monitor.isRunning ? '✅ Running' : '❌ Stopped'}`,
@@ -460,7 +460,7 @@ export class BotApplication {
         },
         { name: '🐦 X Scraper', value: `Status: ${scraper.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
         {
-          name: '📹 YouTube Scraper',
+          name: '📺 YouTube Scraper',
           value: `Status: ${youtubeScraper?.isRunning ? '✅ Running' : '❌ Stopped'}`,
           inline: true,
         },
@@ -486,8 +486,6 @@ export class BotApplication {
           value: `Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFound: ${scraper.totalTweetsFound}\nAnnounced: ${scraper.totalTweetsAnnounced}`,
           inline: true,
         },
-
-        { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
       ],
       timestamp: system.timestamp,
       footer: {

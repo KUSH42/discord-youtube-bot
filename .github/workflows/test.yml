@@ -1049,23 +1049,44 @@ jobs:
       - name: Generate LCOV HTML Report
         if: steps.coverage.outputs.status == 'available'
         run: |
-          echo "Listing contents of assets/lcov/ for debugging:"
-          ls -lR ./assets/lcov/
-          echo ""
+          set -e # Exit immediately if a command exits with a non-zero status
 
           LCOV_REPORT_DIR="lcov-html-report"
-          mkdir -p $LCOV_REPORT_DIR
-          cp ./assets/lcov/base.css $LCOV_REPORT_DIR/base.css
-          cp ./assets/lcov/prettify.css $LCOV_REPORT_DIR/prettify.css
-          cp ./assets/lcov/lcov-dark-theme.css $LCOV_REPORT_DIR/lcov-dark-theme.css
+          mkdir -p "$LCOV_REPORT_DIR" # Quoting for safety
+
+          echo "Current working directory: $(pwd)"
+          echo "Listing contents of assets/lcov/ for debugging:"
+          ls -lR ./assets/lcov/ # Output of this was already good, confirms file presence
+
+          # Define full source and destination paths for clarity and debugging
+          SOURCE_BASE_CSS="$(pwd)/assets/lcov/base.css"
+          SOURCE_PRETTIFY_CSS="$(pwd)/assets/lcov/prettify.css"
+          SOURCE_DARK_THEME_CSS="$(pwd)/assets/lcov/lcov-dark-theme.css"
+
+          DEST_BASE_CSS="$LCOV_REPORT_DIR/base.css"
+          DEST_PRETTIFY_CSS="$LCOV_REPORT_DIR/prettify.css"
+          DEST_DARK_THEME_CSS="$LCOV_REPORT_DIR/lcov-dark-theme.css"
+
+          # Debugging: Print the exact paths before copying
+          echo "Attempting to copy base.css from: $SOURCE_BASE_CSS"
+          echo "Attempting to copy prettify.css from: $SOURCE_PRETTIFY_CSS"
+          echo "Attempting to copy lcov-dark-theme.css from: $SOURCE_DARK_THEME_CSS"
+          echo "Attempting to copy to destination directory: $LCOV_REPORT_DIR"
+
+          # Use verbose copy (-v) for more output
+          cp -v "$SOURCE_BASE_CSS" "$DEST_BASE_CSS"
+          cp -v "$SOURCE_PRETTIFY_CSS" "$DEST_PRETTIFY_CSS"
+          cp -v "$SOURCE_DARK_THEME_CSS" "$DEST_DARK_THEME_CSS"
+
+          echo "All CSS files copied successfully."
 
           genhtml coverage/merged/lcov.info \
-            --output-directory $LCOV_REPORT_DIR \
+            --output-directory "$LCOV_REPORT_DIR" \
             --css-file lcov-dark-theme.css \
             --title "Code Coverage Report" \
             --branch-coverage \
             --rc lcov_html_css_file="lcov-dark-theme.css" \
-            --prefix $(pwd) # Important for correct source paths
+            --prefix "$(pwd)" # Important for correct source paths
           echo "LCOV HTML report generated in $LCOV_REPORT_DIR"
 
 

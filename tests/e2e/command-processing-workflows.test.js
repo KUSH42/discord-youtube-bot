@@ -292,7 +292,7 @@ describe('End-to-End Command Processing Workflows', () => {
       const result = await commandProcessor.processCommand('update', [], authorizedUser.id);
 
       expect(result.success).toBe(true);
-      expect(result.message).toBe('🚀 Initiating update... Pulling latest changes, please wait for confirmation.');
+      expect(result.message).toBe(null); // Update command returns null as it handles messages separately
       expect(result.requiresUpdate).toBe(true);
       expect(result.userId).toBe(authorizedUser.id);
     });

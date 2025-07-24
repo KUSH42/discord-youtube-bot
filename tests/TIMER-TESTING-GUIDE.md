@@ -159,6 +159,37 @@ it('should fail permanently after max retries', async () => {
 });
 ```
 
+### Pattern 4: Alternative Retry Testing (setTimeout Override)
+
+When `global.advanceAsyncTimers` causes Jest configuration conflicts with promise rejections, use setTimeout override:
+
+```javascript
+it('should retry navigation and succeed on third attempt', async () => {
+  mockPage.goto
+    .mockRejectedValueOnce(new Error('net::ERR_ABORTED'))
+    .mockRejectedValueOnce(new Error('net::ERR_ABORTED'))
+    .mockResolvedValueOnce('success');
+
+  // Override setTimeout to make delays instant for testing
+  const originalSetTimeout = global.setTimeout;
+  global.setTimeout = (fn, _delay) => originalSetTimeout(fn, 0);
+
+  try {
+    const result = await browserService.goto('https://example.com');
+    expect(result).toBe('success');
+    expect(mockPage.goto).toHaveBeenCalledTimes(3);
+  } finally {
+    // Always restore original setTimeout
+    global.setTimeout = originalSetTimeout;
+  }
+});
+```
+
+**When to use setTimeout override:**
+- Simple retry logic with `setTimeout` delays
+- Jest error display issues with fake timers + promise rejections
+- When you need instant test execution without timer complexity
+
 ## Key Testing Principles
 
 ### 1. **Synchronized Time Control**

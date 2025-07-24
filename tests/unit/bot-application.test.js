@@ -843,8 +843,8 @@ describe('BotApplication', () => {
 
         const embed = botApplication.createDetailedHealthEmbed(healthData);
 
-        expect(embed.title).toBe('📊 Detailed Bot Health Status');
-        expect(embed.fields).toHaveLength(13);
+        expect(embed.title).toBe('🤖 Detailed Bot Health Status 📊');
+        expect(embed.fields).toHaveLength(12);
         expect(embed.color).toBe(0x00ff00);
       });
 
