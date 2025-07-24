@@ -22,6 +22,7 @@ export default {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'clover'],
+  coverageProvider: 'v8', // Use V8 coverage instead of Babel for better consistency
   // Re-enabled coverage thresholds after fixing hanging tests
   coverageThreshold: {
     global: {
