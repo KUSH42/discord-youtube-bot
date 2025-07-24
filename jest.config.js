@@ -9,9 +9,10 @@ export default {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.js',
-    'index.js', // Include main entry point
-    'src/x-scraper.js', // Include X/Twitter scraper
-    'src/youtube-monitor.js', // Include YouTube monitor
+    // Exclude main entry points that start infinite processes and cause genhtml errors
+    '!index.js',
+    '!src/x-scraper.js',
+    '!src/youtube-monitor.js',
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',
