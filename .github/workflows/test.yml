@@ -1049,6 +1049,10 @@ jobs:
       - name: Generate LCOV HTML Report
         if: steps.coverage.outputs.status == 'available'
         run: |
+          echo "Listing contents of assets/lcov/ for debugging:"
+          ls -lR ./assets/lcov/
+          echo ""
+
           LCOV_REPORT_DIR="lcov-html-report"
           mkdir -p $LCOV_REPORT_DIR
           cp ./assets/lcov/base.css $LCOV_REPORT_DIR/base.css
