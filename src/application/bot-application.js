@@ -302,32 +302,34 @@ export class BotApplication {
    */
   async handleMessage(message) {
     try {
-      this.logger.info(
-        `🔥 NEW CODE RUNNING - handleMessage called for: "${message.content?.substring(0, 30) || 'empty'}"`
-      );
-
-      // Only track COMMAND messages for duplicates
+      // ATOMIC DUPLICATE PREVENTION - Must be FIRST thing we do
       const isCommand = message.content?.startsWith(this.commandPrefix);
 
       if (isCommand) {
-        // GLOBAL DUPLICATE DETECTION - Track across ALL instances
         const globalKey = `${message.id}-${message.content}`;
-        const globalCount = (globalMessageTracker.get(globalKey) || 0) + 1;
-        globalMessageTracker.set(globalKey, globalCount);
 
-        // Debug logging to track all COMMAND messages received
-        this.logger.info(
-          `🎯 COMMAND received for processing - ID: ${message.id}, Count: ${globalCount}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
-        );
+        // ATOMIC CHECK-AND-SET to prevent race conditions
+        if (globalMessageTracker.has(globalKey)) {
+          const currentCount = globalMessageTracker.get(globalKey) + 1;
+          globalMessageTracker.set(globalKey, currentCount);
 
-        // IMMEDIATE GLOBAL DUPLICATE PREVENTION
-        if (globalCount > 1) {
           this.logger.error(
-            `🚨 DUPLICATE COMMAND BLOCKED! ID: ${message.id}, Count: ${globalCount}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+            `🚨 DUPLICATE COMMAND BLOCKED! ID: ${message.id}, Count: ${currentCount}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
           );
-          return; // BLOCK duplicate processing immediately
+          return; // IMMEDIATE EXIT - No further processing
         }
+
+        // ATOMICALLY mark as processing (first instance wins)
+        globalMessageTracker.set(globalKey, 1);
+
+        this.logger.info(
+          `🎯 COMMAND accepted for processing - ID: ${message.id}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+        );
       }
+
+      this.logger.info(
+        `🔥 NEW CODE RUNNING - handleMessage called for: "${message.content?.substring(0, 30) || 'empty'}"`
+      );
 
       // Ignore bot messages and non-command messages
       if (message.author.bot || !message.content.startsWith(this.commandPrefix)) {
@@ -367,24 +369,7 @@ export class BotApplication {
       const command = args.shift().toLowerCase();
       const user = message.author;
 
-      // Debug: Track message processing to detect and PREVENT duplicates
-      const messageKey = `${message.id}-${command}`;
-      const processingCount = (this.messageProcessingCounter.get(messageKey) || 0) + 1;
-      this.messageProcessingCounter.set(messageKey, processingCount);
-
-      if (processingCount > 1) {
-        this.logger.error('DUPLICATE COMMAND EXECUTION PREVENTED!', {
-          messageId: message.id,
-          command,
-          processingCount,
-          userId: user.id,
-          instanceId: this.discord.client?._botInstanceId || 'unknown',
-          clientId: currentBotUser?.id,
-          action: 'BLOCKED_DUPLICATE_PROCESSING',
-        });
-        // PREVENT duplicate processing by returning early
-        return;
-      }
+      // Duplicate prevention now handled at message entry - this code removed
 
       // Only process messages in the support channel or from admin in any other channel
       if (!user && this.supportChannelId && message.channel.id !== this.supportChannelId) {
