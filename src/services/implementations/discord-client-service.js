@@ -57,6 +57,16 @@ export class DiscordClientService extends DiscordService {
   onMessage(handler) {
     const wrappedHandler = message => {
       try {
+        // FILTER OUT BOT MESSAGES AT DISCORD.JS LEVEL to reduce processing load
+        if (message.author.bot) {
+          // Check if it's this bot's own message
+          const isOwnMessage = message.author.id === this.client.user?.id;
+          this.logger.debug(
+            `🤖 Ignoring bot message at Discord.js level - ID: ${message.id}, Author: ${message.author.id}, IsOwnMessage: ${isOwnMessage}`
+          );
+          return; // Don't process bot messages at all
+        }
+
         this.logger.info(
           `📨 Discord messageCreate event - ID: ${message.id}, Handlers: ${this.client.listenerCount('messageCreate')}, Instance: ${this.client._botInstanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
         );
