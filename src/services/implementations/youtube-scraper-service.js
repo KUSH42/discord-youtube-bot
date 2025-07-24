@@ -681,11 +681,14 @@ export class YouTubeScraperService {
           timestamp: new Date(),
         };
 
-        this.logger.warn('Failed to scrape YouTube channel', {
-          error: error.message,
-          videosUrl: this.videosUrl,
-          attempt: this.metrics.totalScrapingAttempts,
-        });
+        this.logger.warn(
+          'Failed to scrape YouTube channel',
+          {
+            error: error.message,
+            videosUrl: this.videosUrl,
+            attempt: this.metrics.totalScrapingAttempts,
+          }.JSON.stringify()
+        );
 
         return null;
       }
