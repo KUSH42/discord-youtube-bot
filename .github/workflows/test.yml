@@ -1070,13 +1070,16 @@ jobs:
           # Debugging: Print the exact paths before copying
           echo "Attempting to copy base.css from: $SOURCE_BASE_CSS"
           echo "Attempting to copy prettify.css from: $SOURCE_PRETTIFY_CSS"
-          echo "Attempting to copy lcov-dark-theme.css from: $SOURCE_DARK_THEME_CSS"
+          echo "Attempting to symlink lcov-dark-theme.css from: $SOURCE_DARK_THEME_CSS"
           echo "Attempting to copy to destination directory: $LCOV_REPORT_DIR"
 
           # Use verbose copy (-v) for more output
           cp -v "$SOURCE_BASE_CSS" "$DEST_BASE_CSS"
           cp -v "$SOURCE_PRETTIFY_CSS" "$DEST_PRETTIFY_CSS"
-          cp -v "$SOURCE_DARK_THEME_CSS" "$DEST_DARK_THEME_CSS"
+
+          # Create a symbolic link in the current working directory for genhtml to find
+          echo "Creating temporary symlink for lcov-dark-theme.css in current directory."
+          ln -s "$SOURCE_DARK_THEME_CSS_ORIGINAL" "lcov-dark-theme.css"
 
           echo "All CSS files copied successfully."
 
