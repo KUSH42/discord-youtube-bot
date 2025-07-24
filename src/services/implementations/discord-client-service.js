@@ -57,17 +57,9 @@ export class DiscordClientService extends DiscordService {
   onMessage(handler) {
     const wrappedHandler = message => {
       try {
-        this.logger.info('📨 Discord messageCreate event received', {
-          messageId: message.id,
-          content: message.content?.substring(0, 100),
-          authorId: message.author?.id,
-          authorBot: message.author?.bot,
-          channelId: message.channelId,
-          clientId: this.client.user?.id,
-          instanceId: this.client._botInstanceId,
-          timestamp: new Date().toISOString(),
-          handlerCount: this.client.listenerCount('messageCreate'),
-        });
+        this.logger.info(
+          `📨 Discord messageCreate event - ID: ${message.id}, Handlers: ${this.client.listenerCount('messageCreate')}, Instance: ${this.client._botInstanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+        );
         handler(message);
       } catch (error) {
         // Log the error with context

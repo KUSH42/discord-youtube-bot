@@ -302,35 +302,27 @@ export class BotApplication {
    */
   async handleMessage(message) {
     try {
-      // GLOBAL DUPLICATE DETECTION - Track across ALL instances
-      const globalKey = `${message.id}-${message.content}`;
-      const globalCount = (globalMessageTracker.get(globalKey) || 0) + 1;
-      globalMessageTracker.set(globalKey, globalCount);
+      // Only track COMMAND messages for duplicates
+      const isCommand = message.content?.startsWith(this.commandPrefix);
 
-      // Debug logging to track all messages received
-      this.logger.info('🎯 Message received for processing', {
-        messageId: message.id,
-        authorId: message.author?.id,
-        authorBot: message.author?.bot,
-        content: message.content?.substring(0, 100), // First 100 chars only
-        startsWithPrefix: message.content?.startsWith(this.commandPrefix),
-        clientId: this.discord.getCurrentUser?.()?.id,
-        instanceId: this.discord.client?._botInstanceId || 'unknown',
-        botInstanceId: this.instanceId,
-        globalProcessingCount: globalCount,
-      });
+      if (isCommand) {
+        // GLOBAL DUPLICATE DETECTION - Track across ALL instances
+        const globalKey = `${message.id}-${message.content}`;
+        const globalCount = (globalMessageTracker.get(globalKey) || 0) + 1;
+        globalMessageTracker.set(globalKey, globalCount);
 
-      // IMMEDIATE GLOBAL DUPLICATE PREVENTION
-      if (globalCount > 1) {
-        this.logger.error('🚨 GLOBAL DUPLICATE MESSAGE PROCESSING DETECTED AND BLOCKED!', {
-          messageId: message.id,
-          content: message.content?.substring(0, 50),
-          globalProcessingCount: globalCount,
-          botInstanceId: this.instanceId,
-          instanceId: this.discord.client?._botInstanceId || 'unknown',
-          action: 'BLOCKED_GLOBAL_DUPLICATE',
-        });
-        return; // BLOCK duplicate processing immediately
+        // Debug logging to track all COMMAND messages received
+        this.logger.info(
+          `🎯 COMMAND received for processing - ID: ${message.id}, Count: ${globalCount}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+        );
+
+        // IMMEDIATE GLOBAL DUPLICATE PREVENTION
+        if (globalCount > 1) {
+          this.logger.error(
+            `🚨 DUPLICATE COMMAND BLOCKED! ID: ${message.id}, Count: ${globalCount}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+          );
+          return; // BLOCK duplicate processing immediately
+        }
       }
 
       // Ignore bot messages and non-command messages
