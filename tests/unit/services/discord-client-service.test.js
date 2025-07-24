@@ -305,6 +305,7 @@ describe('Discord Client Service', () => {
       };
 
       mockClient.on = jest.fn();
+      mockClient.listenerCount = jest.fn().mockReturnValue(0);
 
       discordClientService.onMessage(mockHandler);
 
