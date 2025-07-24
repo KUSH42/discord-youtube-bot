@@ -4,7 +4,7 @@ import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
 
 // Global singleton check to prevent multiple BotApplication instances from processing messages
-const activeBotApplicationInstance = null;
+// (Currently implemented via flag consumption pattern instead)
 
 /**
  * Main bot application orchestrator
@@ -13,7 +13,7 @@ const activeBotApplicationInstance = null;
 export class BotApplication {
   constructor(dependencies) {
     // Add unique instance ID for debugging
-    this.instanceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.instanceId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     this.exec = dependencies.exec || defaultExec;
     this.scraperApplication = dependencies.scraperApplication;
     this.monitorApplication = dependencies.monitorApplication;
