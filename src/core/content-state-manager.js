@@ -15,6 +15,10 @@ export class ContentStateManager {
     // Track when the bot started to determine content freshness
     this.botStartTime = new Date();
 
+    // Track initialization status for comprehensive logging
+    this.isFullyInitialized = false;
+    this.initializationTime = null;
+
     // Initialize from persistent storage
     this.initializeFromStorage();
   }
@@ -50,6 +54,20 @@ export class ContentStateManager {
         error: error.message,
       });
     }
+  }
+
+  /**
+   * Mark the system as fully initialized (all submodules started, histories populated)
+   * This enables comprehensive content evaluation logging
+   */
+  markFullyInitialized() {
+    this.isFullyInitialized = true;
+    this.initializationTime = new Date();
+    
+    this.logger.info('Content state manager marked as fully initialized - comprehensive logging enabled', {
+      initializationTime: this.initializationTime.toISOString(),
+      botStartTime: this.botStartTime.toISOString(),
+    });
   }
 
   /**
@@ -188,20 +206,54 @@ export class ContentStateManager {
     // Content is new if it's within the maximum age threshold
     const isWithinAgeLimit = contentAge <= maxAge;
 
-    // Also check against bot start time for content that existed before bot started
+    // Check against bot start time, but allow recent content even if published before bot start
+    // This prevents announcing very old content while still allowing recent content from before restart
     const isAfterBotStart = publishTime >= this.botStartTime;
+    const timeSinceBotStart = detectionTime.getTime() - this.botStartTime.getTime();
+    const botStartGracePeriod = 5 * 60 * 1000; // 5 minutes grace period
 
-    this.logger.debug('New content evaluation', {
+    // Allow content if:
+    // 1. Published after bot started, OR
+    // 2. Bot just started (within grace period) and content is within age limit
+    const shouldAllow = isAfterBotStart || (timeSinceBotStart <= botStartGracePeriod && isWithinAgeLimit);
+
+    // Always log basic debug info, but add comprehensive logging after initialization
+    const logData = {
       contentId,
       publishedAt: publishTime.toISOString(),
       contentAge: Math.round(contentAge / 1000), // seconds
       maxAge: Math.round(maxAge / 1000), // seconds
       isWithinAgeLimit,
       isAfterBotStart,
+      timeSinceBotStart: Math.round(timeSinceBotStart / 1000), // seconds
       botStartTime: this.botStartTime.toISOString(),
-    });
+      shouldAllow,
+    };
 
-    return isWithinAgeLimit && isAfterBotStart;
+    if (this.isFullyInitialized) {
+      // Comprehensive logging after full initialization - this helps catch issues like the one we just fixed
+      const decision = shouldAllow ? '✅ ALLOW' : '❌ REJECT';
+      const reason = !isWithinAgeLimit 
+        ? 'content too old' 
+        : !isAfterBotStart && timeSinceBotStart > (5 * 60 * 1000)
+        ? 'published before bot start (outside grace period)'
+        : shouldAllow
+        ? 'within criteria'
+        : 'unknown';
+
+      this.logger.debug(`Content evaluation: ${decision} - ${reason}`, {
+        ...logData,
+        initializationTime: this.initializationTime?.toISOString(),
+        isFullyInitialized: this.isFullyInitialized,
+        gracePeriodMs: 5 * 60 * 1000,
+        reason,
+      });
+    } else {
+      // Basic logging during initialization
+      this.logger.debug('New content evaluation (pre-initialization)', logData);
+    }
+
+    return shouldAllow;
   }
 
   /**

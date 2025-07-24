@@ -318,7 +318,7 @@ export class ContentCoordinator {
 
     if (contentData.url) {
       if (contentData.url.includes('youtube.com') || contentData.url.includes('youtu.be')) {
-        return contentData.isLive ? 'youtube_livestream' : 'youtube_video';
+        return contentData.isLive ? 'livestream' : 'video';
       }
 
       if (contentData.url.includes('x.com') || contentData.url.includes('twitter.com')) {

@@ -875,9 +875,22 @@ export class BotApplication {
       }
 
       this.logger.info('Discord history caching completed (for duplicate detection only)');
+      
+      // Emit event to signal that initialization is complete
+      this.eventBus.emit('bot.initialization.complete', {
+        timestamp: new Date(),
+        historyScanned: true,
+      });
     } catch (error) {
       this.logger.error('❌ Failed to initialize Discord history scanning:', error);
       // Don't throw - let bot continue running even if scanning fails
+      
+      // Still emit completion event even if scanning failed
+      this.eventBus.emit('bot.initialization.complete', {
+        timestamp: new Date(),
+        historyScanned: false,
+        error: error.message,
+      });
     }
   }
 
