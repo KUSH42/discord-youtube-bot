@@ -237,7 +237,7 @@ export class ScraperApplication {
       }
 
       // Check browser health
-      if (this.browser && !this.browser.isClosed()) {
+      if (this.browser && this.browser.isConnected()) {
         health.browserHealthy = true;
       } else {
         health.errors.push('Browser not available or closed');
