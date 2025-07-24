@@ -1,5 +1,6 @@
 import { PlaywrightBrowserService } from './playwright-browser-service.js';
 import { AsyncMutex } from '../../utilities/async-mutex.js';
+import { parseRelativeTime } from '../../utilities/time-parser.js';
 
 /**
  * YouTube web scraper service for near-instantaneous content detection
@@ -623,6 +624,9 @@ export class YouTubeScraperService {
               }
             }
 
+            // Parse publishedText to create publishedAt Date object
+            const publishedAt = parseRelativeTime(publishedText);
+
             return {
               success: true,
               strategy: usedStrategy,
@@ -630,6 +634,7 @@ export class YouTubeScraperService {
               title,
               url: videoUrl,
               publishedText,
+              publishedAt: publishedAt ? publishedAt.toISOString() : new Date().toISOString(),
               viewsText,
               thumbnailUrl,
               type: 'video',
@@ -725,6 +730,7 @@ export class YouTubeScraperService {
             title: liveElement.getAttribute('title') || 'Live Stream',
             url,
             type: 'livestream',
+            publishedAt: new Date().toISOString(), // Live streams are happening now
             scrapedAt: new Date().toISOString(),
           };
         });
