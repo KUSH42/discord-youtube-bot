@@ -371,30 +371,30 @@ Commands are used in the channel specified by `DISCORD_BOT_SUPPORT_LOG_CHANNEL`.
 
 #### General Commands
 
-| Command                   | Description                                                             | Authorization |
-| ------------------------- | ----------------------------------------------------------------------- | ------------- |
-| `!health`                 | Shows a summary of the bot's health and status.                        | Anyone        |
-| `!health-detailed`        | Shows a detailed breakdown of each component's status.                 | Anyone        |
-| `!youtube-health`         | Shows detailed YouTube monitor health status with metrics embed.       | Anyone        |
-| `!x-health`               | Shows detailed X scraper health status with metrics embed.             | Anyone        |
-| `!announce <true/false>`  | Toggles all content announcements on or off.                           | Anyone        |
-| `!vxtwitter <true/false>` | Toggles automatic `twitter.com` to `vxtwitter.com` URL conversion.     | Anyone        |
-| `!loglevel <level>`       | Changes the logging level (`info`, `debug`, `warn`, `error`).          | Anyone        |
-| `!auth-status`            | Shows X (Twitter) authentication status.                               | Anyone        |
-| `!scraper-health`         | Shows detailed X scraper health status.                                | Anyone        |
-| `!readme`                 | Displays a summary of available commands.                              | Anyone        |
+| Command                   | Description                                                        | Authorization |
+| ------------------------- | ------------------------------------------------------------------ | ------------- |
+| `!health`                 | Shows a summary of the bot's health and status.                    | Anyone        |
+| `!health-detailed`        | Shows a detailed breakdown of each component's status.             | Anyone        |
+| `!youtube-health`         | Shows detailed YouTube monitor health status with metrics embed.   | Anyone        |
+| `!x-health`               | Shows detailed X scraper health status with metrics embed.         | Anyone        |
+| `!announce <true/false>`  | Toggles all content announcements on or off.                       | Anyone        |
+| `!vxtwitter <true/false>` | Toggles automatic `twitter.com` to `vxtwitter.com` URL conversion. | Anyone        |
+| `!loglevel <level>`       | Changes the logging level (`info`, `debug`, `warn`, `error`).      | Anyone        |
+| `!auth-status`            | Shows X (Twitter) authentication status.                           | Anyone        |
+| `!scraper-health`         | Shows detailed X scraper health status.                            | Anyone        |
+| `!readme`                 | Displays a summary of available commands.                          | Anyone        |
 
 #### Administrative Commands
 
-| Command           | Description                                                                       | Authorization    |
-| ----------------- | --------------------------------------------------------------------------------- | ---------------- |
-| `!restart`        | Restarts the entire bot process, reloading all configurations.                   | Authorized Users |
-| `!update`         | Pulls the latest changes from git, installs dependencies, and restarts.          | Authorized Users |
-| `!kill`           | Immediately stops all announcement-posting activities.                           | Authorized Users |
-| `!restart-scraper`| Restarts only the X scraper application with automatic retry logic.             | Authorized Users |
-| `!stop-scraper`   | Stops the X scraper application (YouTube monitoring continues).                  | Authorized Users |
-| `!start-scraper`  | Starts the X scraper application.                                                | Authorized Users |
-| `!force-reauth`   | Forces re-authentication with X, clearing saved cookies and restarting scraper. | Authorized Users |
+| Command            | Description                                                                     | Authorization    |
+| ------------------ | ------------------------------------------------------------------------------- | ---------------- |
+| `!restart`         | Restarts the entire bot process, reloading all configurations.                  | Authorized Users |
+| `!update`          | Pulls the latest changes from git, installs dependencies, and restarts.         | Authorized Users |
+| `!kill`            | Immediately stops all announcement-posting activities.                          | Authorized Users |
+| `!restart-scraper` | Restarts only the X scraper application with automatic retry logic.             | Authorized Users |
+| `!stop-scraper`    | Stops the X scraper application (YouTube monitoring continues).                 | Authorized Users |
+| `!start-scraper`   | Starts the X scraper application.                                               | Authorized Users |
+| `!force-reauth`    | Forces re-authentication with X, clearing saved cookies and restarting scraper. | Authorized Users |
 
 ## Deployment (Production)
 
@@ -504,8 +504,9 @@ docker build -t bot:deps --target dependencies .
 ## Testing & Quality Assurance
 
 This project is committed to high quality through a comprehensive and automated
-testing strategy. We maintain a suite of over 400 tests, including unit,
-integration, end-to-end (E2E), performance, and security tests.
+testing strategy. We maintain a suite of over 1.700 tests in more than 80 test 
+suites, including unit, integration, end-to-end (E2E), performance, and 
+security tests
 
 Our testing philosophy emphasizes fast feedback, high confidence in critical
 paths, and maintainability. All tests are executed automatically on every push
