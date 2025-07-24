@@ -36,9 +36,13 @@ describe('Discord Service Integration', () => {
 
     mockLogger = {
       // Create a mock logger
+      info: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
       child: jest.fn().mockReturnValue({
+        info: jest.fn(),
         error: jest.fn(),
+        debug: jest.fn(),
         child: jest.fn().mockReturnThis(),
       }),
     };

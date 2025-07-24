@@ -165,13 +165,17 @@ export class DiscordClientService extends DiscordService {
       this.logger.info('Destroying Discord client', {
         clientId: this.client.user?.id,
         isReady: this.client.readyAt !== null,
-        eventListenerCount: this.client.eventNames().length,
+        eventListenerCount: typeof this.client.eventNames === 'function' ? this.client.eventNames().length : 0,
         instanceId: this.client._botInstanceId,
       });
 
       // Remove all event listeners first to prevent any remaining callbacks
-      this.client.removeAllListeners();
-      this.logger.debug('Removed all Discord client event listeners');
+      if (typeof this.client.removeAllListeners === 'function') {
+        this.client.removeAllListeners();
+        this.logger.debug('Removed all Discord client event listeners');
+      } else {
+        this.logger.debug('removeAllListeners not available on client');
+      }
 
       await this.client.destroy();
       this.logger.info('Discord client destroyed successfully');

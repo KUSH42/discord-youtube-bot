@@ -12,6 +12,7 @@ describe('Discord Client Service', () => {
     mockLogger = {
       info: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
     };
 
     mockSend = jest.fn();
