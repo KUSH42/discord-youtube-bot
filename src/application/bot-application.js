@@ -401,18 +401,15 @@ export class BotApplication {
         },
       };
 
-      this.logger.debug(
-        `Processing command: "${command}" from user ${user.tag}`,
-        JSON.toString({
-          command,
-          userId: user.id,
-          messageId: message.id,
-          clientId: currentBotUser?.id,
-          botInstanceId: this.instanceId,
-          discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
-          isReady: this.discord.isReady(),
-        })
-      );
+      this.logger.debug(`Processing command: "${command}" from user ${user.tag}`, {
+        command,
+        userId: user.id,
+        messageId: message.id,
+        clientId: currentBotUser?.id,
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
+        isReady: this.discord.isReady(),
+      });
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
       this.logger.debug(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`, {
         command,
