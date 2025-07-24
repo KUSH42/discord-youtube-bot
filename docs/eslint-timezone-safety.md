@@ -11,6 +11,8 @@ This project includes custom ESLint rules to prevent timezone-related bugs by en
 
 Enforces the use of UTC methods instead of local timezone methods to ensure consistent behavior across different server timezones.
 
+**Note**: `Date.now()` is exempt from this rule as it returns UTC milliseconds and is timezone-safe. The rule focuses on dangerous methods like `getHours()`, `toLocaleString()`, and `Date.parse()`.
+
 #### ❌ Problematic Code
 
 ```javascript
@@ -20,10 +22,13 @@ const day = date.getDay();              // Error: use getUTCDay()
 date.setHours(14);                      // Error: use setUTCHours()
 const str = date.toLocaleString();      // Error: use toISOString()
 
-// Timestamp storage
+// Note: Date.now() is actually timezone-safe and allowed
+const timestamp = Date.now();           // ✓ Safe: returns UTC milliseconds
+
+// Problematic for timestamp storage context
 const data = {
-  timestamp: new Date(),                // Error: use nowUTC()
-  createdAt: new Date()                 // Error: use nowUTC()
+  timestamp: new Date(),                // Error: use nowUTC() for clarity
+  createdAt: new Date()                 // Error: use nowUTC() for clarity
 };
 ```
 
@@ -38,10 +43,15 @@ const day = date.getUTCDay();           // ✓ UTC method
 date.setUTCHours(14);                   // ✓ UTC method
 const str = date.toISOString();         // ✓ UTC string format
 
+// Timestamp operations - multiple valid approaches
+const timestamp1 = Date.now();          // ✓ UTC milliseconds (timezone-safe)
+const timestamp2 = timestampUTC();      // ✓ UTC utility wrapper
+const timestamp3 = nowUTC().getTime();  // ✓ UTC utility method
+
 // Timestamp storage
 const data = {
-  timestamp: nowUTC(),                  // ✓ UTC utility
-  createdAt: nowUTC()                   // ✓ UTC utility
+  timestamp: nowUTC(),                  // ✓ UTC utility for clarity
+  createdAt: Date.now()                 // ✓ Also valid (UTC milliseconds)
 };
 
 // Or using UTC methods directly
@@ -89,7 +99,7 @@ The project provides these UTC utility functions in `src/utilities/utc-time.js`:
 ```javascript
 // Current time functions
 nowUTC()                    // Current UTC Date object
-timestampUTC()              // Current UTC timestamp (ms)
+timestampUTC()              // Current UTC timestamp (ms) - same as Date.now()
 toISOStringUTC()            // Current UTC ISO string
 
 // Time component functions  
@@ -139,6 +149,22 @@ error: Use UTC methods instead of local timezone methods. Use getUTCHours instea
 warning: Import UTC utility functions when performing date operations. Add: import { nowUTC, getCurrentHourUTC } from "../utilities/utc-time.js" (timezone-safety/require-utc-imports)
 ```
 
+## What's Actually Enforced
+
+The ESLint rules specifically target these dangerous timezone-dependent operations:
+
+**❌ Always Flagged:**
+- `getHours()`, `getMinutes()`, `getDay()`, etc. (use UTC equivalents)
+- `setHours()`, `setMinutes()`, `setDate()`, etc. (use UTC equivalents) 
+- `toLocaleString()`, `toLocaleDateString()` (use `toISOString()`)
+- `Date.parse()` (can be timezone-dependent)
+
+**✅ Always Safe:**
+- `Date.now()` - returns UTC milliseconds, timezone-agnostic
+- `toISOString()` - always UTC format
+- `getUTCHours()`, `getUTCDay()`, etc. - explicit UTC methods
+- `getTime()`, `valueOf()` - return UTC milliseconds
+
 ## Benefits
 
 1. **Consistency**: Ensures all timestamp operations use UTC regardless of server timezone
@@ -146,6 +172,7 @@ warning: Import UTC utility functions when performing date operations. Add: impo
 3. **Auto-fixing**: Many violations can be automatically fixed with `--fix`
 4. **Documentation**: Encourages use of well-documented UTC utility functions
 5. **Maintainability**: Makes timezone handling explicit and predictable
+6. **Accuracy**: Focuses on truly problematic operations, not false positives
 
 ## Testing and Examples
 
