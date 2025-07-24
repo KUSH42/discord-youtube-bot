@@ -425,7 +425,7 @@ export class CommandProcessor {
   async handleRestartScraper(userId) {
     return {
       success: true,
-      message: '🔄 Restarting X scraper application...',
+      message: null, // No message here - handleScraperAction will send its own messages
       requiresRestart: false,
       scraperAction: 'restart',
       userId,
@@ -438,7 +438,7 @@ export class CommandProcessor {
   async handleStopScraper(userId) {
     return {
       success: true,
-      message: '⏹️ Stopping X scraper application...',
+      message: null, // No message here - handleScraperAction will send its own messages
       requiresRestart: false,
       scraperAction: 'stop',
       userId,
@@ -451,7 +451,7 @@ export class CommandProcessor {
   async handleStartScraper(userId) {
     return {
       success: true,
-      message: '▶️ Starting X scraper application...',
+      message: null, // No message here - handleScraperAction will send its own messages
       requiresRestart: false,
       scraperAction: 'start',
       userId,
@@ -464,7 +464,7 @@ export class CommandProcessor {
   async handleAuthStatus(userId) {
     return {
       success: true,
-      message: '🔐 Checking authentication status...',
+      message: null, // No message here - handleScraperAction will send its own messages
       requiresRestart: false,
       scraperAction: 'auth-status',
       userId,
@@ -477,7 +477,7 @@ export class CommandProcessor {
   async handleForceReauth(userId) {
     return {
       success: true,
-      message: '🔑 Forcing re-authentication...',
+      message: null, // No message here - handleScraperAction will send its own messages
       requiresRestart: false,
       scraperAction: 'force-reauth',
       userId,
@@ -490,7 +490,7 @@ export class CommandProcessor {
   async handleScraperHealth(userId) {
     return {
       success: true,
-      message: '🩺 Checking scraper health...',
+      message: null, // No message here - handleScraperAction will send its own messages
       requiresRestart: false,
       scraperAction: 'health',
       userId,
