@@ -2,6 +2,9 @@
  * Pure business logic for processing Discord bot commands
  * No side effects - only processes input and returns command results
  */
+
+import { nowUTC, toISOStringUTC } from '../utilities/utc-time.js';
+
 export class CommandProcessor {
   constructor(config, stateManager) {
     this.config = config;
@@ -338,7 +341,7 @@ export class CommandProcessor {
    * Handle health command
    */
   async handleHealth() {
-    const currentTime = new Date();
+    const currentTime = nowUTC();
     const uptime = Math.floor(process.uptime());
     const uptimeStr = `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`;
     const memUsage = process.memoryUsage();
@@ -355,8 +358,8 @@ export class CommandProcessor {
       postingStatus: postingEnabled ? 'Enabled' : 'Disabled',
       announcements: announcementEnabled ? 'Enabled' : 'Disabled',
       vxTwitter: vxTwitterEnabled ? 'Enabled' : 'Disabled',
-      botStartTime: botStartTime ? botStartTime.toLocaleString() : 'Unknown',
-      timestamp: currentTime.toISOString(),
+      botStartTime: botStartTime ? botStartTime.toISOString() : 'Unknown',
+      timestamp: toISOStringUTC(),
     };
 
     return {

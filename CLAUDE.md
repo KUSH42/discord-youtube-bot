@@ -46,6 +46,11 @@ Required for all public methods:
 - Log with Winston at appropriate boundaries
 - Provide user-friendly Discord messages
 
+### Timezone Safety
+- **Always use UTC** for timestamp storage and business logic
+- Use UTC utility functions from `src/utilities/utc-time.js`
+- ESLint rules enforce UTC usage and prevent timezone bugs
+
 ```javascript
 try {
   const result = await this.youtubeService.getVideoDetails(videoId);
@@ -75,6 +80,15 @@ try {
 - Use dotenvx encryption for production credentials
 - Implement rate limiting for commands/webhooks
 - Verify webhook signatures with HMAC
+
+### Timezone Safety
+- **Always use UTC** for timestamp storage and business logic
+- Use UTC utility functions from `src/utilities/utc-time.js`:
+  - `nowUTC()`, `timestampUTC()`, `toISOStringUTC()` for current time
+  - `getCurrentHourUTC()`, `getCurrentDayUTC()` for business logic
+  - `daysAgoUTC()`, `hoursAgoUTC()` for time arithmetic
+- ESLint rules automatically enforce UTC usage
+- Store all timestamps as ISO strings with UTC timezone (`toISOString()`)
 
 ## Testing Requirements
 

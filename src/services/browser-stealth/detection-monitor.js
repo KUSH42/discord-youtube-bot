@@ -432,7 +432,7 @@ export class DetectionMonitor {
     }
 
     incidents.forEach(incident => {
-      const hour = new Date(incident.timestamp).getHours();
+      const hour = new Date(incident.timestamp).getUTCHours();
       distribution[hour]++;
     });
 

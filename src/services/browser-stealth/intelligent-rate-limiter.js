@@ -1,7 +1,17 @@
 /**
  * IntelligentRateLimiter - Context-aware rate limiting optimized for timely updates with stealth
  * Balances quick content detection (1-2 minutes) with human-like browsing patterns
+ * All time calculations use UTC to ensure timezone independence
  */
+
+import {
+  getCurrentHourUTC,
+  getCurrentDayUTC,
+  isNightTimeUTC,
+  isWeekendUTC,
+  timestampUTC,
+} from '../../utilities/utc-time.js';
+
 export class IntelligentRateLimiter {
   constructor(config, logger) {
     this.config = config;
@@ -46,9 +56,9 @@ export class IntelligentRateLimiter {
    * @returns {number} Next interval in milliseconds
    */
   calculateNextInterval() {
-    const currentHour = new Date().getHours();
-    const isWeekend = [0, 6].includes(new Date().getDay());
-    const isNightTime = currentHour < 6 || currentHour > 22;
+    const currentHour = getCurrentHourUTC();
+    const isWeekend = isWeekendUTC();
+    const isNightTime = isNightTimeUTC();
 
     let selectedPattern;
 
@@ -236,8 +246,8 @@ export class IntelligentRateLimiter {
    * @returns {string} Current pattern name
    */
   getCurrentPatternName() {
-    const currentHour = new Date().getHours();
-    const isWeekend = [0, 6].includes(new Date().getDay());
+    const currentHour = getCurrentHourUTC();
+    const isWeekend = isWeekendUTC();
     const isNightTime = currentHour < 6 || currentHour > 22;
 
     if (this.emergencyMode) {

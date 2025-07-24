@@ -1,5 +1,6 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import { delay } from '../utils/delay.js';
+import { nowUTC, toISOStringUTC, timestampUTC, daysAgoUTC, hoursAgoUTC } from '../utilities/utc-time.js';
 
 /**
  * X (Twitter) scraping application orchestrator
@@ -103,7 +104,7 @@ export class ScraperApplication {
 
       // Emit start event
       this.eventBus.emit('scraper.started', {
-        startTime: new Date(),
+        startTime: nowUTC(),
         xUser: this.xUser,
         pollingInterval: this.getNextInterval(),
       });
@@ -140,7 +141,7 @@ export class ScraperApplication {
 
       // Emit stop event
       this.eventBus.emit('scraper.stopped', {
-        stopTime: new Date(),
+        stopTime: nowUTC(),
         stats: this.getStats(),
       });
     } catch (error) {
@@ -222,7 +223,7 @@ export class ScraperApplication {
    */
   async performHealthCheck() {
     const health = {
-      timestamp: new Date(),
+      timestamp: nowUTC(),
       isRunning: this.isRunning,
       authenticated: false,
       browserHealthy: false,
@@ -280,7 +281,7 @@ export class ScraperApplication {
       this.eventBus.emit('scraper.recovery.failed', {
         originalError: error.message,
         recoveryError: recoveryError.message,
-        timestamp: new Date(),
+        timestamp: nowUTC(),
       });
     }
   }
@@ -389,7 +390,7 @@ export class ScraperApplication {
         // Emit error event
         this.eventBus.emit('scraper.error', {
           error,
-          timestamp: new Date(),
+          timestamp: nowUTC(),
           stats: this.getStats(),
         });
 
@@ -418,7 +419,7 @@ export class ScraperApplication {
    */
   scheduleNextPoll() {
     const interval = this.getNextInterval();
-    this.nextPollTimestamp = Date.now() + interval;
+    this.nextPollTimestamp = timestampUTC() + interval;
     this.timerId = setTimeout(async () => {
       if (!this.isRunning) {
         return;
@@ -440,7 +441,7 @@ export class ScraperApplication {
    */
   scheduleRetry() {
     const retryInterval = Math.min(this.maxInterval, this.minInterval * 2);
-    this.nextPollTimestamp = Date.now() + retryInterval;
+    this.nextPollTimestamp = timestampUTC() + retryInterval;
     this.timerId = setTimeout(async () => {
       if (!this.isRunning) {
         return;
@@ -474,13 +475,12 @@ export class ScraperApplication {
   async pollXProfile() {
     this.nextPollTimestamp = null;
     this.stats.totalRuns++;
-    this.stats.lastRunTime = new Date();
+    this.stats.lastRunTime = nowUTC();
 
     try {
       this.logger.info(`Polling X profile: @${this.xUser}`);
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterday = daysAgoUTC(1);
       const _sinceDate = yesterday.toISOString().split('T')[0];
 
       // Verify authentication before searching
@@ -553,14 +553,14 @@ export class ScraperApplication {
 
       // Emit poll completion event
       this.eventBus.emit('scraper.poll.completed', {
-        timestamp: new Date(),
+        timestamp: nowUTC(),
         tweetsFound: tweets.length,
         newTweets: newTweets.length,
         stats: this.getStats(),
       });
 
       const nextInterval = this.getNextInterval();
-      const nextRunTime = new Date(Date.now() + nextInterval);
+      const nextRunTime = new Date(timestampUTC() + nextInterval);
       const nextRunTimeFormatted = nextRunTime.toLocaleTimeString('en-US', {
         hour12: false,
         hour: '2-digit',
@@ -854,7 +854,7 @@ export class ScraperApplication {
     // Check: Is the content too old based on configurable backoff duration?
     const backoffHours = this.config.get('CONTENT_BACKOFF_DURATION_HOURS', '2'); // Default 2 hours
     const backoffMs = parseInt(backoffHours) * 60 * 60 * 1000;
-    const cutoffTime = new Date(Date.now() - backoffMs);
+    const cutoffTime = new Date(timestampUTC() - backoffMs);
 
     if (tweet.timestamp) {
       const tweetTime = new Date(tweet.timestamp);
@@ -967,7 +967,7 @@ export class ScraperApplication {
         tweet: content,
         classification,
         result,
-        timestamp: new Date(),
+        timestamp: nowUTC(),
       });
     } catch (error) {
       this.logger.error(`Error processing tweet ${tweet.tweetID}:`, error);
@@ -1213,8 +1213,7 @@ export class ScraperApplication {
   generateSearchUrl(includeDate = true) {
     let searchUrl = `https://x.com/search?q=(from%3A${this.xUser})`;
     if (includeDate) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterday = daysAgoUTC(1);
       const sinceDate = yesterday.toISOString().split('T')[0];
       searchUrl += `%20since%3A${sinceDate}`;
     }
@@ -1234,7 +1233,7 @@ export class ScraperApplication {
       // Scan recent content based on configuration to mark as seen
       const initializationHours = parseInt(this.config.get('INITIALIZATION_WINDOW_HOURS', '24'), 10);
       const initializationWindow = initializationHours * 60 * 60 * 1000; // Convert hours to milliseconds
-      const cutoffTime = new Date(Date.now() - initializationWindow);
+      const cutoffTime = new Date(timestampUTC() - initializationWindow);
 
       // Navigate to user's profile to get recent content
       await this.navigateToProfileTimeline(this.xUser);
@@ -1279,7 +1278,7 @@ export class ScraperApplication {
       }
 
       this.logger.info(`✅ Initialization complete: marked ${markedAsSeen} recent posts as seen`);
-      this.logger.info(`Content posted after ${new Date().toISOString()} will be announced`);
+      this.logger.info(`Content posted after ${toISOStringUTC()} will be announced`);
     } catch (error) {
       this.logger.error('Error during recent content initialization:', error);
       // Don't throw - this is a best-effort initialization

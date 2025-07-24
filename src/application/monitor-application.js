@@ -1,5 +1,6 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import crypto from 'crypto';
+import { nowUTC, toISOStringUTC, timestampUTC } from '../utilities/utc-time.js';
 
 /**
  * YouTube monitoring application orchestrator
@@ -95,7 +96,7 @@ export class MonitorApplication {
 
       // Emit start event
       this.eventBus.emit('monitor.started', {
-        startTime: new Date(),
+        startTime: nowUTC(),
         youtubeChannelId: this.youtubeChannelId,
         callbackUrl: this.callbackUrl,
         fallbackEnabled: this.fallbackEnabled,
@@ -134,7 +135,7 @@ export class MonitorApplication {
 
       // Emit stop event
       this.eventBus.emit('monitor.stopped', {
-        stopTime: new Date(),
+        stopTime: nowUTC(),
         stats: this.getStats(),
       });
     } catch (error) {
@@ -208,7 +209,7 @@ export class MonitorApplication {
       if (this.http.isSuccessResponse(response)) {
         this.subscriptionActive = true;
         this.stats.subscriptions++;
-        this.stats.lastSubscriptionTime = new Date();
+        this.stats.lastSubscriptionTime = nowUTC();
         this.logger.info('Successfully subscribed to PubSubHubbub');
 
         // Schedule subscription renewal
@@ -366,16 +367,16 @@ export class MonitorApplication {
    * @returns {Promise<Object>} Response object
    */
   async handleWebhook(request) {
-    const startTime = Date.now();
+    const startTime = timestampUTC();
 
     try {
       this.stats.webhooksReceived++;
-      this.stats.lastWebhookTime = new Date();
+      this.stats.lastWebhookTime = nowUTC();
 
       // Enhanced webhook debugging
       this.logWebhookDebug('=== WEBHOOK REQUEST RECEIVED ===', {
         method: request.method,
-        timestamp: new Date().toISOString(),
+        timestamp: toISOStringUTC(),
         headers: this.sanitizeHeaders(request.headers),
         bodyLength: request.body ? request.body.length : 0,
         bodyType: typeof request.body,
@@ -517,7 +518,7 @@ export class MonitorApplication {
     // Always log webhook debug info at INFO level when debugging is enabled
     this.logger.info(`[WEBHOOK-DEBUG] ${message}`, {
       webhookDebug: true,
-      timestamp: new Date().toISOString(),
+      timestamp: toISOStringUTC(),
       ...data,
     });
   }
@@ -775,7 +776,7 @@ export class MonitorApplication {
         classification,
         result,
         source,
-        timestamp: new Date(),
+        timestamp: nowUTC(),
       });
     } catch (error) {
       this.logger.error(`Error processing video ${video.id}:`, error);
