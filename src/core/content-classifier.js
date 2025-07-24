@@ -483,8 +483,12 @@ export class ContentClassifier {
    * @returns {boolean} True if livestream
    */
   isYouTubeLivestream(video) {
-    // Check live streaming details - only if actually started
+    // Check live streaming details - only if currently live (started but not ended)
     if (video.liveStreamingDetails && video.liveStreamingDetails.actualStartTime) {
+      // If it has an end time, it's a finished livestream (now a video)
+      if (video.liveStreamingDetails.actualEndTime) {
+        return false;
+      }
       return true;
     }
 
@@ -585,7 +589,7 @@ export class ContentClassifier {
    * @returns {boolean} True if X URL
    */
   isXUrl(url) {
-    return /^https?:\/\/(?:twitter\.com|x\.com)\//.test(url);
+    return /^https?:\/\/(?:(?:www\.|mobile\.)?(?:twitter\.com|x\.com))\//.test(url);
   }
 
   /**
@@ -594,7 +598,7 @@ export class ContentClassifier {
    * @returns {boolean} True if YouTube URL
    */
   isYouTubeUrl(url) {
-    return /^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\//.test(url);
+    return /^https?:\/\/(?:(?:www\.|m\.)?(?:youtube\.com|youtu\.be))\//.test(url);
   }
 
   /**
@@ -619,6 +623,11 @@ export class ContentClassifier {
       const statusMatch = url.match(this.patterns.x.status);
       if (statusMatch) {
         return { platform: 'x', type: 'status', id: statusMatch[1] };
+      }
+
+      // Check for malformed status URLs (has /status/ but no ID)
+      if (url.includes('/status/') && !statusMatch) {
+        return { platform: 'unknown', type: 'unknown', id: null };
       }
 
       const profileMatch = url.match(this.patterns.x.profile);

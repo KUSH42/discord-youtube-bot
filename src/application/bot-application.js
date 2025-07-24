@@ -3,21 +3,33 @@ import fs from 'fs';
 import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
 
+// Global message processing tracker to detect duplicates across all instances
+const globalMessageTracker = new Map();
+
 /**
  * Main bot application orchestrator
  * Coordinates Discord client, command processing, and event handling
  */
 export class BotApplication {
   constructor(dependencies) {
+    // Add unique instance ID for debugging
+    this.instanceId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     this.exec = dependencies.exec || defaultExec;
     this.scraperApplication = dependencies.scraperApplication;
     this.monitorApplication = dependencies.monitorApplication;
+    this.youtubeScraper = dependencies.youtubeScraperService;
     this.discord = dependencies.discordService;
     this.commandProcessor = dependencies.commandProcessor;
     this.eventBus = dependencies.eventBus;
     this.config = dependencies.config;
     this.state = dependencies.stateManager;
     this.logger = dependencies.logger;
+
+    // Log BotApplication instance creation
+    this.logger.info('BotApplication instance created', {
+      botInstanceId: this.instanceId,
+      discordClientInstanceId: this.discord.client?._botInstanceId || 'unknown',
+    });
 
     // Initialize rate limiter for commands
     this.commandRateLimit = new CommandRateLimit(5, 60000); // 5 commands per minute
@@ -34,6 +46,9 @@ export class BotApplication {
     this.eventCleanup = [];
     this.isRunning = false;
     this.buildInfo = this.loadBuildInfo();
+
+    // Debug: Message processing counter to detect duplicates
+    this.messageProcessingCounter = new Map();
   }
 
   loadBuildInfo() {
@@ -65,7 +80,7 @@ export class BotApplication {
    */
   getAllowedUserIds() {
     const allowedUserIdsStr = this.config.get('ALLOWED_USER_IDS', '');
-    return allowedUserIdsStr ? allowedUserIdsStr.split(',').map((id) => id.trim()) : [];
+    return allowedUserIdsStr ? allowedUserIdsStr.split(',').map(id => id.trim()) : [];
   }
 
   /**
@@ -74,11 +89,18 @@ export class BotApplication {
    */
   async start() {
     if (this.isRunning) {
+      this.logger.warn('Bot application is already running, ignoring start() call', {
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
       throw new Error('Bot application is already running');
     }
 
     try {
-      this.logger.info('Starting bot application...');
+      this.logger.info('Starting bot application...', {
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
 
       // Login to Discord
       const token = this.config.getRequired('DISCORD_BOT_TOKEN');
@@ -90,6 +112,21 @@ export class BotApplication {
       // Set bot presence
       await this.setBotPresence();
 
+      // Start YouTube Scraper if available
+      if (this.youtubeScraper) {
+        try {
+          const youtubeChannelHandle = this.config.get('YOUTUBE_CHANNEL_HANDLE');
+          if (youtubeChannelHandle) {
+            await this.youtubeScraper.initialize(youtubeChannelHandle);
+            await this.youtubeScraper.startMonitoring();
+          } else {
+            this.logger.info('YOUTUBE_CHANNEL_HANDLE not configured, YouTube scraper will not start.');
+          }
+        } catch (error) {
+          this.logger.error('❌ Failed to start YouTube Scraper:', error);
+        }
+      }
+
       this.isRunning = true;
       this.logger.info('Bot application started successfully');
 
@@ -99,7 +136,7 @@ export class BotApplication {
         config: this.config.getAllConfig(false), // Don't include secrets
       });
     } catch (error) {
-      this.logger.error('Failed to start bot application:', error);
+      this.logger.error('❌ Failed to start bot application:', error);
       await this.stop();
       throw error;
     }
@@ -122,6 +159,11 @@ export class BotApplication {
 
       // Disconnect from Discord
       await this.discord.destroy();
+
+      // Stop YouTube Scraper
+      if (this.youtubeScraper) {
+        await this.youtubeScraper.cleanup();
+      }
 
       this.isRunning = false;
       this.logger.info('Bot application stopped');
@@ -149,23 +191,29 @@ export class BotApplication {
       return;
     }
 
+    // Send initial update message
+    if (message) {
+      await message.reply('🚀 Initiating update... Pulling latest changes, please wait for confirmation.');
+    }
+
     this.exec('git pull', async (error, stdout) => {
       if (error) {
         this.logger.error(`git pull failed: ${error}`);
         if (message) {
-          await message.reply(`❌ **Git pull failed:**\n\`\`\`${error.message}\`\`\``);
+          await message.reply(`❌ **Git pull failed:**\n\`\`\`ansi\n${this._formatGitPullOutput(error.message)}\`\`\``);
         }
         return;
       }
 
       if (message) {
-        const output = `**✅ Git pull successful:**\n\`\`\`${stdout || 'No new changes.'}\`\`\``;
+        const formattedOutput = this._formatGitPullOutput(stdout || 'No new changes.');
+        const output = `**✅ Git pull successful:**\n\`\`\`ansi\n${formattedOutput}\`\`\``;
         await message.reply(output);
       }
 
       // Delay restart to ensure the message is sent
       setTimeout(() => {
-        this.exec(`sudo systemctl restart ${serviceName}`, (restartError) => {
+        this.exec(`sudo systemctl restart ${serviceName}`, restartError => {
           if (restartError) {
             this.logger.error(`systemctl restart failed: ${restartError}`);
             // We cannot reply here as the bot might be down
@@ -186,8 +234,21 @@ export class BotApplication {
    * Set up Discord event handlers
    */
   setupEventHandlers() {
+    this.logger.info('Setting up Discord event handlers', {
+      existingHandlerCount: this.eventCleanup.length,
+      instanceId: this.discord.client?._botInstanceId || 'unknown',
+    });
+
+    // Check if handlers are already set up
+    if (this.eventCleanup.length > 0) {
+      this.logger.warn('Event handlers already exist! This might cause duplicates', {
+        existingHandlerCount: this.eventCleanup.length,
+        instanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
+    }
+
     // Message handler
-    const messageHandler = async (message) => {
+    const messageHandler = async message => {
       await this.handleMessage(message);
     };
 
@@ -197,7 +258,7 @@ export class BotApplication {
     };
 
     // Error handler
-    const errorHandler = (error) => {
+    const errorHandler = error => {
       this.handleError(error);
     };
 
@@ -206,11 +267,16 @@ export class BotApplication {
     this.eventCleanup.push(this.discord.onReady(readyHandler));
     this.eventCleanup.push(this.discord.onError(errorHandler));
 
+    this.logger.info('Discord event handlers registered', {
+      totalHandlerCount: this.eventCleanup.length,
+      instanceId: this.discord.client?._botInstanceId || 'unknown',
+    });
+
     // State change handlers
     this.eventCleanup.push(
-      this.state.subscribe('logLevel', (newLevel) => {
+      this.state.subscribe('logLevel', newLevel => {
         this.handleLogLevelChange(newLevel);
-      }),
+      })
     );
   }
 
@@ -218,6 +284,7 @@ export class BotApplication {
    * Clean up event handlers
    */
   cleanupEventHandlers() {
+    this.logger.info(`Cleaning up ${this.eventCleanup.length} event handlers`);
     for (const cleanup of this.eventCleanup) {
       try {
         cleanup();
@@ -226,6 +293,7 @@ export class BotApplication {
       }
     }
     this.eventCleanup = [];
+    this.logger.info('Event handlers cleanup completed');
   }
 
   /**
@@ -234,8 +302,61 @@ export class BotApplication {
    */
   async handleMessage(message) {
     try {
+      // ATOMIC DUPLICATE PREVENTION - Must be FIRST thing we do
+      const isCommand = message.content?.startsWith(this.commandPrefix);
+
+      if (isCommand) {
+        const globalKey = `${message.id}-${message.content}`;
+
+        // ATOMIC CHECK-AND-SET to prevent race conditions
+        if (globalMessageTracker.has(globalKey)) {
+          const currentCount = globalMessageTracker.get(globalKey) + 1;
+          globalMessageTracker.set(globalKey, currentCount);
+
+          this.logger.error(
+            `🚨 DUPLICATE COMMAND BLOCKED! ID: ${message.id}, Count: ${currentCount}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+          );
+          return; // IMMEDIATE EXIT - No further processing
+        }
+
+        // ATOMICALLY mark as processing (first instance wins)
+        globalMessageTracker.set(globalKey, 1);
+
+        this.logger.debug(
+          `🎯 COMMAND accepted for processing - ID: ${message.id}, Instance: ${this.instanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+        );
+      }
+
       // Ignore bot messages and non-command messages
       if (message.author.bot || !message.content.startsWith(this.commandPrefix)) {
+        if (message.author.bot) {
+          this.logger.debug('Ignoring bot message', {
+            messageId: message.id,
+            authorId: message.author?.id,
+            botAuthor: true,
+          });
+        }
+        return;
+      }
+
+      // Additional safety check: Ignore messages from this bot specifically
+      const currentBotUser = await this.discord.getCurrentUser();
+      if (currentBotUser && message.author.id === currentBotUser.id) {
+        this.logger.warn('Ignoring message from self', {
+          messageId: message.id,
+          authorId: message.author?.id,
+          botUserId: currentBotUser.id,
+          content: message.content?.substring(0, 50),
+        });
+        return;
+      }
+
+      // Ensure Discord client is ready before processing
+      if (!this.discord.isReady()) {
+        this.logger.warn('Discord client not ready, ignoring message', {
+          messageId: message.id,
+          authorId: message.author?.id,
+        });
         return;
       }
 
@@ -243,6 +364,8 @@ export class BotApplication {
       const args = message.content.slice(this.commandPrefix.length).trim().split(/ +/);
       const command = args.shift().toLowerCase();
       const user = message.author;
+
+      // Duplicate prevention now handled at message entry - this code removed
 
       // Only process messages in the support channel or from admin in any other channel
       if (!user && this.supportChannelId && message.channel.id !== this.supportChannelId) {
@@ -259,7 +382,7 @@ export class BotApplication {
       if (!this.commandRateLimit.isAllowed(user.id)) {
         const remainingTime = Math.ceil(this.commandRateLimit.getRemainingTime(user.id) / 1000);
         await message.reply(
-          `🚫 Rate limit exceeded. Please wait ${remainingTime} seconds before using another command.`,
+          `🚫 Rate limit exceeded. Please wait ${remainingTime} seconds before using another command.`
         );
         this.logger.warn(`Rate limit exceeded for user ${user.tag} (${user.id})`);
         return;
@@ -270,6 +393,7 @@ export class BotApplication {
         bot: this.getStats(),
         scraper: this.scraperApplication.getStats(),
         monitor: this.monitorApplication.getStats(),
+        youtubeScraper: this.youtubeScraper ? this.youtubeScraper.getMetrics() : null,
         system: {
           uptime: process.uptime(),
           memory: process.memoryUsage(),
@@ -277,12 +401,51 @@ export class BotApplication {
         },
       };
 
-      this.logger.info(`Processing command: "${command}" from user ${user.tag}`);
+      this.logger.debug(`Processing command: "${command}" from user ${user.tag}`, {
+        command,
+        userId: user.id,
+        messageId: message.id,
+        clientId: currentBotUser?.id,
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
+        isReady: this.discord.isReady(),
+      });
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
-      this.logger.info(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`);
+      this.logger.debug(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`, {
+        command,
+        success: result.success,
+        messageId: message.id,
+        clientId: currentBotUser?.id,
+        instanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
 
       // Handle command result
       await this.handleCommandResult(message, result, command, user);
+
+      // Cleanup: Remove old message tracking entries to prevent memory leaks
+      if (this.messageProcessingCounter.size > 1000) {
+        const entries = Array.from(this.messageProcessingCounter.entries());
+        // Keep only the most recent 500 entries
+        const recentEntries = entries.slice(-500);
+        this.messageProcessingCounter.clear();
+        recentEntries.forEach(([key, value]) => {
+          this.messageProcessingCounter.set(key, value);
+        });
+      }
+
+      // Global cleanup: Prevent memory leaks in global tracker
+      if (globalMessageTracker.size > 1000) {
+        const globalEntries = Array.from(globalMessageTracker.entries());
+        const recentGlobalEntries = globalEntries.slice(-500);
+        globalMessageTracker.clear();
+        recentGlobalEntries.forEach(([key, value]) => {
+          globalMessageTracker.set(key, value);
+        });
+        this.logger.info('🧹 Global message tracker cleaned up', {
+          entriesRemoved: globalEntries.length - 500,
+          entriesKept: 500,
+        });
+      }
     } catch (error) {
       this.logger.error('Error processing message command:', error);
       try {
@@ -311,6 +474,12 @@ export class BotApplication {
           } else if (command === 'health') {
             const healthEmbed = this.createHealthEmbed(result.healthData);
             await message.reply({ embeds: [healthEmbed] });
+          } else if (command === 'youtube-health') {
+            const healthEmbed = this.createYoutubeHealthEmbed(result.healthData);
+            await message.reply({ embeds: [healthEmbed] });
+          } else if (command === 'x-health') {
+            const healthEmbed = this.createXHealthEmbed(result.healthData);
+            await message.reply({ embeds: [healthEmbed] });
           }
         } else {
           await message.reply(result.message);
@@ -320,12 +489,13 @@ export class BotApplication {
       // Log command execution
       if (result.logMessage && result.userId) {
         this.logger.warn(
-          `${user.tag} (${user.id}) executed ${this.commandPrefix}${command} command. ${result.logMessage}`,
+          `${user.tag} (${user.id}) executed ${this.commandPrefix}${command} command. ${result.logMessage}`
         );
       }
 
-      // Handle restart request
+      // Handle restart request (consume the flag)
       if (result.requiresRestart) {
+        result.requiresRestart = false; // Consume the flag to prevent duplicate processing
         try {
           await message.channel.send('✅ Full restart initiated. See you in a moment!');
           await this.softRestart();
@@ -336,12 +506,21 @@ export class BotApplication {
       }
 
       if (result.requiresUpdate) {
+        result.requiresUpdate = false; // Consume the flag to prevent duplicate processing
         await this.handleUpdate(message);
       }
 
       // Handle log level change
       if (result.newLogLevel) {
         this.handleLogLevelChange(result.newLogLevel);
+      }
+
+      // Handle scraper actions (consume the flag)
+      if (result.scraperAction) {
+        const { scraperAction } = result;
+        const { userId } = result;
+        result.scraperAction = null; // Consume the flag to prevent duplicate processing
+        await this.handleScraperAction(scraperAction, userId, message);
       }
     } catch (error) {
       this.logger.error('Error handling command result:', error);
@@ -402,9 +581,9 @@ export class BotApplication {
    * @returns {Object} Discord embed object
    */
   createDetailedHealthEmbed(healthData) {
-    const { bot, scraper, monitor, system } = healthData;
-    const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8);
-    const formatMemory = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
+    const { bot, scraper, monitor, youtubeScraper, system } = healthData;
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substring(11, 19);
+    const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
     const nextPoll = scraper.pollingInterval.next;
     let nextPollStr = 'Not scheduled';
     if (scraper.isRunning) {
@@ -416,25 +595,33 @@ export class BotApplication {
     }
 
     return {
-      title: '📊 Detailed Bot Health Status',
+      title: '🤖 Detailed Bot Health Status 📊',
       color: this.discord.isReady() ? 0x00ff00 : 0xff0000,
       fields: [
-        { name: '🤖 Bot', value: `Status: ${bot.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
+        { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
         {
           name: '▶️ YouTube Monitor',
           value: `Status: ${monitor.isRunning ? '✅ Running' : '❌ Stopped'}`,
           inline: true,
         },
         { name: '🐦 X Scraper', value: `Status: ${scraper.isRunning ? '✅ Running' : '❌ Stopped'}`, inline: true },
-
+        {
+          name: '📺 YouTube Scraper',
+          value: `Status: ${youtubeScraper?.isRunning ? '✅ Running' : '❌ Stopped'}`,
+          inline: true,
+        },
         { name: '📢 Announcements', value: bot.announcementEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
         { name: '🔄 VX Twitter', value: bot.vxTwitterEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
         { name: '⏳ Next X Poll', value: nextPollStr, inline: true },
 
         { name: '⏱️ System Uptime', value: uptimeStr, inline: true },
         { name: '💾 Memory Usage', value: formatMemory(system.memory.heapUsed), inline: true },
-        { name: '📡 Discord Latency', value: `${this.discord.getLatency()}ms`, inline: true },
 
+        {
+          name: 'Error Info',
+          value: `Scraper Fails: ${scraper.failedRuns}\nXML Fails: ${monitor.xmlParseFailures}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`,
+          inline: true,
+        },
         {
           name: 'YouTube Stats',
           value: `Subs: ${monitor.subscriptions}\nWebhooks: ${monitor.webhooksReceived}\nProcessed: ${monitor.videosProcessed}\nAnnounced: ${monitor.videosAnnounced}`,
@@ -445,15 +632,151 @@ export class BotApplication {
           value: `Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFound: ${scraper.totalTweetsFound}\nAnnounced: ${scraper.totalTweetsAnnounced}`,
           inline: true,
         },
+      ],
+      timestamp: system.timestamp,
+      footer: {
+        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | Started: ${new Date(bot.botStartTime).toLocaleString()}`,
+      },
+    };
+  }
+
+  /**
+   * Create YouTube health embed
+   * @param {Object} healthData - Health data from command processor
+   * @returns {Object} Discord embed object
+   */
+  createYoutubeHealthEmbed(healthData) {
+    const { monitor, system } = healthData;
+    const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substring(11, 19);
+
+    return {
+      title: '📺 YouTube Monitor Health Status',
+      color: monitor.isRunning ? 0x00ff00 : 0xff0000, // Green if running, red if not
+      fields: [
         {
-          name: 'Error Info',
-          value: `Scraper Fails: ${scraper.failedRuns}\nXML Fails: ${monitor.xmlParseFailures}\nLast Scraper Error: ${scraper.lastError || 'None'}\nLast Monitor Error: ${monitor.lastError || 'None'}`,
+          name: '🔄 Monitor Status',
+          value: monitor.isRunning ? '✅ Running' : '❌ Stopped',
+          inline: true,
+        },
+        {
+          name: '📡 Subscription Status',
+          value: monitor.subscriptionActive ? '✅ Active' : '❌ Inactive',
+          inline: true,
+        },
+        {
+          name: '📺 YouTube Channel',
+          value: monitor.youtubeChannelId || 'Not configured',
+          inline: true,
+        },
+        {
+          name: '🔗 Callback URL',
+          value: monitor.callbackUrl ? `\`${monitor.callbackUrl}\`` : 'Not set',
+          inline: false,
+        },
+        {
+          name: '📊 Processing Stats',
+          value: `Subscriptions: ${monitor.subscriptions}\nWebhooks Received: ${monitor.webhooksReceived}\nVideos Processed: ${monitor.videosProcessed}\nVideos Announced: ${monitor.videosAnnounced}`,
+          inline: true,
+        },
+        {
+          name: '❌ Error Statistics',
+          value: `XML Parse Failures: ${monitor.xmlParseFailures}\nLast Error: ${monitor.lastError || 'None'}`,
+          inline: true,
+        },
+        {
+          name: '🔍 Duplicate Detection',
+          value: `Total Checked: ${monitor.duplicateDetectorStats?.totalChecked || 0}\nDuplicates Found: ${monitor.duplicateDetectorStats?.duplicatesDetected || 0}\nCache Size: ${monitor.duplicateDetectorStats?.cacheSize || 0}`,
+          inline: true,
+        },
+        {
+          name: '💻 System Info',
+          value: `Uptime: ${uptimeStr}\nMemory: ${formatMemory(system.memory.heapUsed)}`,
           inline: true,
         },
       ],
       timestamp: system.timestamp,
       footer: {
-        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | Started: ${new Date(bot.botStartTime).toLocaleString()}`,
+        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | YouTube Monitor`,
+      },
+    };
+  }
+
+  /**
+   * Create X scraper health embed
+   * @param {Object} healthData - Health data from command processor
+   * @returns {Object} Discord embed object
+   */
+  createXHealthEmbed(healthData) {
+    const { scraper, system } = healthData;
+    const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substring(11, 19);
+
+    const nextPoll = scraper.pollingInterval.next;
+    let nextPollStr = 'Not scheduled';
+    if (scraper.isRunning) {
+      if (nextPoll) {
+        nextPollStr = `<t:${Math.round(nextPoll / 1000)}:R>`;
+      } else {
+        nextPollStr = 'In progress...';
+      }
+    }
+
+    const successRate = scraper.totalRuns > 0 ? Math.round((scraper.successfulRuns / scraper.totalRuns) * 100) : 0;
+
+    return {
+      title: '🐦 X Scraper Health Status',
+      color: scraper.isRunning ? 0x00ff00 : 0xff0000, // Green if running, red if not
+      fields: [
+        {
+          name: '🔄 Scraper Status',
+          value: scraper.isRunning ? '✅ Running' : '❌ Stopped',
+          inline: true,
+        },
+        {
+          name: '👤 X User',
+          value: scraper.xUser || 'Not configured',
+          inline: true,
+        },
+        {
+          name: '⏳ Next Poll',
+          value: nextPollStr,
+          inline: true,
+        },
+        {
+          name: '🔄 Polling Interval',
+          value: `Min: ${Math.round(scraper.pollingInterval.min / 1000)}s\nMax: ${Math.round(scraper.pollingInterval.max / 1000)}s\nCurrent: ${Math.round(scraper.pollingInterval.current / 1000)}s`,
+          inline: true,
+        },
+        {
+          name: '📊 Execution Stats',
+          value: `Total Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFailed: ${scraper.failedRuns}\nSuccess Rate: ${successRate}%`,
+          inline: true,
+        },
+        {
+          name: '📢 Content Stats',
+          value: `Tweets Found: ${scraper.totalTweetsFound}\nTweets Announced: ${scraper.totalTweetsAnnounced}`,
+          inline: true,
+        },
+        {
+          name: '❌ Error Info',
+          value: `Last Error: ${scraper.lastError || 'None'}`,
+          inline: false,
+        },
+        {
+          name: '🔍 Duplicate Detection',
+          value: `Total Checked: ${scraper.duplicateDetectorStats?.totalChecked || 0}\nDuplicates Found: ${scraper.duplicateDetectorStats?.duplicatesDetected || 0}\nCache Size: ${scraper.duplicateDetectorStats?.cacheSize || 0}`,
+          inline: true,
+        },
+        {
+          name: '💻 System Info',
+          value: `Uptime: ${uptimeStr}\nMemory: ${formatMemory(system.memory.heapUsed)}`,
+          inline: true,
+        },
+      ],
+      timestamp: system.timestamp,
+      footer: {
+        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | X Scraper`,
       },
     };
   }
@@ -479,12 +802,13 @@ export class BotApplication {
    */
   async initializeDiscordHistoryScanning() {
     try {
-      this.logger.info('Initializing Discord history scanning for duplicate detection...');
+      // Use debug level to reduce Discord logging during startup
+      this.logger.debug('Initializing Discord history scanning for duplicate detection...');
 
       // Get duplicate detector from monitor application
       const duplicateDetector = this.monitorApplication?.duplicateDetector;
       if (!duplicateDetector) {
-        this.logger.warn('Duplicate detector not available, skipping Discord history scanning');
+        this.logger.debug('Duplicate detector not available, skipping Discord history scanning');
         return;
       }
 
@@ -494,28 +818,25 @@ export class BotApplication {
         try {
           const youtubeChannel = await this.discord.fetchChannel(youtubeChannelId);
           if (youtubeChannel) {
-            this.logger.info(`Scanning YouTube channel history (${youtubeChannelId})...`);
+            // Suppress Discord history scanning logs - only log summary
             const videoResults = await duplicateDetector.scanDiscordChannelForVideos(youtubeChannel, 1000);
 
+            // Single summary log for Discord history scan (not actual YouTube scraping)
             this.logger.info(
-              `YouTube channel scan completed: ${videoResults.messagesScanned} messages, ${videoResults.videoIdsAdded} new video IDs found`,
+              `Discord YouTube history: ${videoResults.messagesScanned} messages scanned, ${videoResults.videoIdsAdded} videos cached`
             );
-
-            if (videoResults.errors.length > 0) {
-              this.logger.warn(`YouTube channel scan had ${videoResults.errors.length} errors`);
-            }
-          } else {
-            this.logger.warn(`Could not fetch YouTube channel: ${youtubeChannelId}`);
           }
         } catch (error) {
           this.logger.error(`Failed to scan YouTube channel history: ${error.message}`);
         }
       } else {
-        this.logger.info('No YouTube channel ID configured, skipping YouTube history scanning');
+        this.logger.debug('No YouTube channel ID configured, skipping YouTube history scanning');
       }
 
       // Scan X/Twitter announcement channels if scraper application has duplicate detector
       const scraperDuplicateDetector = this.scraperApplication?.duplicateDetector;
+      const totalTwitterResults = { messagesScanned: 0, tweetIdsAdded: 0, channelsScanned: 0, errors: 0 };
+
       if (scraperDuplicateDetector) {
         const twitterChannels = [
           { id: this.config.get('DISCORD_X_POSTS_CHANNEL_ID'), name: 'X posts' },
@@ -529,31 +850,33 @@ export class BotApplication {
             try {
               const channel = await this.discord.fetchChannel(channelConfig.id);
               if (channel) {
-                this.logger.info(`Scanning ${channelConfig.name} channel history (${channelConfig.id})...`);
                 const tweetResults = await scraperDuplicateDetector.scanDiscordChannelForTweets(channel, 1000);
+                totalTwitterResults.messagesScanned += tweetResults.messagesScanned;
+                totalTwitterResults.tweetIdsAdded += tweetResults.tweetIdsAdded;
+                totalTwitterResults.channelsScanned++;
+                totalTwitterResults.errors += tweetResults.errors?.length || 0;
 
-                this.logger.info(
-                  `${channelConfig.name} channel scan completed: ${tweetResults.messagesScanned} messages, ${tweetResults.tweetIdsAdded} new tweet IDs found`,
-                );
-
-                if (tweetResults.errors.length > 0) {
-                  this.logger.warn(`${channelConfig.name} channel scan had ${tweetResults.errors.length} errors`);
-                }
-              } else {
-                this.logger.warn(`Could not fetch ${channelConfig.name} channel: ${channelConfig.id}`);
+                // Small delay between channels to prevent rate limiting
+                await new Promise(resolve => setTimeout(resolve, 1000));
               }
             } catch (error) {
-              this.logger.error(`Failed to scan ${channelConfig.name} channel history: ${error.message}`);
+              totalTwitterResults.errors++;
+              this.logger.error(`Failed to scan ${channelConfig.name} channel: ${error.message}`);
             }
           }
         }
-      } else {
-        this.logger.info('No scraper duplicate detector available, skipping X/Twitter history scanning');
+
+        // Single summary log for all X/Twitter channels
+        if (totalTwitterResults.channelsScanned > 0) {
+          this.logger.info(
+            `Discord X/Twitter history: ${totalTwitterResults.channelsScanned} channels, ${totalTwitterResults.messagesScanned} messages scanned, ${totalTwitterResults.tweetIdsAdded} tweets cached`
+          );
+        }
       }
 
-      this.logger.info('Discord history scanning initialization completed');
+      this.logger.info('Discord history caching completed (for duplicate detection only)');
     } catch (error) {
-      this.logger.error('Failed to initialize Discord history scanning:', error);
+      this.logger.error('❌ Failed to initialize Discord history scanning:', error);
       // Don't throw - let bot continue running even if scanning fails
     }
   }
@@ -584,7 +907,7 @@ export class BotApplication {
 
         // Update transport levels
         if (this.logger.transports) {
-          this.logger.transports.forEach((transport) => {
+          this.logger.transports.forEach(transport => {
             transport.level = newLevel;
           });
         }
@@ -671,10 +994,178 @@ export class BotApplication {
   }
 
   /**
+   * Handle scraper action commands
+   * @param {string} action - The scraper action to perform
+   * @param {string} userId - The user ID who issued the command
+   * @param {Object} message - The Discord message object
+   * @returns {Promise<void>}
+   */
+  async handleScraperAction(action, userId, message) {
+    try {
+      const scraperApp = this.scraperApplication;
+
+      if (!scraperApp) {
+        await message.channel.send('❌ X scraper application is not available.');
+        return;
+      }
+
+      switch (action) {
+        case 'restart':
+          try {
+            await message.channel.send('🔄 Restarting X scraper application...');
+            await scraperApp.restart();
+            await message.channel.send('✅ X scraper application restarted successfully!');
+            this.logger.info(`Scraper restarted by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to restart X scraper: ${error.message}`);
+            this.logger.error(`Scraper restart failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'stop':
+          try {
+            await message.channel.send('⏹️ Stopping X scraper application...');
+            await scraperApp.stop();
+            await message.channel.send('✅ X scraper application stopped successfully!');
+            this.logger.info(`Scraper stopped by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to stop X scraper: ${error.message}`);
+            this.logger.error(`Scraper stop failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'start':
+          try {
+            await message.channel.send('▶️ Starting X scraper application...');
+            await scraperApp.start();
+            await message.channel.send('✅ X scraper application started successfully!');
+            this.logger.info(`Scraper started by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to start X scraper: ${error.message}`);
+            this.logger.error(`Scraper start failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'auth-status':
+          try {
+            const health = await scraperApp.performHealthCheck();
+            const statusIcon = health.authenticated ? '✅' : '❌';
+            const statusText = health.authenticated ? 'Authenticated' : 'Not authenticated';
+            const errors = health.errors.length > 0 ? `\n⚠️ Issues: ${health.errors.join(', ')}` : '';
+
+            await message.channel.send(`🔐 **X Authentication Status**\n${statusIcon} ${statusText}${errors}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to check authentication status: ${error.message}`);
+            this.logger.error(`Auth status check failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'force-reauth':
+          try {
+            await message.channel.send('🔑 Forcing re-authentication...');
+
+            // Clear saved cookies
+            this.state.delete('x_session_cookies');
+
+            // Restart scraper to trigger fresh authentication
+            await scraperApp.restart();
+
+            await message.channel.send('✅ Re-authentication completed! X scraper restarted with fresh login.');
+            this.logger.info(`Force re-authentication completed by user ${userId}`);
+          } catch (error) {
+            await message.channel.send(`❌ Failed to force re-authentication: ${error.message}`);
+            this.logger.error(`Force re-authentication failed (user ${userId}):`, error);
+          }
+          break;
+
+        case 'health':
+          try {
+            const health = await scraperApp.performHealthCheck();
+            const runningIcon = health.isRunning ? '✅' : '❌';
+            const authIcon = health.authenticated ? '✅' : '❌';
+            const browserIcon = health.browserHealthy ? '✅' : '❌';
+
+            const healthMessage = [
+              '🩺 **X Scraper Health Status**',
+              `${runningIcon} Running: ${health.isRunning}`,
+              `${authIcon} Authenticated: ${health.authenticated}`,
+              `${browserIcon} Browser: ${health.browserHealthy ? 'Healthy' : 'Unhealthy'}`,
+              `📅 Last Check: ${health.timestamp.toLocaleString()}`,
+            ];
+
+            if (health.errors.length > 0) {
+              healthMessage.push(`⚠️ Issues: ${health.errors.join(', ')}`);
+            }
+
+            await message.channel.send(healthMessage.join('\n'));
+          } catch (error) {
+            await message.channel.send(`❌ Failed to check scraper health: ${error.message}`);
+            this.logger.error(`Scraper health check failed (user ${userId}):`, error);
+          }
+          break;
+
+        default:
+          await message.channel.send(`❓ Unknown scraper action: ${action}`);
+          this.logger.warn(`Unknown scraper action requested: ${action} by user ${userId}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error handling scraper action ${action}:`, error);
+      await message.channel.send('❌ An error occurred while processing the scraper command.');
+    }
+  }
+
+  /**
    * Dispose of resources
    * @returns {Promise<void>}
    */
   async dispose() {
     await this.stop();
+  }
+
+  /**
+   * Formats git pull output with ANSI color codes for Discord.
+   * @param {string} text - The raw output from git pull.
+   * @returns {string} The formatted text.
+   * @private
+   */
+  _formatGitPullOutput(text) {
+    const green = '\x1b[32m';
+    const red = '\x1b[31m';
+    const reset = '\x1b[0m';
+
+    return text
+      .split('\n')
+      .map(line => {
+        // Regex for git pull summary line: " filename | 15 +++++++++------"
+        const summaryRegex = /^(\s*[\w./-]+\s*\|\s*\d+\s+)([+-]+)$/;
+        const summaryMatch = line.match(summaryRegex);
+
+        if (summaryMatch) {
+          const prefix = summaryMatch[1];
+          const changes = summaryMatch[2];
+
+          // Use a replacer function to wrap contiguous blocks of '+' or '-'
+          const coloredChanges = changes.replace(/(\++|-+)/g, match => {
+            if (match.startsWith('+')) {
+              return `${green}${match}${reset}`;
+            }
+            return `${red}${match}${reset}`;
+          });
+
+          return `${prefix}${coloredChanges}`;
+        }
+
+        // Regex for standard diff lines
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+          return `${green}${line}${reset}`;
+        }
+        if (line.startsWith('-') && !line.startsWith('---')) {
+          return `${red}${line}${reset}`;
+        }
+
+        // Colorize (+) and (-) in summary lines like "13 files changed, 3319 insertions(+), 11 deletions(-)"
+        return line.replace(/(\()(\+)(\))/g, `$1${green}$2${reset}$3`).replace(/(\()(-)(\))/g, `$1${red}$2${reset}$3`);
+      })
+      .join('\n');
   }
 }

@@ -42,7 +42,7 @@ describe('Duplicate Detector Integration', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -67,7 +67,7 @@ describe('Duplicate Detector Integration', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
           botStartTime: new Date('2024-01-01T00:00:00Z'),
         };
@@ -87,12 +87,21 @@ describe('Duplicate Detector Integration', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn(() => mockLogger),
     };
 
     // Mock auth manager
     const mockAuthManager = {
       ensureAuthenticated: jest.fn(),
       isAuthenticated: jest.fn().mockResolvedValue(true),
+    };
+
+    // Mock persistent storage
+    const mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
     };
 
     // Create scraper application instance
@@ -105,6 +114,7 @@ describe('Duplicate Detector Integration', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: mockPersistentStorage,
     });
   });
 

@@ -30,8 +30,15 @@ describe('Logger Utils Tests', () => {
     });
 
     afterEach(() => {
+      // Clear the timer first to prevent issues
+      if (transport.flushTimer) {
+        clearInterval(transport.flushTimer);
+        transport.flushTimer = null;
+      }
       transport.close();
       jest.clearAllMocks();
+      // Reset the mock channel send function to resolve
+      mockChannel.send.mockReset().mockResolvedValue(true);
     });
 
     it('should initialize transport with options', () => {
@@ -59,7 +66,7 @@ describe('Logger Utils Tests', () => {
       }
 
       // Wait for flush
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 50));
       expect(mockChannel.send).toHaveBeenCalled();
     });
 
@@ -123,10 +130,14 @@ describe('Logger Utils Tests', () => {
       transport.buffer = ['Test message'];
       await transport.flush();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[DiscordTransport] Failed to flush log buffer to Discord:',
-        expect.any(Error),
+      // In test environment, console.error should NOT be called for flush errors
+      // The error logging is suppressed to prevent noise in test output
+      const discordTransportErrorCalls = consoleSpy.mock.calls.filter(call =>
+        call.some(
+          arg => typeof arg === 'string' && arg.includes('[DiscordTransport] Failed to flush log buffer to Discord:')
+        )
       );
+      expect(discordTransportErrorCalls).toHaveLength(0);
 
       consoleSpy.mockRestore();
     });
@@ -148,12 +159,21 @@ describe('Logger Utils Tests', () => {
     });
 
     it('should handle periodic flushing', async () => {
+      // Manually start flushing since it's disabled in test environment
+      transport.startFlushing();
+
       const callback = jest.fn();
       await transport.log({ level: 'info', message: 'Periodic test' }, callback);
 
-      // Wait for periodic flush
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      // Wait for periodic flush (flushInterval is 100ms in test setup)
+      await new Promise(resolve => setTimeout(resolve, 150));
       expect(mockChannel.send).toHaveBeenCalled();
+
+      // Clear the timer to prevent interference with other tests
+      if (transport.flushTimer) {
+        clearInterval(transport.flushTimer);
+        transport.flushTimer = null;
+      }
     });
   });
 

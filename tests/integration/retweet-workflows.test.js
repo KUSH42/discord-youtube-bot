@@ -10,24 +10,25 @@ describe('Retweet Workflows Integration', () => {
   let announcer;
   let config;
   let mockDiscordClient;
+  let mockLogger;
 
   // Helper function to create mock config
   const createMockConfig = (overrides = {}) => {
     const defaultValues = {
-      DISCORD_X_CHANNEL_ID: '123456789',
-      DISCORD_X_RETWEETS_CHANNEL_ID: '987654321',
-      DISCORD_SUPPORT_CHANNEL_ID: '555666777',
-      DISCORD_YOUTUBE_CHANNEL_ID: '111222333',
-      DISCORD_X_POSTS_CHANNEL_ID: '123456789',
-      DISCORD_X_REPLIES_CHANNEL_ID: '123456789',
-      DISCORD_X_QUOTES_CHANNEL_ID: '123456789',
-      DISCORD_BOT_SUPPORT_LOG_CHANNEL: '555666777',
+      DISCORD_X_CHANNEL_ID: '123456789012345678',
+      DISCORD_X_RETWEETS_CHANNEL_ID: '987654321098765432',
+      DISCORD_SUPPORT_CHANNEL_ID: '555666777123456789',
+      DISCORD_YOUTUBE_CHANNEL_ID: '111222333456789012',
+      DISCORD_X_POSTS_CHANNEL_ID: '123456789012345678',
+      DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345678',
+      DISCORD_X_QUOTES_CHANNEL_ID: '123456789012345678',
+      DISCORD_BOT_SUPPORT_LOG_CHANNEL: '555666777123456789',
       ...overrides,
     };
 
     return {
-      get: jest.fn((key) => defaultValues[key]),
-      getRequired: jest.fn((key) => defaultValues[key]),
+      get: jest.fn(key => defaultValues[key]),
+      getRequired: jest.fn(key => defaultValues[key]),
       getBoolean: jest.fn((key, defaultValue) => {
         const value = defaultValues[key];
         return value !== undefined ? value : defaultValue;
@@ -40,6 +41,21 @@ describe('Retweet Workflows Integration', () => {
     // Mock Discord service
     mockDiscordClient = {
       sendMessage: jest.fn().mockResolvedValue({ id: 'message123' }),
+    };
+
+    // Mock logger
+    mockLogger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      child: jest.fn().mockReturnValue({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      }),
     };
 
     // Mock state manager
@@ -59,14 +75,14 @@ describe('Retweet Workflows Integration', () => {
     config = createMockConfig();
 
     classifier = new ContentClassifier();
-    announcer = new ContentAnnouncer(mockDiscordClient, config, mockStateManager);
+    announcer = new ContentAnnouncer(mockDiscordClient, config, mockStateManager, mockLogger);
   });
 
   describe('Enhanced Retweet Detection Integration', () => {
     it('should detect retweets using socialContext and route to correct channel', async () => {
       // Mock tweet element with socialContext
       const mockTweetElement = {
-        querySelector: jest.fn((selector) => {
+        querySelector: jest.fn(selector => {
           if (selector === '[data-testid="socialContext"]') {
             return {
               textContent: 'The Enforcer reposted',
@@ -98,8 +114,8 @@ describe('Retweet Workflows Integration', () => {
       const result = await announcer.announceContent(content);
 
       expect(result.success).toBe(true);
-      expect(result.channelId).toBe('987654321');
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
+      expect(result.channelId).toBe('987654321098765432');
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321098765432', expect.any(String));
     });
 
     it('should fallback to regular channel when retweet channel not configured', async () => {
@@ -118,7 +134,12 @@ describe('Retweet Workflows Integration', () => {
         set: jest.fn(),
       };
 
-      const announcerWithoutRetweets = new ContentAnnouncer(mockDiscordClient, configWithoutRetweets, mockStateManager);
+      const announcerWithoutRetweets = new ContentAnnouncer(
+        mockDiscordClient,
+        configWithoutRetweets,
+        mockStateManager,
+        mockLogger
+      );
 
       const retweetContent = {
         platform: 'x',
@@ -132,9 +153,9 @@ describe('Retweet Workflows Integration', () => {
 
       const result = await announcerWithoutRetweets.announceContent(retweetContent);
 
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('123456789', expect.any(String));
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('123456789012345678', expect.any(String));
       expect(result.success).toBe(true);
-      expect(result.channelId).toBe('123456789');
+      expect(result.channelId).toBe('123456789012345678');
     });
 
     it('should handle retweet detection with multiple strategies', async () => {
@@ -142,7 +163,7 @@ describe('Retweet Workflows Integration', () => {
         {
           name: 'socialContext detection',
           mockElement: {
-            querySelector: jest.fn((selector) => {
+            querySelector: jest.fn(selector => {
               if (selector === '[data-testid="socialContext"]') {
                 return { textContent: 'User reposted' };
               }
@@ -154,7 +175,7 @@ describe('Retweet Workflows Integration', () => {
         {
           name: 'text pattern detection',
           mockElement: {
-            querySelector: jest.fn((selector) => {
+            querySelector: jest.fn(selector => {
               if (selector === '[data-testid="tweetText"], [lang] span, div[dir="ltr"]') {
                 return { textContent: 'RT @user This is a retweet' };
               }
@@ -200,7 +221,7 @@ describe('Retweet Workflows Integration', () => {
 
       // Verify retweet indicator is included
       expect(sentMessage).toContain('testuser');
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321098765432', expect.any(String));
     });
   });
 
@@ -208,7 +229,7 @@ describe('Retweet Workflows Integration', () => {
     it('should validate retweet channel configuration', () => {
       const validConfig = createMockConfig();
 
-      expect(validConfig.get('DISCORD_X_RETWEETS_CHANNEL_ID')).toBe('987654321');
+      expect(validConfig.get('DISCORD_X_RETWEETS_CHANNEL_ID')).toBe('987654321098765432');
       expect(validConfig.isRetweetChannelConfigured()).toBe(true);
     });
 
@@ -244,7 +265,7 @@ describe('Retweet Workflows Integration', () => {
       const result = await announcer.announceContent(retweetContent);
 
       // Should handle error gracefully
-      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321', expect.any(String));
+      expect(mockDiscordClient.sendMessage).toHaveBeenCalledWith('987654321098765432', expect.any(String));
       expect(result.success).toBe(false);
       expect(result.reason).toBe('Discord API error');
     });
@@ -252,7 +273,7 @@ describe('Retweet Workflows Integration', () => {
     it('should handle invalid DOM elements in enhanced detection', () => {
       const invalidElements = [null, undefined, {}, { querySelector: null }];
 
-      invalidElements.forEach((element) => {
+      invalidElements.forEach(element => {
         const result = classifier.enhancedRetweetDetection(element);
 
         expect(result.isRetweet).toBe(false);
@@ -267,7 +288,7 @@ describe('Retweet Workflows Integration', () => {
       const mockElements = Array(10)
         .fill(null)
         .map((_, i) => ({
-          querySelector: jest.fn((selector) => {
+          querySelector: jest.fn(selector => {
             if (selector === '[data-testid="socialContext"]') {
               return { textContent: `User${i} reposted` };
             }
@@ -275,14 +296,14 @@ describe('Retweet Workflows Integration', () => {
           }),
         }));
 
-      const detectionPromises = mockElements.map((element) =>
-        Promise.resolve(classifier.enhancedRetweetDetection(element)),
+      const detectionPromises = mockElements.map(element =>
+        Promise.resolve(classifier.enhancedRetweetDetection(element))
       );
 
       const results = await Promise.all(detectionPromises);
 
       expect(results).toHaveLength(10);
-      results.forEach((result) => {
+      results.forEach(result => {
         expect(result.isRetweet).toBe(true);
         expect(result.method).toBe('socialContext');
       });
@@ -301,12 +322,12 @@ describe('Retweet Workflows Integration', () => {
           tweetCategory: 'Retweet',
         }));
 
-      const announcePromises = retweetContents.map((content) => announcer.announceContent(content));
+      const announcePromises = retweetContents.map(content => announcer.announceContent(content));
 
       const results = await Promise.all(announcePromises);
 
       expect(results).toHaveLength(5);
-      results.forEach((result) => {
+      results.forEach(result => {
         expect(result.success).toBe(true);
       });
 

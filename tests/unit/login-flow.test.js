@@ -21,7 +21,7 @@ describe('Login Flow', () => {
     };
 
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -29,7 +29,7 @@ describe('Login Flow', () => {
         };
         return values[key];
       }),
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         if (key === 'TWITTER_USERNAME') {
           return 'testuser@example.com';
         }
@@ -42,6 +42,7 @@ describe('Login Flow', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     const mockAuthManager = {
@@ -60,6 +61,12 @@ describe('Login Flow', () => {
       authManager: mockAuthManager,
       eventBus: { emit: jest.fn() },
       stateManager: { get: jest.fn(), set: jest.fn() },
+      persistentStorage: {
+        get: jest.fn(),
+        set: jest.fn(),
+        has: jest.fn(),
+        clear: jest.fn(),
+      },
     });
   });
 

@@ -43,7 +43,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -68,7 +68,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
           botStartTime: new Date('2024-01-01T00:00:00Z'),
         };
@@ -88,6 +88,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     // Mock auth manager
@@ -106,6 +107,12 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
   });
 
@@ -116,7 +123,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
   describe('performEnhancedScrolling', () => {
     beforeEach(() => {
       // Mock setTimeout to resolve immediately
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback) => {
+      jest.spyOn(global, 'setTimeout').mockImplementation(callback => {
         callback();
         return 123; // Return a mock timer ID
       });
@@ -149,7 +156,7 @@ describe('Enhanced Scrolling and Profile Navigation', () => {
       expect(mockBrowserService.evaluate).toHaveBeenCalledTimes(5);
 
       // Verify that each call is made with a function that performs scrolling
-      mockBrowserService.evaluate.mock.calls.forEach((call) => {
+      mockBrowserService.evaluate.mock.calls.forEach(call => {
         expect(call[0]).toBeInstanceOf(Function);
       });
     });

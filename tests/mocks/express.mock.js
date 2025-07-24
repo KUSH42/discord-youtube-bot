@@ -12,8 +12,19 @@ export const mockRequest = {
   body: '',
   rawBody: Buffer.from(''),
   ip: '127.0.0.1',
-  get: jest.fn((header) => mockRequest.headers[header.toLowerCase()]),
-  header: jest.fn((header) => mockRequest.headers[header.toLowerCase()]),
+  get: jest.fn(header => mockRequest.headers[header.toLowerCase()]),
+  header: jest.fn(header => mockRequest.headers[header.toLowerCase()]),
+  // Add properties that express-rate-limit expects
+  connection: {
+    remoteAddress: '127.0.0.1',
+  },
+  socket: {
+    remoteAddress: '127.0.0.1',
+  },
+  ips: [],
+  app: {
+    get: jest.fn(() => false), // trustProxy setting
+  },
 };
 
 // Mock Express response object
@@ -51,7 +62,7 @@ export const mockApp = {
 
 // Mock Express server
 export const mockServer = {
-  close: jest.fn().mockImplementation((callback) => {
+  close: jest.fn().mockImplementation(callback => {
     if (callback) {
       callback();
     }
@@ -65,7 +76,7 @@ export const mockServer = {
 };
 
 // Mock rate limiter
-export const mockRateLimit = jest.fn().mockImplementation((options) => {
+export const mockRateLimit = jest.fn().mockImplementation(options => {
   return jest.fn((req, res, next) => {
     // Simulate rate limiting logic
     const rateLimitInfo = {
@@ -111,10 +122,23 @@ export const createMockRequest = (overrides = {}) => ({
     ...mockRequest.headers,
     ...(overrides.headers || {}),
   },
-  get: jest.fn((header) => {
+  get: jest.fn(header => {
     const headers = { ...mockRequest.headers, ...(overrides.headers || {}) };
     return headers[header.toLowerCase()];
   }),
+  // Add additional properties that express-rate-limit expects
+  connection: {
+    remoteAddress: overrides.ip || mockRequest.ip,
+  },
+  socket: {
+    remoteAddress: overrides.ip || mockRequest.ip,
+  },
+  // Add x-forwarded-for header handling
+  ips: [],
+  // Add app property that express-rate-limit might access
+  app: {
+    get: jest.fn(() => false), // trustProxy setting
+  },
 });
 
 export const createMockResponse = (overrides = {}) => ({

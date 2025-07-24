@@ -67,6 +67,10 @@ web_modules/
 # Optional eslint cache
 .eslintcache
 
+# Jest cache
+.jest-cache/
+.jest-cache-*/
+
 # Optional stylelint cache
 .stylelintcache
 
@@ -87,6 +91,7 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.bak
 .env.development.local
 .env.test.local
 .env.production.local
@@ -151,6 +156,13 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+
+# Temporary documentation and analysis files
+merge-strategies.md
+testing-gap-analysis.md
+COVERAGE_*.md
+#*-analysis.md
+*-plan.md
 
 # Secrets and credentials
 xush.env

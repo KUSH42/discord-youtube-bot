@@ -1,6 +1,6 @@
 // test-validation.js - Environment validation before startup
 import { config } from '@dotenvx/dotenvx';
-import { validateEnvironmentVariables } from './src/config-validator.js';
+import { validateEnvironmentVariables } from '../src/config-validator.js';
 
 // Load environment variables
 config();
@@ -15,7 +15,7 @@ try {
     process.exit(0);
   } else {
     console.error('❌ Environment validation failed:');
-    validation.issues.forEach((issue) => {
+    validation.issues.forEach(issue => {
       console.error(`  - ${issue}`);
     });
     process.exit(1);

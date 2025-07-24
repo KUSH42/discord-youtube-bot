@@ -4,9 +4,10 @@ import { DiscordService } from '../interfaces/discord-service.js';
  * Discord.js implementation of DiscordService
  */
 export class DiscordClientService extends DiscordService {
-  constructor(client) {
+  constructor(client, logger) {
     super();
     this.client = client;
+    this.logger = logger;
     this.eventHandlers = new Map();
   }
 
@@ -14,7 +15,15 @@ export class DiscordClientService extends DiscordService {
    * Login to Discord with bot token
    */
   async login(token) {
+    // Check if client is already logged in
+    if (this.client.readyAt) {
+      this.logger.warn('Discord client is already logged in, skipping login attempt');
+      return;
+    }
+
+    this.logger.info('Attempting Discord client login');
     await this.client.login(token);
+    this.logger.info('Discord client login successful');
   }
 
   /**
@@ -46,19 +55,58 @@ export class DiscordClientService extends DiscordService {
    * Register a message event handler
    */
   onMessage(handler) {
-    const wrappedHandler = (message) => {
+    const wrappedHandler = message => {
       try {
+        // FILTER OUT BOT MESSAGES AT DISCORD.JS LEVEL to reduce processing load
+        if (message.author.bot) {
+          // Check if it's this bot's own message (silently ignore to reduce log spam)
+          return; // Don't process bot messages at all
+        }
+
+        this.logger.silly(
+          `📨 Discord messageCreate event - ID: ${message.id}, Handlers: ${this.client.listenerCount('messageCreate')}, Instance: ${this.client._botInstanceId}, Content: "${message.content?.substring(0, 50) || 'empty'}"`
+        );
         handler(message);
       } catch (error) {
-        console.error('Error in message handler:', error);
+        // Log the error with context
+        this.logger.error('Error in message handler:', {
+          error: error.message, // Include the error message
+          stack: error.stack, // Include the stack trace
+          messageContent: message.content, // Include the message content
+          channelId: message.channelId, // Include the channel ID
+          userId: message.author?.id, // Include the user ID, if available
+        });
       }
     };
 
+    this.logger.info('🔗 Registering Discord message handler', {
+      clientId: this.client.user?.id,
+      clientReady: this.client.readyAt !== null,
+      instanceId: this.client._botInstanceId,
+      existingHandlerCount: this.client.listenerCount('messageCreate'),
+    });
+
     this.client.on('messageCreate', wrappedHandler);
+
+    this.logger.info('✅ Discord message handler registered', {
+      clientId: this.client.user?.id,
+      newHandlerCount: this.client.listenerCount('messageCreate'),
+      instanceId: this.client._botInstanceId,
+    });
 
     // Return unregister function
     return () => {
+      this.logger.info('🔌 Unregistering Discord message handler', {
+        clientId: this.client.user?.id,
+        instanceId: this.client._botInstanceId,
+        handlerCountBefore: this.client.listenerCount('messageCreate'),
+      });
       this.client.off('messageCreate', wrappedHandler);
+      this.logger.info('❌ Discord message handler unregistered', {
+        clientId: this.client.user?.id,
+        handlerCountAfter: this.client.listenerCount('messageCreate'),
+        instanceId: this.client._botInstanceId,
+      });
     };
   }
 
@@ -86,7 +134,7 @@ export class DiscordClientService extends DiscordService {
    * Register an error event handler
    */
   onError(handler) {
-    const wrappedHandler = (error) => {
+    const wrappedHandler = error => {
       try {
         handler(error);
       } catch (handlerError) {
@@ -127,7 +175,30 @@ export class DiscordClientService extends DiscordService {
    * Destroy the Discord client connection
    */
   async destroy() {
-    await this.client.destroy();
+    if (this.client && typeof this.client.destroy === 'function') {
+      this.logger.info('Destroying Discord client', {
+        clientId: this.client.user?.id,
+        isReady: this.client.readyAt !== null,
+        eventListenerCount: typeof this.client.eventNames === 'function' ? this.client.eventNames().length : 0,
+        instanceId: this.client._botInstanceId,
+      });
+
+      // Remove all event listeners first to prevent any remaining callbacks
+      if (typeof this.client.removeAllListeners === 'function') {
+        this.client.removeAllListeners();
+        this.logger.debug('Removed all Discord client event listeners');
+      } else {
+        this.logger.debug('removeAllListeners not available on client');
+      }
+
+      await this.client.destroy();
+      this.logger.info('Discord client destroyed successfully');
+
+      // Set client to null to prevent any lingering references
+      this.client = null;
+    } else {
+      this.logger.warn('Discord client is not available for destruction');
+    }
   }
 
   /**

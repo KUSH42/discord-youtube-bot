@@ -26,7 +26,7 @@ describe('CommandProcessor', () => {
     mockConfig.get.mockImplementation((key, defaultValue) => {
       const config = {
         COMMAND_PREFIX: '!',
-        ALLOWED_USER_IDS: 'user1,user2,user3',
+        ALLOWED_USER_IDS: '123456789012345678,987654321098765432,555666777888999000',
       };
       return config[key] !== undefined ? config[key] : defaultValue;
     });
@@ -47,10 +47,10 @@ describe('CommandProcessor', () => {
     it('should set up state validators correctly', () => {
       const validatorCalls = mockState.setValidator.mock.calls;
 
-      expect(validatorCalls.some((call) => call[0] === 'postingEnabled')).toBe(true);
-      expect(validatorCalls.some((call) => call[0] === 'announcementEnabled')).toBe(true);
-      expect(validatorCalls.some((call) => call[0] === 'vxTwitterConversionEnabled')).toBe(true);
-      expect(validatorCalls.some((call) => call[0] === 'logLevel')).toBe(true);
+      expect(validatorCalls.some(call => call[0] === 'postingEnabled')).toBe(true);
+      expect(validatorCalls.some(call => call[0] === 'announcementEnabled')).toBe(true);
+      expect(validatorCalls.some(call => call[0] === 'vxTwitterConversionEnabled')).toBe(true);
+      expect(validatorCalls.some(call => call[0] === 'logLevel')).toBe(true);
     });
   });
 
@@ -61,7 +61,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should authorize allowed user for restricted commands', () => {
-      const result = processor.isUserAuthorized('user1', 'restart');
+      const result = processor.isUserAuthorized('123456789012345678', 'restart');
       expect(result).toBe(true);
     });
 
@@ -81,18 +81,18 @@ describe('CommandProcessor', () => {
 
   describe('Command Validation', () => {
     it('should validate correct command format', () => {
-      const result = processor.validateCommand('health', [], 'user123');
+      const result = processor.validateCommand('health', [], '123456789012345678');
       expect(result.success).toBe(true);
     });
 
     it('should reject invalid command', () => {
-      const result = processor.validateCommand('', [], 'user123');
+      const result = processor.validateCommand('', [], '123456789012345678');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid command format');
     });
 
     it('should reject too long command', () => {
-      const result = processor.validateCommand('a'.repeat(25), [], 'user123');
+      const result = processor.validateCommand('a'.repeat(25), [], '123456789012345678');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Command name too long');
     });
@@ -104,31 +104,31 @@ describe('CommandProcessor', () => {
     });
 
     it('should validate announce command arguments', () => {
-      let result = processor.validateCommand('announce', ['true'], 'user123');
+      let result = processor.validateCommand('announce', ['true'], '123456789012345678');
       expect(result.success).toBe(true);
 
-      result = processor.validateCommand('announce', ['false'], 'user123');
+      result = processor.validateCommand('announce', ['false'], '123456789012345678');
       expect(result.success).toBe(true);
 
-      result = processor.validateCommand('announce', ['invalid'], 'user123');
+      result = processor.validateCommand('announce', ['invalid'], '123456789012345678');
       expect(result.success).toBe(false);
     });
 
     it('should validate log level arguments', () => {
-      let result = processor.validateCommand('loglevel', ['info'], 'user123');
+      let result = processor.validateCommand('loglevel', ['info'], '123456789012345678');
       expect(result.success).toBe(true);
 
-      result = processor.validateCommand('loglevel', ['invalid'], 'user123');
+      result = processor.validateCommand('loglevel', ['invalid'], '123456789012345678');
       expect(result.success).toBe(false);
 
-      result = processor.validateCommand('loglevel', [''], 'user123');
+      result = processor.validateCommand('loglevel', [''], '123456789012345678');
       expect(result.success).toBe(false);
     });
   });
 
   describe('Command Processing', () => {
     it('should process kill command successfully', async () => {
-      const result = await processor.processCommand('kill', [], 'user1');
+      const result = await processor.processCommand('kill', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('All Discord posting has been stopped');
@@ -136,14 +136,39 @@ describe('CommandProcessor', () => {
     });
 
     it('should reject kill command for unauthorized user', async () => {
-      const result = await processor.processCommand('kill', [], 'unauthorized');
+      const result = await processor.processCommand('kill', [], '999888777666555444');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('not authorized');
     });
 
+    it('should reject scraper commands for unauthorized users', async () => {
+      const scraperCommands = ['restart-scraper', 'stop-scraper', 'start-scraper', 'force-reauth'];
+      const unauthorizedUserId = '999888777666555444';
+
+      for (const command of scraperCommands) {
+        const result = await processor.processCommand(command, [], unauthorizedUserId);
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('not authorized');
+      }
+    });
+
+    it('should allow non-restricted scraper commands for any user', async () => {
+      const nonRestrictedCommands = ['auth-status', 'scraper-health'];
+      const anyUserId = '999888777666555444'; // Not in allowed users list
+
+      for (const command of nonRestrictedCommands) {
+        const result = await processor.processCommand(command, [], anyUserId);
+
+        expect(result.success).toBe(true);
+        expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+        expect(result.scraperAction).toBeDefined();
+      }
+    });
+
     it('should process announce command with arguments', async () => {
-      const result = await processor.processCommand('announce', ['true'], 'user1');
+      const result = await processor.processCommand('announce', ['true'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('enabled');
@@ -153,14 +178,14 @@ describe('CommandProcessor', () => {
     it('should process announce command without arguments', async () => {
       mockState.get.mockReturnValue(true);
 
-      const result = await processor.processCommand('announce', [], 'user1');
+      const result = await processor.processCommand('announce', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('enabled');
     });
 
     it('should process vxtwitter command', async () => {
-      const result = await processor.processCommand('vxtwitter', ['false'], 'user1');
+      const result = await processor.processCommand('vxtwitter', ['false'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('disabled');
@@ -168,7 +193,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should process loglevel command', async () => {
-      const result = await processor.processCommand('loglevel', ['debug'], 'user1');
+      const result = await processor.processCommand('loglevel', ['debug'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('debug');
@@ -186,7 +211,7 @@ describe('CommandProcessor', () => {
         return values[key] !== undefined ? values[key] : defaultValue;
       });
 
-      const result = await processor.processCommand('health', [], 'user1');
+      const result = await processor.processCommand('health', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.healthData).toBeDefined();
@@ -196,7 +221,7 @@ describe('CommandProcessor', () => {
 
     it('should process health-detailed command', async () => {
       const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
-      const result = await processor.processCommand('health-detailed', [], 'user1', appStats);
+      const result = await processor.processCommand('health-detailed', [], '123456789012345678', appStats);
 
       expect(result.success).toBe(true);
       expect(result.healthData).toEqual(appStats);
@@ -204,14 +229,46 @@ describe('CommandProcessor', () => {
 
     it('should process hd command as alias for health-detailed', async () => {
       const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
-      const result = await processor.processCommand('hd', [], 'user1', appStats);
+      const result = await processor.processCommand('hd', [], '123456789012345678', appStats);
 
       expect(result.success).toBe(true);
       expect(result.healthData).toEqual(appStats);
     });
 
+    it('should process youtube-health command', async () => {
+      const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
+      const result = await processor.processCommand('youtube-health', [], '123456789012345678', appStats);
+
+      expect(result.success).toBe(true);
+      expect(result.healthData).toEqual(appStats);
+      expect(result.healthType).toBe('youtube');
+    });
+
+    it('should process x-health command', async () => {
+      const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
+      const result = await processor.processCommand('x-health', [], '123456789012345678', appStats);
+
+      expect(result.success).toBe(true);
+      expect(result.healthData).toEqual(appStats);
+      expect(result.healthType).toBe('x-scraper');
+    });
+
+    it('should handle youtube-health command without app stats', async () => {
+      const result = await processor.processCommand('youtube-health', [], '123456789012345678');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('YouTube health information is not available at the moment.');
+    });
+
+    it('should handle x-health command without app stats', async () => {
+      const result = await processor.processCommand('x-health', [], '123456789012345678');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('X scraper health information is not available at the moment.');
+    });
+
     it('should process readme command', async () => {
-      const result = await processor.processCommand('readme', [], 'user1');
+      const result = await processor.processCommand('readme', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Discord Bot Message Commands');
@@ -220,7 +277,7 @@ describe('CommandProcessor', () => {
     });
 
     it('should process restart command', async () => {
-      const result = await processor.processCommand('restart', [], 'user1');
+      const result = await processor.processCommand('restart', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.requiresRestart).toBe(true);
@@ -228,15 +285,75 @@ describe('CommandProcessor', () => {
     });
 
     it('should process update command', async () => {
-      const result = await processor.processCommand('update', [], 'user1');
+      const result = await processor.processCommand('update', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.requiresUpdate).toBe(true);
-      expect(result.message).toContain('Initiating update... Pulling latest changes, please wait for confirmation.');
+      expect(result.message).toBeNull(); // No message - handleUpdate will send its own messages
+    });
+
+    it('should process restart-scraper command', async () => {
+      const result = await processor.processCommand('restart-scraper', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('restart');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process stop-scraper command', async () => {
+      const result = await processor.processCommand('stop-scraper', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('stop');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process start-scraper command', async () => {
+      const result = await processor.processCommand('start-scraper', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('start');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process auth-status command', async () => {
+      const result = await processor.processCommand('auth-status', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('auth-status');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process force-reauth command', async () => {
+      const result = await processor.processCommand('force-reauth', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('force-reauth');
+      expect(result.userId).toBe('123456789012345678');
+    });
+
+    it('should process scraper-health command', async () => {
+      const result = await processor.processCommand('scraper-health', [], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.requiresRestart).toBe(false);
+      expect(result.message).toBeNull(); // No message - handleScraperAction will send its own messages
+      expect(result.scraperAction).toBe('health');
+      expect(result.userId).toBe('123456789012345678');
     });
 
     it('should handle unknown command', async () => {
-      const result = await processor.processCommand('unknown', [], 'user1');
+      const result = await processor.processCommand('unknown', [], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Unknown command');
@@ -246,7 +363,7 @@ describe('CommandProcessor', () => {
   describe('State Validators', () => {
     it('should validate posting enabled state', () => {
       // Get the validator function for postingEnabled
-      const validatorCall = mockState.setValidator.mock.calls.find((call) => call[0] === 'postingEnabled');
+      const validatorCall = mockState.setValidator.mock.calls.find(call => call[0] === 'postingEnabled');
       const validator = validatorCall[1];
 
       expect(validator(true)).toBe(true);
@@ -256,7 +373,7 @@ describe('CommandProcessor', () => {
 
     it('should validate log level state', () => {
       // Get the validator function for logLevel
-      const validatorCall = mockState.setValidator.mock.calls.find((call) => call[0] === 'logLevel');
+      const validatorCall = mockState.setValidator.mock.calls.find(call => call[0] === 'logLevel');
       const validator = validatorCall[1];
 
       expect(validator('info')).toBe(true);
@@ -281,12 +398,12 @@ describe('CommandProcessor', () => {
 
   describe('Edge Cases', () => {
     it('should handle null/undefined arguments gracefully', async () => {
-      const result = await processor.processCommand('health', null, 'user1');
+      const result = await processor.processCommand('health', null, '123456789012345678');
       expect(result.success).toBe(true);
     });
 
     it('should handle command validation errors', async () => {
-      const result = await processor.processCommand(null, [], 'user1');
+      const result = await processor.processCommand(null, [], '123456789012345678');
       expect(result.success).toBe(false);
     });
 
@@ -295,13 +412,8 @@ describe('CommandProcessor', () => {
         throw new Error('State error');
       });
 
-      try {
-        const result = await processor.processCommand('kill', [], 'user1');
-        expect(result.success).toBe(false);
-      } catch (error) {
-        // The error should be thrown and caught
-        expect(error.message).toBe('State error');
-      }
+      // The command should propagate the error from state manager
+      await expect(processor.processCommand('kill', [], '123456789012345678')).rejects.toThrow('State error');
     });
   });
 });

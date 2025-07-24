@@ -27,8 +27,13 @@ export class ScraperApplication {
     this.minInterval = parseInt(this.config.get('X_QUERY_INTERVAL_MIN', '300000'), 10);
     this.maxInterval = parseInt(this.config.get('X_QUERY_INTERVAL_MAX', '600000'), 10);
 
-    // State management
-    this.duplicateDetector = new DuplicateDetector();
+    // State management - accept duplicateDetector dependency
+    this.duplicateDetector =
+      dependencies.duplicateDetector ||
+      new DuplicateDetector(
+        dependencies.persistentStorage,
+        dependencies.logger?.child({ service: 'DuplicateDetector' })
+      );
     this.isRunning = false;
     this.timerId = null;
     this.currentSession = null;
@@ -44,6 +49,26 @@ export class ScraperApplication {
       lastError: null,
     };
     this.nextPollTimestamp = null;
+
+    // Debug logging sampling configuration to prevent Discord spam
+    this.debugSamplingRate = parseFloat(this.config.get('X_DEBUG_SAMPLING_RATE', '0.1')); // 10% default
+    this.verboseLogSamplingRate = parseFloat(this.config.get('X_VERBOSE_LOG_SAMPLING_RATE', '0.05')); // 5% default
+  }
+
+  /**
+   * Check if debug logging should be sampled to reduce Discord spam
+   * @returns {boolean} True if debug logging should occur
+   */
+  shouldLogDebug() {
+    return Math.random() < this.debugSamplingRate;
+  }
+
+  /**
+   * Check if verbose logging should be sampled to reduce Discord spam
+   * @returns {boolean} True if verbose logging should occur
+   */
+  shouldLogVerbose() {
+    return Math.random() < this.verboseLogSamplingRate;
   }
 
   /**
@@ -61,11 +86,17 @@ export class ScraperApplication {
       // Initialize browser
       await this.initializeBrowser();
 
-      // Perform initial login
+      // Perform initial login with retry logic
       await this.ensureAuthenticated();
+
+      // Initialize with recent content to prevent announcing old posts
+      await this.initializeRecentContent();
 
       // Start polling
       this.startPolling();
+
+      // Start health monitoring for automatic recovery
+      this.startHealthMonitoring();
 
       this.isRunning = true;
       this.logger.info('✅ X scraper application started successfully');
@@ -77,7 +108,7 @@ export class ScraperApplication {
         pollingInterval: this.getNextInterval(),
       });
     } catch (error) {
-      this.logger.error('Failed to start scraper application:', error);
+      this.logger.error('❌ Failed to start scraper application:', error);
       await this.stop();
       throw error;
     }
@@ -94,6 +125,9 @@ export class ScraperApplication {
 
     try {
       this.logger.info('Stopping X scraper application...');
+
+      // Stop health monitoring
+      this.stopHealthMonitoring();
 
       // Stop polling
       this.stopPolling();
@@ -115,6 +149,152 @@ export class ScraperApplication {
   }
 
   /**
+   * Restart the scraper application with retry logic
+   * @param {Object} options - Restart options
+   * @param {number} options.maxRetries - Maximum restart attempts (default: 3)
+   * @param {number} options.baseDelay - Base delay between restart attempts (default: 5000ms)
+   * @returns {Promise<void>}
+   */
+  async restart(options = {}) {
+    const { maxRetries = 3, baseDelay = 5000 } = options;
+
+    this.logger.info('Restarting X scraper application...');
+
+    // Stop current instance
+    await this.stop();
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.info(`Restart attempt ${attempt}/${maxRetries}`);
+        await this.start();
+        this.logger.info('✅ Scraper application restarted successfully');
+        return;
+      } catch (error) {
+        this.logger.error(`Restart attempt ${attempt} failed:`, error.message);
+
+        if (attempt === maxRetries) {
+          this.logger.error(`Failed to restart scraper after ${maxRetries} attempts`);
+          throw new Error(`Scraper restart failed after ${maxRetries} attempts: ${error.message}`);
+        }
+
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        this.logger.info(`Waiting ${delay}ms before next restart attempt...`);
+        await this.delay(delay);
+      }
+    }
+  }
+
+  /**
+   * Start periodic health monitoring with automatic recovery
+   * @param {number} intervalMs - Health check interval in milliseconds (default: 300000 = 5 minutes)
+   */
+  startHealthMonitoring(intervalMs = 300000) {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+
+    this.logger.info(`Starting health monitoring (check every ${intervalMs / 1000}s)`);
+
+    this.healthCheckInterval = setInterval(async () => {
+      try {
+        await this.performHealthCheck();
+      } catch (error) {
+        this.logger.error('Health check failed:', error.message);
+        await this.handleHealthCheckFailure(error);
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Stop health monitoring
+   */
+  stopHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+      this.logger.info('Health monitoring stopped');
+    }
+  }
+
+  /**
+   * Perform health check on the scraper
+   * @returns {Promise<Object>} Health check results
+   */
+  async performHealthCheck() {
+    const health = {
+      timestamp: new Date(),
+      isRunning: this.isRunning,
+      authenticated: false,
+      browserHealthy: false,
+      errors: [],
+    };
+
+    try {
+      // Check if application is running
+      if (!this.isRunning) {
+        health.errors.push('Application not running');
+        return health;
+      }
+
+      // Check browser health
+      if (this.browser && this.browser.isConnected()) {
+        health.browserHealthy = true;
+      } else {
+        health.errors.push('Browser not available or closed');
+      }
+
+      // Check authentication status
+      if (health.browserHealthy) {
+        try {
+          const authStatus = await this.authManager.isAuthenticated();
+          health.authenticated = authStatus;
+          if (!authStatus) {
+            health.errors.push('Authentication verification failed');
+          }
+        } catch (error) {
+          health.errors.push(`Authentication check failed: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      health.errors.push(`Health check error: ${error.message}`);
+    }
+
+    return health;
+  }
+
+  /**
+   * Handle health check failure with automatic recovery
+   * @param {Error} error - The health check error
+   */
+  async handleHealthCheckFailure(error) {
+    this.logger.warn('Attempting automatic recovery due to health check failure');
+
+    try {
+      // Attempt to restart the scraper
+      await this.restart({ maxRetries: 2, baseDelay: 3000 });
+      this.logger.info('✅ Automatic recovery successful');
+    } catch (recoveryError) {
+      this.logger.error('❌ Automatic recovery failed:', recoveryError.message);
+
+      // Emit event for external monitoring
+      this.eventBus.emit('scraper.recovery.failed', {
+        originalError: error.message,
+        recoveryError: recoveryError.message,
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Delay helper function
+   * @param {number} ms - Milliseconds to delay
+   * @returns {Promise<void>}
+   */
+  async delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
    * Initialize browser for scraping
    * @returns {Promise<void>}
    */
@@ -129,6 +309,10 @@ export class ScraperApplication {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
+        // Minimal performance optimizations to avoid bot detection
+        '--disable-images',
+        '--disable-plugins',
+        '--mute-audio',
       ],
     };
 
@@ -236,9 +420,15 @@ export class ScraperApplication {
     const interval = this.getNextInterval();
     this.nextPollTimestamp = Date.now() + interval;
     this.timerId = setTimeout(async () => {
-      if (this.isRunning) {
+      if (!this.isRunning) {
+        return;
+      }
+      try {
         await this.pollXProfile();
         this.scheduleNextPoll();
+      } catch (error) {
+        this.logger.error('Unhandled error in scheduled poll, rescheduling with retry:', error);
+        this.scheduleRetry();
       }
     }, interval);
 
@@ -252,14 +442,15 @@ export class ScraperApplication {
     const retryInterval = Math.min(this.maxInterval, this.minInterval * 2);
     this.nextPollTimestamp = Date.now() + retryInterval;
     this.timerId = setTimeout(async () => {
-      if (this.isRunning) {
-        try {
-          await this.pollXProfile();
-          this.scheduleNextPoll(); // Resume normal scheduling on success
-        } catch (error) {
-          this.logger.error('Error during retry scheduling:', error);
-          this.scheduleRetry(); // Continue retry on failure
-        }
+      if (!this.isRunning) {
+        return;
+      }
+      try {
+        await this.pollXProfile();
+        this.scheduleNextPoll(); // Resume normal scheduling on success
+      } catch (error) {
+        this.logger.error('Unhandled error in scheduled retry, rescheduling:', error);
+        this.scheduleRetry(); // Continue retry on failure
       }
     }, retryInterval);
 
@@ -290,14 +481,14 @@ export class ScraperApplication {
 
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const sinceDate = yesterday.toISOString().split('T')[0];
+      const _sinceDate = yesterday.toISOString().split('T')[0];
 
       // Verify authentication before searching
       await this.verifyAuthentication();
 
       // Always use search for normal post detection
       const searchUrl = this.generateSearchUrl(true);
-      this.logger.info(`Navigating to search URL: ${searchUrl}`);
+      this.logger.debug(`Navigating to search URL: ${searchUrl}`);
       await this.browser.goto(searchUrl);
 
       // This is the search for normal tweets. Retweet logic should not be invoked here.
@@ -370,10 +561,24 @@ export class ScraperApplication {
 
       const nextInterval = this.getNextInterval();
       const nextRunTime = new Date(Date.now() + nextInterval);
+      const nextRunTimeFormatted = nextRunTime.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
 
-      this.logger.info(
-        `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTime.toLocaleTimeString()}`,
-      );
+      if (nextInterval < 180000) {
+        // show time until next scraper run in seconds if nextInterval < 3 minutes
+        this.logger.info(
+          `X scraper run finished. Next run in ~${Math.round(nextInterval / 1000)} seconds, at ${nextRunTimeFormatted}`
+        );
+      } else {
+        // show time until next scraper run in minutes if nextInterval > 3 minutes
+        this.logger.info(
+          `X scraper run finished. Next run in ~${Math.round(nextInterval / 60000)} minutes, at ${nextRunTimeFormatted}`
+        );
+      }
 
       // Perform the enhanced retweet detection as a separate, final step.
       await this.performEnhancedRetweetDetection();
@@ -396,7 +601,7 @@ export class ScraperApplication {
       if (!this.shouldProcessRetweets()) {
         return;
       }
-      this.logger.info('Performing enhanced retweet detection...');
+      this.logger.debug('Performing enhanced retweet detection...');
       await this.navigateToProfileTimeline(this.xUser);
 
       const tweets = await this.extractTweets();
@@ -406,13 +611,19 @@ export class ScraperApplication {
       this.logger.info(`Found ${newTweets.length} new tweets during enhanced retweet detection.`);
 
       for (const tweet of newTweets) {
-        this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
+        // Reduce debug frequency for tweet checking
+        if (this.shouldLogDebug()) {
+          this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
+        }
         if (this.isNewContent(tweet)) {
           this.logger.info(`✅ Found new tweet to process: ${tweet.url} (${tweet.tweetCategory})`);
           await this.processNewTweet(tweet);
           this.stats.totalTweetsAnnounced++;
         } else {
-          this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is old.`);
+          // Reduce frequency of old tweet skip logs
+          if (this.shouldLogVerbose()) {
+            this.logger.debug(`Skipping tweet ${tweet.tweetID} as it is old.`);
+          }
         }
       }
     } catch (error) {
@@ -426,7 +637,8 @@ export class ScraperApplication {
    * @returns {Promise<Array>} Array of tweet objects
    */
   async extractTweets() {
-    return await this.browser.evaluate(() => {
+    const monitoredUser = this.xUser; // Pass the monitored user to browser context
+    return await this.browser.evaluate(monitoredUser => {
       /* eslint-disable no-undef */
       const tweets = [];
 
@@ -442,13 +654,11 @@ export class ScraperApplication {
       for (const selector of articleSelectors) {
         articles = document.querySelectorAll(selector);
         if (articles.length > 0) {
-          console.log(`Found ${articles.length} articles using selector: ${selector}`);
           break;
         }
       }
 
       if (articles.length === 0) {
-        console.log('No tweet articles found with any selector');
         return tweets;
       }
 
@@ -535,7 +745,7 @@ export class ScraperApplication {
           let isRetweet = false;
 
           // Method 1: Check if author is different from monitored user
-          if (author !== this.xUser && author !== `@${this.xUser}` && author !== 'Unknown') {
+          if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
             isRetweet = true;
           }
 
@@ -564,17 +774,13 @@ export class ScraperApplication {
             timestamp,
             tweetCategory,
           });
-
-          console.log(`Extracted tweet: ${tweetID} - ${tweetCategory} - ${text.substring(0, 50)}...`);
-        } catch (err) {
-          console.error('Error extracting tweet:', err);
+        } catch (_err) {
+          // console.error('Error extracting tweet:', _err);
         }
       }
-
-      console.log(`Total tweets extracted: ${tweets.length}`);
       return tweets;
       /* eslint-enable no-undef */
-    });
+    }, monitoredUser);
   }
 
   /**
@@ -587,7 +793,7 @@ export class ScraperApplication {
     let duplicateCount = 0;
     let oldContentCount = 0;
 
-    this.logger.debug(`Starting to filter ${tweets.length} tweets`);
+    this.logger.verbose(`Starting to filter ${tweets.length} tweets`);
 
     for (const tweet of tweets) {
       if (!this.duplicateDetector.isDuplicate(tweet.url)) {
@@ -597,19 +803,28 @@ export class ScraperApplication {
         // Check if tweet is new enough based on bot start time
         if (this.isNewContent(tweet)) {
           newTweets.push(tweet);
-          this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
+          // Only log debug for sampling to reduce Discord spam
+          if (this.shouldLogDebug()) {
+            this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
+          }
         } else {
           oldContentCount++;
-          this.logger.debug(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
+          // Reduce frequency of old tweet filtering logs
+          if (this.shouldLogVerbose()) {
+            this.logger.debug(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
+          }
         }
       } else {
         duplicateCount++;
-        this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
+        // Reduce frequency of duplicate filtering logs
+        if (this.shouldLogVerbose()) {
+          this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
+        }
       }
     }
 
-    this.logger.info(
-      `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`,
+    this.logger.verbose(
+      `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`
     );
 
     return newTweets;
@@ -617,6 +832,7 @@ export class ScraperApplication {
 
   /**
    * Check if content is new enough to announce
+   * Uses duplicate detection and reasonable time windows instead of strict bot startup time
    * @param {Object} tweet - Tweet object
    * @returns {boolean} True if content is new
    */
@@ -629,25 +845,35 @@ export class ScraperApplication {
       return true;
     }
 
-    const botStartTime = this.state.get('botStartTime');
-    if (!botStartTime) {
-      this.logger.debug(`No bot start time set, considering tweet ${tweet.tweetID} as new`);
-      return true; // If no start time set, consider all content new
+    // Check: Have we seen this tweet before? (Primary duplicate detection)
+    if (tweet.url && this.duplicateDetector.isDuplicate(tweet.url)) {
+      this.logger.debug(`Tweet ${tweet.tweetID} already known (duplicate), not new`);
+      return false;
     }
 
+    // Check: Is the content too old based on configurable backoff duration?
+    const backoffHours = this.config.get('CONTENT_BACKOFF_DURATION_HOURS', '2'); // Default 2 hours
+    const backoffMs = parseInt(backoffHours) * 60 * 60 * 1000;
+    const cutoffTime = new Date(Date.now() - backoffMs);
+
+    if (tweet.timestamp) {
+      const tweetTime = new Date(tweet.timestamp);
+      if (tweetTime < cutoffTime) {
+        this.logger.debug(
+          `Tweet ${tweet.tweetID} is too old (${tweetTime.toISOString()} < ${cutoffTime.toISOString()}), not new`
+        );
+        return false;
+      }
+    }
+
+    // If no timestamp available, assume it's new (but will be caught by duplicate detection if seen again)
     if (!tweet.timestamp) {
       this.logger.debug(`No timestamp for tweet ${tweet.tweetID}, considering as new`);
-      return true; // If no timestamp available, assume it's new
+      return true;
     }
 
-    const tweetTime = new Date(tweet.timestamp);
-    const isNew = tweetTime >= botStartTime;
-
-    this.logger.debug(
-      `Tweet ${tweet.tweetID}: tweetTime=${tweetTime.toISOString()}, botStartTime=${botStartTime.toISOString()}, isNew=${isNew}`,
-    );
-
-    return isNew;
+    this.logger.debug(`Tweet ${tweet.tweetID} passed all checks, considering as new`);
+    return true;
   }
 
   /**
@@ -701,7 +927,7 @@ export class ScraperApplication {
       } else {
         // Use classifier for other tweets
         this.logger.info(
-          `Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`,
+          `Using classifier for tweet: category=${tweet.tweetCategory}, author=${tweet.author}, xUser=${this.xUser}`
         );
         classification = this.classifier.classifyXContent(tweet.url, tweet.text, metadata);
       }
@@ -728,6 +954,12 @@ export class ScraperApplication {
         this.logger.debug(`Skipped ${classification.type} from @${tweet.author}: ${result.reason}`);
       } else {
         this.logger.warn(`Failed to announce ${classification.type} from @${tweet.author}: ${result.reason}`);
+      }
+
+      // Mark tweet as seen to prevent future re-processing
+      if (tweet.url) {
+        this.duplicateDetector.markAsSeen(tweet.url);
+        this.logger.debug(`Marked tweet ${tweet.tweetID} as seen`);
       }
 
       // Emit tweet processed event
@@ -937,11 +1169,17 @@ export class ScraperApplication {
    * Ensure user is authenticated (alias for loginToX)
    * @returns {Promise<void>}
    */
-  async ensureAuthenticated() {
+  async ensureAuthenticated(options = {}) {
+    const defaultOptions = {
+      maxRetries: 3,
+      baseDelay: 2000,
+      ...options,
+    };
+
     try {
-      await this.authManager.ensureAuthenticated();
+      await this.authManager.ensureAuthenticated(defaultOptions);
     } catch (err) {
-      this.logger.error('Authentication failed:', err);
+      this.logger.error('Authentication failed after all retry attempts:', err);
       throw err;
     }
   }
@@ -956,7 +1194,7 @@ export class ScraperApplication {
       return false;
     }
 
-    return cookies.every((cookie) => {
+    return cookies.every(cookie => {
       return (
         cookie && typeof cookie === 'object' && typeof cookie.name === 'string' && typeof cookie.value === 'string'
       );
@@ -982,6 +1220,71 @@ export class ScraperApplication {
     }
     searchUrl += '&f=live&pf=on&src=typed_query';
     return searchUrl;
+  }
+
+  /**
+   * Initialize recent content on startup to prevent announcing old posts
+   * This scans recent content and marks it as "seen" without announcing it
+   * @returns {Promise<void>}
+   */
+  async initializeRecentContent() {
+    try {
+      this.logger.info('Initializing with recent content to prevent old post announcements...');
+
+      // Scan recent content based on configuration to mark as seen
+      const initializationHours = parseInt(this.config.get('INITIALIZATION_WINDOW_HOURS', '24'), 10);
+      const initializationWindow = initializationHours * 60 * 60 * 1000; // Convert hours to milliseconds
+      const cutoffTime = new Date(Date.now() - initializationWindow);
+
+      // Navigate to user's profile to get recent content
+      await this.navigateToProfileTimeline(this.xUser);
+
+      // Extract recent tweets
+      const tweets = await this.extractTweets();
+      this.logger.info(`Found ${tweets.length} recent tweets during initialization scan`);
+
+      let markedAsSeen = 0;
+      for (const tweet of tweets) {
+        // Only mark tweets that are within our initialization window
+        const tweetTime = tweet.timestamp ? new Date(tweet.timestamp) : null;
+
+        if (tweetTime && tweetTime >= cutoffTime) {
+          // Mark as seen by adding to duplicate detector
+          if (tweet.url) {
+            this.duplicateDetector.markAsSeen(tweet.url);
+            markedAsSeen++;
+            this.logger.debug(`Marked tweet ${tweet.tweetID} as seen (${tweetTime.toISOString()})`);
+          }
+        }
+      }
+
+      // Also scan for retweets separately to ensure we catch them
+      if (this.shouldProcessRetweets()) {
+        try {
+          const retweetTweets = await this.extractTweets();
+          for (const tweet of retweetTweets) {
+            const tweetTime = tweet.timestamp ? new Date(tweet.timestamp) : null;
+
+            if (tweetTime && tweetTime >= cutoffTime && tweet.url) {
+              if (!this.duplicateDetector.isDuplicate(tweet.url)) {
+                this.duplicateDetector.markAsSeen(tweet.url);
+                markedAsSeen++;
+                this.logger.debug(`Marked retweet ${tweet.tweetID} as seen (${tweetTime.toISOString()})`);
+              }
+            }
+          }
+        } catch (error) {
+          this.logger.warn('Error during retweet initialization scan:', error.message);
+        }
+      }
+
+      this.logger.info(`✅ Initialization complete: marked ${markedAsSeen} recent posts as seen`);
+      this.logger.info(`Content posted after ${new Date().toISOString()} will be announced`);
+    } catch (error) {
+      this.logger.error('Error during recent content initialization:', error);
+      // Don't throw - this is a best-effort initialization
+      this.logger.warn('Continuing with normal operation despite initialization error');
+    }
   }
 
   async dispose() {

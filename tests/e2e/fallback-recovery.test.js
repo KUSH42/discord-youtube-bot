@@ -88,7 +88,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
 
     // Clear all scheduled timers to prevent open handles
     if (mockYouTubeMonitor.timers) {
-      mockYouTubeMonitor.timers.forEach((timer) => clearTimeout(timer));
+      mockYouTubeMonitor.timers.forEach(timer => clearTimeout(timer));
       mockYouTubeMonitor.timers = [];
     }
 
@@ -147,7 +147,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
         await mockYouTubeMonitor.handleFailedNotification(failure.xml, failure.error);
 
         // Small delay to simulate realistic timing
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
       // Should have triggered API fallback after multiple failures
@@ -188,7 +188,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
 
       mockYouTubeAPI.videos.list.mockResolvedValue({
         data: {
-          items: missedVideos.map((v) => ({
+          items: missedVideos.map(v => ({
             id: v.id.videoId,
             snippet: v.snippet,
             contentDetails: { duration: 'PT5M' },
@@ -227,14 +227,18 @@ describe('End-to-End Fallback Recovery Tests', () => {
       await mockYouTubeMonitor.handleFailedNotification(malformedNotification, error);
 
       // Step 2: Retry fails
-      const failureId = Array.from(mockYouTubeMonitor.failedNotifications.keys())[0];
+      const _failureId = Array.from(mockYouTubeMonitor.failedNotifications.keys())[0];
 
+      let retryError = null;
       try {
         await mockYouTubeMonitor.reprocessFailedNotification(malformedNotification);
-      } catch (retryError) {
-        // Retry should fail for malformed XML
-        expect(retryError.message).toContain('XML structure');
+      } catch (error) {
+        retryError = error;
       }
+
+      // Retry should fail for malformed XML
+      expect(retryError).toBeTruthy();
+      expect(retryError.message).toContain('XML structure');
 
       // Step 3: Multiple failures trigger API fallback
       await mockYouTubeMonitor.handleFailedNotification('another-failure', new Error('Another error'));
@@ -348,7 +352,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
   describe('Real-world Scenario Validation', () => {
     it('should handle the exact error scenario from user report', async () => {
       // Replicate the exact error scenario
-      const loggedScenario = {
+      const _loggedScenario = {
         info: [
           'Received request to handlePubSubNotification.',
           'Received PubSubHubbub notification.',
@@ -380,7 +384,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
 
     it('should handle signature mismatch scenario without triggering fallback', async () => {
       // Replicate the signature mismatch scenario
-      const loggedScenario = {
+      const _loggedScenario = {
         info: ['Received request to handlePubSubNotification.', 'Received PubSubHubbub notification.'],
         warn: ['X-Hub-Signature mismatch detected'],
       };
@@ -419,10 +423,10 @@ async function handleFailedNotificationImpl(rawXML, error) {
   });
 
   this.recentFailures.push(now);
-  this.recentFailures = this.recentFailures.filter((timestamp) => now.getTime() - timestamp.getTime() < 30000);
+  this.recentFailures = this.recentFailures.filter(timestamp => now.getTime() - timestamp.getTime() < 30000);
 
   this.logger.warn(
-    `Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`,
+    `Failed notification queued for retry. Failure ID: ${failureId}, Recent failures: ${this.recentFailures.length}, Total failures: ${this.fallbackMetrics.totalNotificationFailures}`
   );
 
   this.scheduleRetry(failureId);
@@ -437,7 +441,7 @@ function scheduleRetryImpl(failureId) {
   const failure = this.failedNotifications.get(failureId);
   if (!failure || failure.retryCount >= this.YOUTUBE_FALLBACK_MAX_RETRIES) {
     if (failure && failure.retryCount >= this.YOUTUBE_FALLBACK_MAX_RETRIES) {
-      this.logger.error(`Max retries reached for notification ${failureId}, giving up`);
+      // Silenced in tests - max retries reached (expected behavior)
       this.failedNotifications.delete(failureId);
     }
     return;
@@ -464,7 +468,7 @@ function scheduleRetryImpl(failureId) {
       if (failure.retryCount < this.YOUTUBE_FALLBACK_MAX_RETRIES) {
         this.scheduleRetry(failureId);
       } else {
-        this.logger.error(`Max retries reached for notification ${failureId}, removing from queue`);
+        // Silenced in tests - max retries reached (expected behavior)
         this.failedNotifications.delete(failureId);
       }
     }
@@ -489,8 +493,8 @@ function scheduleApiFallbackImpl() {
   this.apiFallbackTimer = setTimeout(async () => {
     try {
       await this.performApiFallback();
-    } catch (error) {
-      this.logger.error('API fallback failed:', error);
+    } catch (_error) {
+      // Silenced in tests - API fallback failure is expected test scenario
     }
   }, this.YOUTUBE_FALLBACK_DELAY_MS);
 }

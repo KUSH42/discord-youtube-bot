@@ -14,196 +14,376 @@ export const videoUrlRegex =
  */
 export const tweetUrlRegex =
   /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d{10,})/g;
+
 /**
- * Duplicate detector class for managing known content IDs
+ * Enhanced Duplicate Detector
+ * Implements persistent, reliable duplicate detection with content fingerprinting
  */
 export class DuplicateDetector {
-  constructor(maxSize = 10000, cleanupInterval = 24 * 60 * 60 * 1000) {
+  constructor(persistentStorage, logger) {
+    if (!persistentStorage) {
+      throw new Error('PersistentStorage is a required dependency for DuplicateDetector.');
+    }
+    this.storage = persistentStorage;
+    this.logger = logger;
+    // In-memory cache for performance
+    this.fingerprintCache = new Set();
+    this.urlCache = new Set();
+    this.maxSize = 10000; // Maximum cache size for memory management
+
+    // Legacy compatibility cache
     this.knownVideoIds = new Set();
     this.knownTweetIds = new Set();
-    this.maxSize = maxSize;
-    this.cleanupInterval = cleanupInterval;
-    this.cleanupTimer = null;
-
-    // Don't start periodic cleanup in test environment to prevent test timeouts
-    if (process.env.NODE_ENV !== 'test') {
-      this.startPeriodicCleanup();
-    }
   }
 
   /**
-   * Extract video IDs from text content
-   * @param {string} content - Text content to search for video URLs
-   * @returns {Array} - Array of extracted video IDs
+   * Generates a unique "fingerprint" for a piece of content.
+   * This is more reliable than URLs, which can sometimes change.
+   * @param {object} content - The content object.
+   * @returns {string|null} A unique fingerprint string or null if not possible.
+   * @private
    */
-  extractVideoIds(content) {
-    if (!content || typeof content !== 'string') {
-      return [];
+  _generateContentFingerprint(content) {
+    if (!content || typeof content !== 'object') {
+      return null;
     }
-
-    const matches = [...content.matchAll(videoUrlRegex)];
-    return matches.map((match) => match[1]).filter((id) => id);
+    const normalizedTitle = this._normalizeTitle(content.title || '');
+    const contentId = this._extractContentId(content.url || '');
+    const publishTime = content.publishedAt ? new Date(content.publishedAt).getTime() : 0;
+    const timeSlot = Math.floor(publishTime / 60000); // 1-minute precision
+    return `${contentId}:${normalizedTitle}:${timeSlot}`;
   }
 
   /**
-   * Extract tweet IDs from text content
-   * @param {string} content - Text content to search for tweet URLs
-   * @returns {Array} - Array of extracted tweet IDs
+   * The primary method to check for duplicates using a robust fingerprint.
+   * @param {object|string} content - The content object or URL string (for backward compatibility).
+   * @returns {Promise<boolean>} True if the content is a duplicate.
    */
-  extractTweetIds(content) {
-    if (!content || typeof content !== 'string') {
-      return [];
+  async isDuplicate(content) {
+    // Handle legacy string URLs for backward compatibility
+    if (typeof content === 'string') {
+      return this.isDuplicateByUrl(content);
     }
 
-    const matches = [...content.matchAll(tweetUrlRegex)];
-    return matches.map((match) => match[1]).filter((id) => id);
-  }
-
-  /**
-   * Check if a video ID is already known (duplicate)
-   * @param {string} videoId - YouTube video ID to check
-   * @returns {boolean} - True if the video is a duplicate
-   */
-  isVideoIdKnown(videoId) {
-    return this.knownVideoIds.has(videoId);
-  }
-
-  /**
-   * Check if a tweet ID is already known (duplicate)
-   * @param {string} tweetId - X/Twitter post ID to check
-   * @returns {boolean} - True if the tweet is a duplicate
-   */
-  isTweetIdKnown(tweetId) {
-    return this.knownTweetIds.has(tweetId);
-  }
-
-  /**
-   * Add a video ID to the known set
-   * @param {string} videoId - YouTube video ID to add
-   */
-  addVideoId(videoId) {
-    if (videoId && typeof videoId === 'string') {
-      this.knownVideoIds.add(videoId);
-      this.cleanupIfNeeded();
+    const fingerprint = this._generateContentFingerprint(content);
+    if (!fingerprint) {
+      // Fallback to URL check if fingerprint cannot be generated
+      return this.isDuplicateByUrl(content.url);
     }
-  }
-
-  /**
-   * Add a tweet ID to the known set
-   * @param {string} tweetId - X/Twitter post ID to add
-   */
-  addTweetId(tweetId) {
-    if (tweetId && typeof tweetId === 'string') {
-      this.knownTweetIds.add(tweetId);
-      this.cleanupIfNeeded();
+    // Check in-memory cache first for speed
+    if (this.fingerprintCache.has(fingerprint)) {
+      return true;
     }
-  }
-
-  /**
-   * Add multiple video IDs to the known set
-   * @param {Array} videoIds - Array of YouTube video IDs to add
-   */
-  addVideoIds(videoIds) {
-    if (Array.isArray(videoIds)) {
-      videoIds.forEach((id) => this.addVideoId(id));
+    // Check persistent storage
+    const isDupe = await this.storage.hasFingerprint(fingerprint);
+    if (isDupe) {
+      this.fingerprintCache.add(fingerprint); // Cache for next time
     }
+    return isDupe;
   }
 
   /**
-   * Add multiple tweet IDs to the known set
-   * @param {Array} tweetIds - Array of X/Twitter post IDs to add
+   * Marks content as seen using its robust fingerprint.
+   * @param {object|string} content - The content object or URL string (for backward compatibility).
    */
-  addTweetIds(tweetIds) {
-    if (Array.isArray(tweetIds)) {
-      tweetIds.forEach((id) => this.addTweetId(id));
+  async markAsSeen(content) {
+    // Handle legacy string URLs for backward compatibility
+    if (typeof content === 'string') {
+      return this.markAsSeenByUrl(content);
     }
+
+    const fingerprint = this._generateContentFingerprint(content);
+    if (fingerprint) {
+      this.fingerprintCache.add(fingerprint);
+      await this.storage.storeFingerprint(fingerprint, {
+        url: content.url,
+        title: content.title,
+        publishedAt: content.publishedAt,
+      });
+    }
+    // Also mark the URL as seen for fallback checks
+    await this.markAsSeenByUrl(content.url);
   }
 
   /**
-   * Process content and detect duplicates for both videos and tweets
-   * @param {string} content - Text content to process
-   * @returns {Object} - Object containing video and tweet duplicate information
+   * Fallback check using a normalized URL.
+   * @param {string} url - The URL of the content.
+   * @returns {Promise<boolean>} True if the URL has been seen.
    */
-  processContent(content) {
-    const videoIds = this.extractVideoIds(content);
-    const tweetIds = this.extractTweetIds(content);
+  async isDuplicateByUrl(url) {
+    const normalizedUrl = this._normalizeUrl(url);
+    if (this.urlCache.has(normalizedUrl)) {
+      return true;
+    }
+
+    const exists = await this.storage.hasUrl(normalizedUrl);
+    if (exists) {
+      this.urlCache.add(normalizedUrl);
+    }
+    return exists;
+  }
+
+  /**
+   * Fallback method to mark a normalized URL as seen.
+   * @param {string} url - The URL of the content.
+   */
+  async markAsSeenByUrl(url) {
+    const normalizedUrl = this._normalizeUrl(url);
+    this.urlCache.add(normalizedUrl);
+    await this.storage.addUrl(normalizedUrl);
+
+    // Also update legacy compatibility sets
+    const videoMatches = [...url.matchAll(videoUrlRegex)];
+    const tweetMatches = [...url.matchAll(tweetUrlRegex)];
+
+    videoMatches.forEach(match => {
+      if (match[1]) {
+        this.knownVideoIds.add(match[1]);
+      }
+    });
+
+    tweetMatches.forEach(match => {
+      if (match[1]) {
+        this.knownTweetIds.add(match[1]);
+      }
+    });
+  }
+
+  _normalizeUrl(url) {
+    if (!url) {
+      return url;
+    }
+
+    const videoId = this._extractVideoId(url);
+    if (videoId) {
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+
+    // Normalize X/Twitter URLs
+    const tweetId = this._extractTweetId(url);
+    if (tweetId) {
+      return `https://x.com/i/status/${tweetId}`;
+    }
+
+    return url;
+  }
+
+  _extractVideoId(url) {
+    if (!url) {
+      return null;
+    }
+    // Create a non-global version for single extraction
+    const videoRegex =
+      /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(videoRegex);
+    return match ? match[1] : null;
+  }
+
+  _extractTweetId(url) {
+    if (!url) {
+      return null;
+    }
+    // Create a non-global version for single extraction
+    const tweetRegex =
+      /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d{10,})/;
+    const match = url.match(tweetRegex);
+    return match ? match[1] : null;
+  }
+
+  _extractContentId(url) {
+    return this._extractVideoId(url) || this._extractTweetId(url) || null;
+  }
+
+  _normalizeTitle(title) {
+    return (title || '')
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, '') // Remove special characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  }
+
+  // === Public methods for enhanced testing and functionality ===
+
+  /**
+   * Public wrapper for _generateContentFingerprint for testing
+   */
+  generateContentFingerprint(content) {
+    return this._generateContentFingerprint(content);
+  }
+
+  /**
+   * Public wrapper for _normalizeTitle for testing
+   */
+  normalizeTitle(title) {
+    return this._normalizeTitle(title);
+  }
+
+  /**
+   * Public wrapper for _extractContentId for testing
+   */
+  extractContentId(url) {
+    return this._extractContentId(url);
+  }
+
+  /**
+   * Public wrapper for _normalizeUrl for testing
+   */
+  normalizeUrl(url) {
+    return this._normalizeUrl(url);
+  }
+
+  /**
+   * Enhanced duplicate detection using fingerprinting
+   */
+  async isDuplicateWithFingerprint(content) {
+    return await this.isDuplicate(content);
+  }
+
+  /**
+   * Mark content as seen using fingerprinting
+   */
+  async markAsSeenWithFingerprint(content) {
+    await this.markAsSeen(content);
+  }
+
+  /**
+   * Process content with fingerprinting and return detailed results
+   */
+  async processContentWithFingerprint(content) {
+    // Handle string input for backwards compatibility
+    if (typeof content === 'string') {
+      content = { url: content };
+    }
+
+    const fingerprint = this._generateContentFingerprint(content);
+    const isDuplicateFingerprint = fingerprint ? await this.isDuplicate(content) : false;
+    const isDuplicateUrl = await this.isDuplicateByUrl(content.url);
+
+    // Extract video and tweet IDs for legacy compatibility
+    const videoMatches = [...(content.url || '').matchAll(videoUrlRegex)];
+    const tweetMatches = [...(content.url || '').matchAll(tweetUrlRegex)];
+
+    // Check if fingerprinting is meaningful (has title or publishedAt)
+    const fingerprintingEnabled = !!fingerprint && (!!content.title || !!content.publishedAt);
 
     const result = {
-      videos: {
-        found: videoIds,
-        duplicates: videoIds.filter((id) => this.isVideoIdKnown(id)),
-        new: videoIds.filter((id) => !this.isVideoIdKnown(id)),
-      },
-      tweets: {
-        found: tweetIds,
-        duplicates: tweetIds.filter((id) => this.isTweetIdKnown(id)),
-        new: tweetIds.filter((id) => !this.isTweetIdKnown(id)),
+      videos: videoMatches.map(match => match[1]).filter(Boolean),
+      tweets: tweetMatches.map(match => match[1]).filter(Boolean),
+      fingerprint: {
+        enabled: fingerprintingEnabled,
+        generated: fingerprint,
+        isDuplicate: isDuplicateFingerprint || isDuplicateUrl,
       },
     };
 
-    // Add new IDs to known sets
-    result.videos.new.forEach((id) => this.addVideoId(id));
-    result.tweets.new.forEach((id) => this.addTweetId(id));
+    // Mark as seen if not duplicate
+    if (!result.fingerprint.isDuplicate) {
+      await this.markAsSeen(content);
+    }
 
     return result;
   }
 
   /**
-   * Clean up memory by removing old entries if size exceeds limit
+   * Determine the content type from URL
    */
-  cleanupIfNeeded() {
-    if (this.knownVideoIds.size > this.maxSize) {
-      this.cleanupSet(this.knownVideoIds);
+  determineContentType(url) {
+    if (this._extractVideoId(url)) {
+      return 'youtube_video';
     }
-    if (this.knownTweetIds.size > this.maxSize) {
-      this.cleanupSet(this.knownTweetIds);
+    if (this._extractTweetId(url)) {
+      return 'x_tweet';
+    }
+    return 'unknown';
+  }
+
+  /**
+   * Get enhanced statistics with fingerprint information
+   */
+  getEnhancedStats() {
+    return {
+      fingerprints: this.fingerprintCache.size,
+      urls: this.urlCache.size,
+      knownVideoIds: this.knownVideoIds.size,
+      knownTweetIds: this.knownTweetIds.size,
+      totalKnownIds: this.fingerprintCache.size + this.urlCache.size,
+      fingerprintingEnabled: true,
+    };
+  }
+
+  /**
+   * Legacy isDuplicate method for backwards compatibility with string URLs
+   */
+  isDuplicateCompat(url) {
+    // Extract video/tweet IDs and check against legacy sets
+    const videoMatches = [...url.matchAll(videoUrlRegex)];
+    const tweetMatches = [...url.matchAll(tweetUrlRegex)];
+
+    for (const match of videoMatches) {
+      if (this.knownVideoIds.has(match[1])) {
+        return true;
+      }
+    }
+
+    for (const match of tweetMatches) {
+      if (this.knownTweetIds.has(match[1])) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Legacy markAsSeen method for backwards compatibility with string URLs
+   */
+  markAsSeenCompat(url) {
+    const videoMatches = [...url.matchAll(videoUrlRegex)];
+    const tweetMatches = [...url.matchAll(tweetUrlRegex)];
+
+    videoMatches.forEach(match => {
+      if (match[1]) {
+        this.knownVideoIds.add(match[1]);
+      }
+    });
+
+    tweetMatches.forEach(match => {
+      if (match[1]) {
+        this.knownTweetIds.add(match[1]);
+      }
+    });
+  }
+
+  /**
+   * Memory management - clean up old entries
+   */
+  _cleanupMemory() {
+    if (this.fingerprintCache.size > this.maxSize) {
+      // Convert to array, slice to keep only recent entries
+      const fingerprintArray = Array.from(this.fingerprintCache);
+      this.fingerprintCache.clear();
+      fingerprintArray.slice(-Math.floor(this.maxSize * 0.8)).forEach(fp => {
+        this.fingerprintCache.add(fp);
+      });
+    }
+
+    if (this.urlCache.size > this.maxSize) {
+      const urlArray = Array.from(this.urlCache);
+      this.urlCache.clear();
+      urlArray.slice(-Math.floor(this.maxSize * 0.8)).forEach(url => {
+        this.urlCache.add(url);
+      });
     }
   }
 
   /**
-   * Clean up a Set by keeping only the most recent 80% of entries
-   * @param {Set} set - Set to clean up
+   * Scan Discord channel for YouTube video URLs and extract video IDs
+   * @param {Object} channel - Discord channel object with messages
+   * @param {number} limit - Maximum number of messages to scan
+   * @returns {Promise<Object>} Results with messagesScanned, videoIdsFound, videoIdsAdded
    */
-  cleanupSet(set) {
-    const array = Array.from(set);
-    const keepCount = Math.floor(this.maxSize * 0.8);
-    const toKeep = array.slice(-keepCount);
-
-    set.clear();
-    toKeep.forEach((item) => set.add(item));
-  }
-
-  /**
-   * Start periodic cleanup timer
-   */
-  startPeriodicCleanup() {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-    }
-
-    this.cleanupTimer = setInterval(() => {
-      this.cleanupIfNeeded();
-    }, this.cleanupInterval);
-  }
-
-  /**
-   * Stop periodic cleanup timer
-   */
-  stopPeriodicCleanup() {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
-  }
-
-  /**
-   * Scan Discord channel history for YouTube video IDs and populate known set
-   * @param {Object} discordChannel - Discord channel object to scan
-   * @param {number} limit - Maximum number of messages to scan (default: 1000)
-   * @returns {Promise<Object>} - Object containing scan results
-   */
-  async scanDiscordChannelForVideos(discordChannel, limit = 1000) {
-    if (!discordChannel || typeof discordChannel.messages?.fetch !== 'function') {
+  async scanDiscordChannelForVideos(channel, limit = 100) {
+    if (!channel || !channel.messages) {
       throw new Error('Invalid Discord channel provided');
     }
 
@@ -215,50 +395,54 @@ export class DuplicateDetector {
     };
 
     try {
-      let lastMessageId = null;
-      let totalScanned = 0;
-      const batchSize = 100; // Discord API limit per request
+      let messagesProcessed = 0;
+      let lastId = null;
 
-      while (totalScanned < limit) {
-        const fetchOptions = { limit: Math.min(batchSize, limit - totalScanned) };
-        if (lastMessageId) {
-          fetchOptions.before = lastMessageId;
+      while (messagesProcessed < limit) {
+        const fetchOptions = { limit: Math.min(50, limit - messagesProcessed) };
+        if (lastId) {
+          fetchOptions.before = lastId;
         }
 
-        const messages = await discordChannel.messages.fetch(fetchOptions);
-
+        const messages = await channel.messages.fetch(fetchOptions);
         if (messages.size === 0) {
-          break; // No more messages
+          break;
         }
 
-        for (const message of messages.values()) {
-          const videoIds = this.extractVideoIds(message.content);
-
-          if (videoIds.length > 0) {
-            results.videoIdsFound.push(...videoIds);
-
-            // Add to known set
-            videoIds.forEach((id) => {
-              if (!this.isVideoIdKnown(id)) {
-                this.addVideoId(id);
+        for (const [, message] of messages) {
+          const videoMatches = [...(message.content || '').matchAll(videoUrlRegex)];
+          for (const match of videoMatches) {
+            const videoId = match[1];
+            if (videoId) {
+              results.videoIdsFound.push(videoId);
+              if (!this.knownVideoIds.has(videoId)) {
+                this.knownVideoIds.add(videoId);
                 results.videoIdsAdded++;
               }
-            });
+              // Also add to URL cache for consistent duplicate checking
+              const normalizedUrl = this._normalizeUrl(match[0]);
+              this.urlCache.add(normalizedUrl);
+            }
           }
-
-          lastMessageId = message.id;
-          totalScanned++;
-          results.messagesScanned++;
+          messagesProcessed++;
+          if (messagesProcessed >= limit) {
+            break;
+          }
         }
 
-        // Small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        lastId = messages.last()?.id;
+
+        // Rate limiting between batches
+        if (messages.size > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
+
+      results.messagesScanned = messagesProcessed;
     } catch (error) {
       results.errors.push({
         type: 'fetch_error',
         message: error.message,
-        timestamp: new Date().toISOString(),
       });
     }
 
@@ -266,13 +450,13 @@ export class DuplicateDetector {
   }
 
   /**
-   * Scan Discord channel history for tweet IDs and populate known set
-   * @param {Object} discordChannel - Discord channel object to scan
-   * @param {number} limit - Maximum number of messages to scan (default: 1000)
-   * @returns {Promise<Object>} - Object containing scan results
+   * Scan Discord channel for X/Twitter URLs and extract tweet IDs
+   * @param {Object} channel - Discord channel object with messages
+   * @param {number} limit - Maximum number of messages to scan
+   * @returns {Promise<Object>} Results with messagesScanned, tweetIdsFound, tweetIdsAdded
    */
-  async scanDiscordChannelForTweets(discordChannel, limit = 1000) {
-    if (!discordChannel || typeof discordChannel.messages?.fetch !== 'function') {
+  async scanDiscordChannelForTweets(channel, limit = 100) {
+    if (!channel || !channel.messages) {
       throw new Error('Invalid Discord channel provided');
     }
 
@@ -284,50 +468,54 @@ export class DuplicateDetector {
     };
 
     try {
-      let lastMessageId = null;
-      let totalScanned = 0;
-      const batchSize = 100; // Discord API limit per request
+      let messagesProcessed = 0;
+      let lastId = null;
 
-      while (totalScanned < limit) {
-        const fetchOptions = { limit: Math.min(batchSize, limit - totalScanned) };
-        if (lastMessageId) {
-          fetchOptions.before = lastMessageId;
+      while (messagesProcessed < limit) {
+        const fetchOptions = { limit: Math.min(50, limit - messagesProcessed) };
+        if (lastId) {
+          fetchOptions.before = lastId;
         }
 
-        const messages = await discordChannel.messages.fetch(fetchOptions);
-
+        const messages = await channel.messages.fetch(fetchOptions);
         if (messages.size === 0) {
-          break; // No more messages
+          break;
         }
 
-        for (const message of messages.values()) {
-          const tweetIds = this.extractTweetIds(message.content);
-
-          if (tweetIds.length > 0) {
-            results.tweetIdsFound.push(...tweetIds);
-
-            // Add to known set
-            tweetIds.forEach((id) => {
-              if (!this.isTweetIdKnown(id)) {
-                this.addTweetId(id);
+        for (const [, message] of messages) {
+          const tweetMatches = [...(message.content || '').matchAll(tweetUrlRegex)];
+          for (const match of tweetMatches) {
+            const tweetId = match[1];
+            if (tweetId) {
+              results.tweetIdsFound.push(tweetId);
+              if (!this.knownTweetIds.has(tweetId)) {
+                this.knownTweetIds.add(tweetId);
                 results.tweetIdsAdded++;
               }
-            });
+              // Also add to URL cache for consistent duplicate checking
+              const normalizedUrl = this._normalizeUrl(match[0]);
+              this.urlCache.add(normalizedUrl);
+            }
           }
-
-          lastMessageId = message.id;
-          totalScanned++;
-          results.messagesScanned++;
+          messagesProcessed++;
+          if (messagesProcessed >= limit) {
+            break;
+          }
         }
 
-        // Small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        lastId = messages.last()?.id;
+
+        // Rate limiting between batches
+        if (messages.size > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
+
+      results.messagesScanned = messagesProcessed;
     } catch (error) {
       results.errors.push({
         type: 'fetch_error',
         message: error.message,
-        timestamp: new Date().toISOString(),
       });
     }
 
@@ -335,84 +523,53 @@ export class DuplicateDetector {
   }
 
   /**
-   * Clear all known IDs
-   */
-  reset() {
-    this.knownVideoIds.clear();
-    this.knownTweetIds.clear();
-  }
-
-  /**
-   * Check if a URL is a duplicate (simplified interface for applications)
-   * @param {string} url - URL to check for duplicates
-   * @returns {boolean} - True if URL is a duplicate
-   */
-  isDuplicate(url) {
-    if (!url || typeof url !== 'string') {
-      return false;
-    }
-
-    // Check for video URLs
-    const videoIds = this.extractVideoIds(url);
-    if (videoIds.length > 0) {
-      return videoIds.some((id) => this.isVideoIdKnown(id));
-    }
-
-    // Check for tweet URLs
-    const tweetIds = this.extractTweetIds(url);
-    if (tweetIds.length > 0) {
-      return tweetIds.some((id) => this.isTweetIdKnown(id));
-    }
-
-    return false;
-  }
-
-  /**
-   * Mark a URL as seen (simplified interface for applications)
-   * @param {string} url - URL to mark as seen
-   */
-  markAsSeen(url) {
-    if (!url || typeof url !== 'string') {
-      return;
-    }
-
-    // Add video IDs if found
-    const videoIds = this.extractVideoIds(url);
-    videoIds.forEach((id) => this.addVideoId(id));
-
-    // Add tweet IDs if found
-    const tweetIds = this.extractTweetIds(url);
-    tweetIds.forEach((id) => this.addTweetId(id));
-  }
-
-  /**
-   * Get statistics about known IDs
-   * @returns {Object} - Statistics object
+   * Get statistics about the duplicate detector
+   * @returns {Object} Statistics object
    */
   getStats() {
     return {
+      fingerprints: this.fingerprintCache.size,
+      urls: this.urlCache.size,
       knownVideoIds: this.knownVideoIds.size,
       knownTweetIds: this.knownTweetIds.size,
-      totalKnownIds: this.knownVideoIds.size + this.knownTweetIds.size,
-      maxSize: this.maxSize,
-      cleanupInterval: this.cleanupInterval,
+      totalKnownIds: this.fingerprintCache.size + this.urlCache.size,
+      fingerprintingEnabled: true,
     };
   }
 
   /**
-   * Destroy the duplicate detector and clean up resources
+   * Check if a video ID is known
+   * @param {string} videoId - YouTube video ID
+   * @returns {boolean} True if video ID is known
+   */
+  isVideoIdKnown(videoId) {
+    return this.knownVideoIds.has(videoId);
+  }
+
+  /**
+   * Add a video ID to the known set (legacy compatibility method)
+   * @param {string} videoId - YouTube video ID
+   */
+  addVideoId(videoId) {
+    this.knownVideoIds.add(videoId);
+  }
+
+  /**
+   * Check if a tweet ID is known
+   * @param {string} tweetId - Tweet ID
+   * @returns {boolean} True if tweet ID is known
+   */
+  isTweetIdKnown(tweetId) {
+    return this.knownTweetIds.has(tweetId);
+  }
+
+  /**
+   * Cleanup method (for test compatibility)
    */
   destroy() {
-    this.stopPeriodicCleanup();
-    this.reset();
+    this.fingerprintCache.clear();
+    this.urlCache.clear();
+    this.knownVideoIds.clear();
+    this.knownTweetIds.clear();
   }
-}
-
-/**
- * Utility function to create a new duplicate detector instance
- * @param {Object} options - Configuration options
- * @returns {DuplicateDetector} - New duplicate detector instance
- */
-export function createDuplicateDetector(options = {}) {
-  return new DuplicateDetector(options.maxSize, options.cleanupInterval);
 }

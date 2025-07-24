@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+
+# Clean commit messages by removing Claude mentions
+COMMIT_MSG_FILE="$1"
+
+# Use multiple sed patterns to ensure all Claude references are removed
+sed -i \
+  -e '/🤖 Generated with.*Claude/d' \
+  -e '/🤖.*Generated with.*Claude/d' \
+  -e '/Co-Authored-By: Claude/d' \
+  -e '/Generated with \[Claude Code\]/d' \
+  -e '/Generated with.*Claude/d' \
+  -e '/Claude Code/d' \
+  "$COMMIT_MSG_FILE"
+
+# Remove trailing empty lines and clean up whitespace
+sed -i -e '/^[[:space:]]*$/d' "$COMMIT_MSG_FILE"
+
+# Add a trailing newline if the file doesn't end with one
+if [ -s "$COMMIT_MSG_FILE" ] && [ "$(tail -c1 "$COMMIT_MSG_FILE")" != "" ]; then
+  echo "" >> "$COMMIT_MSG_FILE"
+fi

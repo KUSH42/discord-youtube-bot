@@ -16,19 +16,19 @@ export class CommandProcessor {
    * Set up state validators for command-managed state
    */
   setupStateValidators() {
-    this.state.setValidator('postingEnabled', (value) => {
+    this.state.setValidator('postingEnabled', value => {
       return typeof value === 'boolean' ? true : 'postingEnabled must be a boolean';
     });
 
-    this.state.setValidator('announcementEnabled', (value) => {
+    this.state.setValidator('announcementEnabled', value => {
       return typeof value === 'boolean' ? true : 'announcementEnabled must be a boolean';
     });
 
-    this.state.setValidator('vxTwitterConversionEnabled', (value) => {
+    this.state.setValidator('vxTwitterConversionEnabled', value => {
       return typeof value === 'boolean' ? true : 'vxTwitterConversionEnabled must be a boolean';
     });
 
-    this.state.setValidator('logLevel', (value) => {
+    this.state.setValidator('logLevel', value => {
       const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
       return validLevels.includes(value) ? true : `logLevel must be one of: ${validLevels.join(', ')}`;
     });
@@ -42,7 +42,15 @@ export class CommandProcessor {
    */
   isUserAuthorized(userId, command) {
     const allowedUserIds = this.getAllowedUserIds();
-    const restrictedCommands = ['restart', 'kill', 'update'];
+    const restrictedCommands = [
+      'restart',
+      'kill',
+      'update',
+      'restart-scraper',
+      'stop-scraper',
+      'start-scraper',
+      'force-reauth',
+    ];
 
     if (restrictedCommands.includes(command)) {
       return allowedUserIds.includes(userId);
@@ -57,7 +65,7 @@ export class CommandProcessor {
    */
   getAllowedUserIds() {
     const allowedUserIdsStr = this.config.get('ALLOWED_USER_IDS', '');
-    return allowedUserIdsStr ? allowedUserIdsStr.split(',').map((id) => id.trim()) : [];
+    return allowedUserIdsStr ? allowedUserIdsStr.split(',').map(id => id.trim()) : [];
   }
 
   /**
@@ -79,6 +87,11 @@ export class CommandProcessor {
 
     if (!userId || typeof userId !== 'string') {
       return { success: false, error: 'Invalid user ID.' };
+    }
+
+    // Validate Discord user ID format (should be 17-19 digits)
+    if (!/^\d{17,19}$/.test(userId)) {
+      return { success: false, error: 'Invalid user ID format.' };
     }
 
     // Command-specific validation
@@ -172,6 +185,30 @@ export class CommandProcessor {
       case 'update':
         return await this.handleUpdate(userId);
 
+      case 'restart-scraper':
+        return await this.handleRestartScraper(userId);
+
+      case 'stop-scraper':
+        return await this.handleStopScraper(userId);
+
+      case 'start-scraper':
+        return await this.handleStartScraper(userId);
+
+      case 'auth-status':
+        return await this.handleAuthStatus(userId);
+
+      case 'force-reauth':
+        return await this.handleForceReauth(userId);
+
+      case 'scraper-health':
+        return await this.handleScraperHealth(userId);
+
+      case 'youtube-health':
+        return await this.handleYoutubeHealth(appStats);
+
+      case 'x-health':
+        return await this.handleXHealth(appStats);
+
       default:
         return {
           success: false,
@@ -182,12 +219,12 @@ export class CommandProcessor {
   }
 
   /**
-   * Handle restart command
+   * Handle update command
    */
   async handleUpdate(userId) {
     return {
       success: true,
-      message: '🚀 Initiating update... Pulling latest changes, please wait for confirmation.',
+      message: null, // No message here - handleUpdate will send its own messages
       requiresUpdate: true,
       userId,
     };
@@ -334,19 +371,30 @@ export class CommandProcessor {
    * Handle readme command
    */
   async handleReadme() {
-    const commandList = [
-      `**${this.commandPrefix}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
-      `**${this.commandPrefix}restart**: Performs a full restart of the bot, reloading the .env file and all configurations. Requires specific user authorization (\`ALLOWED_USER_IDS\`).`,
+    const generalCommands = [
       `**${this.commandPrefix}announce <true|false>**: Toggles announcement posting to non-support channels.`,
       `**${this.commandPrefix}vxtwitter <true|false>**: Toggles the conversion of \`x.com\` URLs to \`vxtwitter.com\` in announcements.`,
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
       `**${this.commandPrefix}health-detailed**: Shows detailed health status for all components.`,
-      `**${this.commandPrefix}update**: Pulls the latest changes from git, updates dependencies, and restarts the bot.`,
+      `**${this.commandPrefix}youtube-health**: Shows detailed YouTube monitor health status.`,
+      `**${this.commandPrefix}x-health**: Shows detailed X scraper health status.`,
+      `**${this.commandPrefix}auth-status**: Shows X authentication status.`,
+      `**${this.commandPrefix}scraper-health**: Shows X scraper health status.`,
       `**${this.commandPrefix}readme**: Displays this command information.`,
     ];
 
-    const readmeMessage = `**Discord Bot Message Commands**\n\nThese commands can only be used in the configured support channel.\n\n${commandList.join('\n')}`;
+    const adminCommands = [
+      `**${this.commandPrefix}kill**: Stops *all* bot posting to Discord channels (announcements and support log).`,
+      `**${this.commandPrefix}restart**: Performs a full restart of the bot, reloading the .env file and all configurations.`,
+      `**${this.commandPrefix}update**: Pulls the latest changes from git, updates dependencies, and restarts the bot.`,
+      `**${this.commandPrefix}restart-scraper**: Restarts only the X scraper application with retry logic.`,
+      `**${this.commandPrefix}stop-scraper**: Stops the X scraper application.`,
+      `**${this.commandPrefix}start-scraper**: Starts the X scraper application.`,
+      `**${this.commandPrefix}force-reauth**: Forces re-authentication with X, clearing saved cookies.`,
+    ];
+
+    const readmeMessage = `**Discord Bot Message Commands**\n\nThese commands can only be used in the configured support channel.\n\n**General Commands:**\n${generalCommands.join('\n')}\n\n**Admin Commands** (require \`ALLOWED_USER_IDS\` authorization):\n${adminCommands.join('\n')}`;
 
     return {
       success: true,
@@ -379,6 +427,126 @@ export class CommandProcessor {
     };
   }
 
+  /**
+   * Handle restart scraper command
+   */
+  async handleRestartScraper(userId) {
+    return {
+      success: true,
+      message: null, // No message here - handleScraperAction will send its own messages
+      requiresRestart: false,
+      scraperAction: 'restart',
+      userId,
+    };
+  }
+
+  /**
+   * Handle stop scraper command
+   */
+  async handleStopScraper(userId) {
+    return {
+      success: true,
+      message: null, // No message here - handleScraperAction will send its own messages
+      requiresRestart: false,
+      scraperAction: 'stop',
+      userId,
+    };
+  }
+
+  /**
+   * Handle start scraper command
+   */
+  async handleStartScraper(userId) {
+    return {
+      success: true,
+      message: null, // No message here - handleScraperAction will send its own messages
+      requiresRestart: false,
+      scraperAction: 'start',
+      userId,
+    };
+  }
+
+  /**
+   * Handle authentication status command
+   */
+  async handleAuthStatus(userId) {
+    return {
+      success: true,
+      message: null, // No message here - handleScraperAction will send its own messages
+      requiresRestart: false,
+      scraperAction: 'auth-status',
+      userId,
+    };
+  }
+
+  /**
+   * Handle force re-authentication command
+   */
+  async handleForceReauth(userId) {
+    return {
+      success: true,
+      message: null, // No message here - handleScraperAction will send its own messages
+      requiresRestart: false,
+      scraperAction: 'force-reauth',
+      userId,
+    };
+  }
+
+  /**
+   * Handle scraper health command
+   */
+  async handleScraperHealth(userId) {
+    return {
+      success: true,
+      message: null, // No message here - handleScraperAction will send its own messages
+      requiresRestart: false,
+      scraperAction: 'health',
+      userId,
+    };
+  }
+
+  /**
+   * Handle YouTube health command
+   */
+  async handleYoutubeHealth(appStats) {
+    if (!appStats) {
+      return {
+        success: false,
+        message: 'YouTube health information is not available at the moment.',
+        requiresRestart: false,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'YouTube health check completed',
+      requiresRestart: false,
+      healthData: appStats,
+      healthType: 'youtube',
+    };
+  }
+
+  /**
+   * Handle X scraper health command
+   */
+  async handleXHealth(appStats) {
+    if (!appStats) {
+      return {
+        success: false,
+        message: 'X scraper health information is not available at the moment.',
+        requiresRestart: false,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'X scraper health check completed',
+      requiresRestart: false,
+      healthData: appStats,
+      healthType: 'x-scraper',
+    };
+  }
+
   getStats() {
     return {
       availableCommands: [
@@ -390,10 +558,26 @@ export class CommandProcessor {
         'health',
         'health-detailed',
         'hd',
+        'youtube-health',
+        'x-health',
         'readme',
         'update',
+        'restart-scraper',
+        'stop-scraper',
+        'start-scraper',
+        'auth-status',
+        'force-reauth',
+        'scraper-health',
       ],
-      restrictedCommands: ['restart', 'kill', 'update'],
+      restrictedCommands: [
+        'restart',
+        'kill',
+        'update',
+        'restart-scraper',
+        'stop-scraper',
+        'start-scraper',
+        'force-reauth',
+      ],
       allowedUsers: this.getAllowedUserIds().length,
       commandPrefix: this.commandPrefix,
     };

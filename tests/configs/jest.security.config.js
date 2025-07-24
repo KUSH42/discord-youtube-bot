@@ -1,7 +1,8 @@
-import baseConfig from './jest.config.js';
+import baseConfig from '../../jest.config.js';
 
 export default {
   ...baseConfig,
+  rootDir: '../../', // Set root to project root
   // Security tests focus on validation behavior, not source code coverage
   coverageThreshold: {
     global: {

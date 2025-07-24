@@ -14,6 +14,14 @@ describe('PubSubHubbub Security Integration Tests', () => {
       error: jest.fn(),
       debug: jest.fn(),
       verbose: jest.fn(),
+      child: jest.fn().mockReturnValue({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      }),
     };
 
     mockResponse = {
@@ -64,14 +72,14 @@ describe('PubSubHubbub Security Integration Tests', () => {
       mockRequest.url = '/webhook/youtube'; // Main bot endpoint
 
       // Main bot verifies with its own secret
-      const [algorithm, providedSignature] = mockRequest.headers['x-hub-signature'].split('=');
+      const [_algorithm, providedSignature] = mockRequest.headers['x-hub-signature'].split('=');
       const hmac = crypto.createHmac('sha1', mainBotSecret);
       hmac.update(mockRequest.rawBody);
       const expectedSignature = hmac.digest('hex');
 
       const isValidSignature = crypto.timingSafeEqual(
         Buffer.from(expectedSignature, 'hex'),
-        Buffer.from(providedSignature, 'hex'),
+        Buffer.from(providedSignature, 'hex')
       );
 
       expect(isValidSignature).toBe(false);
@@ -150,14 +158,14 @@ describe('PubSubHubbub Security Integration Tests', () => {
       mockRequest.headers['x-hub-signature'] = `sha1=${validSignature}`;
 
       // Simulate signature verification (should pass)
-      const [algorithm, providedSignature] = mockRequest.headers['x-hub-signature'].split('=');
+      const [_algorithm, providedSignature] = mockRequest.headers['x-hub-signature'].split('=');
       const hmac = crypto.createHmac('sha1', mockYouTubeMonitor.PSH_SECRET);
       hmac.update(mockRequest.rawBody);
       const expectedSignature = hmac.digest('hex');
 
       const isValidSignature = crypto.timingSafeEqual(
         Buffer.from(expectedSignature, 'hex'),
-        Buffer.from(providedSignature, 'hex'),
+        Buffer.from(providedSignature, 'hex')
       );
 
       expect(isValidSignature).toBe(true);
@@ -169,7 +177,7 @@ describe('PubSubHubbub Security Integration Tests', () => {
       // (Additional replay protection would need timestamp/nonce checking)
       const replayValid = crypto.timingSafeEqual(
         Buffer.from(expectedSignature, 'hex'),
-        Buffer.from(providedSignature, 'hex'),
+        Buffer.from(providedSignature, 'hex')
       );
 
       expect(replayValid).toBe(true);
@@ -258,11 +266,8 @@ describe('PubSubHubbub Security Integration Tests', () => {
         timings.push(Number(end - start));
 
         // Only correct signature should validate
-        if (testSig === correctSignature) {
-          expect(isValid).toBe(true);
-        } else {
-          expect(isValid).toBe(false);
-        }
+        const expectedResult = testSig === correctSignature;
+        expect(isValid).toBe(expectedResult);
       }
 
       // Timing-safe comparison should have similar execution times
@@ -296,14 +301,14 @@ describe('PubSubHubbub Security Integration Tests', () => {
         // Test correct signature
         const validResult = crypto.timingSafeEqual(
           Buffer.from(correctSignature, 'hex'),
-          Buffer.from(correctSignature, 'hex'),
+          Buffer.from(correctSignature, 'hex')
         );
         expect(validResult).toBe(true);
 
         // Test wrong signature
         const invalidResult = crypto.timingSafeEqual(
           Buffer.from(correctSignature, 'hex'),
-          Buffer.from(wrongSignature, 'hex'),
+          Buffer.from(wrongSignature, 'hex')
         );
         expect(invalidResult).toBe(false);
       }
@@ -327,7 +332,7 @@ describe('PubSubHubbub Security Integration Tests', () => {
       let isValid = false;
       try {
         isValid = crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(wrongSignature, 'hex'));
-      } catch (error) {
+      } catch (_error) {
         // Different lengths will cause timingSafeEqual to throw
         isValid = false;
       }

@@ -43,7 +43,7 @@ describe('Content Filtering Logic', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -68,9 +68,9 @@ describe('Content Filtering Logic', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
-          botStartTime: new Date('2024-01-01T00:00:00Z'),
+          botStartTime: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
         };
         return values[key];
       }),
@@ -88,6 +88,7 @@ describe('Content Filtering Logic', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(), // Support logger.child() calls
     };
 
     // Mock discord service
@@ -112,6 +113,16 @@ describe('Content Filtering Logic', () => {
       logger: mockLogger,
       discord: mockDiscordService,
       authManager: mockAuthManager,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
+      duplicateDetector: {
+        isDuplicate: jest.fn().mockReturnValue(false),
+        markAsSeen: jest.fn(),
+      },
     });
   });
 
@@ -126,7 +137,7 @@ describe('Content Filtering Logic', () => {
     });
 
     it('should return true when ANNOUNCE_OLD_TWEETS is enabled', () => {
-      mockConfig.getBoolean.mockImplementation((key) => {
+      mockConfig.getBoolean.mockImplementation(key => {
         if (key === 'ANNOUNCE_OLD_TWEETS') {
           return true;
         }
@@ -134,8 +145,9 @@ describe('Content Filtering Logic', () => {
       });
 
       const oldTweet = {
-        tweetID: '1234567890',
-        timestamp: '2023-12-31T23:59:59Z', // Before bot start time
+        tweetID: '1234567890123456789',
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago (older than 2h backoff)
+        url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
       const result = scraperApp.isNewContent(oldTweet);
@@ -146,20 +158,22 @@ describe('Content Filtering Logic', () => {
       mockConfig.getBoolean.mockReturnValue(false);
 
       const oldTweet = {
-        tweetID: '1234567890',
-        timestamp: '2023-12-31T23:59:59Z', // Before bot start time
+        tweetID: '1234567890123456789',
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago (older than 2h backoff)
+        url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
       const result = scraperApp.isNewContent(oldTweet);
       expect(result).toBe(false);
     });
 
-    it('should return true for tweets after bot start time', () => {
+    it('should return true for tweets within the backoff window', () => {
       mockConfig.getBoolean.mockReturnValue(false);
 
       const newTweet = {
-        tweetID: '1234567891',
-        timestamp: '2024-01-01T00:01:00Z', // After bot start time
+        tweetID: '1234567890123456781',
+        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago (within 2h backoff)
+        url: 'https://x.com/testuser/status/1234567890123456781',
       };
 
       const result = scraperApp.isNewContent(newTweet);
@@ -170,8 +184,9 @@ describe('Content Filtering Logic', () => {
       mockStateManager.get.mockReturnValue(null);
 
       const tweet = {
-        tweetID: '1234567890',
-        timestamp: '2023-12-31T23:59:59Z',
+        tweetID: '1234567890123456789',
+        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+        url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
       const result = scraperApp.isNewContent(tweet);
@@ -180,8 +195,9 @@ describe('Content Filtering Logic', () => {
 
     it('should return true when tweet has no timestamp', () => {
       const tweet = {
-        tweetID: '1234567890',
+        tweetID: '1234567890123456789',
         timestamp: null,
+        url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
       const result = scraperApp.isNewContent(tweet);

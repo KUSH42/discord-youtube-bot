@@ -18,8 +18,14 @@ config();
 
 /**
  * Main application entry point
+ * WARNING: This starts real production applications with infinite background processes
+ * DO NOT call this function in tests - it will cause hanging and memory leaks
  */
 async function startBot() {
+  // Safety guard to prevent accidental execution in test environment
+  if (process.env.NODE_ENV === 'test') {
+    throw new Error('startBot() should not be called in test environment - it starts infinite background processes');
+  }
   let container;
   try {
     const configuration = new Configuration();
@@ -27,10 +33,15 @@ async function startBot() {
     await setupProductionServices(container, configuration);
     const logger = container.resolve('logger');
     logger.info('🚀 Starting Discord YouTube Bot...');
-    await startApplications(container, configuration);
+    const { hasErrors } = await startApplications(container, configuration);
     await startWebServer(container, configuration);
     setupGracefulShutdown(container);
-    logger.info('✅ Bot startup completed successfully');
+
+    if (hasErrors) {
+      logger.warn('⚠️ Bot startup completed with some components disabled due to errors');
+    } else {
+      logger.info('✅ Bot startup completed successfully');
+    }
     return container;
   } catch (error) {
     if (container && container.isRegistered('logger')) {
@@ -46,15 +57,41 @@ async function startBot() {
 }
 
 async function main() {
+  // Safety guard to prevent accidental execution in test environment
+  if (process.env.NODE_ENV === 'test') {
+    throw new Error(
+      'main() should not be called in test environment - it starts infinite background processes via startBot()'
+    );
+  }
   let container;
+  let restartUnsubscribe;
   try {
     container = await startBot();
     const eventBus = container.resolve('eventBus');
-    eventBus.on('bot.request_restart', async () => {
+    restartUnsubscribe = eventBus.on('bot.request_restart', async () => {
       const logger = container.resolve('logger');
       logger.info('Restarting bot...');
+      // Clean up the restart listener before disposing
+      if (restartUnsubscribe) {
+        restartUnsubscribe();
+        restartUnsubscribe = null;
+      }
+
+      // Ensure proper disposal with delay to prevent Discord client overlap
+      logger.info('Disposing old container...');
       await container.dispose();
+
+      // Add a small delay to ensure Discord client is fully destroyed before creating new one
+      logger.info('Waiting for cleanup completion...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      logger.info('Creating new container...');
       container = await startBot();
+
+      // Re-register the restart listener for the new container
+      const newEventBus = container.resolve('eventBus');
+      restartUnsubscribe = newEventBus.on('bot.request_restart', arguments.callee);
+      logger.info('Bot restart completed successfully');
     });
   } catch (error) {
     // Logger is not available here if startBot fails, so we log to console.
@@ -62,6 +99,13 @@ async function main() {
     console.error('❌ Bot startup failed in main:', error.message);
 
     // Clean up on error
+    if (restartUnsubscribe) {
+      try {
+        restartUnsubscribe();
+      } catch (unsubscribeError) {
+        console.error('Error cleaning up restart listener:', unsubscribeError);
+      }
+    }
     if (container) {
       try {
         await container.dispose();
@@ -80,6 +124,7 @@ async function main() {
  */
 async function startApplications(container, config) {
   const logger = container.resolve('logger').child({ service: 'Main' });
+  let hasErrors = false;
 
   // Start Discord Bot
   const botApp = container.resolve('botApplication');
@@ -96,12 +141,15 @@ async function startApplications(container, config) {
       const scraperApp = container.resolve('scraperApplication');
       await scraperApp.start();
     } catch (error) {
-      logger.error('Failed to start X Scraper application:', error.message);
+      hasErrors = true;
+      logger.error('❌ Failed to start X Scraper application:', error.message);
       logger.warn('X Scraper will be disabled - YouTube monitoring will continue normally');
     }
   } else {
     logger.info('X Scraper disabled (no X_USER_HANDLE configured)');
   }
+
+  return { hasErrors };
 }
 
 /**
@@ -136,8 +184,13 @@ async function startWebServer(container, config) {
   setupWebhookEndpoints(app, container);
 
   // Error handling middleware
-  app.use((error, req, res) => {
-    logger.error('Express error:', error);
+  app.use((error, req, res, _next) => {
+    logger.error('Express error:', {
+      message: error.message,
+      stack: error.stack,
+      url: req.url,
+      method: req.method,
+    });
     res.status(500).json({ error: 'Internal Server Error' });
   });
 
@@ -169,23 +222,23 @@ function setupGracefulShutdown(container) {
   process.on('SIGUSR2', () => shutdownHandler('SIGUSR2'));
 
   // Handle uncaught exceptions
-  process.on('uncaughtException', (error) => {
+  process.on('uncaughtException', async error => {
     const logger = container.resolve('logger');
     logger.error('Uncaught Exception:', error);
-    shutdownHandler('uncaughtException');
+    await shutdownHandler('uncaughtException');
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, promise) => {
+  process.on('unhandledRejection', async (reason, promise) => {
     const logger = container.resolve('logger');
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    shutdownHandler('unhandledRejection');
+    await shutdownHandler('unhandledRejection');
   });
 }
 
 // Only run when executed directly (not imported in tests)
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
+  main().catch(error => {
     console.error('Fatal error:', error);
     process.exit(1);
   });

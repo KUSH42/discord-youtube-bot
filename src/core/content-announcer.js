@@ -5,10 +5,11 @@ import { splitMessage } from '../discord-utils.js';
  * Handles message formatting and channel routing based on content type
  */
 export class ContentAnnouncer {
-  constructor(discordService, config, stateManager) {
+  constructor(discordService, config, stateManager, logger) {
     this.discord = discordService;
     this.config = config;
     this.state = stateManager;
+    this.logger = logger;
 
     // Channel mapping based on content types
     this.channelMap = {
@@ -27,6 +28,31 @@ export class ContentAnnouncer {
     };
 
     this.supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
+  }
+
+  /**
+   * Sanitize content to prevent Discord-specific exploits
+   * Note: Discord handles HTML safely in embeds, so we only sanitize Discord-specific attacks
+   * @param {string} content - Content to sanitize
+   * @returns {string} Sanitized content
+   */
+  sanitizeContent(content) {
+    if (typeof content !== 'string') {
+      return content;
+    }
+
+    return (
+      content
+        // Only sanitize Discord-specific mentions that could be used for spam/abuse
+        .replace(/@everyone/gi, '[@]everyone')
+        .replace(/@here/gi, '[@]here')
+        // Remove obvious script injection attempts (but preserve legitimate HTML for embeds)
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        // Remove javascript: URLs but preserve other data URLs
+        .replace(/javascript:/gi, 'blocked:')
+        // Remove data: URLs that are not image types (as Discord allows image data URLs)
+        .replace(/data:(?!image\/(png|jpeg|gif|webp))/gi, 'blocked:')
+    );
   }
 
   /**
@@ -61,8 +87,10 @@ export class ContentAnnouncer {
 
       // Get target channel
       const channelId = this.getChannelForContent(content);
-      if (!channelId) {
-        result.reason = `No channel configured for ${content.platform} ${content.type}`;
+      if (!channelId || !this._isValidDiscordId(channelId)) {
+        const errorMessage = `Invalid or missing channel ID: ${channelId}`;
+        this.logger.error(errorMessage, { content });
+        result.reason = errorMessage;
         return result;
       }
 
@@ -283,8 +311,8 @@ export class ContentAnnouncer {
       return {
         embeds: [
           {
-            title: `🔴 ${channelTitle || 'Channel'} is now live!`,
-            description: title,
+            title: `🔴 ${this.sanitizeContent(channelTitle) || 'Channel'} is now live!`,
+            description: this.sanitizeContent(title),
             url,
             color: 0xff0000, // Red for live
             timestamp: new Date().toISOString(),
@@ -300,7 +328,7 @@ export class ContentAnnouncer {
       };
     }
 
-    return `${emoji} **${channelTitle || 'Channel'}** ${typeText}:\n**${title}**\n${url}`;
+    return `${emoji} **${this.sanitizeContent(channelTitle) || 'Channel'}** ${typeText}:\n**${this.sanitizeContent(title)}**\n${this.sanitizeContent(url)}`;
   }
 
   /**
@@ -438,7 +466,11 @@ export class ContentAnnouncer {
       }
     } catch (error) {
       // Log error but don't fail the main announcement
-      console.warn(`Failed to send mirror message: ${error.message}`);
+      this.logger.error('Failed to send mirror message', {
+        error: error.message,
+        originalChannelId,
+        supportChannelId: this.supportChannelId,
+      });
     }
   }
 
@@ -496,7 +528,7 @@ export class ContentAnnouncer {
         results.push({ content, result });
 
         if (delay > 0 && results.length < contentItems.length) {
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (error) {
         results.push({
@@ -510,5 +542,15 @@ export class ContentAnnouncer {
     }
 
     return results;
+  }
+
+  /**
+   * Check if a string is a valid Discord Snowflake ID
+   * @param {string} id - The ID to validate
+   * @returns {boolean} True if the ID is valid
+   * @private
+   */
+  _isValidDiscordId(id) {
+    return /^\d{17,19}$/.test(id);
   }
 }

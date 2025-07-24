@@ -45,15 +45,37 @@ export class PlaywrightBrowserService extends BrowserService {
    * @returns {Promise<Object>} Response object
    */
   async goto(url, options = {}, retries = 3) {
-    if (!this.page) {
-      throw new Error('No page available');
-    }
     for (let i = 0; i < retries; i++) {
+      // Validate browser state before each attempt
+      if (!this.browser || !this.page) {
+        throw new Error('Browser or page not available');
+      }
+
+      // Check if browser is still connected
+      if (!this.browser.isConnected()) {
+        throw new Error('Browser connection lost');
+      }
+
+      // Check if page is closed
+      if (this.page.isClosed()) {
+        throw new Error('Page has been closed');
+      }
+
       try {
         return await this.page.goto(url, options);
       } catch (error) {
+        // Check if error is due to closed browser/page - don't retry these
+        if (
+          error.message.includes('Target page, context or browser has been closed') ||
+          error.message.includes('Browser connection lost') ||
+          error.message.includes('Page has been closed')
+        ) {
+          throw error;
+        }
+
         if (i < retries - 1) {
-          await this.page.waitForTimeout(2000 * (i + 1));
+          // Use setTimeout instead of page.waitForTimeout to avoid using potentially closed page
+          await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
         } else {
           throw error;
         }
@@ -308,5 +330,17 @@ export class PlaywrightBrowserService extends BrowserService {
    */
   isRunning() {
     return this.browser !== null;
+  }
+
+  /**
+   * Check if browser and page are healthy and ready for use
+   * @returns {boolean} True if browser is healthy
+   */
+  isHealthy() {
+    try {
+      return this.browser && this.browser.isConnected() && this.page && !this.page.isClosed();
+    } catch {
+      return false;
+    }
   }
 }

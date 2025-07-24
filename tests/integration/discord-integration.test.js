@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import {
-  mockClient,
-  mockChannel,
-  mockMessage,
-  mockUser,
+  mockClient as _mockClient,
+  mockChannel as _mockChannel,
+  mockMessage as _mockMessage,
+  mockUser as _mockUser,
   createMockClient,
   createMockChannel,
   createMockMessage,
@@ -183,7 +183,7 @@ describe('Discord Integration Tests', () => {
     });
 
     it('should ignore bot messages', () => {
-      const messageHandler = jest.fn((message) => {
+      const messageHandler = jest.fn(message => {
         if (message.author.bot) {
           return;
         } // Ignore bot messages
@@ -208,7 +208,7 @@ describe('Discord Integration Tests', () => {
     const commandPrefix = '!';
 
     const createCommandHandler = () => {
-      return jest.fn((message) => {
+      return jest.fn(message => {
         if (message.author.bot) {
           return;
         }
@@ -306,7 +306,7 @@ describe('Discord Integration Tests', () => {
     });
 
     it('should only process commands in support channel', () => {
-      const commandHandler = jest.fn((message) => {
+      const commandHandler = jest.fn(message => {
         if (message.author.bot) {
           return;
         }
@@ -377,7 +377,7 @@ describe('Discord Integration Tests', () => {
         retweets: createMockChannel({ id: 'x-retweets-channel', name: 'x-retweets' }),
       };
 
-      Object.values(channels).forEach((channel) => {
+      Object.values(channels).forEach(channel => {
         discordClient.channels.cache.set(channel.id, channel);
       });
 
@@ -413,7 +413,7 @@ describe('Discord Integration Tests', () => {
           await channel.send(content);
           return { success: true };
         } catch (error) {
-          console.error('Failed to send announcement:', error.message);
+          // Silenced in tests - error is expected test scenario
           return { success: false, error: error.message };
         }
       };
@@ -431,21 +431,22 @@ describe('Discord Integration Tests', () => {
       apiError.code = 50013; // Missing Permissions
       testChannel.send.mockRejectedValue(apiError);
 
-      const errorHandler = jest.fn((error) => {
+      const errorHandler = jest.fn(error => {
         if (error.code === 50013) {
-          console.error('Missing permissions to send message');
+          // Silenced in tests - missing permissions is expected test scenario
           return { handled: true, reason: 'permissions' };
         }
         return { handled: false };
       });
 
-      try {
-        await testChannel.send('Test message');
-      } catch (error) {
-        const result = errorHandler(error);
-        expect(result.handled).toBe(true);
-        expect(result.reason).toBe('permissions');
-      }
+      await expect(testChannel.send('Test message')).rejects.toThrow();
+
+      // Test the error handler separately
+      const permissionError = new Error('Missing Permissions');
+      permissionError.code = 50013;
+      const result = errorHandler(permissionError);
+      expect(result.handled).toBe(true);
+      expect(result.reason).toBe('permissions');
     });
 
     it('should handle rate limiting', async () => {
@@ -461,7 +462,7 @@ describe('Discord Integration Tests', () => {
           return await channel.send(content);
         } catch (error) {
           if (error.code === 50004 && retries > 0) {
-            await new Promise((resolve) => setTimeout(resolve, 1)); // Minimal delay for test
+            await new Promise(resolve => setTimeout(resolve, 1)); // Minimal delay for test
             return sendWithRetry(channel, content, retries - 1);
           }
           throw error;
@@ -493,13 +494,13 @@ describe('Discord Integration Tests', () => {
 
   describe('Message Filtering and Validation', () => {
     it('should detect and process YouTube URLs in messages', () => {
-      const urlProcessor = jest.fn((message) => {
+      const urlProcessor = jest.fn(message => {
         const videoUrlRegex =
           /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
         const matches = [...message.content.matchAll(videoUrlRegex)];
 
         if (matches.length > 0) {
-          matches.forEach((match) => {
+          matches.forEach(match => {
             const videoId = match[1];
             message.react('📺');
             console.log(`Found YouTube video: ${videoId}`);
@@ -517,13 +518,13 @@ describe('Discord Integration Tests', () => {
     });
 
     it('should detect and process X/Twitter URLs in messages', () => {
-      const urlProcessor = jest.fn((message) => {
+      const urlProcessor = jest.fn(message => {
         const tweetUrlRegex =
           /https?:\/\/(?:[\w-]+\.)*(?:x\.com|twitter\.com|vxtwitter\.com|fxtwitter\.com|nitter\.[^/]+)\/(?:(?:i\/web\/)?status(?:es)?|[^/]+\/status(?:es)?)\/(\d+)/g;
         const matches = [...message.content.matchAll(tweetUrlRegex)];
 
         if (matches.length > 0) {
-          matches.forEach((match) => {
+          matches.forEach(match => {
             const tweetId = match[1];
             message.react('🐦');
             console.log(`Found Twitter/X post: ${tweetId}`);
@@ -542,16 +543,16 @@ describe('Discord Integration Tests', () => {
 
     it('should filter duplicate URLs within time window', () => {
       const recentUrls = new Set();
-      const duplicateFilter = jest.fn((message) => {
+      const duplicateFilter = jest.fn(message => {
         const urls = message.content.match(/https?:\/\/[^\s]+/g) || [];
-        const newUrls = urls.filter((url) => !recentUrls.has(url));
+        const newUrls = urls.filter(url => !recentUrls.has(url));
 
         if (newUrls.length === 0 && urls.length > 0) {
           message.react('🔁'); // Duplicate indicator
           return false; // Skip processing
         }
 
-        newUrls.forEach((url) => recentUrls.add(url));
+        newUrls.forEach(url => recentUrls.add(url));
         return true; // Process message
       });
 
@@ -607,7 +608,7 @@ describe('Discord Integration Tests', () => {
         errors: 0,
       };
 
-      const metricsTracker = jest.fn((eventType, data = {}) => {
+      const metricsTracker = jest.fn((eventType, _data = {}) => {
         switch (eventType) {
           case 'message_processed':
             metrics.messagesProcessed++;

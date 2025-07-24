@@ -15,6 +15,13 @@ export class MonitorApplication {
     this.state = dependencies.stateManager;
     this.eventBus = dependencies.eventBus;
     this.logger = dependencies.logger;
+    this.contentStateManager = dependencies.contentStateManager;
+    this.livestreamStateMachine = dependencies.livestreamStateMachine;
+    this.contentCoordinator = dependencies.contentCoordinator;
+
+    // Polling configuration
+    this.scheduledContentPollInterval = this.config.get('SCHEDULED_CONTENT_POLL_INTERVAL_MS', 3600000); // 1 hour (was 10 min - too aggressive for quota)
+    this.liveStatePollInterval = this.config.get('LIVE_STATE_POLL_INTERVAL_MS', 60000); // 1 minute
 
     // YouTube configuration
     this.youtubeChannelId = this.config.getRequired('YOUTUBE_CHANNEL_ID');
@@ -25,14 +32,26 @@ export class MonitorApplication {
     this.webhookSecret = this.config.get('PSH_SECRET', 'your_super_secret_string_here');
     this.verifyToken = this.config.get('PSH_VERIFY_TOKEN', 'your_optional_verify_token');
 
+    // Webhook debugging configuration
+    this.webhookDebugEnabled = this.config.getBoolean('WEBHOOK_DEBUG_LOGGING', false);
+
     // API fallback configuration (triggered only on notification failures)
     this.fallbackEnabled = true;
 
-    // State management
-    this.duplicateDetector = new DuplicateDetector();
+    // State management - accept duplicateDetector dependency
+    this.duplicateDetector =
+      dependencies.duplicateDetector ||
+      new DuplicateDetector(
+        dependencies.persistentStorage,
+        dependencies.logger?.child({ service: 'DuplicateDetector' })
+      );
     this.isRunning = false;
     this.subscriptionActive = false;
     this.fallbackTimerId = null;
+    this.scheduledContentPollTimerId = null;
+    this.liveStatePollTimerId = null;
+    this.lastQuotaError = null; // Track quota errors for backoff
+    this.lastSuccessfulScheduledPoll = null; // Track successful polls
 
     // Statistics
     this.stats = {
@@ -68,6 +87,9 @@ export class MonitorApplication {
 
       // Fallback system is only triggered on notification processing failures
 
+      // Start scheduled content polling
+      this.startScheduledContentPolling();
+
       this.isRunning = true;
       this.logger.info('✅ YouTube monitor application started successfully');
 
@@ -102,6 +124,10 @@ export class MonitorApplication {
 
       // Unsubscribe from PubSubHubbub
       await this.unsubscribeFromPubSubHubbub();
+
+      // Stop all polling timers
+      this.stopScheduledContentPolling();
+      this.stopLiveStatePolling();
 
       this.isRunning = false;
       this.logger.info('YouTube monitor application stopped');
@@ -158,10 +184,25 @@ export class MonitorApplication {
         'hub.lease_seconds': '86400', // 24 hours
       });
 
+      this.logWebhookDebug('PUBSUBHUBBUB SUBSCRIPTION REQUEST', {
+        hubUrl,
+        topicUrl,
+        callbackUrl: this.callbackUrl,
+        verifyToken: this.verifyToken ? '[SET]' : '[NOT_SET]',
+        leaseSeconds: '86400',
+      });
+
       const response = await this.http.post(hubUrl, subscriptionData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+      });
+
+      this.logWebhookDebug('PUBSUBHUBBUB SUBSCRIPTION RESPONSE', {
+        status: response.status,
+        statusText: response.statusText || 'unknown',
+        headers: response.headers || {},
+        success: this.http.isSuccessResponse(response),
       });
 
       if (this.http.isSuccessResponse(response)) {
@@ -176,6 +217,10 @@ export class MonitorApplication {
         throw new Error(`Subscription failed with status: ${response.status}`);
       }
     } catch (error) {
+      this.logWebhookDebug('PUBSUBHUBBUB SUBSCRIPTION ERROR', {
+        error: error.message,
+        stack: error.stack,
+      });
       this.logger.error('PubSubHubbub subscription failed:', error);
       throw error;
     }
@@ -236,7 +281,7 @@ export class MonitorApplication {
           }
         }
       },
-      20 * 60 * 60 * 1000,
+      20 * 60 * 60 * 1000
     ); // 20 hours
   }
 
@@ -321,31 +366,75 @@ export class MonitorApplication {
    * @returns {Promise<Object>} Response object
    */
   async handleWebhook(request) {
+    const startTime = Date.now();
+
     try {
       this.stats.webhooksReceived++;
       this.stats.lastWebhookTime = new Date();
 
-      this.logger.info('Received PubSubHubbub webhook notification');
+      // Enhanced webhook debugging
+      this.logWebhookDebug('=== WEBHOOK REQUEST RECEIVED ===', {
+        method: request.method,
+        timestamp: new Date().toISOString(),
+        headers: this.sanitizeHeaders(request.headers),
+        bodyLength: request.body ? request.body.length : 0,
+        bodyType: typeof request.body,
+        query: request.query || {},
+        remoteAddress: request.headers['x-forwarded-for'] || request.headers['x-real-ip'] || 'unknown',
+      });
+
+      this.logger.info('Received PubSubHubbub webhook notification', {
+        method: request.method,
+        contentType: request.headers['content-type'],
+        bodyLength: request.body ? request.body.length : 0,
+      });
 
       // Verify webhook signature
-      const isValid = this.verifyWebhookSignature(request.body, request.headers);
-      if (!isValid) {
-        this.logger.warn('Webhook signature verification failed');
+      const signatureResult = this.verifyWebhookSignatureDebug(request.body, request.headers);
+      if (!signatureResult.isValid) {
+        this.logWebhookDebug('WEBHOOK SIGNATURE VERIFICATION FAILED', signatureResult.details);
+        this.logger.warn('Webhook signature verification failed', signatureResult.details);
         return { status: 403, message: 'Invalid signature' };
       }
 
+      this.logWebhookDebug('WEBHOOK SIGNATURE VERIFIED', {
+        signatureMethod: signatureResult.details.method,
+        secretLength: this.webhookSecret.length,
+      });
+
       // Handle verification request
       if (request.method === 'GET') {
-        return this.handleVerificationRequest(request.query);
+        const verificationResult = this.handleVerificationRequest(request.query);
+        this.logWebhookDebug('WEBHOOK VERIFICATION REQUEST', {
+          query: request.query,
+          result: verificationResult,
+        });
+        return verificationResult;
       }
 
       // Handle notification
       if (request.method === 'POST') {
-        return await this.handleNotification(request.body);
+        const notificationResult = await this.handleNotification(request.body);
+        this.logWebhookDebug('WEBHOOK NOTIFICATION PROCESSED', {
+          bodyPreview: this.getBodyPreview(request.body),
+          processingTime: Date.now() - startTime,
+          result: notificationResult,
+        });
+        return notificationResult;
       }
 
+      this.logWebhookDebug('WEBHOOK METHOD NOT ALLOWED', { method: request.method });
       return { status: 405, message: 'Method not allowed' };
     } catch (error) {
+      const processingTime = Date.now() - startTime;
+      this.logWebhookDebug('WEBHOOK ERROR', {
+        error: error.message,
+        stack: error.stack,
+        processingTime,
+        requestMethod: request.method,
+        bodyLength: request.body ? request.body.length : 0,
+      });
+
       this.logger.error('Webhook handling error:', error);
       this.stats.lastError = error.message;
       return { status: 500, message: 'Internal server error' };
@@ -353,20 +442,123 @@ export class MonitorApplication {
   }
 
   /**
-   * Verify webhook signature
+   * Verify webhook signature with detailed debugging information
+   * @param {string|Buffer} body - Request body
+   * @param {Object} headers - Request headers
+   * @returns {Object} Validation result with debugging details
+   */
+  verifyWebhookSignatureDebug(body, headers) {
+    const signature = headers['x-hub-signature'];
+    const debugDetails = {
+      hasSignatureHeader: !!signature,
+      signatureReceived: signature || 'none',
+      bodyLength: body ? body.length : 0,
+      secretConfigured: !!this.webhookSecret,
+      secretLength: this.webhookSecret ? this.webhookSecret.length : 0,
+      method: 'HMAC-SHA1',
+    };
+
+    if (!signature) {
+      return {
+        isValid: false,
+        details: { ...debugDetails, reason: 'No x-hub-signature header provided' },
+      };
+    }
+
+    if (!this.webhookSecret) {
+      return {
+        isValid: false,
+        details: { ...debugDetails, reason: 'No webhook secret configured' },
+      };
+    }
+
+    const expectedSignature = `sha1=${crypto.createHmac('sha1', this.webhookSecret).update(body).digest('hex')}`;
+    debugDetails.expectedSignature = expectedSignature;
+    debugDetails.signatureMatch = signature === expectedSignature;
+
+    try {
+      const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+      return {
+        isValid,
+        details: { ...debugDetails, reason: isValid ? 'Signature valid' : 'Signature mismatch' },
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        details: {
+          ...debugDetails,
+          reason: `Signature comparison failed: ${error.message}`,
+          error: error.message,
+        },
+      };
+    }
+  }
+
+  /**
+   * Verify webhook signature (legacy method for backward compatibility)
    * @param {string|Buffer} body - Request body
    * @param {Object} headers - Request headers
    * @returns {boolean} True if signature is valid
    */
   verifyWebhookSignature(body, headers) {
-    const signature = headers['x-hub-signature'];
-    if (!signature) {
-      return false;
+    return this.verifyWebhookSignatureDebug(body, headers).isValid;
+  }
+
+  /**
+   * Log webhook debugging information
+   * @param {string} message - Debug message
+   * @param {Object} data - Additional data to log
+   */
+  logWebhookDebug(message, data = {}) {
+    if (!this.webhookDebugEnabled) {
+      return;
     }
 
-    const expectedSignature = `sha1=${crypto.createHmac('sha1', this.webhookSecret).update(body).digest('hex')}`;
+    // Always log webhook debug info at INFO level when debugging is enabled
+    this.logger.info(`[WEBHOOK-DEBUG] ${message}`, {
+      webhookDebug: true,
+      timestamp: new Date().toISOString(),
+      ...data,
+    });
+  }
 
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+  /**
+   * Sanitize headers for logging (remove sensitive information)
+   * @param {Object} headers - Request headers
+   * @returns {Object} Sanitized headers
+   */
+  sanitizeHeaders(headers) {
+    const sanitized = { ...headers };
+
+    // Remove or mask sensitive headers
+    if (sanitized['authorization']) {
+      sanitized['authorization'] = '[REDACTED]';
+    }
+    if (sanitized['x-hub-signature']) {
+      sanitized['x-hub-signature'] = `[SIGNATURE:${sanitized['x-hub-signature'].length}chars]`;
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Get a safe preview of the request body for logging
+   * @param {string|Buffer} body - Request body
+   * @returns {string} Body preview
+   */
+  getBodyPreview(body) {
+    if (!body) {
+      return '[EMPTY]';
+    }
+
+    const bodyStr = body.toString();
+
+    // Return first 200 characters for preview
+    if (bodyStr.length <= 200) {
+      return bodyStr;
+    }
+
+    return `${bodyStr.substring(0, 200)}... [TRUNCATED:${bodyStr.length}total]`;
   }
 
   /**
@@ -394,35 +586,102 @@ export class MonitorApplication {
    * @returns {Promise<Object>} Response object
    */
   async handleNotification(body) {
+    const notificationId = Date.now().toString(36);
+
     try {
+      this.logWebhookDebug('NOTIFICATION PROCESSING START', {
+        notificationId,
+        bodyLength: body ? body.length : 0,
+        bodyType: typeof body,
+        isEmpty: !body || body.length === 0,
+      });
+
       // Parse XML to extract video information
       const videoInfo = this.parseNotificationXML(body);
+
+      this.logWebhookDebug('XML PARSING RESULT', {
+        notificationId,
+        success: !!videoInfo,
+        videoInfo: videoInfo || 'parsing_failed',
+        bodyPreview: this.getBodyPreview(body),
+      });
 
       if (!videoInfo) {
         this.logger.warn('Failed to parse notification XML');
         this.stats.xmlParseFailures++;
+        this.logWebhookDebug('XML PARSING FAILED', {
+          notificationId,
+          xmlParseFailures: this.stats.xmlParseFailures,
+          bodyPreview: this.getBodyPreview(body),
+        });
         return { status: 400, message: 'Invalid XML' };
       }
+
+      this.logWebhookDebug('FETCHING VIDEO DETAILS', {
+        notificationId,
+        videoId: videoInfo.videoId,
+        videoTitle: videoInfo.title || 'unknown',
+      });
 
       // Fetch detailed video information
       const videoDetails = await this.youtube.getVideoDetails(videoInfo.videoId);
 
+      this.logWebhookDebug('VIDEO DETAILS RESULT', {
+        notificationId,
+        videoId: videoInfo.videoId,
+        found: !!videoDetails,
+        title: videoDetails?.snippet?.title || 'not_available',
+        liveBroadcastContent: videoDetails?.snippet?.liveBroadcastContent || 'unknown',
+        publishedAt: videoDetails?.snippet?.publishedAt || 'unknown',
+      });
+
       if (!videoDetails) {
         this.logger.warn(`Could not fetch details for video: ${videoInfo.videoId}`);
+        this.logWebhookDebug('VIDEO DETAILS NOT FOUND', {
+          notificationId,
+          videoId: videoInfo.videoId,
+          reason: 'youtube_api_returned_null',
+        });
         return { status: 200, message: 'OK' };
       }
+
+      this.logWebhookDebug('PROCESSING VIDEO', {
+        notificationId,
+        videoId: videoInfo.videoId,
+        title: videoDetails.snippet.title,
+        liveBroadcastContent: videoDetails.snippet.liveBroadcastContent,
+        source: 'webhook',
+      });
 
       // Process the video
       await this.processVideo(videoDetails, 'webhook');
 
+      this.logWebhookDebug('NOTIFICATION PROCESSING COMPLETE', {
+        notificationId,
+        videoId: videoInfo.videoId,
+        title: videoDetails.snippet.title,
+        success: true,
+      });
+
       this.logger.info(`Successfully processed webhook notification for video: ${videoDetails.snippet.title}`);
       return { status: 200, message: 'OK' };
     } catch (error) {
+      this.logWebhookDebug('NOTIFICATION PROCESSING ERROR', {
+        notificationId,
+        error: error.message,
+        stack: error.stack,
+        fallbackWillTrigger: this.fallbackEnabled,
+      });
+
       this.logger.error('Notification processing error:', error);
 
       // Trigger API fallback on notification processing error
       if (this.fallbackEnabled) {
         this.scheduleApiFallback();
+        this.logWebhookDebug('API FALLBACK SCHEDULED', {
+          notificationId,
+          reason: 'notification_processing_error',
+        });
       }
 
       return { status: 200, message: 'OK' }; // Always return 200 to prevent retry spam
@@ -471,7 +730,7 @@ export class MonitorApplication {
       const url = `https://www.youtube.com/watch?v=${videoId}`;
 
       // Check for duplicates
-      if (this.duplicateDetector.isDuplicate(url)) {
+      if (await this.duplicateDetector.isDuplicate(url)) {
         this.logger.debug(`Duplicate video detected: ${title} (${videoId})`);
         return;
       }
@@ -574,5 +833,161 @@ export class MonitorApplication {
    */
   async dispose() {
     await this.stop();
+  }
+
+  /**
+   * Starts the polling loop for discovering scheduled content.
+   */
+  startScheduledContentPolling() {
+    if (this.scheduledContentPollTimerId) {
+      this.stopScheduledContentPolling();
+    }
+    const loop = async () => {
+      try {
+        await this.pollScheduledContent();
+      } catch (error) {
+        this.logger.error('Error in scheduled content polling loop:', error);
+      }
+      if (this.isRunning) {
+        this.scheduledContentPollTimerId = setTimeout(loop, this.scheduledContentPollInterval);
+      }
+    };
+    this.scheduledContentPollTimerId = setTimeout(loop, 5000); // Start after 5s
+    this.logger.info('Scheduled content polling started', { interval: this.scheduledContentPollInterval });
+  }
+
+  /**
+   * Stops the scheduled content polling loop.
+   */
+  stopScheduledContentPolling() {
+    if (this.scheduledContentPollTimerId) {
+      clearTimeout(this.scheduledContentPollTimerId);
+      this.scheduledContentPollTimerId = null;
+      this.logger.info('Scheduled content polling stopped.');
+    }
+  }
+
+  /**
+   * Fetches upcoming streams and adds them to the state manager.
+   * Implements smart polling with quota error backoff.
+   */
+  async pollScheduledContent() {
+    // Check if we should skip polling due to recent quota errors
+    if (this.lastQuotaError) {
+      const timeSinceQuotaError = Date.now() - this.lastQuotaError;
+      const backoffTime = 4 * 60 * 60 * 1000; // 4 hours backoff after quota error
+
+      if (timeSinceQuotaError < backoffTime) {
+        this.logger.debug('Skipping scheduled content poll due to recent quota error', {
+          timeSinceError: Math.round(timeSinceQuotaError / 1000 / 60),
+          backoffMinutes: Math.round(backoffTime / 1000 / 60),
+        });
+        return;
+      } else {
+        // Clear quota error after backoff period
+        this.lastQuotaError = null;
+      }
+    }
+
+    this.logger.debug('Polling for scheduled content...');
+
+    try {
+      const scheduledVideos = await this.youtube.getScheduledContent(this.youtubeChannelId);
+      this.lastSuccessfulScheduledPoll = Date.now();
+
+      for (const video of scheduledVideos) {
+        if (!this.contentStateManager.hasContent(video.id)) {
+          await this.contentStateManager.addContent(video.id, {
+            type: 'youtube_livestream',
+            state: 'scheduled',
+            source: 'api',
+            publishedAt: video.publishedAt,
+            url: `https://www.youtube.com/watch?v=${video.id}`,
+            title: video.title,
+            metadata: { scheduledStartTime: video.scheduledStartTime },
+          });
+        }
+      }
+      // Start or restart the live state polling after discovering new content
+      this.startLiveStatePolling();
+
+      this.logger.debug('Scheduled content polling completed', {
+        foundVideos: scheduledVideos.length,
+        newVideos: scheduledVideos.filter(v => !this.contentStateManager.hasContent(v.id)).length,
+      });
+    } catch (error) {
+      // Check if this was a quota error
+      if (error.message && error.message.includes('quota')) {
+        this.lastQuotaError = Date.now();
+        this.logger.warn('YouTube API quota exceeded during scheduled content polling - implementing 4 hour backoff', {
+          nextAttemptTime: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        });
+      } else {
+        // Re-throw non-quota errors
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Starts the polling loop for checking state transitions of scheduled streams.
+   */
+  startLiveStatePolling() {
+    if (this.liveStatePollTimerId) {
+      // It's already running, no need to start another one
+      return;
+    }
+    const loop = async () => {
+      try {
+        await this.pollLiveStateTransitions();
+      } catch (error) {
+        this.logger.error('Error in live state polling loop:', error);
+      }
+
+      const scheduledContent = this.contentStateManager.getContentByState('scheduled');
+      if (this.isRunning && scheduledContent.length > 0) {
+        this.liveStatePollTimerId = setTimeout(loop, this.liveStatePollInterval);
+      } else {
+        this.stopLiveStatePolling(); // No more scheduled content to check
+      }
+    };
+    this.liveStatePollTimerId = setTimeout(loop, 1000); // Start immediately
+    this.logger.info('Live state transition polling started', { interval: this.liveStatePollInterval });
+  }
+
+  /**
+   * Stops the live state polling loop.
+   */
+  stopLiveStatePolling() {
+    if (this.liveStatePollTimerId) {
+      clearTimeout(this.liveStatePollTimerId);
+      this.liveStatePollTimerId = null;
+      this.logger.info('Live state transition polling stopped.');
+    }
+  }
+
+  /**
+   * Checks for state changes in scheduled content and processes them.
+   */
+  async pollLiveStateTransitions() {
+    const scheduledContent = this.contentStateManager.getContentByState('scheduled');
+    if (scheduledContent.length === 0) {
+      this.logger.debug('No scheduled content to poll for state changes.');
+      return;
+    }
+
+    this.logger.debug(`Polling state for ${scheduledContent.length} scheduled item(s)...`);
+    const videoIds = scheduledContent.map(c => c.id);
+    const currentStates = await this.youtube.checkScheduledContentStates(videoIds);
+
+    for (const currentState of currentStates) {
+      const oldState = this.contentStateManager.getContentState(currentState.id);
+      if (oldState && oldState.state !== currentState.state) {
+        this.logger.info(
+          `State transition detected for ${currentState.id}: ${oldState.state} -> ${currentState.state}`
+        );
+        await this.livestreamStateMachine.transitionState(currentState.id, currentState.state);
+      }
+    }
   }
 }

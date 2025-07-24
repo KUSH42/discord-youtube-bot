@@ -45,7 +45,7 @@ describe('Search and Retweet Logic', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -70,7 +70,7 @@ describe('Search and Retweet Logic', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
           botStartTime: new Date('2024-01-01T00:00:00Z'),
         };
@@ -90,6 +90,7 @@ describe('Search and Retweet Logic', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
 
     // Mock discord service
@@ -117,6 +118,12 @@ describe('Search and Retweet Logic', () => {
       discord: mockDiscordService,
       authManager: mockAuthManager,
       delay: mockDelay,
+      persistentStorage: {
+        hasFingerprint: jest.fn().mockResolvedValue(false),
+        storeFingerprint: jest.fn().mockResolvedValue(),
+        hasUrl: jest.fn().mockResolvedValue(false),
+        addUrl: jest.fn().mockResolvedValue(),
+      },
     });
 
     // Set up browser and other dependencies
@@ -186,7 +193,7 @@ describe('Search and Retweet Logic', () => {
 
     // Should navigate to search URL first, regardless of retweet processing setting
     expect(mockBrowserService.goto).toHaveBeenCalledWith(
-      expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/),
+      expect.stringMatching(/https:\/\/x.com\/search\?q=\(from%3Atestuser\)/)
     );
 
     // Should then check for retweet processing
@@ -238,7 +245,7 @@ describe('Search and Retweet Logic', () => {
         tweetsFound: 1,
         newTweets: 1,
         stats: expect.any(Object),
-      }),
+      })
     );
   });
 });

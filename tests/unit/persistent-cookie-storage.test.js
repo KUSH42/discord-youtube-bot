@@ -20,11 +20,11 @@ describe('Persistent Cookie Storage', () => {
 
     mockConfig = {
       getRequired: jest.fn(
-        (key) =>
+        key =>
           ({
             TWITTER_USERNAME: 'testuser',
             TWITTER_PASSWORD: 'testpassword',
-          })[key],
+          })[key]
       ),
     };
 
@@ -159,7 +159,7 @@ describe('Persistent Cookie Storage', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Error validating saved cookies, falling back to login:',
-        expect.any(Error),
+        'Cookie setting error'
       );
       expect(loginSpy).toHaveBeenCalled();
     });
@@ -172,7 +172,10 @@ describe('Persistent Cookie Storage', () => {
 
       await expect(authManager.ensureAuthenticated()).rejects.toThrow('Authentication failed');
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Authentication process failed:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Non-recoverable authentication error:',
+        'State manager read error'
+      );
       expect(loginSpy).not.toHaveBeenCalled(); // Should fail before calling login
     });
   });

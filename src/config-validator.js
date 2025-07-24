@@ -36,6 +36,11 @@ export function validateEnvironmentVariables(env = process.env) {
     { name: 'X_QUERY_INTERVAL_MAX', defaultValue: '600000' },
     { name: 'ALLOWED_USER_IDS', defaultValue: null },
     { name: 'ANNOUNCE_OLD_TWEETS', defaultValue: 'false' },
+    { name: 'INITIALIZATION_WINDOW_HOURS', defaultValue: '24' },
+    { name: 'WEBHOOK_DEBUG_LOGGING', defaultValue: 'false' },
+    { name: 'YOUTUBE_USERNAME', defaultValue: null },
+    { name: 'YOUTUBE_PASSWORD', defaultValue: null },
+    { name: 'YOUTUBE_AUTHENTICATION_ENABLED', defaultValue: 'false' },
   ];
 
   const missing = [];

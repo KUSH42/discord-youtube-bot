@@ -1,24 +1,38 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import {
-  DuplicateDetector,
-  videoUrlRegex,
-  tweetUrlRegex,
-  createDuplicateDetector,
-} from '../../src/duplicate-detector.js';
+import { DuplicateDetector, videoUrlRegex, tweetUrlRegex } from '../../src/duplicate-detector.js';
 
 describe('Duplicate Detection Logic Tests', () => {
   let knownVideoIds, knownTweetIds;
   let duplicateDetector;
+  let mockPersistentStorage;
+  let mockLogger;
 
   beforeEach(() => {
     knownVideoIds = new Set();
     knownTweetIds = new Set();
-    duplicateDetector = new DuplicateDetector();
+
+    // Mock persistent storage
+    mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
+    };
+
+    // Mock logger
+    mockLogger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+
+    duplicateDetector = new DuplicateDetector(mockPersistentStorage, mockLogger);
   });
 
   afterEach(() => {
     if (duplicateDetector) {
-      duplicateDetector.destroy();
+      // No destroy method in current implementation
     }
   });
 
@@ -35,9 +49,9 @@ describe('Duplicate Detection Logic Tests', () => {
       let duplicateCount = 0;
       let uniqueCount = 0;
 
-      urls.forEach((url) => {
+      urls.forEach(url => {
         const matches = [...url.matchAll(videoUrlRegex)];
-        matches.forEach((match) => {
+        matches.forEach(match => {
           const extractedId = match[1];
           if (knownVideoIds.has(extractedId)) {
             duplicateCount++;
@@ -66,9 +80,9 @@ describe('Duplicate Detection Logic Tests', () => {
       let duplicateCount = 0;
       let uniqueCount = 0;
 
-      urls.forEach((url) => {
+      urls.forEach(url => {
         const matches = [...url.matchAll(tweetUrlRegex)];
-        matches.forEach((match) => {
+        matches.forEach(match => {
           const extractedId = match[1];
           if (knownTweetIds.has(extractedId)) {
             duplicateCount++;
@@ -87,17 +101,17 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should handle multiple unique IDs correctly', () => {
       const videoIds = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'oHg5SJYRHA0'];
-      const urls = videoIds.map((id) => `https://youtu.be/${id}`);
+      const urls = videoIds.map(id => `https://youtu.be/${id}`);
 
-      urls.forEach((url) => {
+      urls.forEach(url => {
         const matches = [...url.matchAll(videoUrlRegex)];
-        matches.forEach((match) => {
+        matches.forEach(match => {
           knownVideoIds.add(match[1]);
         });
       });
 
       expect(knownVideoIds.size).toBe(3);
-      videoIds.forEach((id) => {
+      videoIds.forEach(id => {
         expect(knownVideoIds.has(id)).toBe(true);
       });
     });
@@ -114,9 +128,9 @@ describe('Duplicate Detection Logic Tests', () => {
         'Third: https://x.com/user/status/3333333333',
       ];
 
-      testUrls.forEach((url) => {
+      testUrls.forEach(url => {
         const matches = [...url.matchAll(tweetUrlRegex)];
-        matches.forEach((match) => {
+        matches.forEach(match => {
           // Original buggy behavior (using match[2])
           const buggyId = match[2]; // undefined
           buggyKnownIds.add(buggyId);
@@ -170,10 +184,10 @@ describe('Duplicate Detection Logic Tests', () => {
       const detectedVideos = new Set();
       let totalMatches = 0;
 
-      urls.forEach((url) => {
+      urls.forEach(url => {
         const matches = [...url.matchAll(videoUrlRegex)];
         totalMatches += matches.length;
-        matches.forEach((match) => {
+        matches.forEach(match => {
           detectedVideos.add(match[1]);
         });
       });
@@ -196,10 +210,10 @@ describe('Duplicate Detection Logic Tests', () => {
       const detectedTweets = new Set();
       let totalMatches = 0;
 
-      urls.forEach((url) => {
+      urls.forEach(url => {
         const matches = [...url.matchAll(tweetUrlRegex)];
         totalMatches += matches.length;
-        matches.forEach((match) => {
+        matches.forEach(match => {
           detectedTweets.add(match[1]);
         });
       });
@@ -246,7 +260,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
     it('should handle Set deletion operation', () => {
       const videoIds = ['video1', 'video2', 'video3'];
-      videoIds.forEach((id) => knownVideoIds.add(id));
+      videoIds.forEach(id => knownVideoIds.add(id));
 
       expect(knownVideoIds.size).toBe(3);
 
@@ -287,7 +301,7 @@ describe('Duplicate Detection Logic Tests', () => {
         'https://x.com/user/status/notanumber',
       ];
 
-      malformedUrls.forEach((url) => {
+      malformedUrls.forEach(url => {
         const videoMatches = [...url.matchAll(videoUrlRegex)];
         const tweetMatches = [...url.matchAll(tweetUrlRegex)];
 
@@ -322,7 +336,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
       const start = performance.now();
 
-      duplicateIds.forEach((id) => {
+      duplicateIds.forEach(id => {
         if (uniqueSet.has(id)) {
           duplicateCount++;
         } else {
@@ -349,7 +363,7 @@ describe('Duplicate Detection Logic Tests', () => {
       const lookupTimes = [];
       const testItems = ['item1', 'item25000', 'item49999', 'nonexistent'];
 
-      testItems.forEach((item) => {
+      testItems.forEach(item => {
         const start = performance.now();
         largeSet.has(item);
         const end = performance.now();
@@ -405,7 +419,7 @@ describe('Duplicate Detection Logic Tests', () => {
             let startIndex = 0;
 
             if (before) {
-              const beforeIndex = allMessages.findIndex((msg) => msg.id === before);
+              const beforeIndex = allMessages.findIndex(msg => msg.id === before);
               if (beforeIndex !== -1) {
                 startIndex = beforeIndex + 1;
               }
@@ -415,11 +429,13 @@ describe('Duplicate Detection Logic Tests', () => {
 
             // Return a Map-like object similar to Discord.js Collection
             const resultMap = new Map();
-            messagesToReturn.forEach((msg) => resultMap.set(msg.id, msg));
+            messagesToReturn.forEach(msg => resultMap.set(msg.id, msg));
 
             return {
               size: resultMap.size,
               values: () => resultMap.values(),
+              [Symbol.iterator]: () => resultMap[Symbol.iterator](),
+              last: () => (resultMap.size > 0 ? Array.from(resultMap.values()).pop() : null),
             };
           }),
         },
@@ -488,11 +504,11 @@ describe('Duplicate Detection Logic Tests', () => {
 
       it('should throw error for invalid channel', async () => {
         await expect(duplicateDetector.scanDiscordChannelForVideos(null)).rejects.toThrow(
-          'Invalid Discord channel provided',
+          'Invalid Discord channel provided'
         );
 
         await expect(duplicateDetector.scanDiscordChannelForVideos({})).rejects.toThrow(
-          'Invalid Discord channel provided',
+          'Invalid Discord channel provided'
         );
       });
     });
@@ -512,13 +528,13 @@ describe('Duplicate Detection Logic Tests', () => {
         expect(results.errors).toHaveLength(0);
 
         // Verify IDs were added to known set
-        expect(duplicateDetector.isTweetIdKnown('1234567890123456789')).toBe(true);
-        expect(duplicateDetector.isTweetIdKnown('9876543210987654321')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://x.com/user/status/1234567890123456789')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://x.com/user/status/9876543210987654321')).toBe(true);
       });
 
       it('should not add duplicate tweet IDs', async () => {
         // Pre-add one tweet ID
-        duplicateDetector.addTweetId('1234567890123456789');
+        await duplicateDetector.markAsSeen('https://x.com/user/status/1234567890123456789');
 
         const results = await duplicateDetector.scanDiscordChannelForTweets(mockDiscordChannel, 100);
 
@@ -537,14 +553,26 @@ describe('Duplicate Detection Logic Tests', () => {
               .mockResolvedValueOnce({
                 size: 2,
                 values: () => [mockMessages.get('msg1'), mockMessages.get('msg2')].values(),
+                *[Symbol.iterator]() {
+                  yield ['msg1', mockMessages.get('msg1')];
+                  yield ['msg2', mockMessages.get('msg2')];
+                },
+                last: () => mockMessages.get('msg2'),
               })
               .mockResolvedValueOnce({
                 size: 2,
                 values: () => [mockMessages.get('msg3'), mockMessages.get('msg4')].values(),
+                *[Symbol.iterator]() {
+                  yield ['msg3', mockMessages.get('msg3')];
+                  yield ['msg4', mockMessages.get('msg4')];
+                },
+                last: () => mockMessages.get('msg4'),
               })
               .mockResolvedValueOnce({
                 size: 0,
                 values: () => [].values(),
+                *[Symbol.iterator]() {},
+                last: () => null,
               }),
           },
         };
@@ -565,9 +593,9 @@ describe('Duplicate Detection Logic Tests', () => {
         await duplicateDetector.scanDiscordChannelForVideos(mockDiscordChannel, 100);
 
         // Test duplicate detection
-        expect(duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
-        expect(duplicateDetector.isDuplicate('https://youtu.be/oHg5SJYRHA0')).toBe(true);
-        expect(duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=newVideoId123')).toBe(false);
+        expect(await duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://youtu.be/oHg5SJYRHA0')).toBe(true);
+        expect(await duplicateDetector.isDuplicate('https://www.youtube.com/watch?v=newVideoId123')).toBe(false);
       });
 
       it('should work with existing markAsSeen method', async () => {
@@ -576,10 +604,10 @@ describe('Duplicate Detection Logic Tests', () => {
 
         // Add a new video
         const newVideoUrl = 'https://www.youtube.com/watch?v=newVideoId123';
-        expect(duplicateDetector.isDuplicate(newVideoUrl)).toBe(false);
+        expect(await duplicateDetector.isDuplicate(newVideoUrl)).toBe(false);
 
-        duplicateDetector.markAsSeen(newVideoUrl);
-        expect(duplicateDetector.isDuplicate(newVideoUrl)).toBe(true);
+        await duplicateDetector.markAsSeen(newVideoUrl);
+        expect(await duplicateDetector.isDuplicate(newVideoUrl)).toBe(true);
       });
 
       it('should maintain statistics correctly after scanning', async () => {

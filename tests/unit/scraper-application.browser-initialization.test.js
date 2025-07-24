@@ -42,7 +42,7 @@ describe('Browser Initialization', () => {
 
     // Mock config
     mockConfig = {
-      getRequired: jest.fn((key) => {
+      getRequired: jest.fn(key => {
         const values = {
           X_USER_HANDLE: 'testuser',
           TWITTER_USERNAME: 'testuser',
@@ -67,7 +67,7 @@ describe('Browser Initialization', () => {
 
     // Mock state manager
     mockStateManager = {
-      get: jest.fn((key) => {
+      get: jest.fn(key => {
         const values = {
           botStartTime: new Date('2024-01-01T00:00:00Z'),
         };
@@ -87,12 +87,20 @@ describe('Browser Initialization', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(), // Support logger.child() calls
     };
 
     // Mock auth manager
     const mockAuthManager = {
       ensureAuthenticated: jest.fn(),
       isAuthenticated: jest.fn().mockResolvedValue(true),
+    };
+
+    // Mock persistent storage
+    const mockPersistentStorage = {
+      read: jest.fn(),
+      write: jest.fn(),
+      exists: jest.fn().mockReturnValue(false),
     };
 
     // Create scraper application instance
@@ -105,6 +113,7 @@ describe('Browser Initialization', () => {
       eventBus: mockEventBus,
       logger: mockLogger,
       authManager: mockAuthManager,
+      persistentStorage: mockPersistentStorage,
     });
   });
 
@@ -120,11 +129,11 @@ describe('Browser Initialization', () => {
       expect.objectContaining({
         headless: false,
         args: expect.any(Array),
-      }),
+      })
     );
 
     expect(mockBrowserService.setUserAgent).toHaveBeenCalledWith(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     );
   });
 });

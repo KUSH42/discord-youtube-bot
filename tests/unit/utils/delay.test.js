@@ -2,7 +2,13 @@ import { jest } from '@jest/globals';
 import { delay } from '../../../src/utils/delay.js';
 
 describe('Delay Utility', () => {
-  jest.useFakeTimers();
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
   it('should wait for the specified duration', async () => {
     const duration = 1000;

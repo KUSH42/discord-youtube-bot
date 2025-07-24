@@ -45,7 +45,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
     };
 
     mockConfig = {
-      getRequired: jest.fn().mockImplementation((key) => {
+      getRequired: jest.fn().mockImplementation(key => {
         const values = {
           YOUTUBE_CHANNEL_ID: 'UCTestChannel',
           YOUTUBE_API_KEY: 'test-api-key',
@@ -55,6 +55,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       }),
       get: jest.fn().mockReturnValue('test-secret'),
       getNumber: jest.fn().mockReturnValue(300000),
+      getBoolean: jest.fn().mockReturnValue(false),
     };
 
     mockStateManager = {
@@ -70,6 +71,36 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnValue({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      }),
+    };
+
+    const mockPersistentStorage = {
+      hasFingerprint: jest.fn().mockResolvedValue(false),
+      storeFingerprint: jest.fn().mockResolvedValue(),
+      hasUrl: jest.fn().mockResolvedValue(false),
+      addUrl: jest.fn().mockResolvedValue(),
+      destroy: jest.fn().mockResolvedValue(),
+    };
+
+    const mockContentStateManager = {
+      getContentState: jest.fn().mockReturnValue({ isProcessed: false }),
+      setContentState: jest.fn(),
+      cleanupOldStates: jest.fn(),
+    };
+
+    const mockLivestreamStateMachine = {
+      transitionState: jest.fn(),
+      getCurrentState: jest.fn().mockReturnValue('published'),
+    };
+
+    const mockContentCoordinator = {
+      processContent: jest.fn().mockResolvedValue({ processed: true }),
     };
 
     const dependencies = {
@@ -81,20 +112,36 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       stateManager: mockStateManager,
       eventBus: mockEventBus,
       logger: mockLogger,
+      persistentStorage: mockPersistentStorage,
+      contentStateManager: mockContentStateManager,
+      livestreamStateMachine: mockLivestreamStateMachine,
+      contentCoordinator: mockContentCoordinator,
     };
 
     monitorApp = new MonitorApplication(dependencies);
+
+    // Clear DuplicateDetector cache at the start of each test
+    if (monitorApp && monitorApp.duplicateDetector) {
+      monitorApp.duplicateDetector.destroy();
+    }
   });
 
   afterEach(() => {
     jest.useRealTimers();
     jest.clearAllMocks();
+
+    // Clear DuplicateDetector cache to prevent test interference
+    if (monitorApp && monitorApp.duplicateDetector) {
+      monitorApp.duplicateDetector.destroy();
+    }
   });
 
   describe('Error-Triggered Fallback Integration', () => {
     it('should trigger fallback when webhook processing fails due to XML parsing error', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue(null);
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
 
@@ -114,7 +161,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should trigger fallback when webhook processing fails due to video details API error', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
       mockYoutubeService.getVideoDetails.mockRejectedValue(new Error('API Error'));
@@ -140,7 +189,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should trigger fallback when webhook processing fails due to video processing error', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'processVideo').mockRejectedValue(new Error('Processing Error'));
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
@@ -169,7 +220,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should NOT trigger fallback when webhook processing succeeds completely', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'processVideo').mockResolvedValue();
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
@@ -194,7 +247,9 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
     it('should handle multiple notification errors with only one fallback scheduled', async () => {
       // Setup
-      jest.spyOn(monitorApp, 'verifyWebhookSignature').mockReturnValue(true);
+      jest
+        .spyOn(monitorApp, 'verifyWebhookSignatureDebug')
+        .mockReturnValue({ isValid: true, details: { method: 'sha1' } });
       jest.spyOn(monitorApp, 'parseNotificationXML').mockReturnValue({ videoId: 'test123' });
       jest.spyOn(monitorApp, 'performApiFallback').mockResolvedValue();
       mockYoutubeService.getVideoDetails.mockRejectedValue(new Error('API Error'));
@@ -341,7 +396,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
 
       // Verify duplicate was detected and skipped
       expect(monitorApp.duplicateDetector.isDuplicate).toHaveBeenCalledWith(
-        'https://www.youtube.com/watch?v=duplicate-video',
+        'https://www.youtube.com/watch?v=duplicate-video'
       );
       expect(mockLogger.debug).toHaveBeenCalledWith('Duplicate video detected: Duplicate Video (duplicate-video)');
       expect(mockContentAnnouncer.announceContent).not.toHaveBeenCalled();
@@ -375,7 +430,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
           type: 'livestream',
           id: 'classified-video',
           isLive: true,
-        }),
+        })
       );
     });
 
@@ -405,7 +460,7 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
           }),
           source: 'api-fallback',
           timestamp: expect.any(Date),
-        }),
+        })
       );
     });
   });
