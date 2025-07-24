@@ -3,12 +3,17 @@ import fs from 'fs';
 import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
 
+// Global singleton check to prevent multiple BotApplication instances from processing messages
+const activeBotApplicationInstance = null;
+
 /**
  * Main bot application orchestrator
  * Coordinates Discord client, command processing, and event handling
  */
 export class BotApplication {
   constructor(dependencies) {
+    // Add unique instance ID for debugging
+    this.instanceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.exec = dependencies.exec || defaultExec;
     this.scraperApplication = dependencies.scraperApplication;
     this.monitorApplication = dependencies.monitorApplication;
@@ -19,6 +24,12 @@ export class BotApplication {
     this.config = dependencies.config;
     this.state = dependencies.stateManager;
     this.logger = dependencies.logger;
+
+    // Log BotApplication instance creation
+    this.logger.info('BotApplication instance created', {
+      botInstanceId: this.instanceId,
+      discordClientInstanceId: this.discord.client?._botInstanceId || 'unknown',
+    });
 
     // Initialize rate limiter for commands
     this.commandRateLimit = new CommandRateLimit(5, 60000); // 5 commands per minute
@@ -78,11 +89,18 @@ export class BotApplication {
    */
   async start() {
     if (this.isRunning) {
+      this.logger.warn('Bot application is already running, ignoring start() call', {
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
       throw new Error('Bot application is already running');
     }
 
     try {
-      this.logger.info('Starting bot application...');
+      this.logger.info('Starting bot application...', {
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
 
       // Login to Discord
       const token = this.config.getRequired('DISCORD_BOT_TOKEN');
@@ -216,6 +234,19 @@ export class BotApplication {
    * Set up Discord event handlers
    */
   setupEventHandlers() {
+    this.logger.info('Setting up Discord event handlers', {
+      existingHandlerCount: this.eventCleanup.length,
+      instanceId: this.discord.client?._botInstanceId || 'unknown',
+    });
+
+    // Check if handlers are already set up
+    if (this.eventCleanup.length > 0) {
+      this.logger.warn('Event handlers already exist! This might cause duplicates', {
+        existingHandlerCount: this.eventCleanup.length,
+        instanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
+    }
+
     // Message handler
     const messageHandler = async message => {
       await this.handleMessage(message);
@@ -235,6 +266,11 @@ export class BotApplication {
     this.eventCleanup.push(this.discord.onMessage(messageHandler));
     this.eventCleanup.push(this.discord.onReady(readyHandler));
     this.eventCleanup.push(this.discord.onError(errorHandler));
+
+    this.logger.info('Discord event handlers registered', {
+      totalHandlerCount: this.eventCleanup.length,
+      instanceId: this.discord.client?._botInstanceId || 'unknown',
+    });
 
     // State change handlers
     this.eventCleanup.push(
@@ -315,21 +351,23 @@ export class BotApplication {
       const command = args.shift().toLowerCase();
       const user = message.author;
 
-      // Debug: Track message processing to detect duplicates
+      // Debug: Track message processing to detect and PREVENT duplicates
       const messageKey = `${message.id}-${command}`;
       const processingCount = (this.messageProcessingCounter.get(messageKey) || 0) + 1;
       this.messageProcessingCounter.set(messageKey, processingCount);
 
       if (processingCount > 1) {
-        this.logger.error('DUPLICATE COMMAND EXECUTION DETECTED!', {
+        this.logger.error('DUPLICATE COMMAND EXECUTION PREVENTED!', {
           messageId: message.id,
           command,
           processingCount,
           userId: user.id,
           instanceId: this.discord.client?._botInstanceId || 'unknown',
           clientId: currentBotUser?.id,
+          action: 'BLOCKED_DUPLICATE_PROCESSING',
         });
-        // Still process the command but log the issue
+        // PREVENT duplicate processing by returning early
+        return;
       }
 
       // Only process messages in the support channel or from admin in any other channel
@@ -371,8 +409,8 @@ export class BotApplication {
         userId: user.id,
         messageId: message.id,
         clientId: currentBotUser?.id,
-        handlerInstance: this.constructor.name,
-        instanceId: this.discord.client?._botInstanceId || 'unknown',
+        botInstanceId: this.instanceId,
+        discordInstanceId: this.discord.client?._botInstanceId || 'unknown',
         isReady: this.discord.isReady(),
       });
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
@@ -438,8 +476,9 @@ export class BotApplication {
         );
       }
 
-      // Handle restart request
+      // Handle restart request (consume the flag)
       if (result.requiresRestart) {
+        result.requiresRestart = false; // Consume the flag to prevent duplicate processing
         try {
           await message.channel.send('✅ Full restart initiated. See you in a moment!');
           await this.softRestart();
@@ -450,6 +489,7 @@ export class BotApplication {
       }
 
       if (result.requiresUpdate) {
+        result.requiresUpdate = false; // Consume the flag to prevent duplicate processing
         await this.handleUpdate(message);
       }
 
@@ -458,9 +498,12 @@ export class BotApplication {
         this.handleLogLevelChange(result.newLogLevel);
       }
 
-      // Handle scraper actions
+      // Handle scraper actions (consume the flag)
       if (result.scraperAction) {
-        await this.handleScraperAction(result.scraperAction, result.userId, message);
+        const { scraperAction } = result;
+        const { userId } = result;
+        result.scraperAction = null; // Consume the flag to prevent duplicate processing
+        await this.handleScraperAction(scraperAction, userId, message);
       }
     } catch (error) {
       this.logger.error('Error handling command result:', error);
