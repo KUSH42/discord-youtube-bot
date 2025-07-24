@@ -263,9 +263,9 @@ export class YouTubeScraperService {
         }
       }
 
-      this.logger.debug('No cookie consent banner found');
+      this.logger.info('No cookie consent banner found');
     } catch (error) {
-      this.logger.debug('Error handling cookie consent:', error.message);
+      this.logger.warn('Error handling cookie consent:', error.message);
     }
   }
 
@@ -650,14 +650,17 @@ export class YouTubeScraperService {
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
+          const videoInfo = {
+            strategy: latestVideo.strategy,
+            videoId: latestVideo.id,
+            title: latestVideo.title,
+            publishedText: latestVideo.publishedText,
+            url: latestVideo.url,
+          };
           this.logger.info(
             'Successfully scraped latest video',
             JSON.stringify({
-              strategy: latestVideo.strategy,
-              videoId: latestVideo.id,
-              title: latestVideo.title,
-              publishedText: latestVideo.publishedText,
-              url: latestVideo.url,
+              videoInfo,
             })
           );
         } else {
