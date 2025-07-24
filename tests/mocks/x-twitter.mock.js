@@ -129,7 +129,7 @@ export const mockXCookies = [
     value: 'mock-auth-token-value',
     domain: '.x.com',
     path: '/',
-    expires: Date.now() + 86400000, // 24 hours
+    expires: timestampUTC() + 86400000, // 24 hours
     httpOnly: true,
     secure: true,
   },
@@ -138,7 +138,7 @@ export const mockXCookies = [
     value: 'mock-csrf-token',
     domain: '.x.com',
     path: '/',
-    expires: Date.now() + 86400000,
+    expires: timestampUTC() + 86400000,
     httpOnly: false,
     secure: true,
   },

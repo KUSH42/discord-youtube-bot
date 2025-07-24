@@ -40,14 +40,14 @@ async function startBot() {
     // Listen for bot initialization completion event to enable comprehensive logging
     const eventBus = container.resolve('eventBus');
     const contentStateManager = container.resolve('contentStateManager');
-    
-    eventBus.on('bot.initialization.complete', (event) => {
+
+    eventBus.on('bot.initialization.complete', event => {
       logger.info('Bot initialization complete - enabling comprehensive content evaluation logging', {
         timestamp: event.timestamp,
         historyScanned: event.historyScanned,
         error: event.error,
       });
-      
+
       contentStateManager.markFullyInitialized();
     });
 

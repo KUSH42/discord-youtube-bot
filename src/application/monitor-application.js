@@ -1,6 +1,6 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import crypto from 'crypto';
-import { nowUTC, toISOStringUTC, timestampUTC } from '../utilities/utc-time.js';
+import { nowUTC, toISOStringUTC } from '../utilities/utc-time.js';
 
 /**
  * YouTube monitoring application orchestrator
@@ -367,7 +367,7 @@ export class MonitorApplication {
    * @returns {Promise<Object>} Response object
    */
   async handleWebhook(request) {
-    const startTime = timestampUTC();
+    const startTime = Date.now();
 
     try {
       this.stats.webhooksReceived++;

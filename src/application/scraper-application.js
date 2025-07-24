@@ -1,6 +1,6 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import { delay } from '../utils/delay.js';
-import { nowUTC, toISOStringUTC, timestampUTC, daysAgoUTC, hoursAgoUTC } from '../utilities/utc-time.js';
+import { nowUTC, toISOStringUTC, daysAgoUTC } from '../utilities/utc-time.js';
 
 /**
  * X (Twitter) scraping application orchestrator
@@ -419,7 +419,7 @@ export class ScraperApplication {
    */
   scheduleNextPoll() {
     const interval = this.getNextInterval();
-    this.nextPollTimestamp = timestampUTC() + interval;
+    this.nextPollTimestamp = Date.now() + interval;
     this.timerId = setTimeout(async () => {
       if (!this.isRunning) {
         return;
@@ -441,7 +441,7 @@ export class ScraperApplication {
    */
   scheduleRetry() {
     const retryInterval = Math.min(this.maxInterval, this.minInterval * 2);
-    this.nextPollTimestamp = timestampUTC() + retryInterval;
+    this.nextPollTimestamp = Date.now() + retryInterval;
     this.timerId = setTimeout(async () => {
       if (!this.isRunning) {
         return;
@@ -560,8 +560,8 @@ export class ScraperApplication {
       });
 
       const nextInterval = this.getNextInterval();
-      const nextRunTime = new Date(timestampUTC() + nextInterval);
-      const nextRunTimeFormatted = nextRunTime.toLocaleTimeString('en-US', {
+      const nextRunTime = new Date(Date.now() + nextInterval);
+      const nextRunTimeFormatted = nextRunTime.toISOString('en-US', {
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
@@ -854,7 +854,7 @@ export class ScraperApplication {
     // Check: Is the content too old based on configurable backoff duration?
     const backoffHours = this.config.get('CONTENT_BACKOFF_DURATION_HOURS', '2'); // Default 2 hours
     const backoffMs = parseInt(backoffHours) * 60 * 60 * 1000;
-    const cutoffTime = new Date(timestampUTC() - backoffMs);
+    const cutoffTime = new Date(Date.now() - backoffMs);
 
     if (tweet.timestamp) {
       const tweetTime = new Date(tweet.timestamp);
@@ -1233,7 +1233,7 @@ export class ScraperApplication {
       // Scan recent content based on configuration to mark as seen
       const initializationHours = parseInt(this.config.get('INITIALIZATION_WINDOW_HOURS', '24'), 10);
       const initializationWindow = initializationHours * 60 * 60 * 1000; // Convert hours to milliseconds
-      const cutoffTime = new Date(timestampUTC() - initializationWindow);
+      const cutoffTime = new Date(Date.now() - initializationWindow);
 
       // Navigate to user's profile to get recent content
       await this.navigateToProfileTimeline(this.xUser);

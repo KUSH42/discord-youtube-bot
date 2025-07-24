@@ -131,7 +131,7 @@ describe('ScraperApplication Content Detection', () => {
           tweetID: '1',
           url: 'https://x.com/user/status/1',
           text: 'Old tweet',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+          timestamp: new Date(timestampUTC() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
         },
         {
           tweetID: '2',
@@ -181,7 +181,7 @@ describe('ScraperApplication Content Detection', () => {
           tweetID: '1',
           url: 'https://x.com/user/status/1',
           text: 'Old tweet',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          timestamp: new Date(timestampUTC() - 5 * 60 * 60 * 1000).toISOString(),
         },
       ];
 
@@ -207,7 +207,7 @@ describe('ScraperApplication Content Detection', () => {
       const tweet = {
         tweetID: '1',
         url: 'https://x.com/user/status/1',
-        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // Very old
+        timestamp: new Date(timestampUTC() - 5 * 60 * 60 * 1000).toISOString(), // Very old
       };
 
       const result = scraperApp.isNewContent(tweet);
@@ -243,7 +243,7 @@ describe('ScraperApplication Content Detection', () => {
       const tweet = {
         tweetID: '1',
         url: 'https://x.com/user/status/1',
-        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
+        timestamp: new Date(timestampUTC() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
       };
 
       const result = scraperApp.isNewContent(tweet);
@@ -264,7 +264,7 @@ describe('ScraperApplication Content Detection', () => {
       const tweet = {
         tweetID: '1',
         url: 'https://x.com/user/status/1',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+        timestamp: new Date(timestampUTC() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
       };
 
       const result = scraperApp.isNewContent(tweet);
@@ -300,7 +300,7 @@ describe('ScraperApplication Content Detection', () => {
       const tweet = {
         tweetID: '1',
         url: 'https://x.com/user/status/1',
-        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
+        timestamp: new Date(timestampUTC() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
       };
 
       const result = scraperApp.isNewContent(tweet);

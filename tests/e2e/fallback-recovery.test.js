@@ -49,7 +49,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       YOUTUBE_API_POLL_INTERVAL_MS: 5000, // Shorter for testing
 
       // State
-      lastSuccessfulCheck: new Date(Date.now() - 60000), // 1 minute ago
+      lastSuccessfulCheck: new Date(timestampUTC() - 60000), // 1 minute ago
       failedNotifications: new Map(),
       recentFailures: [],
       fallbackInProgress: false,
@@ -504,7 +504,7 @@ async function performApiFallbackImpl() {
   this.fallbackMetrics.totalApiFallbackExecutions++;
 
   try {
-    const backfillStart = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+    const backfillStart = new Date(timestampUTC() - 2 * 60 * 60 * 1000); // 2 hours ago
     const publishedAfter = this.lastSuccessfulCheck > backfillStart ? this.lastSuccessfulCheck : backfillStart;
 
     const searchResponse = await this.youtube.search.list({

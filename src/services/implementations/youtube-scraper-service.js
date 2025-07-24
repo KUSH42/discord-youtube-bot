@@ -1,6 +1,7 @@
 import { PlaywrightBrowserService } from './playwright-browser-service.js';
 import { AsyncMutex } from '../../utilities/async-mutex.js';
 import { parseRelativeTime } from '../../utilities/time-parser.js';
+import { nowUTC } from '../../utilities/utc-time.js';
 
 /**
  * YouTube web scraper service for near-instantaneous content detection
@@ -683,7 +684,7 @@ export class YouTubeScraperService {
         this.metrics.failedScrapes++;
         this.metrics.lastError = {
           message: error.message,
-          timestamp: new Date(),
+          timestamp: nowUTC(),
         };
 
         this.logger.warn('Failed to scrape YouTube channel', {

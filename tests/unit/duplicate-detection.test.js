@@ -543,7 +543,7 @@ describe('Duplicate Detection Logic Tests', () => {
       });
 
       it('should handle rate limiting with delays', async () => {
-        const startTime = Date.now();
+        const startTime = timestampUTC();
 
         // Mock a channel with multiple batches
         const largeMockChannel = {
@@ -579,7 +579,7 @@ describe('Duplicate Detection Logic Tests', () => {
 
         await duplicateDetector.scanDiscordChannelForTweets(largeMockChannel, 200);
 
-        const elapsed = Date.now() - startTime;
+        const elapsed = timestampUTC() - startTime;
 
         // Should have included delays between batches (at least 200ms total)
         expect(elapsed).toBeGreaterThan(150);

@@ -33,13 +33,13 @@ describe('UserAgentManager', () => {
       const originalUserAgent = userAgentManager.getCurrentUserAgent();
 
       // Simulate time passage beyond rotation interval
-      userAgentManager.lastRotation = Date.now() - (userAgentManager.rotationInterval + 1000);
+      userAgentManager.lastRotation = timestampUTC() - (userAgentManager.rotationInterval + 1000);
 
       const newUserAgent = userAgentManager.getCurrentUserAgent();
 
       // Note: There's a small chance they could be the same due to random selection
       // But we can test that rotation logic was triggered
-      expect(userAgentManager.lastRotation).toBeGreaterThan(Date.now() - 1000);
+      expect(userAgentManager.lastRotation).toBeGreaterThan(timestampUTC() - 1000);
     });
   });
 
@@ -65,7 +65,7 @@ describe('UserAgentManager', () => {
     });
 
     it('should update last rotation timestamp', () => {
-      const beforeRotation = Date.now();
+      const beforeRotation = timestampUTC();
 
       userAgentManager.rotateUserAgent();
 
@@ -261,7 +261,7 @@ describe('UserAgentManager', () => {
     });
 
     it('should update last rotation timestamp', () => {
-      const beforeSet = Date.now();
+      const beforeSet = timestampUTC();
 
       userAgentManager.setUserAgentByIndex(1);
 

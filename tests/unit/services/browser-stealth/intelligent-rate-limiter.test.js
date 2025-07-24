@@ -318,7 +318,7 @@ describe('IntelligentRateLimiter', () => {
     it('should not wait if sufficient time has passed', async () => {
       // Record a request and then mock time passage
       rateLimiter.recordRequest(true);
-      rateLimiter.lastRequestTime = Date.now() - 120000; // 2 minutes ago
+      rateLimiter.lastRequestTime = timestampUTC() - 120000; // 2 minutes ago
 
       const waitTime = await rateLimiter.waitForNextRequest();
 
@@ -409,7 +409,7 @@ describe('IntelligentRateLimiter', () => {
 
     it('should calculate average from recent requests', () => {
       // Add requests with known timing
-      const baseTime = Date.now();
+      const baseTime = timestampUTC();
       rateLimiter.sessionHistory = [baseTime, baseTime + 10000, baseTime + 25000, baseTime + 40000];
 
       const average = rateLimiter.calculateAverageInterval();

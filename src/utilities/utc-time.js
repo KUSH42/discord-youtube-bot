@@ -104,7 +104,7 @@ export function daysAgoUTC(days) {
  * @returns {Date} UTC Date N hours ago
  */
 export function hoursAgoUTC(hours) {
-  return new Date(Date.now() - hours * 60 * 60 * 1000);
+  return new Date(timestampUTC() - hours * 60 * 60 * 1000);
 }
 
 /**
@@ -113,7 +113,7 @@ export function hoursAgoUTC(hours) {
  * @returns {Date} UTC Date N minutes ago
  */
 export function minutesAgoUTC(minutes) {
-  return new Date(Date.now() - minutes * 60 * 1000);
+  return new Date(timestampUTC() - minutes * 60 * 1000);
 }
 
 /**
@@ -122,5 +122,5 @@ export function minutesAgoUTC(minutes) {
  * @returns {Date} UTC Date N seconds ago
  */
 export function secondsAgoUTC(seconds) {
-  return new Date(Date.now() - seconds * 1000);
+  return new Date(timestampUTC() - seconds * 1000);
 }

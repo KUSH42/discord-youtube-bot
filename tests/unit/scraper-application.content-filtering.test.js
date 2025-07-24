@@ -70,7 +70,7 @@ describe('Content Filtering Logic', () => {
     mockStateManager = {
       get: jest.fn(key => {
         const values = {
-          botStartTime: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
+          botStartTime: new Date(timestampUTC() - 60 * 60 * 1000), // 1 hour ago
         };
         return values[key];
       }),
@@ -146,7 +146,7 @@ describe('Content Filtering Logic', () => {
 
       const oldTweet = {
         tweetID: '1234567890123456789',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago (older than 2h backoff)
+        timestamp: new Date(timestampUTC() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago (older than 2h backoff)
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
@@ -159,7 +159,7 @@ describe('Content Filtering Logic', () => {
 
       const oldTweet = {
         tweetID: '1234567890123456789',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago (older than 2h backoff)
+        timestamp: new Date(timestampUTC() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago (older than 2h backoff)
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
@@ -172,7 +172,7 @@ describe('Content Filtering Logic', () => {
 
       const newTweet = {
         tweetID: '1234567890123456781',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago (within 2h backoff)
+        timestamp: new Date(timestampUTC() - 30 * 60 * 1000).toISOString(), // 30 minutes ago (within 2h backoff)
         url: 'https://x.com/testuser/status/1234567890123456781',
       };
 
@@ -185,7 +185,7 @@ describe('Content Filtering Logic', () => {
 
       const tweet = {
         tweetID: '1234567890123456789',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+        timestamp: new Date(timestampUTC() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 

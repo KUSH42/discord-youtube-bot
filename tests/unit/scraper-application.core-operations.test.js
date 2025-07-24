@@ -433,7 +433,7 @@ describe('ScraperApplication Core Operations', () => {
 
     it('should stop polling and clear timer', () => {
       scraperApp.timerId = setTimeout(() => {}, 1000);
-      scraperApp.nextPollTimestamp = Date.now();
+      scraperApp.nextPollTimestamp = timestampUTC();
 
       scraperApp.stopPolling();
 

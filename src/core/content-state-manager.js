@@ -1,3 +1,5 @@
+import { nowUTC } from '../utilities/utc-time.js';
+
 /**
  * Unified Content State Management System
  * Replaces dual-logic inconsistency with single source of truth
@@ -32,7 +34,7 @@ export class ContentStateManager {
 
       for (const [contentId, state] of Object.entries(storedStates || {})) {
         // Only load recent states to prevent memory bloat
-        const age = Date.now() - new Date(state.lastUpdated).getTime();
+        const age = nowUTC().getTime() - new Date(state.lastUpdated).getTime();
         const maxAge = this.getMaxContentAgeMs();
 
         if (age <= maxAge * 2) {
@@ -63,7 +65,7 @@ export class ContentStateManager {
   markFullyInitialized() {
     this.isFullyInitialized = true;
     this.initializationTime = new Date();
-    
+
     this.logger.info('Content state manager marked as fully initialized - comprehensive logging enabled', {
       initializationTime: this.initializationTime.toISOString(),
       botStartTime: this.botStartTime.toISOString(),
@@ -233,13 +235,13 @@ export class ContentStateManager {
     if (this.isFullyInitialized) {
       // Comprehensive logging after full initialization - this helps catch issues like the one we just fixed
       const decision = shouldAllow ? '✅ ALLOW' : '❌ REJECT';
-      const reason = !isWithinAgeLimit 
-        ? 'content too old' 
-        : !isAfterBotStart && timeSinceBotStart > (5 * 60 * 1000)
-        ? 'published before bot start (outside grace period)'
-        : shouldAllow
-        ? 'within criteria'
-        : 'unknown';
+      const reason = !isWithinAgeLimit
+        ? 'content too old'
+        : !isAfterBotStart && timeSinceBotStart > 5 * 60 * 1000
+          ? 'published before bot start (outside grace period)'
+          : shouldAllow
+            ? 'within criteria'
+            : 'unknown';
 
       this.logger.debug(`Content evaluation: ${decision} - ${reason}`, {
         ...logData,
@@ -316,7 +318,7 @@ export class ContentStateManager {
   async cleanup(olderThanHours) {
     const maxAge = olderThanHours ? olderThanHours * 60 * 60 * 1000 : this.getMaxContentAgeMs() * 2; // Default to 2x max age
 
-    const cutoffTime = Date.now() - maxAge;
+    const cutoffTime = nowUTC().getTime() - maxAge;
     const toRemove = [];
 
     for (const [contentId, state] of this.contentStates.entries()) {

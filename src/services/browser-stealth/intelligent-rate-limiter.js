@@ -9,7 +9,6 @@ import {
   getCurrentDayUTC,
   isNightTimeUTC,
   isWeekendUTC,
-  timestampUTC,
 } from '../../utilities/utc-time.js';
 
 export class IntelligentRateLimiter {

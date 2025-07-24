@@ -154,16 +154,16 @@ describe('Timezone Safety ESLint Rules', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle Date.now() appropriately', async () => {
+    it('should handle timestampUTC() appropriately', async () => {
       const code = `
-        const timestamp = Date.now(); // Should be OK for numeric timestamps
-        const dateObj = new Date(Date.now()); // Should suggest alternatives
+        const timestamp = timestampUTC(); // Should be OK for numeric timestamps
+        const dateObj = new Date(timestampUTC()); // Should suggest alternatives
       `;
 
       const results = await eslint.lintText(code, { filePath: 'src/test.js' });
       const { messages } = results[0];
 
-      // Should have some violations but not flag Date.now() itself when used appropriately
+      // Should have some violations but not flag timestampUTC() itself when used appropriately
       expect(messages.length).toBeGreaterThanOrEqual(0);
     });
 

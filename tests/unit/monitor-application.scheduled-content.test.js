@@ -321,7 +321,7 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
 
     it('should skip polling during quota backoff period', async () => {
       // Set recent quota error
-      monitorApp.lastQuotaError = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
+      monitorApp.lastQuotaError = timestampUTC() - 2 * 60 * 60 * 1000; // 2 hours ago
 
       await monitorApp.pollScheduledContent();
 
@@ -337,7 +337,7 @@ describe('MonitorApplication - Scheduled Content Polling', () => {
 
     it('should resume polling after quota backoff period expires', async () => {
       // Set old quota error (beyond backoff period)
-      monitorApp.lastQuotaError = Date.now() - 5 * 60 * 60 * 1000; // 5 hours ago
+      monitorApp.lastQuotaError = timestampUTC() - 5 * 60 * 60 * 1000; // 5 hours ago
 
       await monitorApp.pollScheduledContent();
 

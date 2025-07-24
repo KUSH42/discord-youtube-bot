@@ -261,14 +261,14 @@ describe('ScraperApplication Initialization', () => {
     });
 
     it('should return false for very old tweets', () => {
-      const oldDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
+      const oldDate = new Date(timestampUTC() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
       const tweet = { tweetID: '1111111111111111111', timestamp: oldDate.toISOString() };
 
       expect(scraperApp.isNewContent(tweet)).toBe(false);
     });
 
     it('should return true for recent unknown tweets', () => {
-      const recentDate = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+      const recentDate = new Date(timestampUTC() - 2 * 60 * 60 * 1000); // 2 hours ago
       const tweet = { tweetID: '2222222222222222222', timestamp: recentDate.toISOString() };
 
       expect(scraperApp.isNewContent(tweet)).toBe(true);
@@ -296,7 +296,7 @@ describe('ScraperApplication Initialization', () => {
 
       const veryOldTweet = {
         tweetID: '4444444444444444444',
-        timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+        timestamp: new Date(timestampUTC() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
       };
 
       expect(scraperApp.isNewContent(veryOldTweet)).toBe(true);

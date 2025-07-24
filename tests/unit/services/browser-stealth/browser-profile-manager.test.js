@@ -247,7 +247,7 @@ describe('BrowserProfileManager', () => {
       const expiredProfile = {
         id: 'expired-profile',
         created: new Date(),
-        lastUsed: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
+        lastUsed: new Date(timestampUTC() - 25 * 60 * 60 * 1000), // 25 hours ago
         sessionCount: 1,
         tags: ['x-monitoring'],
       };
@@ -542,7 +542,7 @@ describe('BrowserProfileManager', () => {
 
   describe('cleanupExpiredProfiles', () => {
     it('should delete expired profiles', async () => {
-      const now = Date.now();
+      const now = timestampUTC();
       const expiredProfile = {
         id: 'expired-profile',
         lastUsed: new Date(now - 31 * 24 * 60 * 60 * 1000), // 31 days ago
@@ -568,7 +568,7 @@ describe('BrowserProfileManager', () => {
     it('should handle cleanup errors gracefully', async () => {
       const expiredProfile = {
         id: 'expired-profile',
-        lastUsed: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+        lastUsed: new Date(timestampUTC() - 31 * 24 * 60 * 60 * 1000),
       };
       profileManager.profileMetadata.set('expired-profile', expiredProfile);
 
@@ -615,7 +615,7 @@ describe('BrowserProfileManager', () => {
 
   describe('getProfileStats', () => {
     it('should return profile statistics', () => {
-      const now = Date.now();
+      const now = timestampUTC();
       const freshProfile = {
         lastUsed: new Date(now - 12 * 60 * 60 * 1000), // 12 hours
         sessionCount: 10,

@@ -190,12 +190,12 @@ class UserAgentManager {
     
     this.currentIndex = Math.floor(Math.random() * this.userAgentPool.length);
     this.rotationInterval = 3600000; // 1 hour
-    this.lastRotation = Date.now();
+    this.lastRotation = timestampUTC();
   }
   
   getCurrentUserAgent() {
     // Rotate user agent periodically
-    if (Date.now() - this.lastRotation > this.rotationInterval) {
+    if (timestampUTC() - this.lastRotation > this.rotationInterval) {
       this.rotateUserAgent();
     }
     return this.userAgentPool[this.currentIndex];
@@ -203,7 +203,7 @@ class UserAgentManager {
   
   rotateUserAgent() {
     this.currentIndex = (this.currentIndex + 1) % this.userAgentPool.length;
-    this.lastRotation = Date.now();
+    this.lastRotation = timestampUTC();
   }
   
   getMatchingViewport(userAgent) {
@@ -393,14 +393,14 @@ class IntelligentRateLimiter {
   
   isActiveSession() {
     const recentRequests = this.sessionHistory.filter(
-      timestamp => Date.now() - timestamp < 600000 // Last 10 minutes
+      timestamp => timestampUTC() - timestamp < 600000 // Last 10 minutes
     );
     return recentRequests.length > 3;
   }
   
   calculateBurstPenalty() {
     const recentRequests = this.sessionHistory.filter(
-      timestamp => Date.now() - timestamp < 300000 // Last 5 minutes
+      timestamp => timestampUTC() - timestamp < 300000 // Last 5 minutes
     );
     
     // Reduced penalty threshold to maintain timely updates while preventing abuse
@@ -411,7 +411,7 @@ class IntelligentRateLimiter {
   }
   
   recordRequest() {
-    this.sessionHistory.push(Date.now());
+    this.sessionHistory.push(timestampUTC());
     
     // Keep only last 50 requests
     if (this.sessionHistory.length > 50) {
@@ -824,7 +824,7 @@ class DetectionMonitor {
   
   recordDetectionIncident() {
     const incident = {
-      timestamp: Date.now(),
+      timestamp: timestampUTC(),
       userAgent: this.currentUserAgent,
       url: this.lastUrl
     };
@@ -840,7 +840,7 @@ class DetectionMonitor {
     
     // Check if we need to trigger alerts
     const recentIncidents = this.incidents.filter(
-      inc => Date.now() - inc.timestamp < 3600000 // Last hour
+      inc => timestampUTC() - inc.timestamp < 3600000 // Last hour
     );
     
     if (recentIncidents.length >= this.alertThreshold) {
@@ -870,7 +870,7 @@ class DetectionMonitor {
       ...this.metrics,
       successRate: this.getSuccessRate(),
       recentIncidents: this.incidents.filter(
-        inc => Date.now() - inc.timestamp < 3600000
+        inc => timestampUTC() - inc.timestamp < 3600000
       ).length
     };
   }
@@ -912,7 +912,7 @@ class PerformanceMonitor {
   recordMetric(type, duration, memoryDelta) {
     const sample = {
       type,
-      timestamp: Date.now(),
+      timestamp: timestampUTC(),
       duration,
       memoryDelta
     };
@@ -1250,7 +1250,7 @@ class UserAgentFreshnessManager {
     try {
       const latestVersions = await this.fetchLatestVersions();
       await this.updateUserAgentPool(latestVersions);
-      this.lastUpdate = Date.now();
+      this.lastUpdate = timestampUTC();
     } catch (error) {
       console.error('Failed to update user agents:', error);
     }
@@ -1258,7 +1258,7 @@ class UserAgentFreshnessManager {
   
   needsUpdate() {
     return !this.lastUpdate || 
-           Date.now() - this.lastUpdate > this.updateInterval;
+           timestampUTC() - this.lastUpdate > this.updateInterval;
   }
 }
 ```
@@ -1326,14 +1326,14 @@ describe('Performance Impact Analysis', () => {
   });
   
   test('should maintain update frequency targets', async () => {
-    const startTime = Date.now();
+    const startTime = timestampUTC();
     const updates = [];
     
     // Simulate 10 update cycles
     for (let i = 0; i < 10; i++) {
-      const updateStart = Date.now();
+      const updateStart = timestampUTC();
       await performUpdateCycle();
-      updates.push(Date.now() - updateStart);
+      updates.push(timestampUTC() - updateStart);
     }
     
     const averageUpdateTime = updates.reduce((a, b) => a + b) / updates.length;

@@ -126,7 +126,7 @@ export const goodExamples = {
 
   // Numeric timestamps (these are inherently UTC)
   numericTimestamps: () => {
-    const now = Date.now(); // ✅ Always UTC milliseconds
+    const now = timestampUTC(); // ✅ Always UTC milliseconds
     const timestamp = new Date().getTime(); // ✅ Always UTC milliseconds
     return { now, timestamp };
   },

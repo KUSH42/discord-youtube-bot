@@ -89,8 +89,8 @@ const enforceUtcTimestamps = {
           });
         }
 
-        // Check for Date.now() or Date.parse() usage
-        if (objectName === 'Date' && (propertyName === 'now' || propertyName === 'parse')) {
+        // Check for Date.parse() usage (Date.now() is timezone-safe)
+        if (objectName === 'Date' && propertyName === 'parse') {
           const { parent } = node;
           if (parent && parent.type === 'CallExpression') {
             context.report({

@@ -446,7 +446,7 @@ describe('StateManager', () => {
     it('should restore state from snapshot', () => {
       const snapshot = {
         state: { restoredKey: 'restoredValue' },
-        timestamp: Date.now(),
+        timestamp: timestampUTC(),
         subscriberCount: 0,
         validatorCount: 0,
       };

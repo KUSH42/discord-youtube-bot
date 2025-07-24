@@ -1,4 +1,4 @@
-import { nowUTC, timestampUTC } from '../utilities/utc-time.js';
+import { nowUTC } from '../utilities/utc-time.js';
 
 /**
  * Content Coordinator
@@ -94,7 +94,7 @@ export class ContentCoordinator {
    * @returns {Promise<Object>} Processing result
    */
   async doProcessContent(contentId, source, contentData) {
-    const startTime = timestampUTC();
+    const startTime = Date.now();
 
     try {
       this.logger.debug('Starting content processing', {
@@ -191,7 +191,7 @@ export class ContentCoordinator {
 
       this.metrics.totalProcessed++;
 
-      const processingTime = timestampUTC() - startTime;
+      const processingTime = Date.now() - startTime;
 
       this.logger.info('Content processed successfully', {
         contentId,
@@ -211,7 +211,7 @@ export class ContentCoordinator {
     } catch (error) {
       this.metrics.processingErrors++;
 
-      const processingTime = timestampUTC() - startTime;
+      const processingTime = Date.now() - startTime;
 
       this.logger.error('Content processing failed', {
         contentId,

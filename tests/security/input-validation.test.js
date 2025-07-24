@@ -173,7 +173,7 @@ describe('Security and Input Validation Tests', () => {
         }
 
         // Check timestamp to prevent replay attacks (5 minute window)
-        const currentTime = Math.floor(Date.now() / 1000);
+        const currentTime = Math.floor(timestampUTC() / 1000);
         const maxAge = 300; // 5 minutes
 
         if (Math.abs(currentTime - timestamp) > maxAge) {
@@ -204,7 +204,7 @@ describe('Security and Input Validation Tests', () => {
 
       const validPayload = '<feed><entry><id>test</id></entry></feed>';
       const secret = 'webhook-secret';
-      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const currentTimestamp = Math.floor(timestampUTC() / 1000);
       const validSignature = 'sha1=expected-signature-hash';
 
       // Valid signature
@@ -300,7 +300,7 @@ describe('Security and Input Validation Tests', () => {
       const rateLimitTracker = new Map();
 
       const checkRateLimit = (identifier, maxRequests = 5, windowMs = 60000) => {
-        const now = Date.now();
+        const now = timestampUTC();
         const windowStart = now - windowMs;
 
         if (!rateLimitTracker.has(identifier)) {
@@ -372,7 +372,7 @@ describe('Security and Input Validation Tests', () => {
         suspiciousActivity: new Set(),
 
         checkForDistributedAttack(ip, threshold = 10, timeWindow = 60000) {
-          const now = Date.now();
+          const now = timestampUTC();
           const windowStart = now - timeWindow;
 
           if (!this.ipRequests.has(ip)) {

@@ -279,7 +279,7 @@ describe('DetectionMonitor', () => {
     it('should exclude old incidents', () => {
       // Add incident and mark it as old
       const incident = detectionMonitor.recordDetectionIncident({ url: 'https://example.com' });
-      incident.timestamp = Date.now() - 2 * 3600000; // 2 hours ago
+      incident.timestamp = timestampUTC() - 2 * 3600000; // 2 hours ago
 
       const recent = detectionMonitor.getRecentIncidents(3600000); // 1 hour window
 
@@ -454,7 +454,7 @@ describe('DetectionMonitor', () => {
     });
 
     it('should update pattern timestamps', () => {
-      const beforeTime = Date.now();
+      const beforeTime = timestampUTC();
 
       detectionMonitor.recordDetectionIncident({
         url: 'https://example.com',

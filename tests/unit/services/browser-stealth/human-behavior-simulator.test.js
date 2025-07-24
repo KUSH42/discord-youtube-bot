@@ -514,7 +514,7 @@ describe('HumanBehaviorSimulator', () => {
     it('should create delay within specified range', async () => {
       jest.spyOn(simulator, 'generateNormalDelay').mockReturnValue(1000);
 
-      const startTime = Date.now();
+      const startTime = timestampUTC();
       const promise = simulator.randomDelay(500, 1500);
       await jest.runAllTimersAsync();
       await promise;

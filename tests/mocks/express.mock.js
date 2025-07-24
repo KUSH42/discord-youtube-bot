@@ -82,7 +82,7 @@ export const mockRateLimit = jest.fn().mockImplementation(options => {
     const rateLimitInfo = {
       limit: options.max || 100,
       remaining: options.max - 1 || 99,
-      reset: Date.now() + (options.windowMs || 900000),
+      reset: timestampUTC() + (options.windowMs || 900000),
     };
 
     res.set({
@@ -224,7 +224,7 @@ export const createMockRateLimit = (options = {}) => {
 
   return (req, res, next) => {
     const key = options.keyGenerator ? options.keyGenerator(req) : req.ip || 'unknown';
-    const now = Date.now();
+    const now = timestampUTC();
     const windowStart = now - (options.windowMs || 900000);
 
     // Handle skip function

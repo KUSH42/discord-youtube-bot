@@ -485,8 +485,8 @@ describe('ContentCoordinator', () => {
       });
 
       it('should determine scheduled vs live based on time', () => {
-        const futureTime = new Date(Date.now() + 60000).toISOString();
-        const pastTime = new Date(Date.now() - 60000).toISOString();
+        const futureTime = new Date(timestampUTC() + 60000).toISOString();
+        const pastTime = new Date(timestampUTC() - 60000).toISOString();
 
         expect(coordinator.determineInitialState({ scheduledStartTime: futureTime })).toBe('scheduled');
 

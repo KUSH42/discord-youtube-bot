@@ -377,7 +377,7 @@ describe('External API Integration Tests', () => {
         }
 
         // Check if cookies are expired
-        const now = Date.now();
+        const now = timestampUTC();
         if (authCookie.expires && authCookie.expires < now) {
           throw new Error('Authentication cookies expired');
         }
