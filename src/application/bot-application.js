@@ -640,9 +640,6 @@ export class BotApplication {
   async handleReady() {
     this.logger.info(`Discord bot is ready! Logged in as ${await this.getCurrentUserTag()}`);
 
-    // Add delay before Discord history scanning to prevent startup rate limiting
-    await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay
-
     // Initialize Discord history scanning for duplicate detection
     await this.initializeDiscordHistoryScanning();
 
