@@ -664,7 +664,7 @@ export class YouTubeScraperService {
           logData.type = latestVideo.type;
           logData.scrapedAt = latestVideo.scrapedAt;
 
-          this.logger.info('Successfully scraped latest video:', JSON.stringify(logData, null, 2));
+          this.logger.info(`Successfully scraped latest video:\n${JSON.stringify(logData, null, 2)}`);
         } else {
           const failureInfo = {
             videosUrl: this.videosUrl,

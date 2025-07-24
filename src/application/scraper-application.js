@@ -1063,10 +1063,10 @@ export class ScraperApplication {
    */
   async verifyAuthentication() {
     try {
-      this.logger.debug('Verifying X authentication status...');
+      this.logger.info('Verifying X authentication status...');
       const isAuthenticated = await this.authManager.isAuthenticated();
       if (isAuthenticated) {
-        this.logger.debug('✅ Authentication verified successfully');
+        this.logger.info('✅ Authentication verified successfully');
         return;
       }
 
