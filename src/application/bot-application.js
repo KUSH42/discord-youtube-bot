@@ -302,6 +302,10 @@ export class BotApplication {
    */
   async handleMessage(message) {
     try {
+      this.logger.info(
+        `🔥 NEW CODE RUNNING - handleMessage called for: "${message.content?.substring(0, 30) || 'empty'}"`
+      );
+
       // Only track COMMAND messages for duplicates
       const isCommand = message.content?.startsWith(this.commandPrefix);
 
