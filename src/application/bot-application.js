@@ -680,7 +680,7 @@ export class BotApplication {
             );
           }
         } catch (error) {
-          this.logger.debug(`Failed to scan YouTube channel history: ${error.message}`);
+          this.logger.error(`Failed to scan YouTube channel history: ${error.message}`);
         }
       } else {
         this.logger.debug('No YouTube channel ID configured, skipping YouTube history scanning');
@@ -714,7 +714,7 @@ export class BotApplication {
               }
             } catch (error) {
               totalTwitterResults.errors++;
-              this.logger.debug(`Failed to scan ${channelConfig.name} channel: ${error.message}`);
+              this.logger.error(`Failed to scan ${channelConfig.name} channel: ${error.message}`);
             }
           }
         }

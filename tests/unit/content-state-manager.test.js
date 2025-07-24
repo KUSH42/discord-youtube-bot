@@ -102,7 +102,7 @@ describe('ContentStateManager', () => {
       await stateManager.initializeFromStorage();
 
       expect(stateManager.contentStates.size).toBe(0);
-      expect(mockLogger.warn).toHaveBeenCalledWith('Failed to initialize from storage, starting fresh', {
+      expect(mockLogger.warn).toHaveBeenCalledWith('❌ Failed to initialize from storage, starting fresh', {
         error: 'Storage failed',
       });
     });

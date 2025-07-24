@@ -673,7 +673,7 @@ export class YouTubeScraperService {
             failureInfo.attemptedStrategies = latestVideo.strategies;
           }
 
-          this.logger.debug('No videos found during scraping', failureInfo);
+          this.logger.error('No videos found during scraping', failureInfo);
         }
 
         return latestVideo;

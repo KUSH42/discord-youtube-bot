@@ -150,7 +150,7 @@ describe('YouTubeScraperService', () => {
       mockBrowserService.launch.mockRejectedValue(launchError);
 
       await expect(scraperService.initialize('testchannel')).rejects.toThrow('Failed to launch browser');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to initialize YouTube scraper', {
+      expect(mockLogger.error).toHaveBeenCalledWith('❌ Failed to initialize YouTube scraper', {
         error: 'Failed to launch browser',
         stack: expect.any(String),
         videosUrl: 'https://www.youtube.com/@testchannel/videos',

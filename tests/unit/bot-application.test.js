@@ -96,6 +96,7 @@ describe('BotApplication', () => {
       info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
+      debug: jest.fn(),
       level: 'info',
       transports: [{ level: 'info' }],
       child: jest.fn(() => mockLogger),
@@ -256,7 +257,7 @@ describe('BotApplication', () => {
         await botApplication.start();
 
         expect(mockDiscordService.login).toHaveBeenCalledWith('test-token');
-        expect(mockLogger.info).toHaveBeenCalledWith('Starting bot application...');
+        expect(mockLogger.info).toHaveBeenCalledWith('Starting bot application...', expect.any(Object));
         expect(mockLogger.info).toHaveBeenCalledWith('Bot application started successfully');
         expect(botApplication.isRunning).toBe(true);
         expect(mockEventBus.emit).toHaveBeenCalledWith('bot.started', expect.any(Object));
@@ -497,10 +498,19 @@ describe('BotApplication', () => {
 
     describe('handleReady', () => {
       it('should handle Discord ready event', async () => {
-        await botApplication.handleReady();
+        jest.useFakeTimers();
+
+        const readyPromise = botApplication.handleReady();
+
+        // Fast-forward past the 5 second delay
+        await jest.runAllTimersAsync();
+
+        await readyPromise;
 
         expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Discord bot is ready!'));
         expect(mockEventBus.emit).toHaveBeenCalledWith('discord.ready', expect.any(Object));
+
+        jest.useRealTimers();
       });
     });
 
@@ -577,7 +587,7 @@ describe('BotApplication', () => {
           mockChannel,
           1000
         );
-        expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('YouTube channel scan completed'));
+        expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Discord YouTube history:'));
       });
 
       it('should scan X/Twitter channels history', async () => {
@@ -599,7 +609,7 @@ describe('BotApplication', () => {
 
         await botApplication.initializeDiscordHistoryScanning();
 
-        expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect(mockLogger.debug).toHaveBeenCalledWith(
           'Duplicate detector not available, skipping Discord history scanning'
         );
       });
@@ -620,6 +630,7 @@ describe('BotApplication', () => {
     beforeEach(() => {
       botApplication = new BotApplication(dependencies);
       mockMessage = {
+        id: 'test-message-id',
         author: {
           bot: false,
           id: 'user123',
@@ -672,6 +683,7 @@ describe('BotApplication', () => {
       });
 
       it('should handle rate limiting', async () => {
+        mockMessage.id = 'rate-limit-test-id'; // Unique message ID
         jest.spyOn(botApplication.commandRateLimit, 'isAllowed').mockReturnValue(false);
         jest.spyOn(botApplication.commandRateLimit, 'getRemainingTime').mockReturnValue(30000);
 
@@ -682,6 +694,7 @@ describe('BotApplication', () => {
       });
 
       it('should handle command processing errors', async () => {
+        mockMessage.id = 'command-error-test-id'; // Unique message ID
         mockCommandProcessor.processCommand.mockRejectedValue(new Error('Command failed'));
 
         await botApplication.handleMessage(mockMessage);
@@ -693,6 +706,7 @@ describe('BotApplication', () => {
       });
 
       it('should handle reply errors', async () => {
+        mockMessage.id = 'reply-error-test-id'; // Unique message ID
         mockCommandProcessor.processCommand.mockRejectedValue(new Error('Command failed'));
         mockMessage.reply.mockRejectedValue(new Error('Reply failed'));
 
