@@ -158,6 +158,30 @@ jobs:
             fi
           done
 
+      - name: Install coverage tools
+        run: |
+          # Install coverage tools with retry logic
+          # Ensure lcov is installed for genhtml
+          sudo apt-get update && sudo apt-get install -y lcov
+          
+          for i in {1..3}; do
+            echo "Attempt $i to install coverage tools..."
+            if npm install -g nyc; then
+              echo "Coverage tools installed successfully on attempt $i"
+              break
+            else
+              echo "Failed attempt $i"
+              if [ $i -lt 3 ]; then
+                echo "Clearing npm cache and retrying..."
+                npm cache clean --force
+                sleep $((i * 3))
+              else
+                echo "Coverage tools installation failed after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
+
       - name: Run ESLint
         run: |
           if [ -f eslint.config.mjs ] || [ -f .eslintrc.js ] || [ -f .eslintrc.json ]; then
@@ -1042,6 +1066,25 @@ jobs:
             echo "status=missing" >> $GITHUB_OUTPUT
           fi
 
+      - name: Generate LCOV HTML Report
+        if: steps.coverage.outputs.status == 'available'
+        run: |
+          LCOV_REPORT_DIR="lcov-html-report"
+          mkdir -p $LCOV_REPORT_DIR
+          cp ./assets/lcov/base.css $LCOV_REPORT_DIR/base.css
+          cp ./assets/lcov/prettify.css $LCOV_REPORT_DIR/prettify.css
+          cp ./assets/lcov/lcov-dark-theme.css $LCOV_REPORT_DIR/lcov-dark-theme.css
+
+          genhtml coverage/merged/lcov.info \
+            --output-directory $LCOV_REPORT_DIR \
+            --css-file lcov-dark-theme.css \
+            --title "Code Coverage Report" \
+            --branch-coverage \
+            --rc lcov_html_css_file="lcov-dark-theme.css" \
+            --prefix $(pwd) # Important for correct source paths
+          echo "LCOV HTML report generated in $LCOV_REPORT_DIR"
+
+
       - name: Generate comprehensive test report
         run: |
           mkdir -p reports
@@ -1089,6 +1132,13 @@ jobs:
               printf "| %-11s | %-7s |\n" "${test_type^}" "$test_status" >> reports/test-summary.md
             fi
           done
+
+          # Add link to LCOV report
+          if [ -d "lcov-html-report" ]; then
+            echo "" >> reports/test-summary.md
+            echo "## 📊 Detailed LCOV Coverage Report" >> reports/test-summary.md
+            echo "You can find a detailed HTML coverage report as a workflow artifact: [LCOV HTML Report Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/lcov-html-report)" >> reports/test-summary.md
+          fi
 
           echo "" >> reports/test-summary.md
           echo "## Detailed Results" >> reports/test-summary.md
@@ -1148,12 +1198,12 @@ jobs:
             
             # Coverage quality assessment using integer comparison
             COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
-            if [ "$COVERAGE_INT" -ge 2500 ]; then
-              echo "✅ **Coverage Quality:** Meets minimum standards (≥25%)" >> reports/test-summary.md
-            elif [ "$COVERAGE_INT" -ge 1500 ]; then
-              echo "⚠️ **Coverage Quality:** Below target but acceptable (≥15%)" >> reports/test-summary.md
+            if [ "$COVERAGE_INT" -ge 5000 ]; then
+              echo "✅ **Coverage Quality:** Meets minimum standards (≥50%)" >> reports/test-summary.md
+            elif [ "$COVERAGE_INT" -ge 2500 ]; then
+              echo "⚠️ **Coverage Quality:** Below target but acceptable (≥25%)" >> reports/test-summary.md
             else
-              echo "❌ **Coverage Quality:** Below minimum standards (<15%)" >> reports/test-summary.md
+              echo "❌ **Coverage Quality:** Below minimum standards (<25%)" >> reports/test-summary.md
             fi
           fi
 
@@ -1168,13 +1218,13 @@ jobs:
             
             # Set coverage quality gates using integer comparison
             COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
-            if [ "$COVERAGE_INT" -lt 1000 ]; then
+            if [ "$COVERAGE_INT" -lt 2500 ]; then
               echo "❌ Coverage critically low: $COVERAGE%"
               echo "coverage_status=critical" >> $GITHUB_ENV
-            elif [ "$COVERAGE_INT" -lt 1500 ]; then
+            elif [ "$COVERAGE_INT" -lt 5000 ]; then
               echo "⚠️ Coverage below minimum: $COVERAGE%"
               echo "coverage_status=warning" >> $GITHUB_ENV
-            elif [ "$COVERAGE_INT" -ge 2500 ]; then
+            elif [ "$COVERAGE_INT" -ge 5000 ]; then
               echo "✅ Coverage meets target: $COVERAGE%"
               echo "coverage_status=good" >> $GITHUB_ENV
             else
@@ -1214,6 +1264,26 @@ jobs:
           name: merged-coverage
           fail_ci_if_error: false
           plugins: ''
+
+      - name: Store final test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report
+          path: |
+            reports/
+            coverage/merged/
+            coverage-summary.json
+            coverage-metrics.json
+            test-results/
+          retention-days: 30
+
+      - name: Upload LCOV HTML Report Artifact
+        if: always() # Always upload even if genhtml failed, for debugging
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-html-report
+          path: lcov-html-report/
+          retention-days: 7 # Adjust retention as needed (e.g., 30 days)
 
       - name: Comment commit with test results
         if: github.event_name == 'push'
