@@ -1079,7 +1079,7 @@ jobs:
 
           # Create a symbolic link in the current working directory for genhtml to find
           echo "Creating temporary symlink for lcov-dark-theme.css in current directory."
-          ln -s "$SOURCE_DARK_THEME_CSS_ORIGINAL" "lcov-dark-theme.css"
+          ln -s "$SOURCE_DARK_THEME_CSS" "lcov-dark-theme.css"
 
           echo "All CSS files copied successfully."
 
