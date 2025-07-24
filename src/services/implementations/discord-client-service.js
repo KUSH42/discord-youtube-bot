@@ -57,13 +57,16 @@ export class DiscordClientService extends DiscordService {
   onMessage(handler) {
     const wrappedHandler = message => {
       try {
-        this.logger.debug('Discord message received:', {
+        this.logger.info('📨 Discord messageCreate event received', {
           messageId: message.id,
-          content: message.content,
+          content: message.content?.substring(0, 100),
           authorId: message.author?.id,
+          authorBot: message.author?.bot,
           channelId: message.channelId,
           clientId: this.client.user?.id,
           instanceId: this.client._botInstanceId,
+          timestamp: new Date().toISOString(),
+          handlerCount: this.client.listenerCount('messageCreate'),
         });
         handler(message);
       } catch (error) {
@@ -78,21 +81,34 @@ export class DiscordClientService extends DiscordService {
       }
     };
 
-    this.logger.info('Registering Discord message handler', {
+    this.logger.info('🔗 Registering Discord message handler', {
       clientId: this.client.user?.id,
       clientReady: this.client.readyAt !== null,
       instanceId: this.client._botInstanceId,
+      existingHandlerCount: this.client.listenerCount('messageCreate'),
     });
 
     this.client.on('messageCreate', wrappedHandler);
 
+    this.logger.info('✅ Discord message handler registered', {
+      clientId: this.client.user?.id,
+      newHandlerCount: this.client.listenerCount('messageCreate'),
+      instanceId: this.client._botInstanceId,
+    });
+
     // Return unregister function
     return () => {
-      this.logger.info('Unregistering Discord message handler', {
+      this.logger.info('🔌 Unregistering Discord message handler', {
         clientId: this.client.user?.id,
         instanceId: this.client._botInstanceId,
+        handlerCountBefore: this.client.listenerCount('messageCreate'),
       });
       this.client.off('messageCreate', wrappedHandler);
+      this.logger.info('❌ Discord message handler unregistered', {
+        clientId: this.client.user?.id,
+        handlerCountAfter: this.client.listenerCount('messageCreate'),
+        instanceId: this.client._botInstanceId,
+      });
     };
   }
 

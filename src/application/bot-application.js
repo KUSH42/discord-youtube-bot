@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
 
-// Global singleton check to prevent multiple BotApplication instances from processing messages
-// (Currently implemented via flag consumption pattern instead)
+// Global message processing tracker to detect duplicates across all instances
+const globalMessageTracker = new Map();
 
 /**
  * Main bot application orchestrator
@@ -302,8 +302,13 @@ export class BotApplication {
    */
   async handleMessage(message) {
     try {
+      // GLOBAL DUPLICATE DETECTION - Track across ALL instances
+      const globalKey = `${message.id}-${message.content}`;
+      const globalCount = (globalMessageTracker.get(globalKey) || 0) + 1;
+      globalMessageTracker.set(globalKey, globalCount);
+
       // Debug logging to track all messages received
-      this.logger.debug('Message received for processing', {
+      this.logger.info('🎯 Message received for processing', {
         messageId: message.id,
         authorId: message.author?.id,
         authorBot: message.author?.bot,
@@ -311,7 +316,22 @@ export class BotApplication {
         startsWithPrefix: message.content?.startsWith(this.commandPrefix),
         clientId: this.discord.getCurrentUser?.()?.id,
         instanceId: this.discord.client?._botInstanceId || 'unknown',
+        botInstanceId: this.instanceId,
+        globalProcessingCount: globalCount,
       });
+
+      // IMMEDIATE GLOBAL DUPLICATE PREVENTION
+      if (globalCount > 1) {
+        this.logger.error('🚨 GLOBAL DUPLICATE MESSAGE PROCESSING DETECTED AND BLOCKED!', {
+          messageId: message.id,
+          content: message.content?.substring(0, 50),
+          globalProcessingCount: globalCount,
+          botInstanceId: this.instanceId,
+          instanceId: this.discord.client?._botInstanceId || 'unknown',
+          action: 'BLOCKED_GLOBAL_DUPLICATE',
+        });
+        return; // BLOCK duplicate processing immediately
+      }
 
       // Ignore bot messages and non-command messages
       if (message.author.bot || !message.content.startsWith(this.commandPrefix)) {
@@ -433,6 +453,20 @@ export class BotApplication {
         this.messageProcessingCounter.clear();
         recentEntries.forEach(([key, value]) => {
           this.messageProcessingCounter.set(key, value);
+        });
+      }
+
+      // Global cleanup: Prevent memory leaks in global tracker
+      if (globalMessageTracker.size > 1000) {
+        const globalEntries = Array.from(globalMessageTracker.entries());
+        const recentGlobalEntries = globalEntries.slice(-500);
+        globalMessageTracker.clear();
+        recentGlobalEntries.forEach(([key, value]) => {
+          globalMessageTracker.set(key, value);
+        });
+        this.logger.info('🧹 Global message tracker cleaned up', {
+          entriesRemoved: globalEntries.length - 500,
+          entriesKept: 500,
         });
       }
     } catch (error) {
