@@ -1072,7 +1072,6 @@ jobs:
           echo "Attempting to copy prettify.css from: $SOURCE_PRETTIFY_CSS"
           echo "Attempting to symlink lcov-dark-theme.css from: $SOURCE_DARK_THEME_CSS"
           echo "Attempting to copy to destination directory: $LCOV_REPORT_DIR"
-
           # Use verbose copy (-v) for more output
           cp -v "$SOURCE_BASE_CSS" "$DEST_BASE_CSS"
           cp -v "$SOURCE_PRETTIFY_CSS" "$DEST_PRETTIFY_CSS"
@@ -1276,14 +1275,14 @@ jobs:
       - name: Store final test report
         uses: actions/upload-artifact@v4
         with:
-          name: comprehensive-test-report
+          name: comprehensive-test-report-${{ github.run_id }}
           path: |
             reports/
             coverage/merged/
             coverage-summary.json
             coverage-metrics.json
             test-results/
-          retention-days: 30
+          retention-days: 14
 
       - name: Upload LCOV HTML Report Artifact
         if: always() # Always upload even if genhtml failed, for debugging
@@ -1291,7 +1290,7 @@ jobs:
         with:
           name: lcov-html-report
           path: lcov-html-report/
-          retention-days: 7 # Adjust retention as needed (e.g., 30 days)
+          retention-days: 14 # Adjust retention as needed (e.g., 30 days)
 
       - name: Comment commit with test results
         if: github.event_name == 'push'
