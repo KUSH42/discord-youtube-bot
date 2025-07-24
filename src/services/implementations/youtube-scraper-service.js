@@ -529,9 +529,9 @@ export class YouTubeScraperService {
             /* eslint-enable no-undef */
           });
 
-          this.logger.debug(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
+          this.logger.silly(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
         } catch (error) {
-          this.logger.error('Failed to get YouTube page debug info:', error.message);
+          this.logger.silly('Failed to get YouTube page debug info:', error.message);
           debugInfo = { error: 'Failed to evaluate page' };
         }
 
@@ -650,7 +650,7 @@ export class YouTubeScraperService {
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
-          this.logger.info('Successfully scraped latest video', {
+          this.logger.debug('Successfully scraped latest video', {
             strategy: latestVideo.strategy,
             videoId: latestVideo.id,
             title: latestVideo.title,
@@ -666,7 +666,7 @@ export class YouTubeScraperService {
             failureInfo.attemptedStrategies = latestVideo.strategies;
           }
 
-          this.logger.warn('No videos found during scraping', failureInfo);
+          this.logger.debug('No videos found during scraping', failureInfo);
         }
 
         return latestVideo;
@@ -677,9 +677,8 @@ export class YouTubeScraperService {
           timestamp: new Date(),
         };
 
-        this.logger.error('Failed to scrape YouTube channel', {
+        this.logger.warn('Failed to scrape YouTube channel', {
           error: error.message,
-          stack: error.stack,
           videosUrl: this.videosUrl,
           attempt: this.metrics.totalScrapingAttempts,
         });
@@ -824,7 +823,7 @@ export class YouTubeScraperService {
       // Schedule next check
       if (this.isRunning) {
         const nextInterval = this._getNextInterval();
-        this.logger.debug(`Next YouTube scrape scheduled in ${nextInterval}ms`);
+        this.logger.silly(`Next YouTube scrape scheduled in ${nextInterval}ms`);
         this.scrapingInterval = setTimeout(monitoringLoop, nextInterval);
       }
     };

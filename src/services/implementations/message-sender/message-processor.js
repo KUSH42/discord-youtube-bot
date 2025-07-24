@@ -90,20 +90,27 @@ export class MessageProcessor {
       retryCount: message.retryCount,
     });
 
-    // Handle rate limit errors (429 responses)
-    if (error.code === 429 || error.status === 429) {
+    // Handle rate limit errors (both proactive and reactive)
+    if (error.code === 429 || error.status === 429 || error instanceof RateLimitError) {
       this.metrics.rateLimitHits++;
 
-      if (this.enableRateLimiting) {
+      // Handle reactive rate limits (429 responses from Discord)
+      if ((error.code === 429 || error.status === 429) && this.enableRateLimiting) {
         this.rateLimiter.handleRateLimit(error);
       }
 
-      // Rate limit errors are always retryable
-      throw new RateLimitError(
-        `Discord API rate limit: ${error.message}`,
-        error.retryAfter ? error.retryAfter * 1000 : 1000,
-        'reactive'
-      );
+      // All rate limit errors are retryable
+      if (error instanceof RateLimitError) {
+        // Re-throw the existing RateLimitError
+        throw error;
+      } else {
+        // Create new RateLimitError for 429 responses
+        throw new RateLimitError(
+          `Discord API rate limit: ${error.message}`,
+          error.retryAfter ? error.retryAfter * 1000 : 1000,
+          'reactive'
+        );
+      }
     }
 
     // Handle other retryable errors

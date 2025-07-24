@@ -19,8 +19,8 @@ export class DiscordTransport extends Transport {
     this.buffer = [];
 
     // Buffering options
-    this.flushInterval = opts.flushInterval || 2000; // 2 seconds
-    this.maxBufferSize = opts.maxBufferSize || 20; // 20 log entries
+    this.flushInterval = opts.flushInterval || 3000; // 3 seconds to match send delay
+    this.maxBufferSize = opts.maxBufferSize || 15; // 15 log entries to match burst allowance
     this.flushTimer = null;
     this.isDestroyed = false;
 
@@ -29,12 +29,12 @@ export class DiscordTransport extends Transport {
     const logger =
       process.env.NODE_ENV === 'test' ? { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } : console;
     this.messageSender = new DiscordMessageSender(logger, {
-      baseSendDelay: opts.baseSendDelay || 1000, // 1 second between sends for real-time logging
-      burstAllowance: opts.burstAllowance || 10, // Allow 10 quick messages per minute for real-time logging
-      burstResetTime: opts.burstResetTime || 60000, // 1 minute burst reset (Discord standard)
-      maxRetries: opts.maxRetries || 3,
+      baseSendDelay: opts.baseSendDelay || 3000, // 3 seconds between sends to respect Discord limits
+      burstAllowance: opts.burstAllowance || 15, // Allow 15 quick messages per 2 minutes
+      burstResetTime: opts.burstResetTime || 120000, // 2 minute burst reset for better recovery
+      maxRetries: opts.maxRetries || 5, // More retries for better reliability
       backoffMultiplier: 1.5,
-      maxBackoffDelay: opts.maxBackoffDelay || 30000, // 30 second max backoff for responsive logging
+      maxBackoffDelay: opts.maxBackoffDelay || 60000, // 60 second max backoff
       testMode: process.env.NODE_ENV === 'test', // Enable test mode in test environment
       autoStart: process.env.NODE_ENV !== 'test', // Don't auto-start in test environment
     });
@@ -65,11 +65,25 @@ export class DiscordTransport extends Transport {
     this.isDestroyed = true;
 
     // Flush any remaining messages
-    await this.flush();
+    try {
+      await this.flush();
+    } catch (error) {
+      // Ignore flush errors during shutdown
+      if (process.env.NODE_ENV !== 'test' && !this.isWriteError(error) && !this.isShutdownError(error)) {
+        this.safeConsoleError('[DiscordTransport] Error during final flush:', error);
+      }
+    }
 
     // Gracefully shutdown the message sender
     if (this.messageSender) {
-      await this.messageSender.shutdown(5000); // 5 second timeout
+      try {
+        await this.messageSender.shutdown(5000); // 5 second timeout
+      } catch (error) {
+        // Ignore shutdown errors - they're expected during disconnect
+        if (process.env.NODE_ENV !== 'test' && !this.isWriteError(error) && !this.isShutdownError(error)) {
+          this.safeConsoleError('[DiscordTransport] Error during message sender shutdown:', error);
+        }
+      }
     }
 
     this.emit('close');
@@ -80,10 +94,75 @@ export class DiscordTransport extends Transport {
     await this.close();
   }
 
+  // Check if Discord client is unavailable or shutting down
+  isClientUnavailable() {
+    if (!this.client) {
+      return true;
+    }
+
+    // Check if client is ready
+    if (!this.client.isReady || !this.client.isReady()) {
+      return true;
+    }
+
+    // Check if client is being destroyed
+    if (this.client.destroy && this.client.destroyed) {
+      return true;
+    }
+
+    // Check for WebSocket connection state
+    if (this.client.ws && this.client.ws.status !== 0 && this.client.ws.status !== 1) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Check if error is a write error (EPIPE, ECONNRESET, etc.)
+  isWriteError(error) {
+    if (!error) {
+      return false;
+    }
+
+    const writeErrorCodes = ['EPIPE', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND'];
+    return writeErrorCodes.includes(error.code) || (error.message && error.message.includes('write EPIPE'));
+  }
+
+  // Check if error is related to shutdown/destruction
+  isShutdownError(error) {
+    if (!error || !error.message) {
+      return false;
+    }
+
+    const shutdownMessages = [
+      'token to be set',
+      'client destroyed',
+      'Cannot send messages',
+      'WebSocket connection',
+      'Client not ready',
+    ];
+
+    return shutdownMessages.some(msg => error.message.includes(msg));
+  }
+
+  // Safe logging to prevent EPIPE errors on console.error
+  safeConsoleError(message, ...args) {
+    try {
+      console.error(message, ...args);
+    } catch (error) {
+      // If console.error fails (EPIPE), try console.log, then give up
+      try {
+        console.log('ERROR:', message, ...args);
+      } catch (fallbackError) {
+        // Can't log - just give up silently
+      }
+    }
+  }
+
   async log(info, callback) {
     setImmediate(() => this.emit('logged', info));
-    // Don't log if transport is destroyed
-    if (this.isDestroyed) {
+    // Don't log if transport is destroyed or client is shutting down
+    if (this.isDestroyed || this.isClientUnavailable()) {
       return callback();
     }
     // Channel initialization logic
@@ -99,20 +178,20 @@ export class DiscordTransport extends Transport {
           this.messageSender
             .sendImmediate(this.channel, '✅ **Winston logging transport initialized for this channel.**')
             .catch(error => {
-              if (process.env.NODE_ENV !== 'test') {
-                console.error('[DiscordTransport] Failed to send initialization message:', error);
+              if (process.env.NODE_ENV !== 'test' && !this.isWriteError(error)) {
+                this.safeConsoleError('[DiscordTransport] Failed to send initialization message:', error);
               }
             });
         } else {
           this.channel = 'errored';
           if (process.env.NODE_ENV !== 'test') {
-            console.error(`[DiscordTransport] Channel ${this.channelId} is not a valid text channel.`);
+            this.safeConsoleError(`[DiscordTransport] Channel ${this.channelId} is not a valid text channel.`);
           }
         }
       } catch (error) {
         this.channel = 'errored';
         if (process.env.NODE_ENV !== 'test') {
-          console.error(`[DiscordTransport] Failed to fetch channel ${this.channelId}:`, error);
+          this.safeConsoleError(`[DiscordTransport] Failed to fetch channel ${this.channelId}:`, error);
         }
       }
     }
@@ -141,7 +220,7 @@ export class DiscordTransport extends Transport {
     this.buffer = [];
 
     // Don't actually send if transport is destroyed or client is not ready
-    if (this.isDestroyed || !this.client || !this.client.isReady || !this.client.isReady()) {
+    if (this.isDestroyed || this.isClientUnavailable()) {
       return;
     }
 
@@ -157,32 +236,30 @@ export class DiscordTransport extends Transport {
       }
     } catch (error) {
       // Only log the error if it's not related to Discord being unavailable during shutdown
-      // and we're not in test environment
-      if (
-        process.env.NODE_ENV !== 'test' &&
-        error.message &&
-        !error.message.includes('token to be set') &&
-        !error.message.includes('client destroyed')
-      ) {
-        console.error('[DiscordTransport] Failed to flush log buffer to Discord:', error);
+      // and we're not in test environment, and not a write error
+      if (process.env.NODE_ENV !== 'test' && !this.isWriteError(error) && !this.isShutdownError(error)) {
+        this.safeConsoleError('[DiscordTransport] Failed to flush log buffer to Discord:', error);
 
-        // Log rate limiting metrics for debugging
-        const metrics = this.messageSender.getMetrics();
-        console.error('[DiscordTransport] Message sender metrics:', {
-          successRate: metrics.successRate,
-          rateLimitHits: metrics.rateLimitHits,
-          currentQueueSize: metrics.currentQueueSize,
-          isPaused: metrics.isPaused,
-        });
+        // Log rate limiting metrics for debugging only if client is still available
+        if (!this.isClientUnavailable()) {
+          const metrics = this.messageSender.getMetrics();
+          this.safeConsoleError('[DiscordTransport] Message sender metrics:', {
+            successRate: metrics.successRate,
+            rateLimitHits: metrics.rateLimitHits,
+            currentQueueSize: metrics.currentQueueSize,
+            isPaused: metrics.isPaused,
+          });
+        }
       }
 
       // Re-add messages to buffer if sending failed and transport is still active
+      // Only re-queue if it's not a write error or shutdown error
       if (
         !this.isDestroyed &&
-        messagesToFlush.length > 0 &&
-        this.client &&
-        this.client.isReady &&
-        this.client.isReady()
+        !this.isClientUnavailable() &&
+        !this.isWriteError(error) &&
+        !this.isShutdownError(error) &&
+        messagesToFlush.length > 0
       ) {
         this.buffer.unshift(...messagesToFlush);
       }
