@@ -1,7 +1,7 @@
 # Discord Content Announcement Bot
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/KUSH42/discord-bot/test.yml?branch=master&style=for-the-badge)
-![Codecov](https://img.shields.io/codecov/c/github/KUSH42/discord-bot?style=for-the-badge)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/KUSH42/discord-bot/test.yml?branch=feature%2fmulti-source-detection-and-testing-infrastructure&style=for-the-badge)
+![Codecov (with branch)](https://img.shields.io/codecov/c/github/KUSH42/discord-bot/feature%252fmulti-source-detection-and-testing-infrastructure?style=for-the-badge&link=https%3A%2F%2Fapp.codecov.io%2Fgh%2FKUSH42%2Fdiscord-bot%2Ftree%2Ffeature%252Fmulti-source-detection-and-testing-infrastructure%2F)
 ![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=for-the-badge)
 ![Discord.js](https://img.shields.io/badge/discord.js-v14-7289DA?style=for-the-badge)
 ![License](https://img.shields.io/github/license/KUSH42/discord-bot?style=for-the-badge)
