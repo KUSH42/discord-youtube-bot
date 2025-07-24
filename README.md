@@ -516,11 +516,11 @@ and pull request via GitHub Actions.
 
 - **Application Layer Coverage**: Achieved strong test coverage for all
   application orchestrators:
-  - **bot-application.js**: 70.51% statement coverage with comprehensive command
+  - **bot-application.js**: 82.74% statement coverage with comprehensive command
     processing tests
-  - **monitor-application.js**: 95.84% statement coverage with full PubSubHubbub,
+  - **monitor-application.js**: 96.97% statement coverage with full PubSubHubbub,
     video processing, and scheduled content polling tests  
-  - **scraper-application.js**: 70.06% statement coverage with authentication,
+  - **scraper-application.js**: 77.57% statement coverage with authentication,
     content detection, and tweet processing tests
 - **Critical Component Coverage**: Achieved 95%+ test coverage for core content
   pipeline components (LivestreamStateMachine, ContentCoordinator,
