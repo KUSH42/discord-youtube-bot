@@ -650,7 +650,21 @@ export class YouTubeScraperService {
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
-          this.logger.info('Successfully scraped latest video:', JSON.stringify(latestVideo, null, 2));
+          // Create a plain object for logging to avoid complex object serialization issues
+          const logData = {};
+          logData.success = latestVideo.success;
+          logData.strategy = latestVideo.strategy;
+          logData.id = latestVideo.id;
+          logData.title = latestVideo.title;
+          logData.url = latestVideo.url;
+          logData.publishedText = latestVideo.publishedText;
+          logData.publishedAt = latestVideo.publishedAt;
+          logData.viewsText = latestVideo.viewsText;
+          logData.thumbnailUrl = latestVideo.thumbnailUrl;
+          logData.type = latestVideo.type;
+          logData.scrapedAt = latestVideo.scrapedAt;
+
+          this.logger.info('Successfully scraped latest video:', JSON.stringify(logData, null, 2));
         } else {
           const failureInfo = {
             videosUrl: this.videosUrl,

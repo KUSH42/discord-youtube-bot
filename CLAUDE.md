@@ -734,6 +734,119 @@ const hasValidCookies = authToken && authToken.value && ct0Token && ct0Token.val
 - DISPLAY environment variable (`scripts/discord-bot.service` sets DISPLAY=:99)
 - Sufficient memory for browser instances (optimized but still > headless)
 
+## 10. Advanced Anti-Botting Resilience System (IMPLEMENTED)
+
+The bot now features a comprehensive, state-of-the-art anti-detection system as specified in `docs/ANTI-BOTTING-RESILIENCE-PLAN.md`. This system has been fully implemented with the following components:
+
+### Core Components Implemented
+
+**✅ Browser Stealth System (`src/services/browser-stealth/`)**
+- **UserAgentManager**: Dynamic rotation of 13+ browser/platform combinations with viewport matching
+- **HumanBehaviorSimulator**: 482-line realistic interaction simulation with Bezier curves and reading estimation
+- **IntelligentRateLimiter**: Context-aware timing optimized for 1-2 minute updates with time-of-day patterns
+- **BrowserProfileManager**: 442-line persistent session management with cookie/localStorage persistence
+- **DetectionMonitor**: Real-time incident tracking with 15+ detection signatures and automated response
+- **PerformanceMonitor**: Resource usage tracking with A-F performance grading and optimization recommendations
+- **StealthScripts**: JavaScript environment spoofing removing 15+ automation markers
+
+**✅ Integration Services**
+- **EnhancedPlaywrightBrowserService**: Unified service integrating all stealth components
+- **StealthBrowserFactory**: Easy-to-use factory with simple/high-stealth configurations
+
+**✅ Configuration & Monitoring**
+- **Enhanced Configuration**: 20+ new environment variables with validation
+- **Comprehensive Testing**: Unit tests for all core components with 90%+ coverage targets
+- **Real-time Monitoring**: Detection incident tracking, performance monitoring, automated responses
+
+### Key Features Delivered
+
+**🎭 Advanced Stealth Capabilities:**
+- Dynamic user agent rotation with platform-matched viewports
+- JavaScript automation marker removal (navigator.webdriver, Chrome flags, etc.)
+- Canvas/WebGL/Audio fingerprint resistance with controlled randomization
+- Performance timing spoofing for realistic browser behavior
+
+**🧠 Human Behavior Simulation:**
+- Realistic mouse movements with Bezier curve trajectories and natural jitter
+- Context-aware scrolling with reading time estimation (200 WPM simulation)
+- Natural typing patterns with punctuation-aware delays
+- Interactive element hovering with realistic durations
+
+**⏱️ Intelligent Rate Limiting (Optimized for 1-2 Min Updates):**
+- Active (1min), Idle (2min), Night (5min), Weekend (3min) patterns
+- Smart burst detection with progressive penalties up to 150%
+- Emergency mode with automatic 10-minute intervals during detection spikes
+- Decay system reducing penalties over 30-minute periods
+
+**💾 Session Persistence:**
+- Purpose-based browser profiles (e.g., 'x-monitoring', 'general')
+- Automatic cookie/localStorage restoration across bot restarts
+- Profile statistics and usage tracking
+- Configurable cleanup with 30-day default expiration
+
+**🔍 Real-Time Detection Monitoring:**
+- 15+ detection signatures for bot identification patterns
+- Critical/High/Medium/Low severity classification
+- Automated responses: emergency mode, user agent rotation, profile refresh
+- Pattern analysis with trend detection and recommendations
+
+**📊 Performance Monitoring:**
+- Memory (1GB threshold), CPU (80% threshold), operation timing tracking
+- A-F performance grading based on efficiency metrics
+- Automatic optimization triggers and resource limit enforcement
+- Integration with Discord commands for health monitoring
+
+### Usage Integration
+
+The system integrates seamlessly with existing scraping operations:
+
+```javascript
+// Replace existing browser usage
+const factory = new StealthBrowserFactory(config, logger);
+const browser = await factory.createHighStealthBrowser({
+  purpose: 'x-monitoring'
+});
+
+// All existing browser methods work with stealth capabilities
+await browser.goto('https://x.com/username');
+await browser.click('.tweet-button');
+await browser.type('.search-input', 'search term');
+
+// Monitor anti-detection effectiveness
+const status = factory.getStatus();
+const detectionIncidents = status.detectionMonitor.metrics.detectionIncidents;
+const performanceGrade = status.performanceMonitor.grade;
+```
+
+### Configuration
+
+All features are configurable through environment variables with sensible defaults:
+
+```bash
+# Enable/disable main features
+BROWSER_STEALTH_ENABLED=true
+BEHAVIOR_SIMULATION_ENABLED=true
+DETECTION_MONITORING_ENABLED=true
+PERFORMANCE_MONITORING_ENABLED=true
+
+# Fine-tune timing for 1-2 minute updates
+MIN_REQUEST_INTERVAL=30000          # 30 seconds minimum
+MAX_REQUEST_INTERVAL=300000         # 5 minutes maximum
+USER_AGENT_ROTATION_INTERVAL=3600000 # 1 hour rotation
+
+# Detection and performance thresholds
+DETECTION_ALERT_THRESHOLD=3         # 3 incidents/hour triggers alerts
+PERFORMANCE_MEMORY_THRESHOLD=1073741824  # 1GB memory alert
+PERFORMANCE_CPU_THRESHOLD=80        # 80% CPU alert
+
+# Profile management
+BROWSER_PROFILE_DIR=./browser-profiles
+PROFILE_MAX_AGE_DAYS=30
+PROFILE_SESSION_TIMEOUT=86400000    # 24 hours
+```
+
+This implementation provides production-ready anti-detection capabilities while maintaining the bot's core functionality and 1-2 minute update frequency requirements.
+
 ## 9. Configuration & Environment Management
 
 ### Environment Variables

@@ -62,6 +62,20 @@ developers (and AI agents) to maintain, test, and extend.
   - **Configuration Validation**: Ensures all required configurations are
     present on startup.
 
+- **🎭 Advanced Anti-Botting Resilience**
+  - **Browser Stealth System**: State-of-the-art anti-detection capabilities
+    with user agent rotation, fingerprint resistance, and automation marker removal.
+  - **Human Behavior Simulation**: Realistic mouse movements, scrolling patterns,
+    reading time estimation, and natural interaction timing.
+  - **Intelligent Rate Limiting**: Context-aware timing optimized for 1-2 minute
+    updates with time-of-day awareness and burst detection.
+  - **Session Persistence**: Persistent browser profiles with cookie/localStorage
+    management across bot restarts.
+  - **Detection Monitoring**: Real-time incident tracking with automated response
+    and pattern analysis.
+  - **Performance Monitoring**: Resource usage tracking with optimization
+    recommendations and performance grading.
+
 - **🏗️ Architecture & Extensibility**
   - **Clean Architecture**: A modular design separating application, core logic,
     and infrastructure.
@@ -102,6 +116,17 @@ src/
 │   ├── persistent-storage.js # File-based content state and fingerprint storage
 │   └── state-manager.js      # Runtime state management
 ├── 🔧 services/              # External service layer (e.g., Discord, YouTube clients)
+│   ├── browser-stealth/      # Advanced anti-botting resilience system
+│   │   ├── user-agent-manager.js      # Dynamic user agent rotation with platform matching
+│   │   ├── human-behavior-simulator.js # Realistic interaction patterns (482 lines)
+│   │   ├── intelligent-rate-limiter.js # Context-aware timing for 1-2 min updates
+│   │   ├── browser-profile-manager.js  # Persistent browser profiles (442 lines)
+│   │   ├── detection-monitor.js        # Real-time anti-bot incident tracking
+│   │   ├── performance-monitor.js      # Resource usage monitoring & optimization
+│   │   └── stealth-scripts.js         # JavaScript environment spoofing
+│   ├── implementations/      # Service implementations
+│   │   ├── enhanced-playwright-browser-service.js # Integrated stealth browser
+│   │   └── stealth-browser-factory.js # Easy-to-use factory for stealth browsers
 ├── ⚙️ config/                # Configuration modules
 │   └── content-detection.js  # Content detection reliability configuration
 ├── ⚙️ setup/                 # Production dependency wiring
@@ -188,6 +213,140 @@ All reliability features are configurable through environment variables (see
 - `ENABLE_CONTENT_FINGERPRINTING=true` - Enable advanced duplicate detection
 - `ENABLE_LIVESTREAM_MONITORING=true` - Enable livestream state tracking
 - `CONTENT_STORAGE_DIR=data` - Directory for persistent storage
+
+## Advanced Anti-Botting Resilience System
+
+The bot features a comprehensive, state-of-the-art anti-detection system designed to make browser automation indistinguishable from human behavior while maintaining timely content updates (1-2 minutes). This system was implemented based on the detailed analysis in `docs/ANTI-BOTTING-RESILIENCE-PLAN.md`.
+
+### 🎭 Browser Stealth Capabilities
+
+#### **Dynamic User Agent Management**
+- **13+ Diverse Browser/Platform Combinations**: Chrome, Firefox, Edge across Windows, macOS, and Linux
+- **Hourly Rotation**: Automatic user agent rotation with matching viewport dimensions
+- **Platform-Specific Headers**: Appropriate Accept-Language and browser headers for each platform
+- **Viewport Matching**: Screen resolutions that match the user agent platform for authenticity
+
+#### **Advanced JavaScript Environment Spoofing**
+- **Automation Marker Removal**: Removes 15+ automation detection indicators (`navigator.webdriver`, Chrome automation flags)
+- **Plugin Array Spoofing**: Simulates realistic browser plugin configurations
+- **Performance Timing Spoofing**: Generates realistic navigation timing data
+- **Canvas/WebGL/Audio Fingerprint Resistance**: Anti-fingerprinting protection with controlled randomization
+
+### 🧠 Human Behavior Simulation
+
+#### **Realistic Interaction Patterns**
+- **Mouse Movement Simulation**: Bezier curve trajectories with natural jitter and multi-step movements
+- **Context-Aware Scrolling**: Reading time estimation based on content length (200 WPM simulation)
+- **Natural Typing Patterns**: Variable delays with punctuation-aware timing and character-by-character input
+- **Interactive Element Hovering**: Random element interaction with realistic hover durations
+
+#### **Reading Behavior Simulation**
+- **Content Analysis**: Estimates reading time based on visible text content
+- **Comprehension Factors**: Adjusts reading speed based on content complexity
+- **Natural Variance**: ±30% variation in reading patterns for human-like behavior
+
+### ⏱️ Intelligent Rate Limiting (Optimized for 1-2 Minute Updates)
+
+#### **Context-Aware Timing Patterns**
+- **Active Session**: 1-minute base intervals during high activity periods
+- **Idle Session**: 2-minute base intervals during low activity periods  
+- **Night Mode**: 5-minute base intervals (2 AM - 6 AM) for reduced activity simulation
+- **Weekend Mode**: 3-minute base intervals for weekend browsing patterns
+
+#### **Smart Burst Detection & Penalties**
+- **Burst Threshold**: Monitors request frequency over 5-minute windows
+- **Progressive Penalties**: Up to 150% interval increase for suspicious activity patterns
+- **Decay System**: Penalties automatically reduce over 30-minute periods
+- **Emergency Mode**: Automatic 10-minute intervals during detection incidents
+
+### 💾 Session Persistence & Profile Management
+
+#### **Persistent Browser Profiles**
+- **Purpose-Based Organization**: Separate profiles for different monitoring tasks (e.g., 'x-monitoring')
+- **Cookie & localStorage Management**: Automatic session restoration across bot restarts
+- **Profile Statistics**: Usage tracking and session count monitoring
+- **Automatic Cleanup**: Configurable profile expiration (30 days default) with intelligent cleanup
+
+#### **Session Continuity**
+- **Restart Persistence**: Authentication states survive application restarts
+- **Session Validation**: Health checks ensure session integrity before operations
+- **Graceful Recovery**: Automatic session refresh when authentication expires
+
+### 🔍 Real-Time Detection Monitoring
+
+#### **Incident Classification & Tracking**
+- **15+ Detection Signatures**: Identifies bot detection patterns in responses, errors, and HTTP status codes
+- **Severity Scoring**: Critical/High/Medium/Low classification based on detection probability
+- **Pattern Analysis**: Tracks detection trends and frequency over time
+- **Incident History**: Maintains up to 1000 recent incidents with automatic cleanup
+
+#### **Automated Response System**
+- **Emergency Mode Activation**: Automatic rate limiting increase during detection spikes
+- **User Agent Rotation**: Proactive rotation after critical detection incidents
+- **Alert Thresholds**: Configurable incident count triggers (3 incidents/hour default)
+- **Recommendation Engine**: Generates actionable optimization suggestions
+
+### 📊 Performance Monitoring & Optimization
+
+#### **Resource Usage Tracking**
+- **Memory Monitoring**: Tracks heap usage with 1GB alert threshold
+- **CPU Usage Analysis**: Monitors process CPU consumption with 80% alert threshold
+- **Operation Timing**: Measures navigation, interaction, and scraping performance
+- **Performance Grading**: A-F scoring system based on efficiency metrics
+
+#### **Automatic Optimization**
+- **Profile Cleanup Triggers**: Memory-based automatic profile maintenance
+- **Performance Recommendations**: Automated suggestions for optimization
+- **Resource Limit Enforcement**: Prevents runaway resource consumption
+- **Health Check Integration**: Continuous monitoring with Discord command integration
+
+### Configuration
+
+The anti-botting system is fully configurable through environment variables:
+
+```bash
+# Browser Stealth Configuration
+BROWSER_STEALTH_ENABLED=true
+BEHAVIOR_SIMULATION_ENABLED=true
+USER_AGENT_ROTATION_INTERVAL=3600000
+INTELLIGENT_RATE_LIMITING=true
+MIN_REQUEST_INTERVAL=30000
+MAX_REQUEST_INTERVAL=300000
+
+# Detection Monitoring
+DETECTION_MONITORING_ENABLED=true
+DETECTION_ALERT_THRESHOLD=3
+DETECTION_MONITORING_WINDOW=3600000
+
+# Performance Monitoring
+PERFORMANCE_MONITORING_ENABLED=true
+PERFORMANCE_MEMORY_THRESHOLD=1073741824
+PERFORMANCE_CPU_THRESHOLD=80
+
+# Browser Profile Management
+BROWSER_PROFILE_PERSISTENCE=true
+BROWSER_PROFILE_DIR=./browser-profiles
+PROFILE_MAX_AGE_DAYS=30
+```
+
+### Usage Example
+
+```javascript
+import { StealthBrowserFactory } from './services/implementations/stealth-browser-factory.js';
+
+const factory = new StealthBrowserFactory(config, logger);
+const browser = await factory.createHighStealthBrowser({
+  purpose: 'x-monitoring'
+});
+
+// Navigate with full anti-detection capabilities
+await browser.goto('https://x.com/username');
+
+// Monitor system status
+const status = factory.getStatus();
+console.log(`Detection incidents: ${status.detectionMonitor.metrics.detectionIncidents}`);
+console.log(`Performance grade: ${status.performanceMonitor.grade}`);
+```
 
 ## X (Twitter) Authentication Recovery & Health Monitoring
 
