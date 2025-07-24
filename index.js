@@ -76,11 +76,22 @@ async function main() {
         restartUnsubscribe();
         restartUnsubscribe = null;
       }
+
+      // Ensure proper disposal with delay to prevent Discord client overlap
+      logger.info('Disposing old container...');
       await container.dispose();
+
+      // Add a small delay to ensure Discord client is fully destroyed before creating new one
+      logger.info('Waiting for cleanup completion...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      logger.info('Creating new container...');
       container = await startBot();
+
       // Re-register the restart listener for the new container
       const newEventBus = container.resolve('eventBus');
       restartUnsubscribe = newEventBus.on('bot.request_restart', arguments.callee);
+      logger.info('Bot restart completed successfully');
     });
   } catch (error) {
     // Logger is not available here if startBot fails, so we log to console.

@@ -106,11 +106,17 @@ async function setupInfrastructureServices(container, config) {
 async function setupExternalServices(container, config) {
   // Discord Client Service
   container.registerSingleton('discordService', c => {
+    const logger = c.resolve('logger').child({ service: 'DiscordClientService' });
+
+    logger.info('Creating new Discord client instance');
     const client = new Client({
       intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
       partials: [Partials.Message, Partials.Channel, Partials.Reaction],
     });
-    const logger = c.resolve('logger').child({ service: 'DiscordClientService' });
+
+    // Add unique client identifier for debugging
+    client._botInstanceId = Date.now();
+    logger.info(`Discord client created with instance ID: ${client._botInstanceId}`);
 
     return new DiscordClientService(client, logger);
   });

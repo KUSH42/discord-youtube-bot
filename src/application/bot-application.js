@@ -245,6 +245,7 @@ export class BotApplication {
    * Clean up event handlers
    */
   cleanupEventHandlers() {
+    this.logger.info(`Cleaning up ${this.eventCleanup.length} event handlers`);
     for (const cleanup of this.eventCleanup) {
       try {
         cleanup();
@@ -253,6 +254,7 @@ export class BotApplication {
       }
     }
     this.eventCleanup = [];
+    this.logger.info('Event handlers cleanup completed');
   }
 
   /**
@@ -305,9 +307,20 @@ export class BotApplication {
         },
       };
 
-      this.logger.info(`Processing command: "${command}" from user ${user.tag}`);
+      this.logger.info(`Processing command: "${command}" from user ${user.tag}`, {
+        command,
+        userId: user.id,
+        messageId: message.id,
+        clientId: this.discord.getCurrentUser?.()?.id,
+        handlerInstance: this.constructor.name,
+      });
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
-      this.logger.info(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`);
+      this.logger.info(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`, {
+        command,
+        success: result.success,
+        messageId: message.id,
+        clientId: this.discord.getCurrentUser?.()?.id,
+      });
 
       // Handle command result
       await this.handleCommandResult(message, result, command, user);
