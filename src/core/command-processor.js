@@ -203,6 +203,12 @@ export class CommandProcessor {
       case 'scraper-health':
         return await this.handleScraperHealth(userId);
 
+      case 'youtube-health':
+        return await this.handleYoutubeHealth(appStats);
+
+      case 'x-health':
+        return await this.handleXHealth(appStats);
+
       default:
         return {
           success: false,
@@ -371,6 +377,8 @@ export class CommandProcessor {
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
       `**${this.commandPrefix}health-detailed**: Shows detailed health status for all components.`,
+      `**${this.commandPrefix}youtube-health**: Shows detailed YouTube monitor health status.`,
+      `**${this.commandPrefix}x-health**: Shows detailed X scraper health status.`,
       `**${this.commandPrefix}auth-status**: Shows X authentication status.`,
       `**${this.commandPrefix}scraper-health**: Shows X scraper health status.`,
       `**${this.commandPrefix}readme**: Displays this command information.`,
@@ -497,6 +505,48 @@ export class CommandProcessor {
     };
   }
 
+  /**
+   * Handle YouTube health command
+   */
+  async handleYoutubeHealth(appStats) {
+    if (!appStats) {
+      return {
+        success: false,
+        message: 'YouTube health information is not available at the moment.',
+        requiresRestart: false,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'YouTube health check completed',
+      requiresRestart: false,
+      healthData: appStats,
+      healthType: 'youtube',
+    };
+  }
+
+  /**
+   * Handle X scraper health command
+   */
+  async handleXHealth(appStats) {
+    if (!appStats) {
+      return {
+        success: false,
+        message: 'X scraper health information is not available at the moment.',
+        requiresRestart: false,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'X scraper health check completed',
+      requiresRestart: false,
+      healthData: appStats,
+      healthType: 'x-scraper',
+    };
+  }
+
   getStats() {
     return {
       availableCommands: [
@@ -508,6 +558,8 @@ export class CommandProcessor {
         'health',
         'health-detailed',
         'hd',
+        'youtube-health',
+        'x-health',
         'readme',
         'update',
         'restart-scraper',

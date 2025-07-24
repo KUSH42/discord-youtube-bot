@@ -235,6 +235,38 @@ describe('CommandProcessor', () => {
       expect(result.healthData).toEqual(appStats);
     });
 
+    it('should process youtube-health command', async () => {
+      const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
+      const result = await processor.processCommand('youtube-health', [], '123456789012345678', appStats);
+
+      expect(result.success).toBe(true);
+      expect(result.healthData).toEqual(appStats);
+      expect(result.healthType).toBe('youtube');
+    });
+
+    it('should process x-health command', async () => {
+      const appStats = { bot: {}, scraper: {}, monitor: {}, system: {} };
+      const result = await processor.processCommand('x-health', [], '123456789012345678', appStats);
+
+      expect(result.success).toBe(true);
+      expect(result.healthData).toEqual(appStats);
+      expect(result.healthType).toBe('x-scraper');
+    });
+
+    it('should handle youtube-health command without app stats', async () => {
+      const result = await processor.processCommand('youtube-health', [], '123456789012345678');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('YouTube health information is not available at the moment.');
+    });
+
+    it('should handle x-health command without app stats', async () => {
+      const result = await processor.processCommand('x-health', [], '123456789012345678');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('X scraper health information is not available at the moment.');
+    });
+
     it('should process readme command', async () => {
       const result = await processor.processCommand('readme', [], '123456789012345678');
 

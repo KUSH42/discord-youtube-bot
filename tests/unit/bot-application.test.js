@@ -899,6 +899,210 @@ describe('BotApplication', () => {
         expect(nextPollField.value).toBe('In progress...');
       });
     });
+
+    describe('createYoutubeHealthEmbed', () => {
+      it('should create YouTube health embed correctly', () => {
+        const healthData = {
+          monitor: {
+            isRunning: true,
+            subscriptionActive: true,
+            youtubeChannelId: 'UC123456789',
+            callbackUrl: 'https://example.com/webhook',
+            subscriptions: 5,
+            webhooksReceived: 100,
+            videosProcessed: 50,
+            videosAnnounced: 45,
+            xmlParseFailures: 2,
+            lastError: 'Connection timeout',
+            duplicateDetectorStats: {
+              totalChecked: 1000,
+              duplicatesDetected: 25,
+              cacheSize: 500,
+            },
+          },
+          system: {
+            uptime: 86400, // 1 day in seconds
+            memory: { heapUsed: 150 * 1024 * 1024 }, // 150MB
+            timestamp: '2023-01-01T12:00:00.000Z',
+          },
+        };
+
+        const embed = botApplication.createYoutubeHealthEmbed(healthData);
+
+        expect(embed.title).toBe('📺 YouTube Monitor Health Status');
+        expect(embed.color).toBe(0x00ff00); // Green when running
+        expect(embed.fields).toHaveLength(8);
+        expect(embed.footer.text).toContain('Bot v1.0 (Build 123) | YouTube Monitor');
+
+        // Check specific fields
+        const statusField = embed.fields.find(f => f.name === '🔄 Monitor Status');
+        expect(statusField.value).toBe('✅ Running');
+
+        const subscriptionField = embed.fields.find(f => f.name === '📡 Subscription Status');
+        expect(subscriptionField.value).toBe('✅ Active');
+      });
+
+      it('should show red color when monitor not running', () => {
+        const healthData = {
+          monitor: {
+            isRunning: false,
+            subscriptionActive: false,
+            youtubeChannelId: null,
+            callbackUrl: null,
+            subscriptions: 0,
+            webhooksReceived: 0,
+            videosProcessed: 0,
+            videosAnnounced: 0,
+            xmlParseFailures: 0,
+            lastError: null,
+            duplicateDetectorStats: {
+              totalChecked: 0,
+              duplicatesDetected: 0,
+              cacheSize: 0,
+            },
+          },
+          system: {
+            uptime: 3600,
+            memory: { heapUsed: 100 * 1024 * 1024 },
+            timestamp: '2023-01-01T12:00:00.000Z',
+          },
+        };
+
+        const embed = botApplication.createYoutubeHealthEmbed(healthData);
+
+        expect(embed.color).toBe(0xff0000); // Red when not running
+
+        const statusField = embed.fields.find(f => f.name === '🔄 Monitor Status');
+        expect(statusField.value).toBe('❌ Stopped');
+      });
+    });
+
+    describe('createXHealthEmbed', () => {
+      it('should create X scraper health embed correctly', () => {
+        const healthData = {
+          scraper: {
+            isRunning: true,
+            xUser: '@testuser',
+            pollingInterval: {
+              min: 30000,
+              max: 300000,
+              current: 60000,
+              next: Date.now() + 30000,
+            },
+            totalRuns: 100,
+            successfulRuns: 90,
+            failedRuns: 10,
+            totalTweetsFound: 500,
+            totalTweetsAnnounced: 450,
+            lastError: 'Rate limit exceeded',
+            duplicateDetectorStats: {
+              totalChecked: 2000,
+              duplicatesDetected: 50,
+              cacheSize: 1000,
+            },
+          },
+          system: {
+            uptime: 86400,
+            memory: { heapUsed: 200 * 1024 * 1024 },
+            timestamp: '2023-01-01T12:00:00.000Z',
+          },
+        };
+
+        const embed = botApplication.createXHealthEmbed(healthData);
+
+        expect(embed.title).toBe('🐦 X Scraper Health Status');
+        expect(embed.color).toBe(0x00ff00); // Green when running
+        expect(embed.fields).toHaveLength(9);
+        expect(embed.footer.text).toContain('Bot v1.0 (Build 123) | X Scraper');
+
+        // Check specific fields
+        const statusField = embed.fields.find(f => f.name === '🔄 Scraper Status');
+        expect(statusField.value).toBe('✅ Running');
+
+        const userField = embed.fields.find(f => f.name === '👤 X User');
+        expect(userField.value).toBe('@testuser');
+
+        const executionField = embed.fields.find(f => f.name === '📊 Execution Stats');
+        expect(executionField.value).toContain('Success Rate: 90%');
+      });
+
+      it('should show red color when scraper not running', () => {
+        const healthData = {
+          scraper: {
+            isRunning: false,
+            xUser: null,
+            pollingInterval: {
+              min: 30000,
+              max: 300000,
+              current: 60000,
+              next: null,
+            },
+            totalRuns: 0,
+            successfulRuns: 0,
+            failedRuns: 0,
+            totalTweetsFound: 0,
+            totalTweetsAnnounced: 0,
+            lastError: null,
+            duplicateDetectorStats: {
+              totalChecked: 0,
+              duplicatesDetected: 0,
+              cacheSize: 0,
+            },
+          },
+          system: {
+            uptime: 3600,
+            memory: { heapUsed: 100 * 1024 * 1024 },
+            timestamp: '2023-01-01T12:00:00.000Z',
+          },
+        };
+
+        const embed = botApplication.createXHealthEmbed(healthData);
+
+        expect(embed.color).toBe(0xff0000); // Red when not running
+
+        const statusField = embed.fields.find(f => f.name === '🔄 Scraper Status');
+        expect(statusField.value).toBe('❌ Stopped');
+
+        const nextPollField = embed.fields.find(f => f.name === '⏳ Next Poll');
+        expect(nextPollField.value).toBe('Not scheduled');
+      });
+
+      it('should handle zero total runs for success rate calculation', () => {
+        const healthData = {
+          scraper: {
+            isRunning: true,
+            xUser: '@testuser',
+            pollingInterval: {
+              min: 30000,
+              max: 300000,
+              current: 60000,
+              next: Date.now() + 30000,
+            },
+            totalRuns: 0,
+            successfulRuns: 0,
+            failedRuns: 0,
+            totalTweetsFound: 0,
+            totalTweetsAnnounced: 0,
+            lastError: null,
+            duplicateDetectorStats: {
+              totalChecked: 0,
+              duplicatesDetected: 0,
+              cacheSize: 0,
+            },
+          },
+          system: {
+            uptime: 3600,
+            memory: { heapUsed: 100 * 1024 * 1024 },
+            timestamp: '2023-01-01T12:00:00.000Z',
+          },
+        };
+
+        const embed = botApplication.createXHealthEmbed(healthData);
+
+        const executionField = embed.fields.find(f => f.name === '📊 Execution Stats');
+        expect(executionField.value).toContain('Success Rate: 0%');
+      });
+    });
   });
 
   describe('Utility Methods', () => {

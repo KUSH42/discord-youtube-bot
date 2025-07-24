@@ -375,6 +375,8 @@ Commands are used in the channel specified by `DISCORD_BOT_SUPPORT_LOG_CHANNEL`.
 | ------------------------- | ----------------------------------------------------------------------- | ------------- |
 | `!health`                 | Shows a summary of the bot's health and status.                        | Anyone        |
 | `!health-detailed`        | Shows a detailed breakdown of each component's status.                 | Anyone        |
+| `!youtube-health`         | Shows detailed YouTube monitor health status with metrics embed.       | Anyone        |
+| `!x-health`               | Shows detailed X scraper health status with metrics embed.             | Anyone        |
 | `!announce <true/false>`  | Toggles all content announcements on or off.                           | Anyone        |
 | `!vxtwitter <true/false>` | Toggles automatic `twitter.com` to `vxtwitter.com` URL conversion.     | Anyone        |
 | `!loglevel <level>`       | Changes the logging level (`info`, `debug`, `warn`, `error`).          | Anyone        |
@@ -573,6 +575,9 @@ and pull request via GitHub Actions.
   - `GET /ready`: Kubernetes-style readiness probe.
 - **Discord Commands**: Use `!health` and `!health-detailed` for real-time
   status updates in Discord.
+- **Component-Specific Health Commands**:
+  - `!youtube-health`: Detailed YouTube monitor status with subscription info, processing stats, and error metrics in a rich embed format.
+  - `!x-health`: Detailed X scraper status with authentication status, polling intervals, execution statistics, and content metrics in a rich embed format.
 
 ## Troubleshooting
 

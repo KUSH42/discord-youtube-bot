@@ -474,6 +474,12 @@ export class BotApplication {
           } else if (command === 'health') {
             const healthEmbed = this.createHealthEmbed(result.healthData);
             await message.reply({ embeds: [healthEmbed] });
+          } else if (command === 'youtube-health') {
+            const healthEmbed = this.createYoutubeHealthEmbed(result.healthData);
+            await message.reply({ embeds: [healthEmbed] });
+          } else if (command === 'x-health') {
+            const healthEmbed = this.createXHealthEmbed(result.healthData);
+            await message.reply({ embeds: [healthEmbed] });
           }
         } else {
           await message.reply(result.message);
@@ -576,7 +582,7 @@ export class BotApplication {
    */
   createDetailedHealthEmbed(healthData) {
     const { bot, scraper, monitor, youtubeScraper, system } = healthData;
-    const uptimeStr = new Date(system.uptime * 1000).toISOString().substr(11, 8);
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substring(11, 19);
     const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
     const nextPoll = scraper.pollingInterval.next;
     let nextPollStr = 'Not scheduled';
@@ -630,6 +636,147 @@ export class BotApplication {
       timestamp: system.timestamp,
       footer: {
         text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | Started: ${new Date(bot.botStartTime).toLocaleString()}`,
+      },
+    };
+  }
+
+  /**
+   * Create YouTube health embed
+   * @param {Object} healthData - Health data from command processor
+   * @returns {Object} Discord embed object
+   */
+  createYoutubeHealthEmbed(healthData) {
+    const { monitor, system } = healthData;
+    const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substring(11, 19);
+
+    return {
+      title: '📺 YouTube Monitor Health Status',
+      color: monitor.isRunning ? 0x00ff00 : 0xff0000, // Green if running, red if not
+      fields: [
+        {
+          name: '🔄 Monitor Status',
+          value: monitor.isRunning ? '✅ Running' : '❌ Stopped',
+          inline: true,
+        },
+        {
+          name: '📡 Subscription Status',
+          value: monitor.subscriptionActive ? '✅ Active' : '❌ Inactive',
+          inline: true,
+        },
+        {
+          name: '📺 YouTube Channel',
+          value: monitor.youtubeChannelId || 'Not configured',
+          inline: true,
+        },
+        {
+          name: '🔗 Callback URL',
+          value: monitor.callbackUrl ? `\`${monitor.callbackUrl}\`` : 'Not set',
+          inline: false,
+        },
+        {
+          name: '📊 Processing Stats',
+          value: `Subscriptions: ${monitor.subscriptions}\nWebhooks Received: ${monitor.webhooksReceived}\nVideos Processed: ${monitor.videosProcessed}\nVideos Announced: ${monitor.videosAnnounced}`,
+          inline: true,
+        },
+        {
+          name: '❌ Error Statistics',
+          value: `XML Parse Failures: ${monitor.xmlParseFailures}\nLast Error: ${monitor.lastError || 'None'}`,
+          inline: true,
+        },
+        {
+          name: '🔍 Duplicate Detection',
+          value: `Total Checked: ${monitor.duplicateDetectorStats?.totalChecked || 0}\nDuplicates Found: ${monitor.duplicateDetectorStats?.duplicatesDetected || 0}\nCache Size: ${monitor.duplicateDetectorStats?.cacheSize || 0}`,
+          inline: true,
+        },
+        {
+          name: '💻 System Info',
+          value: `Uptime: ${uptimeStr}\nMemory: ${formatMemory(system.memory.heapUsed)}`,
+          inline: true,
+        },
+      ],
+      timestamp: system.timestamp,
+      footer: {
+        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | YouTube Monitor`,
+      },
+    };
+  }
+
+  /**
+   * Create X scraper health embed
+   * @param {Object} healthData - Health data from command processor
+   * @returns {Object} Discord embed object
+   */
+  createXHealthEmbed(healthData) {
+    const { scraper, system } = healthData;
+    const formatMemory = bytes => `${Math.round(bytes / 1024 / 1024)} MB`;
+    const uptimeStr = new Date(system.uptime * 1000).toISOString().substring(11, 19);
+
+    const nextPoll = scraper.pollingInterval.next;
+    let nextPollStr = 'Not scheduled';
+    if (scraper.isRunning) {
+      if (nextPoll) {
+        nextPollStr = `<t:${Math.round(nextPoll / 1000)}:R>`;
+      } else {
+        nextPollStr = 'In progress...';
+      }
+    }
+
+    const successRate = scraper.totalRuns > 0 ? Math.round((scraper.successfulRuns / scraper.totalRuns) * 100) : 0;
+
+    return {
+      title: '🐦 X Scraper Health Status',
+      color: scraper.isRunning ? 0x00ff00 : 0xff0000, // Green if running, red if not
+      fields: [
+        {
+          name: '🔄 Scraper Status',
+          value: scraper.isRunning ? '✅ Running' : '❌ Stopped',
+          inline: true,
+        },
+        {
+          name: '👤 X User',
+          value: scraper.xUser || 'Not configured',
+          inline: true,
+        },
+        {
+          name: '⏳ Next Poll',
+          value: nextPollStr,
+          inline: true,
+        },
+        {
+          name: '🔄 Polling Interval',
+          value: `Min: ${Math.round(scraper.pollingInterval.min / 1000)}s\nMax: ${Math.round(scraper.pollingInterval.max / 1000)}s\nCurrent: ${Math.round(scraper.pollingInterval.current / 1000)}s`,
+          inline: true,
+        },
+        {
+          name: '📊 Execution Stats',
+          value: `Total Runs: ${scraper.totalRuns}\nSuccessful: ${scraper.successfulRuns}\nFailed: ${scraper.failedRuns}\nSuccess Rate: ${successRate}%`,
+          inline: true,
+        },
+        {
+          name: '📢 Content Stats',
+          value: `Tweets Found: ${scraper.totalTweetsFound}\nTweets Announced: ${scraper.totalTweetsAnnounced}`,
+          inline: true,
+        },
+        {
+          name: '❌ Error Info',
+          value: `Last Error: ${scraper.lastError || 'None'}`,
+          inline: false,
+        },
+        {
+          name: '🔍 Duplicate Detection',
+          value: `Total Checked: ${scraper.duplicateDetectorStats?.totalChecked || 0}\nDuplicates Found: ${scraper.duplicateDetectorStats?.duplicatesDetected || 0}\nCache Size: ${scraper.duplicateDetectorStats?.cacheSize || 0}`,
+          inline: true,
+        },
+        {
+          name: '💻 System Info',
+          value: `Uptime: ${uptimeStr}\nMemory: ${formatMemory(system.memory.heapUsed)}`,
+          inline: true,
+        },
+      ],
+      timestamp: system.timestamp,
+      footer: {
+        text: `Bot v${this.buildInfo.version} (Build ${this.buildInfo.build}) | X Scraper`,
       },
     };
   }

@@ -650,19 +650,13 @@ export class YouTubeScraperService {
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
-          const videoInfo = {
+          this.logger.info('Successfully scraped latest video:', {
             strategy: latestVideo.strategy,
             videoId: latestVideo.id,
             title: latestVideo.title,
             publishedText: latestVideo.publishedText,
             url: latestVideo.url,
-          };
-          this.logger.info(
-            'Successfully scraped latest video',
-            JSON.stringify({
-              videoInfo,
-            })
-          );
+          });
         } else {
           const failureInfo = {
             videosUrl: this.videosUrl,
