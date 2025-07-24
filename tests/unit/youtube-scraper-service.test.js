@@ -86,6 +86,7 @@ describe('YouTubeScraperService', () => {
   describe('Initialization', () => {
     it('should initialize successfully with valid channel handle', async () => {
       const mockVideo = {
+        success: true,
         id: 'dQw4w9WgXcQ',
         title: 'Test Video',
         url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -119,7 +120,7 @@ describe('YouTubeScraperService', () => {
     });
 
     it('should handle initialization when no videos are found', async () => {
-      mockBrowserService.evaluate.mockResolvedValue(null);
+      mockBrowserService.evaluate.mockResolvedValue({ success: false, strategies: ['modern-grid'] });
 
       await scraperService.initialize('emptychannel');
 
@@ -131,6 +132,7 @@ describe('YouTubeScraperService', () => {
 
     it('should throw error if already initialized', async () => {
       mockBrowserService.evaluate.mockResolvedValue({
+        success: true,
         id: 'test123',
         title: 'Test',
         url: 'https://www.youtube.com/watch?v=test123',
@@ -436,6 +438,7 @@ describe('YouTubeScraperService', () => {
 
     it('should perform health check successfully', async () => {
       const mockVideo = {
+        success: true,
         id: 'health123',
         title: 'Health Check Video',
         url: 'https://www.youtube.com/watch?v=health123',
@@ -958,6 +961,7 @@ describe('YouTubeScraperService', () => {
       it('should include authentication status in health check', async () => {
         authenticatedService.isAuthenticated = true;
         mockBrowserService.evaluate.mockResolvedValue({
+          success: true,
           id: 'health123',
           title: 'Health Video',
           url: 'https://www.youtube.com/watch?v=health123',
@@ -973,7 +977,7 @@ describe('YouTubeScraperService', () => {
 
       it('should provide authentication failure hints when enabled but not authenticated', async () => {
         authenticatedService.isAuthenticated = false;
-        mockBrowserService.evaluate.mockResolvedValue(null); // No videos found
+        mockBrowserService.evaluate.mockResolvedValue({ success: false, strategies: ['modern-grid'] }); // No videos found
 
         await authenticatedService.initialize('testchannel');
         const health = await authenticatedService.healthCheck();

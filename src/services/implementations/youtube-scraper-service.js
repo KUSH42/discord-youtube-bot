@@ -104,7 +104,7 @@ export class YouTubeScraperService {
 
       // Find and set the initial latest video
       const latestVideo = await this.fetchLatestVideo();
-      if (latestVideo) {
+      if (latestVideo && latestVideo.success && latestVideo.id) {
         await this.contentCoordinator.processContent(latestVideo.id, 'scraper', latestVideo);
         this.logger.info('YouTube scraper initialized', {
           videosUrl: this.videosUrl,
@@ -906,7 +906,7 @@ export class YouTubeScraperService {
       // Try to fetch latest video as health check
       const testVideo = await this.fetchLatestVideo();
 
-      if (testVideo) {
+      if (testVideo && testVideo.success && testVideo.id) {
         health.status = 'healthy';
         health.details.lastContentId = testVideo.id;
         health.details.lastContentTitle = testVideo.title;
