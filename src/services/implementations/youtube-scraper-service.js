@@ -652,13 +652,13 @@ export class YouTubeScraperService {
 
           this.logger.info(
             'Successfully scraped latest video',
-            {
+            JSON.stringify({
               strategy: latestVideo.strategy,
               videoId: latestVideo.id,
               title: latestVideo.title,
               publishedText: latestVideo.publishedText,
               url: latestVideo.url,
-            }.JSON.stringify()
+            })
           );
         } else {
           const failureInfo = {
