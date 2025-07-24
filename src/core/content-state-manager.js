@@ -313,9 +313,9 @@ export class ContentStateManager {
     try {
       await this.storage.storeContentState(contentId, {
         ...state,
-        firstSeen: state.firstSeen.toISOString(),
-        lastUpdated: state.lastUpdated.toISOString(),
-        publishedAt: state.publishedAt.toISOString(),
+        firstSeen: state.firstSeen,
+        lastUpdated: state.lastUpdated,
+        publishedAt: state.publishedAt,
       });
     } catch (error) {
       this.logger.warn('Failed to persist content state', {
