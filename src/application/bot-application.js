@@ -35,6 +35,9 @@ export class BotApplication {
     this.eventCleanup = [];
     this.isRunning = false;
     this.buildInfo = this.loadBuildInfo();
+
+    // Debug: Message processing counter to detect duplicates
+    this.messageProcessingCounter = new Map();
   }
 
   loadBuildInfo() {
@@ -263,8 +266,47 @@ export class BotApplication {
    */
   async handleMessage(message) {
     try {
+      // Debug logging to track all messages received
+      this.logger.debug('Message received for processing', {
+        messageId: message.id,
+        authorId: message.author?.id,
+        authorBot: message.author?.bot,
+        content: message.content?.substring(0, 100), // First 100 chars only
+        startsWithPrefix: message.content?.startsWith(this.commandPrefix),
+        clientId: this.discord.getCurrentUser?.()?.id,
+        instanceId: this.discord.client?._botInstanceId || 'unknown',
+      });
+
       // Ignore bot messages and non-command messages
       if (message.author.bot || !message.content.startsWith(this.commandPrefix)) {
+        if (message.author.bot) {
+          this.logger.debug('Ignoring bot message', {
+            messageId: message.id,
+            authorId: message.author?.id,
+            botAuthor: true,
+          });
+        }
+        return;
+      }
+
+      // Additional safety check: Ignore messages from this bot specifically
+      const currentBotUser = await this.discord.getCurrentUser();
+      if (currentBotUser && message.author.id === currentBotUser.id) {
+        this.logger.warn('Ignoring message from self', {
+          messageId: message.id,
+          authorId: message.author?.id,
+          botUserId: currentBotUser.id,
+          content: message.content?.substring(0, 50),
+        });
+        return;
+      }
+
+      // Ensure Discord client is ready before processing
+      if (!this.discord.isReady()) {
+        this.logger.warn('Discord client not ready, ignoring message', {
+          messageId: message.id,
+          authorId: message.author?.id,
+        });
         return;
       }
 
@@ -272,6 +314,23 @@ export class BotApplication {
       const args = message.content.slice(this.commandPrefix.length).trim().split(/ +/);
       const command = args.shift().toLowerCase();
       const user = message.author;
+
+      // Debug: Track message processing to detect duplicates
+      const messageKey = `${message.id}-${command}`;
+      const processingCount = (this.messageProcessingCounter.get(messageKey) || 0) + 1;
+      this.messageProcessingCounter.set(messageKey, processingCount);
+
+      if (processingCount > 1) {
+        this.logger.error('DUPLICATE COMMAND EXECUTION DETECTED!', {
+          messageId: message.id,
+          command,
+          processingCount,
+          userId: user.id,
+          instanceId: this.discord.client?._botInstanceId || 'unknown',
+          clientId: currentBotUser?.id,
+        });
+        // Still process the command but log the issue
+      }
 
       // Only process messages in the support channel or from admin in any other channel
       if (!user && this.supportChannelId && message.channel.id !== this.supportChannelId) {
@@ -311,19 +370,33 @@ export class BotApplication {
         command,
         userId: user.id,
         messageId: message.id,
-        clientId: this.discord.getCurrentUser?.()?.id,
+        clientId: currentBotUser?.id,
         handlerInstance: this.constructor.name,
+        instanceId: this.discord.client?._botInstanceId || 'unknown',
+        isReady: this.discord.isReady(),
       });
       const result = await this.commandProcessor.processCommand(command, args, user.id, appStats);
       this.logger.info(`Command "${command}" result: ${result.success ? 'success' : 'failure'}`, {
         command,
         success: result.success,
         messageId: message.id,
-        clientId: this.discord.getCurrentUser?.()?.id,
+        clientId: currentBotUser?.id,
+        instanceId: this.discord.client?._botInstanceId || 'unknown',
       });
 
       // Handle command result
       await this.handleCommandResult(message, result, command, user);
+
+      // Cleanup: Remove old message tracking entries to prevent memory leaks
+      if (this.messageProcessingCounter.size > 1000) {
+        const entries = Array.from(this.messageProcessingCounter.entries());
+        // Keep only the most recent 500 entries
+        const recentEntries = entries.slice(-500);
+        this.messageProcessingCounter.clear();
+        recentEntries.forEach(([key, value]) => {
+          this.messageProcessingCounter.set(key, value);
+        });
+      }
     } catch (error) {
       this.logger.error('Error processing message command:', error);
       try {
