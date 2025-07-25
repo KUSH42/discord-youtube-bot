@@ -33,6 +33,12 @@ describe('Announcement Debug Scenarios', () => {
       warn: jest.fn((...args) => logCapture.warn.push(args)),
       error: jest.fn((...args) => logCapture.error.push(args)),
       child: jest.fn(() => mockLogger),
+      // Add enhanced logger methods
+      startOperation: jest.fn().mockReturnValue({
+        progress: jest.fn(),
+        success: jest.fn(),
+        error: jest.fn(),
+      }),
     };
 
     // Track Discord messages
@@ -122,12 +128,26 @@ describe('Announcement Debug Scenarios', () => {
       getStorageStats: jest.fn(() => Promise.resolve({ seenCount: 0 })),
     };
 
+    // Mock debug manager for enhanced logging
+    const mockDebugManager = {
+      shouldLog: jest.fn().mockReturnValue(true),
+      getLevel: jest.fn().mockReturnValue(3),
+    };
+
+    // Mock metrics manager for enhanced logging
+    const mockMetricsManager = {
+      recordMetric: jest.fn(),
+      startTimer: jest.fn().mockReturnValue({ end: jest.fn() }),
+    };
+
     // Set up dependencies
     mockDependencies = {
       discordService: mockDiscordService,
       config: mockConfig,
       stateManager: mockStateManager,
       logger: mockLogger,
+      debugManager: mockDebugManager,
+      metricsManager: mockMetricsManager,
       persistentStorage: mockPersistentStorage,
       eventBus: { emit: jest.fn(), on: jest.fn(), off: jest.fn() },
       httpService: {

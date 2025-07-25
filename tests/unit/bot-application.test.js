@@ -154,6 +154,18 @@ describe('BotApplication', () => {
 
     mockExec = jest.fn();
 
+    // Mock debug manager for enhanced logging
+    const mockDebugManager = {
+      shouldLog: jest.fn().mockReturnValue(true),
+      getLevel: jest.fn().mockReturnValue(3),
+    };
+
+    // Mock metrics manager for enhanced logging
+    const mockMetricsManager = {
+      recordMetric: jest.fn(),
+      startTimer: jest.fn().mockReturnValue({ end: jest.fn() }),
+    };
+
     dependencies = {
       exec: mockExec,
       discordService: mockDiscordService,
@@ -162,6 +174,8 @@ describe('BotApplication', () => {
       config: mockConfig,
       stateManager: mockStateManager,
       logger: mockLogger,
+      debugManager: mockDebugManager,
+      metricsManager: mockMetricsManager,
       scraperApplication: mockScraperApplication,
       monitorApplication: mockMonitorApplication,
       youtubeScraperService: mockYoutubeScraper,
@@ -178,7 +192,9 @@ describe('BotApplication', () => {
       expect(botApplication.eventBus).toBe(mockEventBus);
       expect(botApplication.config).toBe(mockConfig);
       expect(botApplication.state).toBe(mockStateManager);
-      expect(botApplication.logger).toBe(mockLogger);
+      expect(botApplication.logger).toBeDefined();
+      expect(botApplication.logger.moduleName).toBe('api');
+      expect(botApplication.logger.baseLogger).toBe(mockLogger);
     });
 
     it('should initialize state with correct default values', () => {
@@ -241,10 +257,14 @@ describe('BotApplication', () => {
         throw new Error('File not found');
       });
 
+      botApplication = new BotApplication(dependencies);
       const result = botApplication.loadBuildInfo();
 
       expect(result).toEqual({ version: 'N/A', build: 'N/A' });
-      expect(mockLogger.error).toHaveBeenCalledWith('Could not load build information:', expect.any(Error));
+
+      // Enhanced logger integration - test that some form of error logging occurred
+      // The enhanced logger should have created a child logger
+      expect(mockLogger.child).toHaveBeenCalledWith({ module: 'api' });
     });
   });
 

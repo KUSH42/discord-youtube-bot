@@ -71,11 +71,23 @@ describe('MonitorApplication - Fallback Integration Tests', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      // Add enhanced logger methods
+      startOperation: jest.fn().mockReturnValue({
+        progress: jest.fn(),
+        success: jest.fn(),
+        error: jest.fn(),
+      }),
       child: jest.fn().mockReturnValue({
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
         debug: jest.fn(),
+        // Add enhanced logger methods to child logger too
+        startOperation: jest.fn().mockReturnValue({
+          progress: jest.fn(),
+          success: jest.fn(),
+          error: jest.fn(),
+        }),
         child: jest.fn().mockReturnThis(),
       }),
     };
