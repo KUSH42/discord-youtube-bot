@@ -1,6 +1,7 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import { delay } from '../utils/delay.js';
 import { nowUTC, toISOStringUTC, daysAgoUTC } from '../utilities/utc-time.js';
+import { getXScrapingBrowserConfig } from '../utilities/browser-config.js';
 
 /**
  * X (Twitter) scraping application orchestrator
@@ -300,27 +301,9 @@ export class ScraperApplication {
    * @returns {Promise<void>}
    */
   async initializeBrowser() {
-    const browserOptions = {
+    const browserOptions = getXScrapingBrowserConfig({
       headless: false,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        // Minimal performance optimizations to avoid bot detection
-        '--disable-images',
-        '--disable-plugins',
-        '--mute-audio',
-      ],
-    };
-
-    // Add display if running in headless environment
-    if (process.env.DISPLAY) {
-      browserOptions.args.push(`--display=${process.env.DISPLAY}`);
-    }
+    });
 
     await this.browser.launch(browserOptions);
     this.logger.info('Browser initialized for X scraping');

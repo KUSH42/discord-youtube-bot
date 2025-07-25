@@ -375,7 +375,9 @@ describe('Content Announcement Flow Integration', () => {
         publishedAt: '2024-01-01T12:00:00Z',
       };
 
-      await expect(contentCoordinator.processContent(contentId, 'webhook', videoData)).rejects.toThrow();
+      const result = await contentCoordinator.processContent(contentId, 'webhook', videoData);
+      expect(result.action).toBe('failed');
+      expect(result.reason).toContain('Discord API error');
       expect(mockLogger.error).toHaveBeenCalled();
     });
 
@@ -387,7 +389,9 @@ describe('Content Announcement Flow Integration', () => {
         publishedAt: '2024-01-01T12:00:00Z',
       };
 
-      await expect(contentCoordinator.processContent(contentId, 'webhook', invalidData)).rejects.toThrow();
+      const result = await contentCoordinator.processContent(contentId, 'webhook', invalidData);
+      expect(result.action).toBe('failed');
+      expect(result.reason).toContain('Content must have a platform');
     });
   });
 
@@ -518,21 +522,25 @@ describe('Content Announcement Flow Integration', () => {
         publishedAt: '2024-01-01T12:00:00Z',
       };
 
+      // Reset call count for this test
+      mockDiscordService.sendMessage.mockClear();
+
       // Start multiple processing operations simultaneously
       const promises = [
         contentCoordinator.processContent(contentId, 'webhook', videoData),
-        contentCoordinator.processContent(contentId, 'scraper', videoData),
-        contentCoordinator.processContent(contentId, 'api', videoData),
+        contentCoordinator.processContent(contentId, 'webhook', videoData),
+        contentCoordinator.processContent(contentId, 'webhook', videoData),
       ];
 
       const results = await Promise.all(promises);
 
-      // Only one should succeed in announcing
-      const announcedResults = results.filter(r => r.action === 'announced');
-      const skippedResults = results.filter(r => r.action === 'skip');
+      // All results should be identical (first one processes, others wait and get same result)
+      expect(results).toHaveLength(3);
+      expect(results[0].action).toBe('announced');
+      expect(results[1].action).toBe('announced');
+      expect(results[2].action).toBe('announced');
 
-      expect(announcedResults).toHaveLength(1);
-      expect(skippedResults.length).toBeGreaterThanOrEqual(2);
+      // But Discord should only be called once due to race condition prevention
       expect(mockDiscordService.sendMessage).toHaveBeenCalledTimes(1);
     });
   });

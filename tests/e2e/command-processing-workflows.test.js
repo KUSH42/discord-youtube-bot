@@ -549,6 +549,11 @@ describe('End-to-End Command Processing Workflows', () => {
         'auth-status',
         'force-reauth',
         'scraper-health',
+        'debug',
+        'debug-status',
+        'debug-level',
+        'metrics',
+        'log-pipeline',
       ]);
 
       expect(stats).toHaveProperty('restrictedCommands', [

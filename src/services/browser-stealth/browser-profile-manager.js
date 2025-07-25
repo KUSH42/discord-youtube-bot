@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { getProfileBrowserConfig } from '../../utilities/browser-config.js';
 
 /**
  * BrowserProfileManager - Advanced browser profile and session management
@@ -155,22 +156,21 @@ export class BrowserProfileManager {
     const profilePath = this.getProfilePath(profileId);
     const metadata = this.profileMetadata.get(profileId);
 
-    const options = {
-      userDataDir: profilePath,
+    // Use base browser config and add profile-specific args
+    // Note: Some args here are "dangerous" for bot detection but necessary for profile management
+    const options = getProfileBrowserConfig({
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-web-security',
+      userDataDir: profilePath,
+      additionalArgs: [
+        '--disable-web-security', // Necessary for profile initialization
         '--disable-features=VizDisplayCompositor',
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
         '--disable-blink-features=AutomationControlled',
-        '--disable-ipc-flooding-protection',
+        '--disable-ipc-flooding-protection', // Necessary for profile stability
       ],
-    };
+    });
 
     // Apply saved viewport if available
     if (metadata && metadata.viewport) {

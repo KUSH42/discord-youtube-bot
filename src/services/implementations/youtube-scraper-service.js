@@ -2,6 +2,7 @@ import { PlaywrightBrowserService } from './playwright-browser-service.js';
 import { AsyncMutex } from '../../utilities/async-mutex.js';
 import { parseRelativeTime } from '../../utilities/time-parser.js';
 import { nowUTC } from '../../utilities/utc-time.js';
+import { getYouTubeScrapingBrowserConfig } from '../../utilities/browser-config.js';
 
 /**
  * YouTube web scraper service for near-instantaneous content detection
@@ -63,27 +64,9 @@ export class YouTubeScraperService {
 
     try {
       // Launch browser with optimized settings for scraping
-      const browserOptions = {
+      const browserOptions = getYouTubeScrapingBrowserConfig({
         headless: false,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          // Minimal performance optimizations to avoid bot detection
-          '--disable-images',
-          '--disable-plugins',
-          '--mute-audio',
-        ],
-      };
-
-      // Add display if running in headless environment
-      if (process.env.DISPLAY) {
-        browserOptions.args.push(`--display=${process.env.DISPLAY}`);
-      }
+      });
 
       await this.browserService.launch(browserOptions);
 
