@@ -618,6 +618,7 @@ export class YouTubeScraperService {
               viewsText,
               thumbnailUrl,
               type: 'video',
+              platform: 'youtube',
               scrapedAt: new Date().toISOString(),
             };
           });
@@ -722,6 +723,7 @@ export class YouTubeScraperService {
             title: liveElement.getAttribute('title') || 'Live Stream',
             url,
             type: 'livestream',
+            platform: 'youtube',
             publishedAt: new Date().toISOString(), // Live streams are happening now
             scrapedAt: new Date().toISOString(),
           };

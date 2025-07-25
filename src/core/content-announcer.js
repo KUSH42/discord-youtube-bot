@@ -93,6 +93,17 @@ export class ContentAnnouncer {
       const validation = this.validateContent(content);
       if (!validation.success) {
         result.reason = validation.error;
+
+        // For recoverable errors, log as warning instead of error
+        if (validation.recoverable) {
+          operation.progress('Content validation failed but recoverable, skipping gracefully');
+          result.skipped = true;
+          return operation.success('Content skipped due to recoverable validation issue', {
+            validationError: validation.error,
+            recoverable: true,
+          }).result;
+        }
+
         return (
           operation.error(new Error(validation.error), 'Content validation failed', {
             validationError: validation.error,
@@ -176,8 +187,32 @@ export class ContentAnnouncer {
       return { success: false, error: 'Content must be an object' };
     }
 
+    // Graceful recovery for missing platform - log warning but try to infer
     if (!content.platform || typeof content.platform !== 'string') {
-      return { success: false, error: 'Content must have a platform' };
+      this.logger.warn('Content missing platform property, attempting to infer from URL', {
+        contentId: content.id,
+        url: content.url,
+        type: content.type,
+      });
+
+      // Try to infer platform from URL
+      if (content.url) {
+        if (content.url.includes('youtube.com') || content.url.includes('youtu.be')) {
+          content.platform = 'youtube';
+        } else if (content.url.includes('x.com') || content.url.includes('twitter.com')) {
+          content.platform = 'x';
+        }
+      }
+
+      // If still no platform, skip announcement with warning
+      if (!content.platform) {
+        this.logger.warn('Unable to determine platform for content, skipping announcement', {
+          contentId: content.id,
+          url: content.url,
+          type: content.type,
+        });
+        return { success: false, error: 'Content must have a platform', recoverable: true };
+      }
     }
 
     if (!content.type || typeof content.type !== 'string') {
