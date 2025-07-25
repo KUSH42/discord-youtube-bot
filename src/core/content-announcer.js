@@ -1,4 +1,5 @@
 import { splitMessage } from '../discord-utils.js';
+import { nowUTC } from '../utilities/utc-time.js';
 
 /**
  * Pure business logic for announcing content to Discord channels
@@ -62,6 +63,24 @@ export class ContentAnnouncer {
    * @returns {Promise<Object>} Announcement result
    */
   async announceContent(content, options = {}) {
+    const startTime = Date.now();
+    const contentSummary = {
+      platform: content?.platform,
+      type: content?.type,
+      id: content?.id,
+      url: content?.url,
+      title: content?.title?.substring(0, 50),
+      author: content?.author,
+      publishedAt: content?.publishedAt,
+      isOld: content?.isOld,
+    };
+
+    this.logger.debug('🔄 Starting content announcement process', {
+      contentSummary,
+      options,
+      timestamp: nowUTC().toISOString(),
+    });
+
     const result = {
       success: false,
       channelId: null,
@@ -72,45 +91,98 @@ export class ContentAnnouncer {
 
     try {
       // Validate input
+      this.logger.debug('📝 Validating content structure', { contentSummary });
       const validation = this.validateContent(content);
       if (!validation.success) {
+        this.logger.warn('❌ Content validation failed', {
+          error: validation.error,
+          contentSummary,
+        });
         result.reason = validation.error;
         return result;
       }
+      this.logger.debug('✅ Content validation passed', { contentSummary });
 
       // Check if announcements are enabled
+      this.logger.debug('🔍 Checking if content should be announced', { contentSummary, options });
       if (!this.shouldAnnounce(content, options)) {
+        const skipReason = this.getSkipReason(content, options);
+        this.logger.info('⏭️ Skipping announcement', {
+          reason: skipReason,
+          contentSummary,
+          postingEnabled: this.state.get('postingEnabled', true),
+          announcementEnabled: this.state.get('announcementEnabled', true),
+          botStartTime: this.state.get('botStartTime'),
+        });
         result.skipped = true;
-        result.reason = this.getSkipReason(content, options);
+        result.reason = skipReason;
         return result;
       }
+      this.logger.debug('✅ Content approved for announcement', { contentSummary });
 
       // Get target channel
+      this.logger.debug('🎯 Determining target channel', { platform: content.platform, type: content.type });
       const channelId = this.getChannelForContent(content);
       if (!channelId || !this._isValidDiscordId(channelId)) {
         const errorMessage = `Invalid or missing channel ID: ${channelId}`;
-        this.logger.error(errorMessage, { content });
+        this.logger.error('❌ Invalid channel configuration', {
+          error: errorMessage,
+          contentSummary,
+          channelMapping: this.channelMap,
+        });
         result.reason = errorMessage;
         return result;
       }
+      this.logger.debug('✅ Channel determined', {
+        channelId,
+        platform: content.platform,
+        type: content.type,
+      });
 
       result.channelId = channelId;
 
       // Format message
+      this.logger.debug('💬 Formatting message', { contentSummary, channelId });
       const message = this.formatMessage(content, options);
+      this.logger.debug('✅ Message formatted', {
+        messagePreview: typeof message === 'string' ? message.substring(0, 100) : '[EMBED]',
+        contentSummary,
+      });
 
       // Send announcement
+      this.logger.info('🚀 Sending announcement to Discord', {
+        channelId,
+        contentSummary,
+        messageType: typeof message,
+      });
       const sentMessage = await this.discord.sendMessage(channelId, message);
       result.messageId = sentMessage.id;
       result.success = true;
 
+      const processingTime = Date.now() - startTime;
+      this.logger.info('✅ Announcement sent successfully', {
+        messageId: sentMessage.id,
+        channelId,
+        contentSummary,
+        processingTimeMs: processingTime,
+      });
+
       // Send mirror message if configured
       if (this.shouldMirrorMessage(channelId, options)) {
+        this.logger.debug('🪞 Sending mirror message', { channelId, supportChannelId: this.supportChannelId });
         await this.sendMirrorMessage(channelId, message, options);
       }
 
       return result;
     } catch (error) {
+      const processingTime = Date.now() - startTime;
+      this.logger.error('❌ Announcement failed', {
+        error: error.message,
+        stack: error.stack,
+        contentSummary,
+        options,
+        processingTimeMs: processingTime,
+      });
       result.reason = error.message;
       return result;
     }
@@ -315,7 +387,7 @@ export class ContentAnnouncer {
             description: this.sanitizeContent(title),
             url,
             color: 0xff0000, // Red for live
-            timestamp: new Date().toISOString(),
+            timestamp: nowUTC().toISOString(),
             fields: [
               {
                 name: 'Watch now',

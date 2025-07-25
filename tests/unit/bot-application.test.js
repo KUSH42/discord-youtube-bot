@@ -1,6 +1,7 @@
 import { BotApplication } from '../../src/application/bot-application.js';
 import { jest } from '@jest/globals';
 import fs from 'fs';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('BotApplication', () => {
   let botApplication;
@@ -104,7 +105,7 @@ describe('BotApplication', () => {
 
     mockScraperApplication = {
       getStats: jest.fn().mockReturnValue({
-        pollingInterval: { next: Date.now() + 60000 },
+        pollingInterval: { next: timestampUTC() + 60000 },
         isRunning: true,
         totalRuns: 10,
         successfulRuns: 9,
@@ -832,7 +833,7 @@ describe('BotApplication', () => {
           },
           scraper: {
             isRunning: true,
-            pollingInterval: { next: Date.now() + 60000 },
+            pollingInterval: { next: timestampUTC() + 60000 },
             totalRuns: 10,
             successfulRuns: 9,
             failedRuns: 1,
@@ -987,7 +988,7 @@ describe('BotApplication', () => {
               min: 30000,
               max: 300000,
               current: 60000,
-              next: Date.now() + 30000,
+              next: timestampUTC() + 30000,
             },
             totalRuns: 100,
             successfulRuns: 90,
@@ -1076,7 +1077,7 @@ describe('BotApplication', () => {
               min: 30000,
               max: 300000,
               current: 60000,
-              next: Date.now() + 30000,
+              next: timestampUTC() + 30000,
             },
             totalRuns: 0,
             successfulRuns: 0,

@@ -1,6 +1,8 @@
 import { PlaywrightBrowserService } from './playwright-browser-service.js';
 import { AsyncMutex } from '../../utilities/async-mutex.js';
 import { parseRelativeTime } from '../../utilities/time-parser.js';
+import { nowUTC } from '../../utilities/utc-time.js';
+import { getYouTubeScrapingBrowserConfig } from '../../utilities/browser-config.js';
 
 /**
  * YouTube web scraper service for near-instantaneous content detection
@@ -62,27 +64,9 @@ export class YouTubeScraperService {
 
     try {
       // Launch browser with optimized settings for scraping
-      const browserOptions = {
+      const browserOptions = getYouTubeScrapingBrowserConfig({
         headless: false,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          // Minimal performance optimizations to avoid bot detection
-          '--disable-images',
-          '--disable-plugins',
-          '--mute-audio',
-        ],
-      };
-
-      // Add display if running in headless environment
-      if (process.env.DISPLAY) {
-        browserOptions.args.push(`--display=${process.env.DISPLAY}`);
-      }
+      });
 
       await this.browserService.launch(browserOptions);
 
@@ -650,7 +634,21 @@ export class YouTubeScraperService {
           this.metrics.successfulScrapes++;
           this.metrics.lastSuccessfulScrape = new Date();
 
-          this.logger.info('Successfully scraped latest video:', JSON.stringify(latestVideo, null, 2));
+          // Create a plain object for logging to avoid complex object serialization issues
+          const logData = {};
+          logData.success = latestVideo.success;
+          logData.strategy = latestVideo.strategy;
+          logData.id = latestVideo.id;
+          logData.title = latestVideo.title;
+          logData.url = latestVideo.url;
+          logData.publishedText = latestVideo.publishedText;
+          logData.publishedAt = latestVideo.publishedAt;
+          logData.viewsText = latestVideo.viewsText;
+          logData.thumbnailUrl = latestVideo.thumbnailUrl;
+          logData.type = latestVideo.type;
+          logData.scrapedAt = latestVideo.scrapedAt;
+
+          this.logger.info(`Successfully scraped latest video:\n${JSON.stringify(logData, null, 2)}`);
         } else {
           const failureInfo = {
             videosUrl: this.videosUrl,
@@ -669,7 +667,7 @@ export class YouTubeScraperService {
         this.metrics.failedScrapes++;
         this.metrics.lastError = {
           message: error.message,
-          timestamp: new Date(),
+          timestamp: nowUTC(),
         };
 
         this.logger.warn('Failed to scrape YouTube channel', {
@@ -729,11 +727,22 @@ export class YouTubeScraperService {
           };
         });
 
+        // Create a plain object for logging to avoid complex object serialization issues
+        const logData = {};
+        logData.success = liveStream.success;
+        logData.strategy = liveStream.strategy;
+        logData.id = liveStream.id;
+        logData.title = liveStream.title;
+        logData.url = liveStream.url;
+        logData.publishedText = liveStream.publishedText;
+        logData.publishedAt = liveStream.publishedAt;
+        logData.viewsText = liveStream.viewsText;
+        logData.thumbnailUrl = liveStream.thumbnailUrl;
+        logData.type = liveStream.type;
+        logData.scrapedAt = liveStream.scrapedAt;
+
         if (liveStream) {
-          this.logger.debug('Successfully scraped active live stream', {
-            videoId: liveStream.id,
-            title: liveStream.title,
-          });
+          this.logger.debug(`Successfully scraped active live stream:\n${JSON.stringify(logData, null, 2)}`);
         }
 
         return liveStream;

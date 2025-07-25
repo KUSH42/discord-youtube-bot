@@ -93,9 +93,9 @@ describe('ScraperApplication Authentication Verification', () => {
 
       await scraperApp.verifyAuthentication();
 
-      expect(mockLogger.debug).toHaveBeenCalledWith('Verifying X authentication status...');
+      expect(mockLogger.info).toHaveBeenCalledWith('Verifying X authentication status...');
       expect(mockAuthManager.isAuthenticated).toHaveBeenCalled();
-      expect(mockLogger.debug).toHaveBeenCalledWith('✅ Authentication verified successfully');
+      expect(mockLogger.info).toHaveBeenCalledWith('✅ Authentication verified successfully');
     });
 
     it('should re-authenticate when verification fails', async () => {

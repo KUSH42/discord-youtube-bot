@@ -2,6 +2,7 @@ import { exec as defaultExec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { CommandRateLimit } from '../rate-limiter.js';
+import { nowUTC } from '../utilities/utc-time.js';
 
 // Global message processing tracker to detect duplicates across all instances
 const globalMessageTracker = new Map();
@@ -13,7 +14,7 @@ const globalMessageTracker = new Map();
 export class BotApplication {
   constructor(dependencies) {
     // Add unique instance ID for debugging
-    this.instanceId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    this.instanceId = `${nowUTC().getTime()}-${Math.random().toString(36).substring(2, 11)}`;
     this.exec = dependencies.exec || defaultExec;
     this.scraperApplication = dependencies.scraperApplication;
     this.monitorApplication = dependencies.monitorApplication;
@@ -170,7 +171,7 @@ export class BotApplication {
 
       // Emit stop event
       this.eventBus.emit('bot.stopped', {
-        stopTime: new Date(),
+        stopTime: nowUTC(),
       });
     } catch (err) {
       this.logger.error('Error stopping bot application:', err);
@@ -875,9 +876,22 @@ export class BotApplication {
       }
 
       this.logger.info('Discord history caching completed (for duplicate detection only)');
+
+      // Emit event to signal that initialization is complete
+      this.eventBus.emit('bot.initialization.complete', {
+        timestamp: nowUTC(),
+        historyScanned: true,
+      });
     } catch (error) {
       this.logger.error('❌ Failed to initialize Discord history scanning:', error);
       // Don't throw - let bot continue running even if scanning fails
+
+      // Still emit completion event even if scanning failed
+      this.eventBus.emit('bot.initialization.complete', {
+        timestamp: nowUTC(),
+        historyScanned: false,
+        error: error.message,
+      });
     }
   }
 
@@ -891,7 +905,7 @@ export class BotApplication {
     // Emit error event
     this.eventBus.emit('discord.error', {
       error,
-      timestamp: new Date(),
+      timestamp: nowUTC(),
     });
   }
 

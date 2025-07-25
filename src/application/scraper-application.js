@@ -1,5 +1,7 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import { delay } from '../utils/delay.js';
+import { nowUTC, toISOStringUTC, daysAgoUTC } from '../utilities/utc-time.js';
+import { getXScrapingBrowserConfig } from '../utilities/browser-config.js';
 
 /**
  * X (Twitter) scraping application orchestrator
@@ -103,7 +105,7 @@ export class ScraperApplication {
 
       // Emit start event
       this.eventBus.emit('scraper.started', {
-        startTime: new Date(),
+        startTime: nowUTC(),
         xUser: this.xUser,
         pollingInterval: this.getNextInterval(),
       });
@@ -140,7 +142,7 @@ export class ScraperApplication {
 
       // Emit stop event
       this.eventBus.emit('scraper.stopped', {
-        stopTime: new Date(),
+        stopTime: nowUTC(),
         stats: this.getStats(),
       });
     } catch (error) {
@@ -222,7 +224,7 @@ export class ScraperApplication {
    */
   async performHealthCheck() {
     const health = {
-      timestamp: new Date(),
+      timestamp: nowUTC(),
       isRunning: this.isRunning,
       authenticated: false,
       browserHealthy: false,
@@ -280,7 +282,7 @@ export class ScraperApplication {
       this.eventBus.emit('scraper.recovery.failed', {
         originalError: error.message,
         recoveryError: recoveryError.message,
-        timestamp: new Date(),
+        timestamp: nowUTC(),
       });
     }
   }
@@ -299,27 +301,9 @@ export class ScraperApplication {
    * @returns {Promise<void>}
    */
   async initializeBrowser() {
-    const browserOptions = {
+    const browserOptions = getXScrapingBrowserConfig({
       headless: false,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        // Minimal performance optimizations to avoid bot detection
-        '--disable-images',
-        '--disable-plugins',
-        '--mute-audio',
-      ],
-    };
-
-    // Add display if running in headless environment
-    if (process.env.DISPLAY) {
-      browserOptions.args.push(`--display=${process.env.DISPLAY}`);
-    }
+    });
 
     await this.browser.launch(browserOptions);
     this.logger.info('Browser initialized for X scraping');
@@ -389,7 +373,7 @@ export class ScraperApplication {
         // Emit error event
         this.eventBus.emit('scraper.error', {
           error,
-          timestamp: new Date(),
+          timestamp: nowUTC(),
           stats: this.getStats(),
         });
 
@@ -474,13 +458,12 @@ export class ScraperApplication {
   async pollXProfile() {
     this.nextPollTimestamp = null;
     this.stats.totalRuns++;
-    this.stats.lastRunTime = new Date();
+    this.stats.lastRunTime = nowUTC();
 
     try {
       this.logger.info(`Polling X profile: @${this.xUser}`);
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterday = daysAgoUTC(1);
       const _sinceDate = yesterday.toISOString().split('T')[0];
 
       // Verify authentication before searching
@@ -534,7 +517,7 @@ export class ScraperApplication {
       this.logger.info(`Found ${tweets.length} tweets from @${this.xUser}`);
 
       // Process new tweets
-      const newTweets = this.filterNewTweets(tweets);
+      const newTweets = await this.filterNewTweets(tweets);
 
       this.logger.info(`After filtering: ${newTweets.length} new tweets out of ${tweets.length} total tweets`);
 
@@ -553,7 +536,7 @@ export class ScraperApplication {
 
       // Emit poll completion event
       this.eventBus.emit('scraper.poll.completed', {
-        timestamp: new Date(),
+        timestamp: nowUTC(),
         tweetsFound: tweets.length,
         newTweets: newTweets.length,
         stats: this.getStats(),
@@ -561,7 +544,7 @@ export class ScraperApplication {
 
       const nextInterval = this.getNextInterval();
       const nextRunTime = new Date(Date.now() + nextInterval);
-      const nextRunTimeFormatted = nextRunTime.toLocaleTimeString('en-US', {
+      const nextRunTimeFormatted = nextRunTime.toISOString('en-US', {
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
@@ -607,7 +590,7 @@ export class ScraperApplication {
       const tweets = await this.extractTweets();
       this.logger.info(`Found ${tweets.length} potential retweets on profile page.`);
 
-      const newTweets = this.filterNewTweets(tweets);
+      const newTweets = await this.filterNewTweets(tweets);
       this.logger.info(`Found ${newTweets.length} new tweets during enhanced retweet detection.`);
 
       for (const tweet of newTweets) {
@@ -615,7 +598,7 @@ export class ScraperApplication {
         if (this.shouldLogDebug()) {
           this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
         }
-        if (this.isNewContent(tweet)) {
+        if (await this.isNewContent(tweet)) {
           this.logger.info(`✅ Found new tweet to process: ${tweet.url} (${tweet.tweetCategory})`);
           await this.processNewTweet(tweet);
           this.stats.totalTweetsAnnounced++;
@@ -786,9 +769,9 @@ export class ScraperApplication {
   /**
    * Filter tweets to only include new ones
    * @param {Array} tweets - All extracted tweets
-   * @returns {Array} New tweets only
+   * @returns {Promise<Array>} New tweets only
    */
-  filterNewTweets(tweets) {
+  async filterNewTweets(tweets) {
     const newTweets = [];
     let duplicateCount = 0;
     let oldContentCount = 0;
@@ -796,12 +779,12 @@ export class ScraperApplication {
     this.logger.verbose(`Starting to filter ${tweets.length} tweets`);
 
     for (const tweet of tweets) {
-      if (!this.duplicateDetector.isDuplicate(tweet.url)) {
+      if (!(await this.duplicateDetector.isDuplicate(tweet.url))) {
         // Mark as seen immediately to prevent future duplicates
         this.duplicateDetector.markAsSeen(tweet.url);
 
         // Check if tweet is new enough based on bot start time
-        if (this.isNewContent(tweet)) {
+        if (await this.isNewContent(tweet)) {
           newTweets.push(tweet);
           // Only log debug for sampling to reduce Discord spam
           if (this.shouldLogDebug()) {
@@ -834,9 +817,9 @@ export class ScraperApplication {
    * Check if content is new enough to announce
    * Uses duplicate detection and reasonable time windows instead of strict bot startup time
    * @param {Object} tweet - Tweet object
-   * @returns {boolean} True if content is new
+   * @returns {Promise<boolean>} True if content is new
    */
-  isNewContent(tweet) {
+  async isNewContent(tweet) {
     const announceOldTweets = this.config.getBoolean('ANNOUNCE_OLD_TWEETS', false);
 
     // If configured to announce old tweets, consider all tweets as new
@@ -846,7 +829,7 @@ export class ScraperApplication {
     }
 
     // Check: Have we seen this tweet before? (Primary duplicate detection)
-    if (tweet.url && this.duplicateDetector.isDuplicate(tweet.url)) {
+    if (tweet.url && (await this.duplicateDetector.isDuplicate(tweet.url))) {
       this.logger.debug(`Tweet ${tweet.tweetID} already known (duplicate), not new`);
       return false;
     }
@@ -942,7 +925,7 @@ export class ScraperApplication {
         originalAuthor: tweet.author, // Store original author for retweets
         text: tweet.text,
         timestamp: tweet.timestamp,
-        isOld: !this.isNewContent(tweet),
+        isOld: !(await this.isNewContent(tweet)),
       };
 
       // Announce the content
@@ -967,7 +950,7 @@ export class ScraperApplication {
         tweet: content,
         classification,
         result,
-        timestamp: new Date(),
+        timestamp: nowUTC(),
       });
     } catch (error) {
       this.logger.error(`Error processing tweet ${tweet.tweetID}:`, error);
@@ -1063,10 +1046,10 @@ export class ScraperApplication {
    */
   async verifyAuthentication() {
     try {
-      this.logger.debug('Verifying X authentication status...');
+      this.logger.info('Verifying X authentication status...');
       const isAuthenticated = await this.authManager.isAuthenticated();
       if (isAuthenticated) {
-        this.logger.debug('✅ Authentication verified successfully');
+        this.logger.info('✅ Authentication verified successfully');
         return;
       }
 
@@ -1213,8 +1196,7 @@ export class ScraperApplication {
   generateSearchUrl(includeDate = true) {
     let searchUrl = `https://x.com/search?q=(from%3A${this.xUser})`;
     if (includeDate) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterday = daysAgoUTC(1);
       const sinceDate = yesterday.toISOString().split('T')[0];
       searchUrl += `%20since%3A${sinceDate}`;
     }
@@ -1279,7 +1261,7 @@ export class ScraperApplication {
       }
 
       this.logger.info(`✅ Initialization complete: marked ${markedAsSeen} recent posts as seen`);
-      this.logger.info(`Content posted after ${new Date().toISOString()} will be announced`);
+      this.logger.info(`Content posted after ${toISOStringUTC()} will be announced`);
     } catch (error) {
       this.logger.error('Error during recent content initialization:', error);
       // Don't throw - this is a best-effort initialization

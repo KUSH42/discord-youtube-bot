@@ -1,5 +1,6 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('ScraperApplication Core Operations', () => {
   let scraperApp;
@@ -433,7 +434,7 @@ describe('ScraperApplication Core Operations', () => {
 
     it('should stop polling and clear timer', () => {
       scraperApp.timerId = setTimeout(() => {}, 1000);
-      scraperApp.nextPollTimestamp = Date.now();
+      scraperApp.nextPollTimestamp = timestampUTC();
 
       scraperApp.stopPolling();
 
