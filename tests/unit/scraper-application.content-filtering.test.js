@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('Content Filtering Logic', () => {
   let scraperApp;
@@ -136,7 +137,7 @@ describe('Content Filtering Logic', () => {
       // We can just modify the mocks for each test case
     });
 
-    it('should return true when ANNOUNCE_OLD_TWEETS is enabled', () => {
+    it('should return true when ANNOUNCE_OLD_TWEETS is enabled', async () => {
       mockConfig.getBoolean.mockImplementation(key => {
         if (key === 'ANNOUNCE_OLD_TWEETS') {
           return true;
@@ -150,11 +151,11 @@ describe('Content Filtering Logic', () => {
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
-      const result = scraperApp.isNewContent(oldTweet);
+      const result = await scraperApp.isNewContent(oldTweet);
       expect(result).toBe(true);
     });
 
-    it('should return false for old tweets when ANNOUNCE_OLD_TWEETS is disabled', () => {
+    it('should return false for old tweets when ANNOUNCE_OLD_TWEETS is disabled', async () => {
       mockConfig.getBoolean.mockReturnValue(false);
 
       const oldTweet = {
@@ -163,11 +164,11 @@ describe('Content Filtering Logic', () => {
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
-      const result = scraperApp.isNewContent(oldTweet);
+      const result = await scraperApp.isNewContent(oldTweet);
       expect(result).toBe(false);
     });
 
-    it('should return true for tweets within the backoff window', () => {
+    it('should return true for tweets within the backoff window', async () => {
       mockConfig.getBoolean.mockReturnValue(false);
 
       const newTweet = {
@@ -176,11 +177,11 @@ describe('Content Filtering Logic', () => {
         url: 'https://x.com/testuser/status/1234567890123456781',
       };
 
-      const result = scraperApp.isNewContent(newTweet);
+      const result = await scraperApp.isNewContent(newTweet);
       expect(result).toBe(true);
     });
 
-    it('should return true when no bot start time is set', () => {
+    it('should return true when no bot start time is set', async () => {
       mockStateManager.get.mockReturnValue(null);
 
       const tweet = {
@@ -189,18 +190,18 @@ describe('Content Filtering Logic', () => {
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
-      const result = scraperApp.isNewContent(tweet);
+      const result = await scraperApp.isNewContent(tweet);
       expect(result).toBe(true);
     });
 
-    it('should return true when tweet has no timestamp', () => {
+    it('should return true when tweet has no timestamp', async () => {
       const tweet = {
         tweetID: '1234567890123456789',
         timestamp: null,
         url: 'https://x.com/testuser/status/1234567890123456789',
       };
 
-      const result = scraperApp.isNewContent(tweet);
+      const result = await scraperApp.isNewContent(tweet);
       expect(result).toBe(true);
     });
   });

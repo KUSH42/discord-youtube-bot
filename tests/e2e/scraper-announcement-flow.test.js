@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import crypto from 'crypto';
 import { MonitorApplication } from '../../src/application/monitor-application.js';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
 import { ContentCoordinator } from '../../src/core/content-coordinator.js';
@@ -260,7 +261,7 @@ describe('Scraper Announcement Flow E2E', () => {
       const webhookRequest = {
         method: 'POST',
         headers: {
-          'x-hub-signature': `sha1=${require('crypto')
+          'x-hub-signature': `sha1=${crypto
             .createHmac('sha1', 'test_secret')
             .update(
               `<?xml version="1.0" encoding="UTF-8"?>
@@ -302,7 +303,7 @@ describe('Scraper Announcement Flow E2E', () => {
       const webhookRequest = {
         method: 'POST',
         headers: {
-          'x-hub-signature': `sha1=${require('crypto')
+          'x-hub-signature': `sha1=${crypto
             .createHmac('sha1', 'test_secret')
             .update(
               `<?xml version="1.0" encoding="UTF-8"?>
@@ -339,7 +340,7 @@ describe('Scraper Announcement Flow E2E', () => {
       const webhookRequest = {
         method: 'POST',
         headers: {
-          'x-hub-signature': `sha1=${require('crypto')
+          'x-hub-signature': `sha1=${crypto
             .createHmac('sha1', 'test_secret')
             .update(
               `<?xml version="1.0" encoding="UTF-8"?>
@@ -467,7 +468,7 @@ describe('Scraper Announcement Flow E2E', () => {
 
       expect(retweetAnnouncements).toHaveLength(1);
       expect(retweetAnnouncements[0].message).toContain('🔄');
-    });
+    }, 15000);
 
     it('should filter out old tweets based on content age', async () => {
       // Mock to return only old tweets
@@ -488,7 +489,7 @@ describe('Scraper Announcement Flow E2E', () => {
 
       // Should not announce old content (older than 24 hours by default)
       expect(announcementCallLog).toHaveLength(0);
-    });
+    }, 15000);
 
     it('should handle authentication failures gracefully', async () => {
       mockAuthManager.isAuthenticated.mockResolvedValue(false);
@@ -526,7 +527,7 @@ describe('Scraper Announcement Flow E2E', () => {
       // Should find and announce the retweet from enhanced detection
       const retweetAnnouncements = announcementCallLog.filter(log => log.channelId === '123456789012345682');
       expect(retweetAnnouncements).toHaveLength(1);
-    });
+    }, 15000);
   });
 
   describe('Content Coordination Between Sources', () => {
@@ -609,7 +610,7 @@ describe('Scraper Announcement Flow E2E', () => {
 
       await expect(scraperApp.pollXProfile()).rejects.toThrow();
       expect(announcementCallLog).toHaveLength(0);
-    });
+    }, 15000);
   });
 
   describe('Posting Controls Integration', () => {

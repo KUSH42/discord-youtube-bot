@@ -2,8 +2,12 @@
  * @jest-environment node
  */
 
-const { ESLint } = require('eslint');
-const path = require('path');
+import { ESLint } from 'eslint';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('Timezone Safety ESLint Rules', () => {
   let eslint;

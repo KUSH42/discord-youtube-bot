@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 
+import { jest } from '@jest/globals';
 import {
   nowUTC,
   timestampUTC,

@@ -3,6 +3,7 @@ import { createMockChannel } from '../mocks/discord.mock.js';
 import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 import { DuplicateDetector } from '../../src/duplicate-detector.js';
 import { createWebhookLimiter, createCommandRateLimiter } from '../../src/rate-limiter.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('Performance and Load Tests', () => {
   let startTime;

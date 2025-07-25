@@ -30,7 +30,7 @@ export const mockMessage = {
   author: mockUser,
   channel: mockChannel,
   guild: mockGuild,
-  createdTimestamp: timestampUTC(),
+  createdTimestamp: Date.now(),
   reply: jest.fn().mockResolvedValue({ id: 'reply-id' }),
   react: jest.fn().mockResolvedValue(true),
 };
