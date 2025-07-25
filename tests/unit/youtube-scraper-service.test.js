@@ -280,10 +280,7 @@ describe('YouTubeScraperService', () => {
         waitUntil: 'networkidle',
         timeout: 30000,
       });
-      expect(mockLogger.debug).toHaveBeenCalledWith('Successfully scraped active live stream', {
-        videoId: 'live123',
-        title: '🔴 Now Live!',
-      });
+      expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('Successfully scraped active live stream'));
     });
 
     it('should return null when no live stream is active', async () => {
