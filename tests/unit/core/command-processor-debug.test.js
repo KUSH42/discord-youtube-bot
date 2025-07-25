@@ -99,7 +99,7 @@ describe('CommandProcessor - Debug Commands', () => {
       const result = await commandProcessor.processCommand('debug', ['content-announcer'], '123456789012345678');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Invalid usage');
+      expect(result.message).toContain('Invalid argument');
     });
 
     it('should validate unknown module names', async () => {
@@ -124,7 +124,7 @@ describe('CommandProcessor - Debug Commands', () => {
       const result = await commandProcessor.processCommand('debug-level', ['content-announcer'], '123456789012345678');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Invalid usage');
+      expect(result.message).toContain('Invalid debug level');
     });
 
     it('should validate debug level range', async () => {
@@ -175,7 +175,7 @@ describe('CommandProcessor - Debug Commands', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Debug logging for **content-announcer** is now **enabled**');
+      expect(result.message).toContain('Debug logging **enabled** for: content-announcer');
       expect(mockDebugManager.toggle).toHaveBeenCalledWith('content-announcer', true);
     });
 
@@ -185,7 +185,7 @@ describe('CommandProcessor - Debug Commands', () => {
       const result = await commandProcessor.processCommand('debug', ['scraper', 'false'], '123456789012345678');
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Debug logging for **scraper** is now **disabled**');
+      expect(result.message).toContain('Debug logging **disabled** for: scraper');
       expect(mockDebugManager.toggle).toHaveBeenCalledWith('scraper', false);
     });
 
@@ -201,7 +201,7 @@ describe('CommandProcessor - Debug Commands', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to toggle debug');
+      expect(result.message).toContain('Errors: content-announcer: Debug manager error');
     });
 
     it('should handle missing debug manager', async () => {
@@ -211,6 +211,45 @@ describe('CommandProcessor - Debug Commands', () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Debug manager is not available');
+    });
+
+    it('should enable debug for all modules globally', async () => {
+      mockDebugManager.toggle.mockReturnValue(true);
+
+      const result = await commandProcessor.processCommand('debug', ['true'], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Debug logging **enabled** for **3** modules');
+      expect(mockDebugManager.toggle).toHaveBeenCalledTimes(3);
+      expect(mockDebugManager.toggle).toHaveBeenCalledWith('content-announcer', true);
+      expect(mockDebugManager.toggle).toHaveBeenCalledWith('scraper', true);
+      expect(mockDebugManager.toggle).toHaveBeenCalledWith('youtube', true);
+    });
+
+    it('should disable debug for all modules globally', async () => {
+      mockDebugManager.toggle.mockReturnValue(false);
+
+      const result = await commandProcessor.processCommand('debug', ['false'], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Debug logging **disabled** for **3** modules');
+      expect(mockDebugManager.toggle).toHaveBeenCalledTimes(3);
+    });
+
+    it('should enable debug for multiple specific modules', async () => {
+      mockDebugManager.toggle.mockReturnValue(true);
+
+      const result = await commandProcessor.processCommand(
+        'debug',
+        ['content-announcer', 'youtube', 'true'],
+        '123456789012345678'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Debug logging **enabled** for: content-announcer, youtube');
+      expect(mockDebugManager.toggle).toHaveBeenCalledTimes(2);
+      expect(mockDebugManager.toggle).toHaveBeenCalledWith('content-announcer', true);
+      expect(mockDebugManager.toggle).toHaveBeenCalledWith('youtube', true);
     });
   });
 
@@ -259,7 +298,7 @@ describe('CommandProcessor - Debug Commands', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Debug level for **content-announcer** set to **5** (verbose)');
+      expect(result.message).toContain('Debug level set to **5** (verbose) for: content-announcer');
       expect(mockDebugManager.setLevel).toHaveBeenCalledWith('content-announcer', 5);
     });
 
@@ -275,7 +314,36 @@ describe('CommandProcessor - Debug Commands', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to set debug level');
+      expect(result.message).toContain('Errors: content-announcer: Level error');
+    });
+
+    it('should set debug level for all modules globally', async () => {
+      mockDebugManager.setLevel.mockReturnValue(3);
+
+      const result = await commandProcessor.processCommand('debug-level', ['3'], '123456789012345678');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Debug level set to **3** (info) for **3** modules');
+      expect(mockDebugManager.setLevel).toHaveBeenCalledTimes(3);
+      expect(mockDebugManager.setLevel).toHaveBeenCalledWith('content-announcer', 3);
+      expect(mockDebugManager.setLevel).toHaveBeenCalledWith('scraper', 3);
+      expect(mockDebugManager.setLevel).toHaveBeenCalledWith('youtube', 3);
+    });
+
+    it('should set debug level for multiple specific modules', async () => {
+      mockDebugManager.setLevel.mockReturnValue(4);
+
+      const result = await commandProcessor.processCommand(
+        'debug-level',
+        ['content-announcer', 'youtube', '4'],
+        '123456789012345678'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Debug level set to **4** (debug) for: content-announcer, youtube');
+      expect(mockDebugManager.setLevel).toHaveBeenCalledTimes(2);
+      expect(mockDebugManager.setLevel).toHaveBeenCalledWith('content-announcer', 4);
+      expect(mockDebugManager.setLevel).toHaveBeenCalledWith('youtube', 4);
     });
   });
 
@@ -374,9 +442,11 @@ describe('CommandProcessor - Debug Commands', () => {
       const result = await commandProcessor.processCommand('readme', [], '123456789012345678');
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('!debug <module> <true|false>');
+      expect(result.message).toContain('!debug <true|false>');
+      expect(result.message).toContain('!debug <module1> <module2> ... <true|false>');
       expect(result.message).toContain('!debug-status');
-      expect(result.message).toContain('!debug-level <module> <1-5>');
+      expect(result.message).toContain('!debug-level <1-5>');
+      expect(result.message).toContain('!debug-level <module1> <module2> ... <1-5>');
       expect(result.message).toContain('!metrics');
       expect(result.message).toContain('!log-pipeline');
     });

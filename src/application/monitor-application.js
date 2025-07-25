@@ -732,62 +732,41 @@ export class MonitorApplication {
       source,
     };
 
+    const operation = this.logger.startOperation('processVideo', videoSummary);
+
     try {
       this.stats.videosProcessed++;
-
-      this.logger.info('🎬 Processing YouTube video', {
-        ...videoSummary,
-        timestamp: toISOStringUTC(),
-      });
 
       const videoId = video.id;
       const title = video.snippet?.title || 'Unknown title';
       const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-      // Check for duplicates
-      this.logger.debug('🔍 Checking for duplicate video', { videoId, url, source });
+      operation.progress('Checking for duplicate video');
       if (await this.duplicateDetector.isDuplicate(url)) {
-        this.logger.info('⏭️ Duplicate video detected, skipping', {
+        return operation.success('Duplicate video detected, skipping', {
           videoId,
           title: title.substring(0, 50),
           source,
+          action: 'skipped_duplicate',
         });
-        return;
       }
-      this.logger.debug('✅ No duplicate found', { videoId });
 
-      // Check if video is new enough
-      this.logger.debug('📅 Checking video age', {
-        videoId,
-        publishedAt: video.snippet?.publishedAt,
-        botStartTime: this.state.get('botStartTime'),
-      });
+      operation.progress('Checking if video is new enough');
       if (!this.isNewContent(video)) {
-        this.logger.info('⏭️ Video is too old, skipping', {
+        return operation.success('Video is too old, skipping', {
           videoId,
           title: title.substring(0, 50),
           publishedAt: video.snippet?.publishedAt,
           botStartTime: this.state.get('botStartTime'),
           source,
+          action: 'skipped_old',
         });
-        return;
       }
-      this.logger.debug('✅ Video is new enough', { videoId, publishedAt: video.snippet?.publishedAt });
 
-      // Classify the video
-      this.logger.debug('🏷️ Classifying video content', {
-        videoId,
-        liveBroadcastContent: video.snippet?.liveBroadcastContent,
-      });
+      operation.progress('Classifying video content');
       const classification = this.classifier.classifyYouTubeContent(video);
-      this.logger.debug('✅ Video classified', {
-        videoId,
-        type: classification.type,
-        confidence: classification.confidence,
-        details: classification.details,
-      });
 
-      // Create content object
+      operation.progress('Creating content object for announcement');
       const content = {
         platform: 'youtube',
         type: classification.type,
@@ -799,33 +778,33 @@ export class MonitorApplication {
         ...classification.details,
       };
 
-      // Announce the content through ContentCoordinator if available, otherwise direct announcement
-      this.logger.info('📢 Proceeding with video announcement', {
-        videoId,
-        type: classification.type,
-        source,
-        useCoordinator: !!this.contentCoordinator,
-      });
-
+      operation.progress('Processing video announcement');
       let result;
       if (this.contentCoordinator) {
-        // Use ContentCoordinator for enhanced processing
         result = await this.contentCoordinator.processContent(videoId, source, content);
-        // Adapt result format for compatibility
         if (result.action === 'announced') {
           result = { success: true, ...result.announcementResult };
         } else {
           result = { success: false, skipped: true, reason: result.reason };
         }
       } else {
-        // Direct announcement
         result = await this.announcer.announceContent(content);
       }
 
       if (result.success) {
         this.stats.videosAnnounced++;
         this.duplicateDetector.markAsSeen(url);
-        this.logger.info('🎉 Video announcement successful', {
+
+        // Emit video processed event
+        this.eventBus.emit('monitor.video.processed', {
+          video: content,
+          classification,
+          result,
+          source,
+          timestamp: nowUTC(),
+        });
+
+        return operation.success('Video announcement successful', {
           videoId,
           type: classification.type,
           title: title.substring(0, 50),
@@ -834,7 +813,7 @@ export class MonitorApplication {
           messageId: result.messageId,
         });
       } else if (result.skipped) {
-        this.logger.info('⏭️ Video announcement skipped', {
+        return operation.success('Video announcement skipped', {
           videoId,
           type: classification.type,
           title: title.substring(0, 50),
@@ -842,29 +821,16 @@ export class MonitorApplication {
           source,
         });
       } else {
-        this.logger.warn('⚠️ Video announcement failed', {
+        operation.error(new Error(result.reason || 'Unknown announcement failure'), 'Video announcement failed', {
           videoId,
           type: classification.type,
           title: title.substring(0, 50),
-          reason: result.reason,
           source,
         });
+        throw new Error(`Video announcement failed: ${result.reason}`);
       }
-
-      // Emit video processed event
-      this.eventBus.emit('monitor.video.processed', {
-        video: content,
-        classification,
-        result,
-        source,
-        timestamp: nowUTC(),
-      });
     } catch (error) {
-      this.logger.error('❌ Error processing video', {
-        ...videoSummary,
-        error: error.message,
-        stack: error.stack,
-      });
+      operation.error(error, 'Error processing video', videoSummary);
       throw error;
     }
   }

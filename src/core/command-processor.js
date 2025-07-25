@@ -130,15 +130,6 @@ export class CommandProcessor {
 
     // Debug command validation
     if (command === 'debug' && args.length > 0) {
-      if (args.length !== 2) {
-        return {
-          success: false,
-          error: `Invalid usage. Use \`${this.commandPrefix}debug <module> <true|false>\`.`,
-        };
-      }
-
-      const [module, enabledStr] = args;
-
       if (!this.debugManager) {
         return {
           success: false,
@@ -146,33 +137,42 @@ export class CommandProcessor {
         };
       }
 
-      const availableModules = this.debugManager.getAvailableModules();
-      if (!availableModules.includes(module)) {
-        return {
-          success: false,
-          error: `Unknown debug module: ${module}. Available: ${availableModules.join(', ')}.`,
-        };
-      }
+      // Check if it's global toggle (just true/false)
+      if (args.length === 1) {
+        const enabledStr = args[0];
+        if (enabledStr.toLowerCase() !== 'true' && enabledStr.toLowerCase() !== 'false') {
+          return {
+            success: false,
+            error: `Invalid argument. Use \`${this.commandPrefix}debug true\` or \`${this.commandPrefix}debug false\`.`,
+          };
+        }
+      } else {
+        // Check if it's module list with toggle
+        const enabledStr = args[args.length - 1];
+        if (enabledStr.toLowerCase() !== 'true' && enabledStr.toLowerCase() !== 'false') {
+          return {
+            success: false,
+            error: `Invalid argument. Last argument must be true or false.`,
+          };
+        }
 
-      if (enabledStr.toLowerCase() !== 'true' && enabledStr.toLowerCase() !== 'false') {
-        return {
-          success: false,
-          error: `Invalid argument. Use \`${this.commandPrefix}debug ${module} true\` or \`${this.commandPrefix}debug ${module} false\`.`,
-        };
+        // Validate all modules except the last argument (which is the toggle)
+        const availableModules = this.debugManager.getAvailableModules();
+        const modules = args.slice(0, -1);
+
+        for (const module of modules) {
+          if (!availableModules.includes(module)) {
+            return {
+              success: false,
+              error: `Unknown debug module: ${module}. Available: ${availableModules.join(', ')}.`,
+            };
+          }
+        }
       }
     }
 
     // Debug level command validation
     if (command === 'debug-level' && args.length > 0) {
-      if (args.length !== 2) {
-        return {
-          success: false,
-          error: `Invalid usage. Use \`${this.commandPrefix}debug-level <module> <level>\`.`,
-        };
-      }
-
-      const [module, levelStr] = args;
-
       if (!this.debugManager) {
         return {
           success: false,
@@ -180,20 +180,38 @@ export class CommandProcessor {
         };
       }
 
-      const availableModules = this.debugManager.getAvailableModules();
-      if (!availableModules.includes(module)) {
-        return {
-          success: false,
-          error: `Unknown debug module: ${module}. Available: ${availableModules.join(', ')}.`,
-        };
-      }
+      // Check if it's global level setting (just a number)
+      if (args.length === 1) {
+        const level = parseInt(args[0], 10);
+        if (isNaN(level) || level < 1 || level > 5) {
+          return {
+            success: false,
+            error: 'Invalid debug level. Must be 1-5 (1=errors, 2=warnings, 3=info, 4=debug, 5=verbose).',
+          };
+        }
+      } else {
+        // Check if it's module list with level
+        const levelStr = args[args.length - 1];
+        const level = parseInt(levelStr, 10);
+        if (isNaN(level) || level < 1 || level > 5) {
+          return {
+            success: false,
+            error: 'Invalid debug level. Must be 1-5 (1=errors, 2=warnings, 3=info, 4=debug, 5=verbose).',
+          };
+        }
 
-      const level = parseInt(levelStr, 10);
-      if (isNaN(level) || level < 1 || level > 5) {
-        return {
-          success: false,
-          error: 'Invalid debug level. Must be 1-5 (1=errors, 2=warnings, 3=info, 4=debug, 5=verbose).',
-        };
+        // Validate all modules except the last argument (which is the level)
+        const availableModules = this.debugManager.getAvailableModules();
+        const modules = args.slice(0, -1);
+
+        for (const module of modules) {
+          if (!availableModules.includes(module)) {
+            return {
+              success: false,
+              error: `Unknown debug module: ${module}. Available: ${availableModules.join(', ')}.`,
+            };
+          }
+        }
       }
     }
 
@@ -427,7 +445,6 @@ export class CommandProcessor {
    * Handle health command
    */
   async handleHealth() {
-    const currentTime = nowUTC();
     const uptime = Math.floor(process.uptime());
     const uptimeStr = `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`;
     const memUsage = process.memoryUsage();
@@ -464,9 +481,11 @@ export class CommandProcessor {
       `**${this.commandPrefix}announce <true|false>**: Toggles announcement posting to non-support channels.`,
       `**${this.commandPrefix}vxtwitter <true|false>**: Toggles the conversion of \`x.com\` URLs to \`vxtwitter.com\` in announcements.`,
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
-      `**${this.commandPrefix}debug <module> <true|false>**: Toggles debug logging for specific modules.`,
+      `**${this.commandPrefix}debug <true|false>**: Toggles debug logging for all modules.`,
+      `**${this.commandPrefix}debug <module1> <module2> ... <true|false>**: Toggles debug logging for specific modules.`,
       `**${this.commandPrefix}debug-status**: Shows current debug status for all modules.`,
-      `**${this.commandPrefix}debug-level <module> <1-5>**: Sets debug level for a module (1=errors, 5=verbose).`,
+      `**${this.commandPrefix}debug-level <1-5>**: Sets debug level for all modules (1=errors, 5=verbose).`,
+      `**${this.commandPrefix}debug-level <module1> <module2> ... <1-5>**: Sets debug level for specific modules.`,
       `**${this.commandPrefix}metrics**: Shows performance metrics and system statistics.`,
       `**${this.commandPrefix}log-pipeline**: Shows recent pipeline activities with correlation tracking.`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
@@ -666,27 +685,85 @@ export class CommandProcessor {
 
       return {
         success: true,
-        message: `${message}\n\nUsage: \`${this.commandPrefix}debug <module> <true|false>\``,
+        message: `${message}\n\n**Usage:**\n• \`${this.commandPrefix}debug <true|false>\` - Toggle all modules\n• \`${this.commandPrefix}debug <module1> <module2> ... <true|false>\` - Toggle specific modules`,
         requiresRestart: false,
       };
     }
 
-    const [module, enabledStr] = args;
-    const enabled = enabledStr.toLowerCase() === 'true';
+    // Global toggle (just true/false)
+    if (args.length === 1) {
+      const enabled = args[0].toLowerCase() === 'true';
+      const availableModules = this.debugManager.getAvailableModules();
+      const results = [];
+      const errors = [];
+
+      try {
+        for (const module of availableModules) {
+          try {
+            this.debugManager.toggle(module, enabled);
+            results.push(module);
+          } catch (error) {
+            errors.push(`${module}: ${error.message}`);
+          }
+        }
+
+        const successMessage =
+          results.length > 0
+            ? `🔧 Debug logging **${enabled ? 'enabled' : 'disabled'}** for **${results.length}** modules: ${results.join(', ')}`
+            : '';
+
+        const errorMessage = errors.length > 0 ? `⚠️ Errors for ${errors.length} modules: ${errors.join('; ')}` : '';
+
+        const message = [successMessage, errorMessage].filter(Boolean).join('\n');
+
+        return {
+          success: results.length > 0,
+          message: message || '❌ No modules were updated.',
+          requiresRestart: false,
+          logMessage: `Debug logging ${enabled ? 'enabled' : 'disabled'} for ${results.length} modules.`,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `❌ Failed to toggle global debug: ${error.message}`,
+          requiresRestart: false,
+        };
+      }
+    }
+
+    // Module list with toggle (e.g., youtube auth true)
+    const enabled = args[args.length - 1].toLowerCase() === 'true';
+    const modules = args.slice(0, -1);
+    const results = [];
+    const errors = [];
 
     try {
-      this.debugManager.toggle(module, enabled);
+      for (const module of modules) {
+        try {
+          this.debugManager.toggle(module, enabled);
+          results.push(module);
+        } catch (error) {
+          errors.push(`${module}: ${error.message}`);
+        }
+      }
+
+      const successMessage =
+        results.length > 0 ? `🔧 Debug logging **${enabled ? 'enabled' : 'disabled'}** for: ${results.join(', ')}` : '';
+
+      const errorMessage = errors.length > 0 ? `⚠️ Errors: ${errors.join('; ')}` : '';
+
+      const message = [successMessage, errorMessage].filter(Boolean).join('\n');
 
       return {
-        success: true,
-        message: `🔧 Debug logging for **${module}** is now **${enabled ? 'enabled' : 'disabled'}**.`,
+        success: results.length > 0,
+        message: message || '❌ No modules were updated.',
         requiresRestart: false,
-        logMessage: `Debug logging for ${module} is now ${enabled ? 'enabled' : 'disabled'}.`,
+        logMessage: `Debug logging ${enabled ? 'enabled' : 'disabled'} for modules: ${results.join(', ')}.`,
       };
     } catch (error) {
       return {
         success: false,
-        message: `❌ Failed to toggle debug for ${module}: ${error.message}`,
+        message: `❌ Failed to toggle debug: ${error.message}`,
         requiresRestart: false,
       };
     }
@@ -760,7 +837,9 @@ export class CommandProcessor {
         ...levelLines,
         ``,
         `**Levels:** 1=errors, 2=warnings, 3=info, 4=debug, 5=verbose`,
-        `Usage: \`${this.commandPrefix}debug-level <module> <level>\``,
+        `**Usage:**`,
+        `• \`${this.commandPrefix}debug-level <level>\` - Set level for all modules`,
+        `• \`${this.commandPrefix}debug-level <module1> <module2> ... <level>\` - Set level for specific modules`,
       ].join('\n');
 
       return {
@@ -770,23 +849,82 @@ export class CommandProcessor {
       };
     }
 
-    const [module, levelStr] = args;
-    const level = parseInt(levelStr, 10);
+    // Global level setting (just a number)
+    if (args.length === 1) {
+      const level = parseInt(args[0], 10);
+      const availableModules = this.debugManager.getAvailableModules();
+      const results = [];
+      const errors = [];
+
+      try {
+        for (const module of availableModules) {
+          try {
+            this.debugManager.setLevel(module, level);
+            results.push(module);
+          } catch (error) {
+            errors.push(`${module}: ${error.message}`);
+          }
+        }
+
+        const levelName = this.debugManager.getLevelName(level);
+        const successMessage =
+          results.length > 0
+            ? `🔧 Debug level set to **${level}** (${levelName}) for **${results.length}** modules: ${results.join(', ')}`
+            : '';
+
+        const errorMessage = errors.length > 0 ? `⚠️ Errors for ${errors.length} modules: ${errors.join('; ')}` : '';
+
+        const message = [successMessage, errorMessage].filter(Boolean).join('\n');
+
+        return {
+          success: results.length > 0,
+          message: message || '❌ No modules were updated.',
+          requiresRestart: false,
+          logMessage: `Debug level set to ${level} (${levelName}) for ${results.length} modules.`,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `❌ Failed to set global debug level: ${error.message}`,
+          requiresRestart: false,
+        };
+      }
+    }
+
+    // Module list with level (e.g., youtube auth 4)
+    const level = parseInt(args[args.length - 1], 10);
+    const modules = args.slice(0, -1);
+    const results = [];
+    const errors = [];
 
     try {
-      this.debugManager.setLevel(module, level);
+      for (const module of modules) {
+        try {
+          this.debugManager.setLevel(module, level);
+          results.push(module);
+        } catch (error) {
+          errors.push(`${module}: ${error.message}`);
+        }
+      }
+
       const levelName = this.debugManager.getLevelName(level);
+      const successMessage =
+        results.length > 0 ? `🔧 Debug level set to **${level}** (${levelName}) for: ${results.join(', ')}` : '';
+
+      const errorMessage = errors.length > 0 ? `⚠️ Errors: ${errors.join('; ')}` : '';
+
+      const message = [successMessage, errorMessage].filter(Boolean).join('\n');
 
       return {
-        success: true,
-        message: `🔧 Debug level for **${module}** set to **${level}** (${levelName}).`,
+        success: results.length > 0,
+        message: message || '❌ No modules were updated.',
         requiresRestart: false,
-        logMessage: `Debug level for ${module} set to ${level} (${levelName}).`,
+        logMessage: `Debug level set to ${level} (${levelName}) for modules: ${results.join(', ')}.`,
       };
     } catch (error) {
       return {
         success: false,
-        message: `❌ Failed to set debug level for ${module}: ${error.message}`,
+        message: `❌ Failed to set debug level: ${error.message}`,
         requiresRestart: false,
       };
     }

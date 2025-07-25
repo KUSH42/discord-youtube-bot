@@ -263,6 +263,8 @@ async function setupApplicationServices(container, _config) {
       scraperApplication: c.resolve('scraperApplication'),
       monitorApplication: c.resolve('monitorApplication'),
       youtubeScraperService: c.resolve('youtubeScraperService'),
+      debugManager: c.resolve('debugFlagManager'),
+      metricsManager: c.resolve('metricsManager'),
     });
   });
 
@@ -273,6 +275,8 @@ async function setupApplicationServices(container, _config) {
       config: c.resolve('config'),
       stateManager: c.resolve('stateManager'),
       logger: c.resolve('logger').child({ service: 'AuthManager' }),
+      debugManager: c.resolve('debugFlagManager'),
+      metricsManager: c.resolve('metricsManager'),
     });
   });
 
@@ -290,6 +294,8 @@ async function setupApplicationServices(container, _config) {
       authManager: c.resolve('authManager'),
       duplicateDetector: c.resolve('duplicateDetector'),
       persistentStorage: c.resolve('persistentStorage'),
+      debugManager: c.resolve('debugFlagManager'),
+      metricsManager: c.resolve('metricsManager'),
     });
   });
 
@@ -309,6 +315,8 @@ async function setupApplicationServices(container, _config) {
       contentCoordinator: c.resolve('contentCoordinator'),
       duplicateDetector: c.resolve('duplicateDetector'),
       persistentStorage: c.resolve('persistentStorage'),
+      debugManager: c.resolve('debugFlagManager'),
+      metricsManager: c.resolve('metricsManager'),
     });
   });
 
