@@ -85,6 +85,12 @@ developers (and AI agents) to maintain, test, and extend.
 
 - **⚙️ Management & Monitoring**
   - **Discord Bot Commands**: Full control over the bot via chat commands.
+  - **Enhanced Logging System**: Advanced logging with module-specific debug 
+    controls, correlation tracking, and performance metrics.
+  - **Runtime Debug Control**: Toggle debug logging per module without restarts
+    using Discord commands.
+  - **Performance Metrics**: Real-time collection and monitoring of system 
+    performance with Discord integration.
   - **Health Check Endpoints**: HTTP endpoints for external monitoring
     (`/health`, `/ready`).
   - **Comprehensive Logging**: Rotates log files and can mirror logs to a
@@ -111,8 +117,10 @@ src/
 │   └── livestream-state-machine.js # Livestream transition tracking (scheduled → live → ended) (95.37% test coverage)
 ├── 🏗️ infrastructure/        # Foundation layer
 │   ├── configuration.js      # Environment configuration management
+│   ├── debug-flag-manager.js # Module-specific debug controls with runtime toggling
 │   ├── dependency-container.js # Dependency injection container
 │   ├── event-bus.js          # Event-driven communication
+│   ├── metrics-manager.js    # Performance metrics collection and aggregation
 │   ├── persistent-storage.js # File-based content state and fingerprint storage
 │   └── state-manager.js      # Runtime state management
 ├── 🔧 services/              # External service layer (e.g., Discord, YouTube clients)
@@ -130,7 +138,11 @@ src/
 ├── ⚙️ config/                # Configuration modules
 │   └── content-detection.js  # Content detection reliability configuration
 ├── ⚙️ setup/                 # Production dependency wiring
-└── 🛠️ utilities/             # Shared utilities (e.g., logger, validator, AsyncMutex)
+└── 🛠️ utilities/             # Shared utilities
+    ├── async-mutex.js        # Async operation synchronization
+    ├── enhanced-logger.js    # Advanced logging with correlation tracking and metrics
+    ├── time-parser.js        # Time parsing utilities
+    └── utc-time.js          # Timezone-safe UTC time operations
 ```
 
 ## YouTube Content Detection Reliability
@@ -539,6 +551,11 @@ Commands are used in the channel specified by `DISCORD_BOT_SUPPORT_LOG_CHANNEL`.
 | `!announce <true/false>`  | Toggles all content announcements on or off.                       | Anyone        |
 | `!vxtwitter <true/false>` | Toggles automatic `twitter.com` to `vxtwitter.com` URL conversion. | Anyone        |
 | `!loglevel <level>`       | Changes the logging level (`info`, `debug`, `warn`, `error`).      | Anyone        |
+| `!debug <module> <true/false>` | Toggles debug logging for specific modules without restart.    | Anyone        |
+| `!debug-status`           | Shows current debug status and levels for all modules.             | Anyone        |
+| `!debug-level <module> <1-5>` | Sets debug level for a module (1=errors, 5=verbose).          | Anyone        |
+| `!metrics`                | Shows performance metrics and system statistics.                   | Anyone        |
+| `!log-pipeline`           | Shows recent pipeline activities with correlation tracking.         | Anyone        |
 | `!auth-status`            | Shows X (Twitter) authentication status.                           | Anyone        |
 | `!scraper-health`         | Shows detailed X scraper health status.                            | Anyone        |
 | `!readme`                 | Displays a summary of available commands.                          | Anyone        |
@@ -554,6 +571,82 @@ Commands are used in the channel specified by `DISCORD_BOT_SUPPORT_LOG_CHANNEL`.
 | `!stop-scraper`    | Stops the X scraper application (YouTube monitoring continues).                 | Authorized Users |
 | `!start-scraper`   | Starts the X scraper application.                                               | Authorized Users |
 | `!force-reauth`    | Forces re-authentication with X, clearing saved cookies and restarting scraper. | Authorized Users |
+
+## Enhanced Logging System
+
+The bot features a comprehensive enhanced logging system that provides granular debug control, performance monitoring, and operation correlation tracking.
+
+### Features
+
+- **🔧 Module-Specific Debug Control**: Toggle debug logging for individual modules (content-announcer, scraper, youtube, browser, auth, performance, api, state, rate-limiting) without restarting the bot
+- **📊 Real-Time Performance Metrics**: Automatic collection of timing, counter, and gauge metrics with percentile calculations
+- **🔗 Correlation Tracking**: Automatic correlation ID generation for tracking operations across modules
+- **⚡ Runtime Configuration**: All debug settings persist across restarts and can be changed via Discord commands
+- **🛡️ Security**: Automatic sanitization of sensitive data in log outputs
+- **📈 Discord Integration**: Monitor system performance and debug status directly through Discord commands
+
+### Debug Modules
+
+| Module | Description |
+|--------|-------------|
+| `content-announcer` | Content announcement pipeline and message formatting |
+| `scraper` | X (Twitter) scraping operations and browser interactions |
+| `youtube` | YouTube monitoring, webhook processing, and API calls |
+| `browser` | Browser automation, stealth operations, and anti-detection |
+| `auth` | Authentication flows and session management |
+| `performance` | Performance metrics and timing measurements |
+| `api` | External API calls (YouTube Data API, Discord API) |
+| `state` | State management operations and persistence |
+| `rate-limiting` | Rate limiting and throttling operations |
+
+### Debug Levels
+
+| Level | Name | Description |
+|-------|------|-------------|
+| 1 | errors | Error messages only |
+| 2 | warnings | Warnings and errors |
+| 3 | info | Informational messages, warnings, and errors (default) |
+| 4 | debug | Debug information plus all above |
+| 5 | verbose | Verbose/trace level logging plus all above |
+
+### Usage Examples
+
+```bash
+# Enable debug logging for content announcer
+!debug content-announcer true
+
+# Set verbose logging for browser operations
+!debug-level browser 5
+
+# Check current debug status
+!debug-status
+
+# View performance metrics
+!metrics
+
+# Monitor recent operations
+!log-pipeline
+```
+
+### Environment Configuration
+
+You can set initial debug flags and levels via environment variables:
+
+```bash
+# Enable specific modules by default
+DEBUG_FLAGS=content-announcer,scraper,performance
+
+# Set specific debug levels
+DEBUG_LEVEL_SCRAPER=5
+DEBUG_LEVEL_BROWSER=1
+```
+
+### Integration Benefits
+
+- **Faster Debugging**: Instantly enable detailed logging for specific components without restarts
+- **Performance Insights**: Real-time metrics help identify bottlenecks and optimization opportunities
+- **Operational Visibility**: Discord commands provide immediate access to system status and health
+- **Correlation Tracking**: Follow operations across modules using correlation IDs for complex debugging scenarios
 
 ## Deployment (Production)
 

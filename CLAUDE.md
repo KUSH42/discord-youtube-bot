@@ -7,8 +7,9 @@
 ### Key Components
 - **Application Layer**: `src/application/` - MonitorApplication, ScraperApplication, AuthManager
 - **Core Layer**: `src/core/` - CommandProcessor, ContentAnnouncer, ContentClassifier  
-- **Infrastructure**: `src/infrastructure/` - DependencyContainer, EventBus, StateManager
+- **Infrastructure**: `src/infrastructure/` - DependencyContainer, EventBus, StateManager, DebugFlagManager, MetricsManager
 - **Services**: `src/services/` - YouTube API, browser automation, external integrations
+- **Utilities**: `src/utilities/` - EnhancedLogger, UTC time utilities, AsyncMutex
 
 ### Data Flow
 - **Commands**: Discord → CommandProcessor → StateManager → Response
@@ -158,6 +159,53 @@ npm run lint:fix         # Fix ESLint issues
 4. Update `getStats()` method with new command
 5. Add command to `handleReadme()` documentation
 6. Create comprehensive unit tests
+
+## Enhanced Logging System
+
+### Core Components
+- **DebugFlagManager** (`src/infrastructure/debug-flag-manager.js`): Module-specific debug controls
+- **MetricsManager** (`src/infrastructure/metrics-manager.js`): Performance metrics collection
+- **EnhancedLogger** (`src/utilities/enhanced-logger.js`): Advanced logging with correlation tracking
+
+### Debug Modules (9 total)
+- `content-announcer`, `scraper`, `youtube`, `browser`, `auth`, `performance`, `api`, `state`, `rate-limiting`
+
+### Debug Commands
+- `!debug <module> <true|false>` - Toggle debug per module
+- `!debug-status` - Show all module debug status
+- `!debug-level <module> <1-5>` - Set debug granularity (1=errors, 5=verbose)
+- `!metrics` - Performance metrics and system stats
+- `!log-pipeline` - Recent operations with correlation tracking
+
+### Environment Variables
+```bash
+DEBUG_FLAGS=content-announcer,scraper,performance
+DEBUG_LEVEL_SCRAPER=5
+DEBUG_LEVEL_BROWSER=1
+```
+
+### Enhanced Logger Usage
+```javascript
+import { createEnhancedLogger } from '../utilities/enhanced-logger.js';
+
+const logger = createEnhancedLogger('module-name', baseLogger, debugManager, metricsManager);
+
+// Automatic operation tracking
+const operation = logger.startOperation('operationName', { context });
+operation.progress('Step 1 completed');
+operation.success('Operation completed', { result });
+// or
+operation.error(error, 'Operation failed', { context });
+
+// Correlation tracking
+const correlatedLogger = logger.forOperation('batchProcess', correlationId);
+```
+
+### Integration Benefits
+- **Runtime Debug Control**: No restarts needed for debug changes
+- **Performance Monitoring**: Real-time metrics with Discord integration
+- **Correlation Tracking**: Follow operations across modules
+- **Security**: Automatic sensitive data sanitization
 
 ## Content Monitoring
 

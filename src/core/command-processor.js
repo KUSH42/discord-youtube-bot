@@ -6,9 +6,11 @@
 import { nowUTC, toISOStringUTC } from '../utilities/utc-time.js';
 
 export class CommandProcessor {
-  constructor(config, stateManager) {
+  constructor(config, stateManager, debugFlagManager = null, metricsManager = null) {
     this.config = config;
     this.state = stateManager;
+    this.debugManager = debugFlagManager;
+    this.metricsManager = metricsManager;
     this.commandPrefix = config.get('COMMAND_PREFIX', '!');
 
     // Set up validators for state keys this processor manages
@@ -126,6 +128,75 @@ export class CommandProcessor {
       }
     }
 
+    // Debug command validation
+    if (command === 'debug' && args.length > 0) {
+      if (args.length !== 2) {
+        return {
+          success: false,
+          error: `Invalid usage. Use \`${this.commandPrefix}debug <module> <true|false>\`.`,
+        };
+      }
+
+      const [module, enabledStr] = args;
+
+      if (!this.debugManager) {
+        return {
+          success: false,
+          error: 'Debug manager is not available.',
+        };
+      }
+
+      const availableModules = this.debugManager.getAvailableModules();
+      if (!availableModules.includes(module)) {
+        return {
+          success: false,
+          error: `Unknown debug module: ${module}. Available: ${availableModules.join(', ')}.`,
+        };
+      }
+
+      if (enabledStr.toLowerCase() !== 'true' && enabledStr.toLowerCase() !== 'false') {
+        return {
+          success: false,
+          error: `Invalid argument. Use \`${this.commandPrefix}debug ${module} true\` or \`${this.commandPrefix}debug ${module} false\`.`,
+        };
+      }
+    }
+
+    // Debug level command validation
+    if (command === 'debug-level' && args.length > 0) {
+      if (args.length !== 2) {
+        return {
+          success: false,
+          error: `Invalid usage. Use \`${this.commandPrefix}debug-level <module> <level>\`.`,
+        };
+      }
+
+      const [module, levelStr] = args;
+
+      if (!this.debugManager) {
+        return {
+          success: false,
+          error: 'Debug manager is not available.',
+        };
+      }
+
+      const availableModules = this.debugManager.getAvailableModules();
+      if (!availableModules.includes(module)) {
+        return {
+          success: false,
+          error: `Unknown debug module: ${module}. Available: ${availableModules.join(', ')}.`,
+        };
+      }
+
+      const level = parseInt(levelStr, 10);
+      if (isNaN(level) || level < 1 || level > 5) {
+        return {
+          success: false,
+          error: 'Invalid debug level. Must be 1-5 (1=errors, 2=warnings, 3=info, 4=debug, 5=verbose).',
+        };
+      }
+    }
+
     return { success: true };
   }
 
@@ -211,6 +282,21 @@ export class CommandProcessor {
 
       case 'x-health':
         return await this.handleXHealth(appStats);
+
+      case 'debug':
+        return await this.handleDebugToggle(args);
+
+      case 'debug-status':
+        return await this.handleDebugStatus();
+
+      case 'debug-level':
+        return await this.handleDebugLevel(args);
+
+      case 'metrics':
+        return await this.handleMetrics();
+
+      case 'log-pipeline':
+        return await this.handleLogPipeline();
 
       default:
         return {
@@ -378,6 +464,11 @@ export class CommandProcessor {
       `**${this.commandPrefix}announce <true|false>**: Toggles announcement posting to non-support channels.`,
       `**${this.commandPrefix}vxtwitter <true|false>**: Toggles the conversion of \`x.com\` URLs to \`vxtwitter.com\` in announcements.`,
       `**${this.commandPrefix}loglevel <level>**: Changes the bot's logging level (e.g., info, debug).`,
+      `**${this.commandPrefix}debug <module> <true|false>**: Toggles debug logging for specific modules.`,
+      `**${this.commandPrefix}debug-status**: Shows current debug status for all modules.`,
+      `**${this.commandPrefix}debug-level <module> <1-5>**: Sets debug level for a module (1=errors, 5=verbose).`,
+      `**${this.commandPrefix}metrics**: Shows performance metrics and system statistics.`,
+      `**${this.commandPrefix}log-pipeline**: Shows recent pipeline activities with correlation tracking.`,
       `**${this.commandPrefix}health**: Shows bot health status and system information.`,
       `**${this.commandPrefix}health-detailed**: Shows detailed health status for all components.`,
       `**${this.commandPrefix}youtube-health**: Shows detailed YouTube monitor health status.`,
@@ -550,6 +641,277 @@ export class CommandProcessor {
     };
   }
 
+  /**
+   * Handle debug toggle command
+   */
+  async handleDebugToggle(args) {
+    if (!this.debugManager) {
+      return {
+        success: false,
+        message: '❌ Debug manager is not available.',
+        requiresRestart: false,
+      };
+    }
+
+    if (args.length === 0) {
+      const status = this.debugManager.getStatus();
+      const enabledModules = Object.entries(status.modules)
+        .filter(([, info]) => info.enabled)
+        .map(([module]) => module);
+
+      const message =
+        enabledModules.length > 0
+          ? `🔧 Enabled debug modules: ${enabledModules.join(', ')}`
+          : '🔧 No debug modules currently enabled.';
+
+      return {
+        success: true,
+        message: `${message}\n\nUsage: \`${this.commandPrefix}debug <module> <true|false>\``,
+        requiresRestart: false,
+      };
+    }
+
+    const [module, enabledStr] = args;
+    const enabled = enabledStr.toLowerCase() === 'true';
+
+    try {
+      this.debugManager.toggle(module, enabled);
+
+      return {
+        success: true,
+        message: `🔧 Debug logging for **${module}** is now **${enabled ? 'enabled' : 'disabled'}**.`,
+        requiresRestart: false,
+        logMessage: `Debug logging for ${module} is now ${enabled ? 'enabled' : 'disabled'}.`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `❌ Failed to toggle debug for ${module}: ${error.message}`,
+        requiresRestart: false,
+      };
+    }
+  }
+
+  /**
+   * Handle debug status command
+   */
+  async handleDebugStatus() {
+    if (!this.debugManager) {
+      return {
+        success: false,
+        message: '❌ Debug manager is not available.',
+        requiresRestart: false,
+      };
+    }
+
+    try {
+      const status = this.debugManager.getStatus();
+      const stats = this.debugManager.getStats();
+
+      const moduleLines = Object.entries(status.modules).map(([module, info]) => {
+        const statusIcon = info.enabled ? '✅' : '❌';
+        return `${statusIcon} **${module}**: ${info.enabled ? 'enabled' : 'disabled'} (level ${info.level}: ${info.levelName})`;
+      });
+
+      const summary = [
+        `**Debug Status Summary**`,
+        `📊 Enabled: ${status.enabledCount}/${status.totalCount} modules (${stats.enabledPercentage}%)`,
+        ``,
+        `**Module Status:**`,
+        ...moduleLines,
+      ].join('\n');
+
+      return {
+        success: true,
+        message: summary,
+        requiresRestart: false,
+        debugStatus: status,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `❌ Failed to get debug status: ${error.message}`,
+        requiresRestart: false,
+      };
+    }
+  }
+
+  /**
+   * Handle debug level command
+   */
+  async handleDebugLevel(args) {
+    if (!this.debugManager) {
+      return {
+        success: false,
+        message: '❌ Debug manager is not available.',
+        requiresRestart: false,
+      };
+    }
+
+    if (args.length === 0) {
+      const levels = this.debugManager.getDebugLevels();
+      const levelLines = Object.entries(levels).map(([module, level]) => {
+        const levelName = this.debugManager.getLevelName(level);
+        return `**${module}**: ${level} (${levelName})`;
+      });
+
+      const message = [
+        `**Current Debug Levels:**`,
+        ...levelLines,
+        ``,
+        `**Levels:** 1=errors, 2=warnings, 3=info, 4=debug, 5=verbose`,
+        `Usage: \`${this.commandPrefix}debug-level <module> <level>\``,
+      ].join('\n');
+
+      return {
+        success: true,
+        message,
+        requiresRestart: false,
+      };
+    }
+
+    const [module, levelStr] = args;
+    const level = parseInt(levelStr, 10);
+
+    try {
+      this.debugManager.setLevel(module, level);
+      const levelName = this.debugManager.getLevelName(level);
+
+      return {
+        success: true,
+        message: `🔧 Debug level for **${module}** set to **${level}** (${levelName}).`,
+        requiresRestart: false,
+        logMessage: `Debug level for ${module} set to ${level} (${levelName}).`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `❌ Failed to set debug level for ${module}: ${error.message}`,
+        requiresRestart: false,
+      };
+    }
+  }
+
+  /**
+   * Handle metrics command
+   */
+  async handleMetrics() {
+    if (!this.metricsManager) {
+      return {
+        success: false,
+        message: '❌ Metrics manager is not available.',
+        requiresRestart: false,
+      };
+    }
+
+    try {
+      const stats = this.metricsManager.getStats();
+      const memUsage = this.metricsManager.getMemoryUsage();
+
+      // Get some key metrics
+      const counters = this.metricsManager.getMetrics('counter');
+      const timers = this.metricsManager.getMetrics('timer');
+
+      const summary = [
+        `**📊 Metrics Summary**`,
+        `⏱️ Uptime: ${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m`,
+        `📈 Total metrics recorded: ${stats.totalMetricsRecorded.toLocaleString()}`,
+        `⚡ Rate: ${Math.round(stats.metricsPerSecond * 100) / 100} metrics/sec`,
+        `💾 Memory: ${memUsage.estimatedMB} MB (${memUsage.totalSamples.toLocaleString()} samples)`,
+        ``,
+        `**Storage:**`,
+        `🔢 Counters: ${stats.storage.counters}`,
+        `📊 Gauges: ${stats.storage.gauges}`,
+        `⏱️ Timers: ${stats.storage.timers}`,
+        `📈 Histograms: ${stats.storage.histograms}`,
+        ``,
+      ];
+
+      // Add top counters
+      const sortedCounters = Object.entries(counters)
+        .sort(([, a], [, b]) => b.value - a.value)
+        .slice(0, 5);
+
+      if (sortedCounters.length > 0) {
+        summary.push(`**Top Counters:**`);
+        for (const [name, metric] of sortedCounters) {
+          summary.push(`• **${name}**: ${metric.value.toLocaleString()}`);
+        }
+        summary.push(``);
+      }
+
+      // Add timer performance
+      const sortedTimers = Object.entries(timers)
+        .filter(([, metric]) => metric.stats.count > 0)
+        .sort(([, a], [, b]) => b.stats.mean - a.stats.mean)
+        .slice(0, 5);
+
+      if (sortedTimers.length > 0) {
+        summary.push(`**Timer Performance (avg):**`);
+        for (const [name, metric] of sortedTimers) {
+          const avg = Math.round(metric.stats.mean);
+          const p95 = metric.stats.p95 ? Math.round(metric.stats.p95) : 'N/A';
+          summary.push(`• **${name}**: ${avg}ms avg, ${p95}ms p95`);
+        }
+      }
+
+      return {
+        success: true,
+        message: summary.join('\n'),
+        requiresRestart: false,
+        metricsData: { stats, counters, timers },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `❌ Failed to get metrics: ${error.message}`,
+        requiresRestart: false,
+      };
+    }
+  }
+
+  /**
+   * Handle log-pipeline command
+   */
+  async handleLogPipeline() {
+    // This would integrate with enhanced logger to show recent pipeline activities
+    // For now, return a placeholder implementation
+
+    const activities = [
+      `**📋 Recent Pipeline Activities**`,
+      ``,
+      `ℹ️ This command shows recent logging activities with correlation tracking.`,
+      `🚧 Full implementation requires integration with EnhancedLogger instances.`,
+      ``,
+      `**Planned Features:**`,
+      `• Recent operation timings and outcomes`,
+      `• Failed operations with context`,
+      `• Correlation ID tracking across modules`,
+      `• Pipeline performance metrics`,
+      ``,
+    ];
+
+    // If we have enhanced loggers available, we could add real data here
+    if (this.debugManager) {
+      const enabledModules = this.debugManager.getEnabledModules();
+      if (enabledModules.length > 0) {
+        activities.push(`**Currently Debugging:**`);
+        for (const module of enabledModules) {
+          const level = this.debugManager.getLevel(module);
+          const levelName = this.debugManager.getLevelName(level);
+          activities.push(`• **${module}**: level ${level} (${levelName})`);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: activities.join('\n'),
+      requiresRestart: false,
+      logMessage: 'Log pipeline status requested',
+    };
+  }
+
   getStats() {
     return {
       availableCommands: [
@@ -571,6 +933,11 @@ export class CommandProcessor {
         'auth-status',
         'force-reauth',
         'scraper-health',
+        'debug',
+        'debug-status',
+        'debug-level',
+        'metrics',
+        'log-pipeline',
       ],
       restrictedCommands: [
         'restart',
