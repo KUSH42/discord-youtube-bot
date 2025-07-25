@@ -584,7 +584,7 @@ describe('Scraper Announcement Flow E2E', () => {
       const webhookRequest = {
         method: 'POST',
         headers: {
-          'x-hub-signature': `sha1=${require('crypto').createHmac('sha1', 'test_secret').update('test body').digest('hex')}`,
+          'x-hub-signature': `sha1=${crypto.createHmac('sha1', 'test_secret').update('test body').digest('hex')}`,
         },
         body: `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">
@@ -627,7 +627,7 @@ describe('Scraper Announcement Flow E2E', () => {
       const webhookRequest = {
         method: 'POST',
         headers: {
-          'x-hub-signature': `sha1=${require('crypto').createHmac('sha1', 'test_secret').update('test body').digest('hex')}`,
+          'x-hub-signature': `sha1=${crypto.createHmac('sha1', 'test_secret').update('test body').digest('hex')}`,
         },
         body: `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">

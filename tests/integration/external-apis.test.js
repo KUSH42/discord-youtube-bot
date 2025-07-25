@@ -24,6 +24,7 @@ import {
   createMockRequest,
   createMockResponse,
 } from '../mocks/express.mock.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('External API Integration Tests', () => {
   beforeEach(() => {

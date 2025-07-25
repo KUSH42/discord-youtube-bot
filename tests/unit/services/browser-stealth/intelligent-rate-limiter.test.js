@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { IntelligentRateLimiter } from '../../../../src/services/browser-stealth/intelligent-rate-limiter.js';
+import { timestampUTC } from '../../../../src/utilities/utc-time.js';
 
 describe('IntelligentRateLimiter', () => {
   let rateLimiter;

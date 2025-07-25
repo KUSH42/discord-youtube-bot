@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { HumanBehaviorSimulator } from '../../../../src/services/browser-stealth/human-behavior-simulator.js';
+import { timestampUTC } from '../../../../src/utilities/utc-time.js';
 
 describe('HumanBehaviorSimulator', () => {
   let simulator;

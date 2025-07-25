@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { StateManager } from '../../src/infrastructure/state-manager.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 const flushPromises = async () => {
   await Promise.resolve();

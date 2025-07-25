@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { MessageQueue } from '../../../src/services/implementations/message-sender/message-queue.js';
+import { timestampUTC } from '../../../src/utilities/utc-time.js';
 
 describe('MessageQueue', () => {
   let queue;

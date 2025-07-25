@@ -14,7 +14,7 @@ describe('CommandProcessor - Debug Commands', () => {
       get: jest.fn((key, defaultValue) => {
         const values = {
           COMMAND_PREFIX: '!',
-          ALLOWED_USER_IDS: 'user123,user456',
+          ALLOWED_USER_IDS: '123456789012345678,user456',
         };
         return values[key] || defaultValue;
       }),
@@ -46,6 +46,10 @@ describe('CommandProcessor - Debug Commands', () => {
         scraper: 3,
         youtube: 5,
       })),
+      getLevel: jest.fn(module => {
+        const levels = { 'content-announcer': 4, scraper: 3, youtube: 5 };
+        return levels[module] || 3;
+      }),
       getLevelName: jest.fn(level => {
         const names = { 1: 'errors', 2: 'warnings', 3: 'info', 4: 'debug', 5: 'verbose' };
         return names[level] || 'unknown';
@@ -92,35 +96,43 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('debug command validation', () => {
     it('should validate debug command arguments', async () => {
-      const result = await commandProcessor.processCommand('debug', ['content-announcer'], 'user123');
+      const result = await commandProcessor.processCommand('debug', ['content-announcer'], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid usage');
     });
 
     it('should validate unknown module names', async () => {
-      const result = await commandProcessor.processCommand('debug', ['unknown-module', 'true'], 'user123');
+      const result = await commandProcessor.processCommand('debug', ['unknown-module', 'true'], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Unknown debug module');
     });
 
     it('should validate boolean arguments', async () => {
-      const result = await commandProcessor.processCommand('debug', ['content-announcer', 'maybe'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug',
+        ['content-announcer', 'maybe'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid argument');
     });
 
     it('should validate debug-level command arguments', async () => {
-      const result = await commandProcessor.processCommand('debug-level', ['content-announcer'], 'user123');
+      const result = await commandProcessor.processCommand('debug-level', ['content-announcer'], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid usage');
     });
 
     it('should validate debug level range', async () => {
-      const result = await commandProcessor.processCommand('debug-level', ['content-announcer', '6'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug-level',
+        ['content-announcer', '6'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid debug level');
@@ -129,7 +141,7 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('debug command without arguments', () => {
     it('should show current debug status when no arguments provided', async () => {
-      const result = await commandProcessor.processCommand('debug', [], 'user123');
+      const result = await commandProcessor.processCommand('debug', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Enabled debug modules');
@@ -145,7 +157,7 @@ describe('CommandProcessor - Debug Commands', () => {
         totalCount: 1,
       });
 
-      const result = await commandProcessor.processCommand('debug', [], 'user123');
+      const result = await commandProcessor.processCommand('debug', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('No debug modules currently enabled');
@@ -156,7 +168,11 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should enable debug for module', async () => {
       mockDebugManager.toggle.mockReturnValue(true);
 
-      const result = await commandProcessor.processCommand('debug', ['content-announcer', 'true'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug',
+        ['content-announcer', 'true'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Debug logging for **content-announcer** is now **enabled**');
@@ -166,7 +182,7 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should disable debug for module', async () => {
       mockDebugManager.toggle.mockReturnValue(false);
 
-      const result = await commandProcessor.processCommand('debug', ['scraper', 'false'], 'user123');
+      const result = await commandProcessor.processCommand('debug', ['scraper', 'false'], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Debug logging for **scraper** is now **disabled**');
@@ -178,7 +194,11 @@ describe('CommandProcessor - Debug Commands', () => {
         throw new Error('Debug manager error');
       });
 
-      const result = await commandProcessor.processCommand('debug', ['content-announcer', 'true'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug',
+        ['content-announcer', 'true'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to toggle debug');
@@ -187,7 +207,7 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should handle missing debug manager', async () => {
       const processor = new CommandProcessor(mockConfig, stateManager, null, mockMetricsManager);
 
-      const result = await processor.processCommand('debug', ['content-announcer', 'true'], 'user123');
+      const result = await processor.processCommand('debug', ['content-announcer', 'true'], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Debug manager is not available');
@@ -196,7 +216,7 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('debug-status command', () => {
     it('should show debug status for all modules', async () => {
-      const result = await commandProcessor.processCommand('debug-status', [], 'user123');
+      const result = await commandProcessor.processCommand('debug-status', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Debug Status Summary');
@@ -211,7 +231,7 @@ describe('CommandProcessor - Debug Commands', () => {
         throw new Error('Status error');
       });
 
-      const result = await commandProcessor.processCommand('debug-status', [], 'user123');
+      const result = await commandProcessor.processCommand('debug-status', [], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to get debug status');
@@ -220,7 +240,7 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('debug-level command', () => {
     it('should show current debug levels when no arguments', async () => {
-      const result = await commandProcessor.processCommand('debug-level', [], 'user123');
+      const result = await commandProcessor.processCommand('debug-level', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Current Debug Levels');
@@ -232,7 +252,11 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should set debug level for module', async () => {
       mockDebugManager.setLevel.mockReturnValue(5);
 
-      const result = await commandProcessor.processCommand('debug-level', ['content-announcer', '5'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug-level',
+        ['content-announcer', '5'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Debug level for **content-announcer** set to **5** (verbose)');
@@ -244,7 +268,11 @@ describe('CommandProcessor - Debug Commands', () => {
         throw new Error('Level error');
       });
 
-      const result = await commandProcessor.processCommand('debug-level', ['content-announcer', '5'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug-level',
+        ['content-announcer', '5'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to set debug level');
@@ -253,7 +281,7 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('metrics command', () => {
     it('should show comprehensive metrics summary', async () => {
-      const result = await commandProcessor.processCommand('metrics', [], 'user123');
+      const result = await commandProcessor.processCommand('metrics', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('📊 Metrics Summary');
@@ -266,7 +294,7 @@ describe('CommandProcessor - Debug Commands', () => {
     });
 
     it('should show top counters', async () => {
-      const result = await commandProcessor.processCommand('metrics', [], 'user123');
+      const result = await commandProcessor.processCommand('metrics', [], '123456789012345678');
 
       expect(result.message).toContain('Top Counters');
       expect(result.message).toContain('**requests.total**: 1,000');
@@ -274,7 +302,7 @@ describe('CommandProcessor - Debug Commands', () => {
     });
 
     it('should show timer performance', async () => {
-      const result = await commandProcessor.processCommand('metrics', [], 'user123');
+      const result = await commandProcessor.processCommand('metrics', [], '123456789012345678');
 
       expect(result.message).toContain('Timer Performance');
       expect(result.message).toContain('**request.duration**: 150ms avg, 300ms p95');
@@ -284,7 +312,7 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should handle missing metrics manager', async () => {
       const processor = new CommandProcessor(mockConfig, stateManager, mockDebugManager, null);
 
-      const result = await processor.processCommand('metrics', [], 'user123');
+      const result = await processor.processCommand('metrics', [], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Metrics manager is not available');
@@ -295,7 +323,7 @@ describe('CommandProcessor - Debug Commands', () => {
         throw new Error('Metrics error');
       });
 
-      const result = await commandProcessor.processCommand('metrics', [], 'user123');
+      const result = await commandProcessor.processCommand('metrics', [], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to get metrics');
@@ -304,7 +332,7 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('log-pipeline command', () => {
     it('should show pipeline information', async () => {
-      const result = await commandProcessor.processCommand('log-pipeline', [], 'user123');
+      const result = await commandProcessor.processCommand('log-pipeline', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('📋 Recent Pipeline Activities');
@@ -312,7 +340,7 @@ describe('CommandProcessor - Debug Commands', () => {
     });
 
     it('should show currently debugging modules', async () => {
-      const result = await commandProcessor.processCommand('log-pipeline', [], 'user123');
+      const result = await commandProcessor.processCommand('log-pipeline', [], '123456789012345678');
 
       expect(result.message).toContain('Currently Debugging');
       expect(result.message).toContain('**content-announcer**: level');
@@ -322,7 +350,7 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should work without debug manager', async () => {
       const processor = new CommandProcessor(mockConfig, stateManager, null, mockMetricsManager);
 
-      const result = await processor.processCommand('log-pipeline', [], 'user123');
+      const result = await processor.processCommand('log-pipeline', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Pipeline Activities');
@@ -343,7 +371,7 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('readme integration', () => {
     it('should include debug commands in readme', async () => {
-      const result = await commandProcessor.processCommand('readme', [], 'user123');
+      const result = await commandProcessor.processCommand('readme', [], '123456789012345678');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('!debug <module> <true|false>');
@@ -356,14 +384,18 @@ describe('CommandProcessor - Debug Commands', () => {
 
   describe('authorization', () => {
     it('should allow debug commands for any user', async () => {
-      const result = await commandProcessor.processCommand('debug', ['content-announcer', 'true'], 'unauthorized-user');
+      const result = await commandProcessor.processCommand(
+        'debug',
+        ['content-announcer', 'true'],
+        '987654321098765432'
+      );
 
       expect(result.success).toBe(true);
       expect(mockDebugManager.toggle).toHaveBeenCalled();
     });
 
     it('should allow metrics commands for any user', async () => {
-      const result = await commandProcessor.processCommand('metrics', [], 'unauthorized-user');
+      const result = await commandProcessor.processCommand('metrics', [], '987654321098765432');
 
       expect(result.success).toBe(true);
     });
@@ -373,7 +405,7 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should handle empty module lists gracefully', async () => {
       mockDebugManager.getAvailableModules.mockReturnValue([]);
 
-      const result = await commandProcessor.processCommand('debug', ['unknown', 'true'], 'user123');
+      const result = await commandProcessor.processCommand('debug', ['unknown', 'true'], '123456789012345678');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Unknown debug module');
@@ -382,11 +414,18 @@ describe('CommandProcessor - Debug Commands', () => {
     it('should handle malformed debug manager responses', async () => {
       mockDebugManager.getStatus.mockReturnValue(null);
 
-      await expect(commandProcessor.processCommand('debug-status', [], 'user123')).rejects.toThrow();
+      const result = await commandProcessor.processCommand('debug-status', [], '123456789012345678');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Failed to get debug status');
     });
 
     it('should handle non-numeric debug levels', async () => {
-      const result = await commandProcessor.processCommand('debug-level', ['content-announcer', 'invalid'], 'user123');
+      const result = await commandProcessor.processCommand(
+        'debug-level',
+        ['content-announcer', 'invalid'],
+        '123456789012345678'
+      );
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid debug level');

@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { ContentStateManager } from '../../src/core/content-state-manager.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('ContentStateManager', () => {
   let stateManager;

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createMockRequest, createMockResponse } from '../mocks/express.mock.js';
 import { createMockMessage, createMockUser } from '../mocks/discord.mock.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('Security and Input Validation Tests', () => {
   let consoleSpy;

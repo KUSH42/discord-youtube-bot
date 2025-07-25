@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { ContentCoordinator } from '../../src/core/content-coordinator.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('ContentCoordinator', () => {
   let coordinator;

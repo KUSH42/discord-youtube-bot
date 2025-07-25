@@ -4,12 +4,7 @@
  * All time calculations use UTC to ensure timezone independence
  */
 
-import {
-  getCurrentHourUTC,
-  getCurrentDayUTC,
-  isNightTimeUTC,
-  isWeekendUTC,
-} from '../../utilities/utc-time.js';
+import { getCurrentHourUTC, getCurrentDayUTC, isNightTimeUTC, isWeekendUTC } from '../../utilities/utc-time.js';
 
 export class IntelligentRateLimiter {
   constructor(config, logger) {

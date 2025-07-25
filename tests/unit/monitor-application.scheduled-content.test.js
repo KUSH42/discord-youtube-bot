@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MonitorApplication } from '../../src/application/monitor-application.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('MonitorApplication - Scheduled Content Polling', () => {
   let monitorApp;

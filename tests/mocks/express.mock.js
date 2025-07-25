@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 // Mock Express request object
 export const mockRequest = {

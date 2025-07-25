@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { BrowserProfileManager } from '../../../../src/services/browser-stealth/browser-profile-manager.js';
+import { timestampUTC } from '../../../../src/utilities/utc-time.js';
 
 // Mock filesystem operations
 jest.mock('fs', () => ({

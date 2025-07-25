@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import crypto from 'crypto';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('Empty PubSubHubbub Notification Fallback E2E Tests', () => {
   let mockYouTubeMonitor;

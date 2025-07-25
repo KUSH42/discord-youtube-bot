@@ -1,5 +1,6 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('ScraperApplication Content Detection', () => {
   let scraperApp;

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createMockRequest, createMockResponse, mockNext } from '../mocks/express.mock.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 import {
   CommandRateLimit,
   createWebhookLimiter,

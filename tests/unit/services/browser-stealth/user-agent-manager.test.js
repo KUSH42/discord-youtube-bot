@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { UserAgentManager } from '../../../../src/services/browser-stealth/user-agent-manager.js';
+import { timestampUTC } from '../../../../src/utilities/utc-time.js';
 
 describe('UserAgentManager', () => {
   let userAgentManager;

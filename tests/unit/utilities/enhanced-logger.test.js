@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { EnhancedLogger, createEnhancedLogger } from '../../../src/utilities/enhanced-logger.js';
 
-// Mock the UTC time utilities
-jest.mock('../../../src/utilities/utc-time.js', () => ({
-  nowUTC: jest.fn(() => 1000),
-  timestampUTC: jest.fn(() => 1000),
-}));
+// UTC time utilities will be imported as-is for this test
 
 describe('EnhancedLogger', () => {
   let mockBaseLogger;

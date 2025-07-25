@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { DuplicateDetector, videoUrlRegex, tweetUrlRegex } from '../../src/duplicate-detector.js';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('Duplicate Detection Logic Tests', () => {
   let knownVideoIds, knownTweetIds;

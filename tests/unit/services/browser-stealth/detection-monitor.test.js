@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { DetectionMonitor } from '../../../../src/services/browser-stealth/detection-monitor.js';
+import { timestampUTC } from '../../../../src/utilities/utc-time.js';
 
 describe('DetectionMonitor', () => {
   let detectionMonitor;

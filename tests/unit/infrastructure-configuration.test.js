@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 // Simple test focused on basic functionality without complex mocking
 describe('Configuration', () => {

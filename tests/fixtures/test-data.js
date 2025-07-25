@@ -3,6 +3,8 @@
  * This file contains reusable test data, fixtures, and data generation utilities
  */
 
+import { timestampUTC } from '../../src/utilities/utc-time.js';
+
 export const testDatasets = {
   // YouTube video URLs in various formats for comprehensive regex testing
   youtubeUrls: {

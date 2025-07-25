@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MetricsManager } from '../../../src/infrastructure/metrics-manager.js';
 
-// Mock the UTC time utilities
-jest.mock('../../../src/utilities/utc-time.js', () => ({
-  nowUTC: jest.fn(() => 1000),
-  timestampUTC: jest.fn(() => 1000000),
-}));
+// UTC time utilities will be imported as-is for this test
 
 describe('MetricsManager', () => {
   let metricsManager;
@@ -244,10 +240,8 @@ describe('MetricsManager', () => {
   });
 
   describe('aggregated data', () => {
-    beforeEach(async () => {
-      // Mock time to control aggregation windows
-      const { timestampUTC } = await import('../../../src/utilities/utc-time.js');
-      timestampUTC.mockReturnValue(60000); // 60 seconds
+    beforeEach(() => {
+      // Use real time for aggregation tests
     });
 
     it('should create aggregated data for time windows', () => {

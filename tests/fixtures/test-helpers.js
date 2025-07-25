@@ -4,6 +4,7 @@
  */
 
 import { jest } from '@jest/globals';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 // Test timing utilities
 export const timing = {

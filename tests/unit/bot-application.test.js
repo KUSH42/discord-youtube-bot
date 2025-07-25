@@ -1,6 +1,7 @@
 import { BotApplication } from '../../src/application/bot-application.js';
 import { jest } from '@jest/globals';
 import fs from 'fs';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('BotApplication', () => {
   let botApplication;

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import crypto from 'crypto';
+import { timestampUTC } from '../../src/utilities/utc-time.js';
 
 describe('End-to-End Fallback Recovery Tests', () => {
   let mockYouTubeMonitor;
@@ -49,7 +50,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       YOUTUBE_API_POLL_INTERVAL_MS: 5000, // Shorter for testing
 
       // State
-      lastSuccessfulCheck: new Date(timestampUTC() - 60000), // 1 minute ago
+      lastSuccessfulCheck: timestampUTC() - 60000, // 1 minute ago
       failedNotifications: new Map(),
       recentFailures: [],
       fallbackInProgress: false,
