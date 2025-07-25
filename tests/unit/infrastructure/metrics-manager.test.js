@@ -27,6 +27,9 @@ describe('MetricsManager', () => {
 
       expect(stats.retentionHours).toBe(24);
       expect(stats.maxSamplesPerMetric).toBe(10000);
+
+      // Clean up the manager to prevent open handles
+      manager.dispose();
     });
 
     it('should initialize with custom configuration', () => {

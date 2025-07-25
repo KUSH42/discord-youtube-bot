@@ -341,7 +341,7 @@ describe('ContentAnnouncer', () => {
         isOld: true,
       };
 
-      const result = await contentAnnouncer.announceContent(content);
+      await contentAnnouncer.announceContent(content);
 
       expect(mockDiscordService.sendMessage).toHaveBeenCalled();
     });
