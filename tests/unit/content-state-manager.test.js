@@ -164,9 +164,9 @@ describe('ContentStateManager', () => {
         id: contentId,
         type: 'youtube_video',
         state: 'published',
-        firstSeen: expect.any(String),
-        lastUpdated: expect.any(String),
-        publishedAt: expect.any(String),
+        firstSeen: expect.any(Date),
+        lastUpdated: expect.any(Date),
+        publishedAt: expect.any(Date),
         announced: false,
         source: 'webhook',
         url: 'https://www.youtube.com/watch?v=test123',
@@ -396,28 +396,40 @@ describe('ContentStateManager', () => {
     });
 
     it('should return false for content published before bot started', () => {
-      const beforeBotStart = new Date(timestampUTC() - 120000); // 2 minutes ago
-      stateManager.botStartTime = new Date(timestampUTC() - 60000); // Bot started 1 minute ago
+      // Set specific times with large gap to avoid grace period
+      const botStartTime = new Date('2023-01-01T12:00:00.000Z');
+      const beforeBotStart = new Date('2023-01-01T10:00:00.000Z'); // 2 hours before (outside grace period)
+      const detectionTime = new Date('2023-01-01T13:00:00.000Z'); // 1 hour after bot start (outside grace period)
 
-      const result = stateManager.isNewContent(contentId, beforeBotStart.toISOString());
+      stateManager.botStartTime = botStartTime;
+
+      const result = stateManager.isNewContent(contentId, beforeBotStart.toISOString(), detectionTime);
 
       expect(result).toBe(false);
     });
 
     it('should log debug information', () => {
-      const publishTime = new Date(timestampUTC() - 60000);
-      stateManager.botStartTime = new Date(timestampUTC() - 30000);
+      // Use fixed times to ensure predictable behavior
+      const botStartTime = new Date('2023-01-01T12:00:00.000Z');
+      const publishTime = new Date('2023-01-01T12:30:00.000Z'); // 30 minutes after bot start
+      const detectionTime = new Date('2023-01-01T12:35:00.000Z');
 
-      stateManager.isNewContent(contentId, publishTime.toISOString());
+      stateManager.botStartTime = botStartTime;
 
-      expect(mockLogger.debug).toHaveBeenCalledWith('New content evaluation', {
+      stateManager.isNewContent(contentId, publishTime.toISOString(), detectionTime);
+
+      // The implementation logs different messages before vs after initialization
+      // Before initialization: "New content evaluation (pre-initialization)"
+      expect(mockLogger.debug).toHaveBeenCalledWith('New content evaluation (pre-initialization)', {
         contentId,
         publishedAt: publishTime.toISOString(),
         contentAge: expect.any(Number),
         maxAge: expect.any(Number),
         isWithinAgeLimit: expect.any(Boolean),
         isAfterBotStart: expect.any(Boolean),
+        timeSinceBotStart: expect.any(Number),
         botStartTime: expect.any(String),
+        shouldAllow: expect.any(Boolean),
       });
     });
 
@@ -653,9 +665,9 @@ describe('ContentStateManager', () => {
 
       expect(mockPersistentStorage.storeContentState).toHaveBeenCalledWith(contentId, {
         ...contentState,
-        firstSeen: contentState.firstSeen.toISOString(),
-        lastUpdated: contentState.lastUpdated.toISOString(),
-        publishedAt: contentState.publishedAt.toISOString(),
+        firstSeen: contentState.firstSeen,
+        lastUpdated: contentState.lastUpdated,
+        publishedAt: contentState.publishedAt,
       });
     });
 
