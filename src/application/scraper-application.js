@@ -534,7 +534,7 @@ export class ScraperApplication {
       this.logger.info(`Found ${tweets.length} tweets from @${this.xUser}`);
 
       // Process new tweets
-      const newTweets = this.filterNewTweets(tweets);
+      const newTweets = await this.filterNewTweets(tweets);
 
       this.logger.info(`After filtering: ${newTweets.length} new tweets out of ${tweets.length} total tweets`);
 
@@ -607,7 +607,7 @@ export class ScraperApplication {
       const tweets = await this.extractTweets();
       this.logger.info(`Found ${tweets.length} potential retweets on profile page.`);
 
-      const newTweets = this.filterNewTweets(tweets);
+      const newTweets = await this.filterNewTweets(tweets);
       this.logger.info(`Found ${newTweets.length} new tweets during enhanced retweet detection.`);
 
       for (const tweet of newTweets) {
@@ -615,7 +615,7 @@ export class ScraperApplication {
         if (this.shouldLogDebug()) {
           this.logger.debug(`Checking tweet ${tweet.tweetID}, category: ${tweet.tweetCategory}`);
         }
-        if (this.isNewContent(tweet)) {
+        if (await this.isNewContent(tweet)) {
           this.logger.info(`✅ Found new tweet to process: ${tweet.url} (${tweet.tweetCategory})`);
           await this.processNewTweet(tweet);
           this.stats.totalTweetsAnnounced++;
@@ -786,9 +786,9 @@ export class ScraperApplication {
   /**
    * Filter tweets to only include new ones
    * @param {Array} tweets - All extracted tweets
-   * @returns {Array} New tweets only
+   * @returns {Promise<Array>} New tweets only
    */
-  filterNewTweets(tweets) {
+  async filterNewTweets(tweets) {
     const newTweets = [];
     let duplicateCount = 0;
     let oldContentCount = 0;
@@ -796,12 +796,12 @@ export class ScraperApplication {
     this.logger.verbose(`Starting to filter ${tweets.length} tweets`);
 
     for (const tweet of tweets) {
-      if (!this.duplicateDetector.isDuplicate(tweet.url)) {
+      if (!(await this.duplicateDetector.isDuplicate(tweet.url))) {
         // Mark as seen immediately to prevent future duplicates
         this.duplicateDetector.markAsSeen(tweet.url);
 
         // Check if tweet is new enough based on bot start time
-        if (this.isNewContent(tweet)) {
+        if (await this.isNewContent(tweet)) {
           newTweets.push(tweet);
           // Only log debug for sampling to reduce Discord spam
           if (this.shouldLogDebug()) {
@@ -834,9 +834,9 @@ export class ScraperApplication {
    * Check if content is new enough to announce
    * Uses duplicate detection and reasonable time windows instead of strict bot startup time
    * @param {Object} tweet - Tweet object
-   * @returns {boolean} True if content is new
+   * @returns {Promise<boolean>} True if content is new
    */
-  isNewContent(tweet) {
+  async isNewContent(tweet) {
     const announceOldTweets = this.config.getBoolean('ANNOUNCE_OLD_TWEETS', false);
 
     // If configured to announce old tweets, consider all tweets as new
@@ -846,7 +846,7 @@ export class ScraperApplication {
     }
 
     // Check: Have we seen this tweet before? (Primary duplicate detection)
-    if (tweet.url && this.duplicateDetector.isDuplicate(tweet.url)) {
+    if (tweet.url && (await this.duplicateDetector.isDuplicate(tweet.url))) {
       this.logger.debug(`Tweet ${tweet.tweetID} already known (duplicate), not new`);
       return false;
     }
@@ -942,7 +942,7 @@ export class ScraperApplication {
         originalAuthor: tweet.author, // Store original author for retweets
         text: tweet.text,
         timestamp: tweet.timestamp,
-        isOld: !this.isNewContent(tweet),
+        isOld: !(await this.isNewContent(tweet)),
       };
 
       // Announce the content

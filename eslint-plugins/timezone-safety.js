@@ -70,23 +70,34 @@ const enforceUtcTimestamps = {
         const objectName = node.object.name;
         const propertyName = node.property.name;
 
-        // Check for problematic Date methods
-        if (problematicMethods[propertyName]) {
+        // Check for problematic Date methods (only on Date objects or date-like variables)
+        if (Object.prototype.hasOwnProperty.call(problematicMethods, propertyName)) {
           const filename = context.getFilename();
           if (isTestFile(filename)) {
             return;
           }
 
-          context.report({
-            node,
-            messageId: 'noLocalDateMethods',
-            data: {
-              suggestion: problematicMethods[propertyName],
-            },
-            fix(fixer) {
-              return fixer.replaceText(node.property, problematicMethods[propertyName]);
-            },
-          });
+          // Only flag if this appears to be a Date object method call
+          const isLikelyDateObject =
+            objectName === 'date' ||
+            objectName === 'Date' ||
+            objectName.toLowerCase().includes('date') ||
+            objectName.toLowerCase().includes('time') ||
+            objectName === 'now' ||
+            objectName === 'timestamp';
+
+          if (isLikelyDateObject) {
+            context.report({
+              node,
+              messageId: 'noLocalDateMethods',
+              data: {
+                suggestion: problematicMethods[propertyName],
+              },
+              fix(fixer) {
+                return fixer.replaceText(node.property, problematicMethods[propertyName]);
+              },
+            });
+          }
         }
 
         // Check for Date.parse() usage (Date.now() is timezone-safe)

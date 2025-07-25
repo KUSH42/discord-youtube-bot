@@ -6,10 +6,11 @@ import { nowUTC } from '../utilities/utc-time.js';
  * Tracks content through its complete lifecycle
  */
 export class ContentStateManager {
-  constructor(configManager, persistentStorage, logger) {
+  constructor(configManager, persistentStorage, logger, stateManager = null) {
     this.configManager = configManager;
     this.storage = persistentStorage;
     this.logger = logger;
+    this.stateManager = stateManager;
 
     // In-memory cache for active content states
     this.contentStates = new Map(); // videoId -> ContentState
@@ -210,8 +211,9 @@ export class ContentStateManager {
 
     // Check against bot start time, but allow recent content even if published before bot start
     // This prevents announcing very old content while still allowing recent content from before restart
-    const isAfterBotStart = publishTime >= this.botStartTime;
-    const timeSinceBotStart = detectionTime.getTime() - this.botStartTime.getTime();
+    const botStartTime = this.getBotStartTime();
+    const isAfterBotStart = publishTime >= botStartTime;
+    const timeSinceBotStart = detectionTime.getTime() - botStartTime.getTime();
     const botStartGracePeriod = 5 * 60 * 1000; // 5 minutes grace period
 
     // Allow content if:
@@ -228,7 +230,7 @@ export class ContentStateManager {
       isWithinAgeLimit,
       isAfterBotStart,
       timeSinceBotStart: Math.round(timeSinceBotStart / 1000), // seconds
-      botStartTime: this.botStartTime.toISOString(),
+      botStartTime: botStartTime.toISOString(),
       shouldAllow,
     };
 
@@ -356,6 +358,20 @@ export class ContentStateManager {
   getMaxContentAgeMs() {
     const hours = this.configManager.getNumber('MAX_CONTENT_AGE_HOURS', 24);
     return hours * 60 * 60 * 1000; // Convert to milliseconds
+  }
+
+  /**
+   * Get bot start time from state manager if available, otherwise use internal time
+   * @returns {Date} Bot start time
+   */
+  getBotStartTime() {
+    if (this.stateManager) {
+      const stateManagerBotStartTime = this.stateManager.get('botStartTime');
+      if (stateManagerBotStartTime) {
+        return new Date(stateManagerBotStartTime);
+      }
+    }
+    return this.botStartTime;
   }
 
   /**
