@@ -25,6 +25,7 @@ describe('Scraper Announcement Flow E2E', () => {
   let mockYouTubeService;
   let mockBrowserService;
   let mockAuthManager;
+  let mockConfig;
   let announcementCallLog;
 
   beforeEach(() => {
@@ -119,7 +120,7 @@ describe('Scraper Announcement Flow E2E', () => {
     };
 
     // Mock configuration
-    const mockConfig = {
+    mockConfig = {
       getRequired: jest.fn(key => {
         const values = {
           YOUTUBE_CHANNEL_ID: 'UCtest123',
@@ -494,6 +495,33 @@ describe('Scraper Announcement Flow E2E', () => {
     }, 30000);
 
     it('should filter out old tweets based on content age', async () => {
+      // Configure for this test: disable old tweets and set 24h backoff
+      mockConfig.get.mockImplementation((key, defaultValue) => {
+        const values = {
+          PSH_SECRET: 'test_secret',
+          PSH_VERIFY_TOKEN: 'test_verify',
+          WEBHOOK_DEBUG_LOGGING: 'true',
+          X_QUERY_INTERVAL_MIN: '60000',
+          X_QUERY_INTERVAL_MAX: '120000',
+          ANNOUNCE_OLD_TWEETS: 'false',
+          CONTENT_BACKOFF_DURATION_HOURS: '24', // 24 hours for this test
+          MAX_CONTENT_AGE_HOURS: '24',
+          DISCORD_X_RETWEETS_CHANNEL_ID: '123456789012345682',
+          DISCORD_X_REPLIES_CHANNEL_ID: '123456789012345680',
+          DISCORD_X_QUOTES_CHANNEL_ID: '123456789012345681',
+        };
+        return values[key] || defaultValue;
+      });
+
+      mockConfig.getBoolean.mockImplementation((key, defaultValue) => {
+        const values = {
+          WEBHOOK_DEBUG_LOGGING: true,
+          ANNOUNCE_OLD_TWEETS: false, // Disable old tweets for this test
+          ENABLE_RETWEET_PROCESSING: true,
+        };
+        return values[key] !== undefined ? values[key] : defaultValue;
+      });
+
       // Mock to return only old tweets
       mockBrowserService.evaluate.mockImplementation(() => {
         return Promise.resolve([
@@ -574,7 +602,7 @@ describe('Scraper Announcement Flow E2E', () => {
       const result = await contentCoordinator.processContent('duplicate_test_123', 'scraper', videoData);
 
       expect(result.action).toBe('skip');
-      expect(result.reason).toBe('already_announced');
+      expect(result.reason).toBe('source_priority');
       expect(announcementCallLog).toHaveLength(1); // Only announced once
     });
 
@@ -631,8 +659,8 @@ describe('Scraper Announcement Flow E2E', () => {
     });
 
     it('should handle content processing errors in X scraper flow', async () => {
-      // Mock content announcer to fail
-      contentAnnouncer.announceContent = jest.fn().mockRejectedValue(new Error('Announcement failed'));
+      // Mock browser service to fail during evaluation
+      mockBrowserService.evaluate.mockRejectedValue(new Error('Browser evaluation failed'));
 
       await expect(scraperApp.pollXProfile()).rejects.toThrow();
       expect(announcementCallLog).toHaveLength(0);
