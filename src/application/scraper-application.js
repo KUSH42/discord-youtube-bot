@@ -813,23 +813,16 @@ export class ScraperApplication {
         // Check if tweet is new enough based on bot start time
         if (await this.isNewContent(tweet)) {
           newTweets.push(tweet);
-          // Only log debug for sampling to reduce Discord spam
-          if (this.shouldLogDebug()) {
-            this.logger.debug(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
-          }
+          this.logger.verbose(`Added new tweet: ${tweet.tweetID} - ${tweet.text.substring(0, 50)}...`);
         } else {
           oldContentCount++;
           // Reduce frequency of old tweet filtering logs
-          if (this.shouldLogVerbose()) {
-            this.logger.debug(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
-          }
+          this.logger.verbose(`Filtered out old tweet: ${tweet.tweetID} - timestamp: ${tweet.timestamp}`);
         }
       } else {
         duplicateCount++;
         // Reduce frequency of duplicate filtering logs
-        if (this.shouldLogVerbose()) {
-          this.logger.debug(`Filtered out duplicate tweet: ${tweet.tweetID}`);
-        }
+        this.logger.verbose(`Filtered out duplicate tweet: ${tweet.tweetID}`);
       }
     }
 
