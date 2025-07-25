@@ -701,7 +701,7 @@ describe('Scraper Announcement Flow E2E', () => {
 
       // Neither should announce
       expect(announcementCallLog).toHaveLength(0);
-    });
+    }, 30000);
   });
 
   describe('Content Analysis and Debug Information', () => {

@@ -123,7 +123,7 @@ describe('ScraperApplication Content Detection', () => {
       expect(newTweets).toHaveLength(1);
       expect(newTweets[0].tweetID).toBe('2');
       expect(mockDuplicateDetector.markAsSeen).toHaveBeenCalledWith(tweets[1].url);
-      expect(mockLogger.verbose).toHaveBeenCalledWith('Filtering results: 1 new, 1 duplicates, 0 old content');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Filtering results: 1 new, 1 duplicates, 0 old content');
     });
 
     it('should filter out old content', async () => {
@@ -152,7 +152,7 @@ describe('ScraperApplication Content Detection', () => {
 
       expect(newTweets).toHaveLength(1);
       expect(newTweets[0].tweetID).toBe('2');
-      expect(mockLogger.verbose).toHaveBeenCalledWith('Filtering results: 1 new, 0 duplicates, 1 old content');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Filtering results: 1 new, 0 duplicates, 1 old content');
     });
 
     it('should log debug information with sampling', async () => {
