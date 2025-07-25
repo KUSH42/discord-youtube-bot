@@ -390,20 +390,7 @@ export class MonitorApplication {
         bodyLength: request.body ? request.body.length : 0,
       });
 
-      // Verify webhook signature
-      const signatureResult = this.verifyWebhookSignatureDebug(request.body, request.headers);
-      if (!signatureResult.isValid) {
-        this.logWebhookDebug('WEBHOOK SIGNATURE VERIFICATION FAILED', signatureResult.details);
-        this.logger.warn('Webhook signature verification failed', signatureResult.details);
-        return { status: 403, message: 'Invalid signature' };
-      }
-
-      this.logWebhookDebug('WEBHOOK SIGNATURE VERIFIED', {
-        signatureMethod: signatureResult.details.method,
-        secretLength: this.webhookSecret.length,
-      });
-
-      // Handle verification request
+      // Handle verification request (GET requests don't require signature verification)
       if (request.method === 'GET') {
         const verificationResult = this.handleVerificationRequest(request.query);
         this.logWebhookDebug('WEBHOOK VERIFICATION REQUEST', {
@@ -413,8 +400,21 @@ export class MonitorApplication {
         return verificationResult;
       }
 
-      // Handle notification
+      // Handle notification (POST requests require signature verification)
       if (request.method === 'POST') {
+        // Verify webhook signature for POST requests only
+        const signatureResult = this.verifyWebhookSignatureDebug(request.body, request.headers);
+        if (!signatureResult.isValid) {
+          this.logWebhookDebug('WEBHOOK SIGNATURE VERIFICATION FAILED', signatureResult.details);
+          this.logger.warn('Webhook signature verification failed', signatureResult.details);
+          return { status: 403, message: 'Invalid signature' };
+        }
+
+        this.logWebhookDebug('WEBHOOK SIGNATURE VERIFIED', {
+          signatureMethod: signatureResult.details.method,
+          secretLength: this.webhookSecret.length,
+        });
+
         const notificationResult = await this.handleNotification(request.body);
         this.logWebhookDebug('WEBHOOK NOTIFICATION PROCESSED', {
           bodyPreview: this.getBodyPreview(request.body),
