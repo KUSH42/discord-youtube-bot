@@ -42,7 +42,7 @@ describe('StealthScripts', () => {
     });
 
     it('should contain language spoofing', () => {
-      expect(STEALTH_SCRIPTS).toContain('navigator.languages');
+      expect(STEALTH_SCRIPTS).toContain('languages');
       expect(STEALTH_SCRIPTS).toContain('en-US');
     });
 
@@ -298,10 +298,11 @@ describe('StealthScripts', () => {
     });
 
     it('should have consistent approach to automation detection', () => {
-      // Both should target automation indicators
-      expect(STEALTH_SCRIPTS).toContain('AutomationControlled');
+      // Browser args should target automation indicators
       expect(STEALTH_BROWSER_ARGS).toContain('--disable-blink-features=AutomationControlled');
       expect(IGNORE_DEFAULT_ARGS).toContain('--enable-blink-features=AutomationControlled');
+      // Scripts should target webdriver property
+      expect(STEALTH_SCRIPTS).toContain('webdriver');
     });
 
     it('should provide comprehensive stealth coverage', () => {

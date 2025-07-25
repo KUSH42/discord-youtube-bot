@@ -144,13 +144,32 @@ export class MetricsManager {
       },
 
       measure: async fn => {
-        this.start();
+        const timer = {
+          start: () => {
+            startTime = nowUTC();
+            return this;
+          },
+          stop: () => {
+            if (startTime === null) {
+              throw new Error('Timer not started');
+            }
+            const duration = nowUTC() - startTime;
+            startTime = null;
+            return duration;
+          },
+        };
+
+        timer.start();
         try {
           const result = await fn();
-          this.stop();
+          const duration = timer.stop();
+          this.recordTiming(name, duration, tags);
           return result;
         } catch (error) {
-          this.stop();
+          if (startTime !== null) {
+            const duration = timer.stop();
+            this.recordTiming(name, duration, tags);
+          }
           throw error;
         }
       },

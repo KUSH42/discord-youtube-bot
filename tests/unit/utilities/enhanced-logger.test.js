@@ -102,10 +102,10 @@ describe('EnhancedLogger', () => {
           testId: '123',
           additionalData: 'value',
           outcome: 'success',
-          duration: 0,
+          module: 'test-module',
         })
       );
-      expect(mockMetricsManager.recordTiming).toHaveBeenCalledWith('test-module.testOp', 0);
+      expect(mockMetricsManager.recordTiming).toHaveBeenCalledWith('test-module.testOp', expect.any(Number));
       expect(mockMetricsManager.incrementCounter).toHaveBeenCalledWith('test-module.testOp.success');
     });
 

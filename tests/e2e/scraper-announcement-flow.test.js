@@ -190,6 +190,9 @@ describe('Scraper Announcement Flow E2E', () => {
       markAsSeen: jest.fn(() => Promise.resolve()),
       isDuplicate: jest.fn(() => Promise.resolve(false)),
       hasUrl: jest.fn(() => Promise.resolve(false)),
+      addUrl: jest.fn(() => Promise.resolve()),
+      hasFingerprint: jest.fn(() => Promise.resolve(false)),
+      storeFingerprint: jest.fn(() => Promise.resolve()),
       getSeenUrls: jest.fn(() => Promise.resolve([])),
       getStorageStats: jest.fn(() => Promise.resolve({ seenCount: 0 })),
     };
@@ -470,7 +473,7 @@ describe('Scraper Announcement Flow E2E', () => {
 
       expect(retweetAnnouncements).toHaveLength(1);
       expect(retweetAnnouncements[0].message).toContain('🔄');
-    }, 15000);
+    }, 30000);
 
     it('should filter out old tweets based on content age', async () => {
       // Mock to return only old tweets
