@@ -26,8 +26,17 @@ export class DiscordTransport extends Transport {
 
     // New event-driven message sender for real-time Discord logging
     // Optimized settings for ≤2s delay real-time logging while respecting Discord limits
+    // Create a simple logger that supports all needed methods for DiscordMessageSender
     const logger =
-      process.env.NODE_ENV === 'test' ? { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } : console;
+      process.env.NODE_ENV === 'test'
+        ? { debug: () => {}, info: () => {}, warn: () => {}, error: () => {}, verbose: () => {} }
+        : {
+            debug: console.debug?.bind(console) || console.log.bind(console),
+            info: console.info?.bind(console) || console.log.bind(console),
+            warn: console.warn?.bind(console) || console.log.bind(console),
+            error: console.error?.bind(console) || console.log.bind(console),
+            verbose: console.debug?.bind(console) || console.log.bind(console),
+          };
     this.messageSender = new DiscordMessageSender(logger, {
       baseSendDelay: opts.baseSendDelay || 3000, // 3 seconds between sends to respect Discord limits
       burstAllowance: opts.burstAllowance || 15, // Allow 15 quick messages per 2 minutes

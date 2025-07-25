@@ -2,6 +2,31 @@
 
 This document shows how to integrate the enhanced logging system into existing modules.
 
+- Module-based debug categories (please add current status):
+  - `content-announcer`: Content announcement pipeline detailed logging
+  - `scraper`: X scraping operations and browser interactions
+  - `youtube`: YouTube monitoring and webhook processing
+  - `browser`: Browser automation, stealth operations, and anti-detection
+  - `auth`: Authentication flows and session management
+  - `performance`: Performance metrics and timing data
+  - `api`: External API calls (YouTube, Discord)
+  - `state`: State management operations
+  - `rate-limiting`: Rate limiting and throttling operations
+
+**Configuration**:
+```javascript
+// Environment variable support
+DEBUG_FLAGS=content-announcer,scraper,performance
+
+// Runtime toggle via state manager
+debugFlags: {
+  'content-announcer': true,
+  'scraper': false,
+  'youtube': true,
+  // ...
+}
+```
+
 ## Before and After Comparison
 
 ### Before: Basic Logging (ContentAnnouncer)

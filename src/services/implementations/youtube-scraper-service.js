@@ -3,14 +3,16 @@ import { AsyncMutex } from '../../utilities/async-mutex.js';
 import { parseRelativeTime } from '../../utilities/time-parser.js';
 import { nowUTC } from '../../utilities/utc-time.js';
 import { getYouTubeScrapingBrowserConfig } from '../../utilities/browser-config.js';
+import { createEnhancedLogger } from '../../utilities/enhanced-logger.js';
 
 /**
  * YouTube web scraper service for near-instantaneous content detection
  * Provides an alternative to API polling for faster notifications
  */
 export class YouTubeScraperService {
-  constructor({ logger, config, contentCoordinator }) {
-    this.logger = logger;
+  constructor({ logger, config, contentCoordinator, debugManager, metricsManager }) {
+    // Create enhanced logger for YouTube module
+    this.logger = createEnhancedLogger('youtube', logger, debugManager, metricsManager);
     this.config = config;
     this.contentCoordinator = contentCoordinator;
     this.browserService = new PlaywrightBrowserService();
@@ -57,18 +59,28 @@ export class YouTubeScraperService {
       throw new Error('YouTube scraper is already initialized');
     }
 
+    // Start tracked operation for initialization
+    const operation = this.logger.startOperation('initialize', {
+      channelHandle,
+      authEnabled: this.authEnabled,
+    });
+
     // Construct channel URLs
     const baseUrl = `https://www.youtube.com/@${channelHandle}`;
     this.videosUrl = `${baseUrl}/videos`;
     this.liveStreamUrl = `${baseUrl}/live`;
 
     try {
+      operation.progress('Launching browser with optimized settings');
+
       // Launch browser with optimized settings for scraping
       const browserOptions = getYouTubeScrapingBrowserConfig({
         headless: false,
       });
 
       await this.browserService.launch(browserOptions);
+
+      operation.progress('Configuring browser user agent and viewport');
 
       // Set user agent to appear as regular browser
       await this.browserService.setUserAgent(
@@ -83,29 +95,34 @@ export class YouTubeScraperService {
 
       // Perform authentication if enabled
       if (this.authEnabled) {
+        operation.progress('Performing YouTube authentication');
         await this.authenticateWithYouTube();
       }
+
+      operation.progress('Fetching initial content to establish baseline');
 
       // Find and set the initial latest video
       const latestVideo = await this.fetchLatestVideo();
       if (latestVideo && latestVideo.success && latestVideo.id) {
         await this.contentCoordinator.processContent(latestVideo.id, 'scraper', latestVideo);
-        this.logger.info('YouTube scraper initialized', {
+
+        return operation.success('YouTube scraper initialized successfully', {
           videosUrl: this.videosUrl,
           initialContentId: latestVideo.id,
           title: latestVideo.title,
+          isAuthenticated: this.isAuthenticated,
         });
       } else {
-        this.logger.warn('YouTube scraper initialized but no videos found', {
+        return operation.success('YouTube scraper initialized but no videos found', {
           videosUrl: this.videosUrl,
+          isAuthenticated: this.isAuthenticated,
         });
       }
     } catch (error) {
       this.isInitialized = false;
-      this.logger.error('❌ Failed to initialize YouTube scraper', {
-        error: error.message,
-        stack: error.stack,
+      operation.error(error, 'Failed to initialize YouTube scraper', {
         videosUrl: this.videosUrl,
+        authEnabled: this.authEnabled,
       });
       throw error;
     }
@@ -480,20 +497,31 @@ export class YouTubeScraperService {
         return null;
       }
 
+      // Start tracked operation for video fetching
+      const operation = this.logger.startOperation('fetchLatestVideo', {
+        videosUrl: this.videosUrl,
+        isAuthenticated: this.isAuthenticated,
+      });
+
       this.metrics.totalScrapingAttempts++;
 
       try {
+        operation.progress('Navigating to channel videos page');
         // Navigate to channel videos page
         await this.browserService.goto(this.videosUrl, {
           waitUntil: 'networkidle',
           timeout: this.timeoutMs,
         });
 
+        operation.progress('Handling consent page redirects');
+
         // Handle consent page if redirected
         await this.handleConsentPageRedirect();
 
         // Wait for the page to load and videos to appear
         await this.browserService.waitFor(2000);
+
+        operation.progress('Extracting video information from page');
 
         // Debug: Log page content for troubleshooting
         let debugInfo = null;
@@ -636,20 +664,21 @@ export class YouTubeScraperService {
           this.metrics.lastSuccessfulScrape = new Date();
 
           // Create a plain object for logging to avoid complex object serialization issues
-          const logData = {};
-          logData.success = latestVideo.success;
-          logData.strategy = latestVideo.strategy;
-          logData.id = latestVideo.id;
-          logData.title = latestVideo.title;
-          logData.url = latestVideo.url;
-          logData.publishedText = latestVideo.publishedText;
-          logData.publishedAt = latestVideo.publishedAt;
-          logData.viewsText = latestVideo.viewsText;
-          logData.thumbnailUrl = latestVideo.thumbnailUrl;
-          logData.type = latestVideo.type;
-          logData.scrapedAt = latestVideo.scrapedAt;
+          const logData = {
+            success: latestVideo.success,
+            strategy: latestVideo.strategy,
+            id: latestVideo.id,
+            title: latestVideo.title,
+            url: latestVideo.url,
+            publishedText: latestVideo.publishedText,
+            publishedAt: latestVideo.publishedAt,
+            viewsText: latestVideo.viewsText,
+            thumbnailUrl: latestVideo.thumbnailUrl,
+            type: latestVideo.type,
+            scrapedAt: latestVideo.scrapedAt,
+          };
 
-          this.logger.info(`Successfully scraped latest video:\n${JSON.stringify(logData, null, 2)}`);
+          operation.success('Successfully scraped latest video', logData);
         } else {
           const failureInfo = {
             videosUrl: this.videosUrl,
@@ -660,7 +689,7 @@ export class YouTubeScraperService {
             failureInfo.attemptedStrategies = latestVideo.strategies;
           }
 
-          this.logger.error('No videos found during scraping', failureInfo);
+          operation.error(new Error('No videos found during scraping'), 'No videos found during scraping', failureInfo);
         }
 
         return latestVideo;
@@ -671,8 +700,7 @@ export class YouTubeScraperService {
           timestamp: nowUTC(),
         };
 
-        this.logger.warn('Failed to scrape YouTube channel', {
-          error: error.message,
+        operation.error(error, 'Failed to scrape YouTube channel', {
           videosUrl: this.videosUrl,
           attempt: this.metrics.totalScrapingAttempts,
         });
@@ -699,11 +727,20 @@ export class YouTubeScraperService {
         return null;
       }
 
+      // Start tracked operation for live stream fetching
+      const operation = this.logger.startOperation('fetchActiveLiveStream', {
+        liveStreamUrl: this.liveStreamUrl,
+        isAuthenticated: this.isAuthenticated,
+      });
+
       try {
+        operation.progress('Navigating to channel live stream page');
         await this.browserService.goto(this.liveStreamUrl, {
           waitUntil: 'networkidle',
           timeout: this.timeoutMs,
         });
+
+        operation.progress('Extracting live stream information');
 
         const liveStream = await this.browserService.evaluate(() => {
           // eslint-disable-next-line no-undef
@@ -729,28 +766,29 @@ export class YouTubeScraperService {
           };
         });
 
-        // Create a plain object for logging to avoid complex object serialization issues
-        const logData = {};
-        logData.success = liveStream.success;
-        logData.strategy = liveStream.strategy;
-        logData.id = liveStream.id;
-        logData.title = liveStream.title;
-        logData.url = liveStream.url;
-        logData.publishedText = liveStream.publishedText;
-        logData.publishedAt = liveStream.publishedAt;
-        logData.viewsText = liveStream.viewsText;
-        logData.thumbnailUrl = liveStream.thumbnailUrl;
-        logData.type = liveStream.type;
-        logData.scrapedAt = liveStream.scrapedAt;
-
         if (liveStream) {
-          this.logger.debug(`Successfully scraped active live stream:\n${JSON.stringify(logData, null, 2)}`);
+          // Create a plain object for logging to avoid complex object serialization issues
+          const logData = {
+            id: liveStream.id,
+            title: liveStream.title,
+            url: liveStream.url,
+            type: liveStream.type,
+            platform: liveStream.platform,
+            publishedAt: liveStream.publishedAt,
+            scrapedAt: liveStream.scrapedAt,
+          };
+
+          operation.success('Successfully scraped active live stream', logData);
+        } else {
+          operation.success('No active live stream found', {
+            liveStreamUrl: this.liveStreamUrl,
+            note: 'This is normal when no live stream is currently active',
+          });
         }
 
         return liveStream;
       } catch (error) {
-        this.logger.error('Failed to scrape for active live stream', {
-          error: error.message,
+        operation.error(error, 'Failed to scrape for active live stream', {
           liveStreamUrl: this.liveStreamUrl,
         });
         return null;

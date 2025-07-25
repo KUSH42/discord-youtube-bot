@@ -318,6 +318,8 @@ async function setupApplicationServices(container, _config) {
       logger: c.resolve('logger').child({ service: 'YouTubeScraperService' }),
       config: c.resolve('config'),
       contentCoordinator: c.resolve('contentCoordinator'),
+      debugManager: c.resolve('debugFlagManager'),
+      metricsManager: c.resolve('metricsManager'),
     });
   });
 }
