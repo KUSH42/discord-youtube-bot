@@ -513,9 +513,9 @@ export class YouTubeScraperService {
             /* eslint-enable no-undef */
           });
 
-          this.logger.silly(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
+          this.logger.debug(`YouTube page debug info: ${JSON.stringify(debugInfo, null, 2)}`);
         } catch (error) {
-          this.logger.silly('Failed to get YouTube page debug info:', error.message);
+          this.logger.debug('Failed to get YouTube page debug info:', error.message);
           debugInfo = { error: 'Failed to evaluate page' };
         }
 
@@ -827,7 +827,7 @@ export class YouTubeScraperService {
       // Schedule next check
       if (this.isRunning) {
         const nextInterval = this._getNextInterval();
-        this.logger.silly(`Next YouTube scrape scheduled in ${nextInterval}ms`);
+        this.logger.debug(`Next YouTube scrape scheduled in ${nextInterval}ms`);
         this.scrapingInterval = setTimeout(monitoringLoop, nextInterval);
       }
     };
