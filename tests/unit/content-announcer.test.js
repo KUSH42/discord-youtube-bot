@@ -826,9 +826,29 @@ describe('ContentAnnouncer', () => {
     });
 
     it('should handle mirror message errors gracefully', async () => {
-      mockDiscordService.sendMessage
-        .mockResolvedValueOnce({ id: 'message123' }) // Main message succeeds
-        .mockRejectedValueOnce(new Error('Mirror failed')); // Mirror fails
+      // Reset all mocks first
+      jest.clearAllMocks();
+
+      // Mock sendMessage to succeed on first call, fail on second
+      let callCount = 0;
+      mockDiscordService.sendMessage.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({ id: 'message123' }); // Main message succeeds
+        } else {
+          return Promise.reject(new Error('Mirror failed')); // Mirror fails
+        }
+      });
+
+      // Create a new ContentAnnouncer instance with the updated config
+      const mirrorContentAnnouncer = new ContentAnnouncer(
+        mockDiscordService,
+        mockConfig,
+        mockStateManager,
+        mockLogger,
+        mockDebugFlagManager,
+        mockMetricsManager
+      );
 
       const content = {
         platform: 'youtube',
@@ -840,12 +860,22 @@ describe('ContentAnnouncer', () => {
         publishedAt: '2024-01-01T00:01:00Z',
       };
 
-      const result = await contentAnnouncer.announceContent(content);
+      // Test that mirroring is enabled
+      expect(mirrorContentAnnouncer.shouldMirrorMessage('123456789012345678', {})).toBe(true);
+
+      // The enhanced logger creates a child logger, so we need to spy on that instance
+      const enhancedLoggerInstance = mirrorContentAnnouncer.logger;
+      const errorSpy = jest.spyOn(enhancedLoggerInstance, 'error');
+
+      const result = await mirrorContentAnnouncer.announceContent(content);
 
       expect(result.success).toBe(true); // Main message succeeded
-      expect(mockLogger.error).toHaveBeenCalledWith(
+      expect(mockDiscordService.sendMessage).toHaveBeenCalledTimes(2);
+      expect(errorSpy).toHaveBeenCalledWith(
         'Failed to send mirror message',
-        expect.objectContaining('Failed to send mirror message')
+        expect.objectContaining({
+          error: 'Mirror failed',
+        })
       );
     });
   });
