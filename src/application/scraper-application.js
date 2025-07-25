@@ -776,7 +776,7 @@ export class ScraperApplication {
     let duplicateCount = 0;
     let oldContentCount = 0;
 
-    this.logger.verbose(`Starting to filter ${tweets.length} tweets`);
+    this.logger.debug(`Starting to filter ${tweets.length} tweets`);
 
     for (const tweet of tweets) {
       if (!(await this.duplicateDetector.isDuplicate(tweet.url))) {
@@ -806,7 +806,7 @@ export class ScraperApplication {
       }
     }
 
-    this.logger.verbose(
+    this.logger.debug(
       `Filtering results: ${newTweets.length} new, ${duplicateCount} duplicates, ${oldContentCount} old content`
     );
 

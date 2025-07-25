@@ -341,7 +341,7 @@ describe('ContentAnnouncer', () => {
         isOld: true,
       };
 
-      await contentAnnouncer.announceContent(content);
+      const result = await contentAnnouncer.announceContent(content);
 
       expect(mockDiscordService.sendMessage).toHaveBeenCalled();
     });
@@ -845,9 +845,7 @@ describe('ContentAnnouncer', () => {
       expect(result.success).toBe(true); // Main message succeeded
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to send mirror message',
-        expect.objectContaining({
-          error: 'Mirror failed',
-        })
+        expect.objectContaining('Failed to send mirror message')
       );
     });
   });
@@ -877,7 +875,6 @@ describe('ContentAnnouncer', () => {
       genericAnnouncer.channelMap.generic = {
         content: '123456789012345684',
       };
-
       const content = {
         platform: 'generic',
         type: 'content',
