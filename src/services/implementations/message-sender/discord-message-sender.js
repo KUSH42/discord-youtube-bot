@@ -422,7 +422,7 @@ export class DiscordMessageSender extends EventEmitter {
 
     // Handle message events for logging
     this.on('message-processed', (message, _result) => {
-      this.logger.fine('Message processed successfully', {
+      this.logger.verbose('Message processed successfully', {
         messageId: message.id,
         processingTime: message.getProcessingTime(),
       });
