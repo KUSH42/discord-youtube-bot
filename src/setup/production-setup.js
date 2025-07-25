@@ -178,7 +178,12 @@ async function setupCoreServices(container, _config) {
 
   // Content Announcer
   container.registerSingleton('contentAnnouncer', c => {
-    return new ContentAnnouncer(c.resolve('discordService'), c.resolve('config'), c.resolve('stateManager'));
+    return new ContentAnnouncer(
+      c.resolve('discordService'),
+      c.resolve('config'),
+      c.resolve('stateManager'),
+      c.resolve('logger').child({ service: 'ContentAnnouncer' })
+    );
   });
 
   // Duplicate Detector
