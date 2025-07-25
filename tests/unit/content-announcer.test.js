@@ -7,6 +7,8 @@ describe('ContentAnnouncer', () => {
   let mockConfig;
   let mockStateManager;
   let mockLogger;
+  let mockDebugFlagManager;
+  let mockMetricsManager;
 
   beforeEach(() => {
     // Mock Discord service
@@ -59,16 +61,45 @@ describe('ContentAnnouncer', () => {
       _state: state,
     };
 
-    // Mock logger
+    // Mock logger with child method for enhanced logger
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      verbose: jest.fn(),
+      child: jest.fn(() => ({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+      })),
+    };
+
+    // Mock debug flag manager
+    mockDebugFlagManager = {
+      isEnabled: jest.fn(() => false),
+      getLevel: jest.fn(() => 1),
+    };
+
+    // Mock metrics manager
+    mockMetricsManager = {
+      increment: jest.fn(),
+      timing: jest.fn(),
+      gauge: jest.fn(),
+      startTimer: jest.fn(() => jest.fn()),
     };
 
     // Create content announcer instance
-    contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager, mockLogger);
+    contentAnnouncer = new ContentAnnouncer(
+      mockDiscordService,
+      mockConfig,
+      mockStateManager,
+      mockLogger,
+      mockDebugFlagManager,
+      mockMetricsManager
+    );
   });
 
   afterEach(() => {
