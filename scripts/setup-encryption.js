@@ -310,6 +310,7 @@ async function main() {
   console.log(
     'This script will help you set up encrypted credentials for your Discord bot, YouTube, and X (formerly Twitter) integrations.'
   );
+  console.log('It will also update your existing .env-file with new field definitions, should you choose to do so.');
   console.log('');
   console.log('Steps:');
   console.log('1. Create/update your .env file with your credentials.');

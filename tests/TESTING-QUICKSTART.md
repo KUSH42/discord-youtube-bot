@@ -96,8 +96,8 @@ tests/
 
 | Component Type          | Statements | Branches | Functions | Lines  |
 | ----------------------- | ---------- | -------- | --------- | ------ |
-| **Global**              | 25%        | 20%      | 25%       | 25%    |
-| **Core Modules**        | 50%        | 40%      | 55%       | 50%    |
+| **Global**              | 50%        | 40%      | 50%       | 40%    |
+| **Core Modules**        | 70%        | 60%      | 65%       | 60%    |
 | **Critical Components** | 85-90%     | 75-85%   | 90%       | 85-90% |
 
 ## 🎨 Interactive Test Runner
