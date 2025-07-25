@@ -83,7 +83,6 @@ export class DiscordMessageSender extends EventEmitter {
         this.globalMetrics.totalMessages++;
 
         this.emit('message-queued', message);
-        this.logger.silly('Message queued', message.toJSON());
 
         // Start processing if not already running
         if (!this.isProcessing && !this.isPaused) {
@@ -423,7 +422,7 @@ export class DiscordMessageSender extends EventEmitter {
 
     // Handle message events for logging
     this.on('message-processed', (message, _result) => {
-      this.logger.silly('Message processed successfully', {
+      this.logger.fine('Message processed successfully', {
         messageId: message.id,
         processingTime: message.getProcessingTime(),
       });
