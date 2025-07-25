@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// TODO: Fix skipped tests
 describe.skip('Timezone Safety ESLint Rules', () => {
   let eslint;
 

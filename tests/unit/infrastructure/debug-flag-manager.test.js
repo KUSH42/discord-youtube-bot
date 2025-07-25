@@ -8,6 +8,11 @@ describe('DebugFlagManager', () => {
   let debugManager;
 
   beforeEach(() => {
+    // Clean up environment variables before each test
+    delete process.env.DEBUG_FLAGS;
+    delete process.env.DEBUG_LEVEL_SCRAPER;
+    delete process.env.DEBUG_LEVEL_BROWSER;
+
     stateManager = new StateManager();
     mockLogger = {
       info: jest.fn(),
@@ -30,7 +35,8 @@ describe('DebugFlagManager', () => {
 
     it('should initialize debug flags from environment', () => {
       process.env.DEBUG_FLAGS = 'content-announcer,scraper';
-      const manager = new DebugFlagManager(stateManager, mockLogger);
+      const localStateManager = new StateManager();
+      const manager = new DebugFlagManager(localStateManager, mockLogger);
 
       expect(manager.isEnabled('content-announcer')).toBe(true);
       expect(manager.isEnabled('scraper')).toBe(true);
@@ -42,7 +48,8 @@ describe('DebugFlagManager', () => {
     it('should initialize debug levels from environment', () => {
       process.env.DEBUG_LEVEL_SCRAPER = '5';
       process.env.DEBUG_LEVEL_BROWSER = '1';
-      const manager = new DebugFlagManager(stateManager, mockLogger);
+      const localStateManager = new StateManager();
+      const manager = new DebugFlagManager(localStateManager, mockLogger);
 
       expect(manager.getLevel('scraper')).toBe(5);
       expect(manager.getLevel('browser')).toBe(1);
@@ -120,7 +127,7 @@ describe('DebugFlagManager', () => {
 
     it('should log the change', () => {
       debugManager.toggle('content-announcer', true);
-      expect(mockLogger.info).toHaveBeenCalledWith('Debug flag changed', {
+      expect(mockLogger.info).toHaveBeenLastCalledWith('Debug flag changed', {
         module: 'content-announcer',
         enabled: true,
         previousState: false,
@@ -141,7 +148,7 @@ describe('DebugFlagManager', () => {
 
     it('should log the change', () => {
       debugManager.setLevel('content-announcer', 5);
-      expect(mockLogger.info).toHaveBeenCalledWith('Debug level changed', {
+      expect(mockLogger.info).toHaveBeenLastCalledWith('Debug level changed', {
         module: 'content-announcer',
         level: 5,
         previousLevel: 3,
@@ -256,17 +263,17 @@ describe('DebugFlagManager', () => {
   });
 
   describe('subscribe', () => {
-    it('should call callback when debug flag changes', () => {
+    it('should call callback when debug flag changes', async () => {
       const callback = jest.fn();
       const unsubscribe = debugManager.subscribe('content-announcer', callback);
 
       debugManager.toggle('content-announcer', true);
 
-      // Allow async callbacks to execute
-      setTimeout(() => {
-        expect(callback).toHaveBeenCalledWith(true, false, 'content-announcer');
-        unsubscribe();
-      }, 0);
+      // StateManager uses setImmediate for async callbacks
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(callback).toHaveBeenCalledWith(true, false, 'content-announcer');
+      unsubscribe();
     });
   });
 
