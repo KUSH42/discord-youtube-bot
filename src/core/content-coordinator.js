@@ -253,7 +253,7 @@ export class ContentCoordinator {
       });
       const announcementResult = await this.announceContent(contentId, contentData, source);
 
-      if (announcementResult.success) {
+      if (announcementResult && announcementResult.success) {
         this.logger.info('✅ Content announcement successful', {
           contentId,
           source,
@@ -294,21 +294,21 @@ export class ContentCoordinator {
         this.logger.warn('⚠️ Content announcement failed or was skipped', {
           contentId,
           source,
-          reason: announcementResult.reason,
-          skipped: announcementResult.skipped,
+          reason: announcementResult?.reason || 'Unknown error',
+          skipped: announcementResult?.skipped || false,
           announcementResult,
         });
 
         // Still mark as processed even if announcement failed to prevent retry loops
-        if (!announcementResult.skipped) {
+        if (!announcementResult?.skipped) {
           await this.contentStateManager.markAsAnnounced(contentId);
         }
 
         const processingTime = Date.now() - startTime;
 
         return {
-          action: announcementResult.skipped ? 'skip' : 'failed',
-          reason: announcementResult.reason,
+          action: announcementResult?.skipped ? 'skip' : 'failed',
+          reason: announcementResult?.reason || 'Content announcement failed',
           source,
           contentId,
           processingTimeMs: processingTime,

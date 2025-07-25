@@ -98,17 +98,17 @@ export class ContentAnnouncer {
         if (validation.recoverable) {
           operation.progress('Content validation failed but recoverable, skipping gracefully');
           result.skipped = true;
-          return operation.success('Content skipped due to recoverable validation issue', {
+          operation.success('Content skipped due to recoverable validation issue', {
             validationError: validation.error,
             recoverable: true,
-          }).result;
+          });
+          return result;
         }
 
-        return (
-          operation.error(new Error(validation.error), 'Content validation failed', {
-            validationError: validation.error,
-          }).result || result
-        );
+        operation.error(new Error(validation.error), 'Content validation failed', {
+          validationError: validation.error,
+        });
+        return result;
       }
 
       // Check if announcements are enabled
@@ -134,12 +134,11 @@ export class ContentAnnouncer {
       if (!channelId || !this._isValidDiscordId(channelId)) {
         const errorMessage = `Invalid or missing channel ID: ${channelId}`;
         result.reason = errorMessage;
-        return (
-          operation.error(new Error(errorMessage), 'Invalid channel configuration', {
-            channelId,
-            channelMapping: this.channelMap,
-          }).result || result
-        );
+        operation.error(new Error(errorMessage), 'Invalid channel configuration', {
+          channelId,
+          channelMapping: this.channelMap,
+        });
+        return result;
       }
 
       result.channelId = channelId;
@@ -211,7 +210,7 @@ export class ContentAnnouncer {
           url: content.url,
           type: content.type,
         });
-        return { success: false, error: 'Content must have a platform', recoverable: true };
+        return { success: false, error: 'Content must have a platform' };
       }
     }
 
