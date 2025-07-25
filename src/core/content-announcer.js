@@ -1,16 +1,19 @@
 import { splitMessage } from '../discord-utils.js';
 import { nowUTC } from '../utilities/utc-time.js';
+import { createEnhancedLogger } from '../utilities/enhanced-logger.js';
 
 /**
  * Pure business logic for announcing content to Discord channels
  * Handles message formatting and channel routing based on content type
  */
 export class ContentAnnouncer {
-  constructor(discordService, config, stateManager, logger) {
+  constructor(discordService, config, stateManager, baseLogger, debugFlagManager, metricsManager) {
     this.discord = discordService;
     this.config = config;
     this.state = stateManager;
-    this.logger = logger;
+
+    // Create enhanced logger for this module
+    this.logger = createEnhancedLogger('content-announcer', baseLogger, debugFlagManager, metricsManager);
 
     // Channel mapping based on content types
     this.channelMap = {
@@ -63,22 +66,17 @@ export class ContentAnnouncer {
    * @returns {Promise<Object>} Announcement result
    */
   async announceContent(content, options = {}) {
-    const startTime = Date.now();
-    const contentSummary = {
+    // Start tracked operation with automatic timing and correlation
+    const operation = this.logger.startOperation('announceContent', {
       platform: content?.platform,
       type: content?.type,
-      id: content?.id,
+      contentId: content?.id,
       url: content?.url,
       title: content?.title?.substring(0, 50),
       author: content?.author,
       publishedAt: content?.publishedAt,
       isOld: content?.isOld,
-    };
-
-    this.logger.debug('🔄 Starting content announcement process', {
-      contentSummary,
       options,
-      timestamp: nowUTC().toISOString(),
     });
 
     const result = {
@@ -91,99 +89,79 @@ export class ContentAnnouncer {
 
     try {
       // Validate input
-      this.logger.debug('📝 Validating content structure', { contentSummary });
+      operation.progress('Validating content structure');
       const validation = this.validateContent(content);
       if (!validation.success) {
-        this.logger.warn('❌ Content validation failed', {
-          error: validation.error,
-          contentSummary,
-        });
         result.reason = validation.error;
-        return result;
+        return (
+          operation.error(new Error(validation.error), 'Content validation failed', {
+            validationError: validation.error,
+          }).result || result
+        );
       }
-      this.logger.debug('✅ Content validation passed', { contentSummary });
 
       // Check if announcements are enabled
-      this.logger.debug('🔍 Checking if content should be announced', { contentSummary, options });
+      operation.progress('Checking if content should be announced');
       if (!this.shouldAnnounce(content, options)) {
         const skipReason = this.getSkipReason(content, options);
-        this.logger.info('⏭️ Skipping announcement', {
+        result.skipped = true;
+        result.reason = skipReason;
+
+        operation.success('Content announcement skipped', {
           reason: skipReason,
-          contentSummary,
           postingEnabled: this.state.get('postingEnabled', true),
           announcementEnabled: this.state.get('announcementEnabled', true),
           botStartTime: this.state.get('botStartTime'),
         });
-        result.skipped = true;
-        result.reason = skipReason;
+
         return result;
       }
-      this.logger.debug('✅ Content approved for announcement', { contentSummary });
 
       // Get target channel
-      this.logger.debug('🎯 Determining target channel', { platform: content.platform, type: content.type });
+      operation.progress('Determining target channel');
       const channelId = this.getChannelForContent(content);
       if (!channelId || !this._isValidDiscordId(channelId)) {
         const errorMessage = `Invalid or missing channel ID: ${channelId}`;
-        this.logger.error('❌ Invalid channel configuration', {
-          error: errorMessage,
-          contentSummary,
-          channelMapping: this.channelMap,
-        });
         result.reason = errorMessage;
-        return result;
+        return (
+          operation.error(new Error(errorMessage), 'Invalid channel configuration', {
+            channelId,
+            channelMapping: this.channelMap,
+          }).result || result
+        );
       }
-      this.logger.debug('✅ Channel determined', {
-        channelId,
-        platform: content.platform,
-        type: content.type,
-      });
 
       result.channelId = channelId;
 
       // Format message
-      this.logger.debug('💬 Formatting message', { contentSummary, channelId });
+      operation.progress('Formatting announcement message');
       const message = this.formatMessage(content, options);
-      this.logger.debug('✅ Message formatted', {
-        messagePreview: typeof message === 'string' ? message.substring(0, 100) : '[EMBED]',
-        contentSummary,
-      });
 
       // Send announcement
-      this.logger.info('🚀 Sending announcement to Discord', {
-        channelId,
-        contentSummary,
-        messageType: typeof message,
-      });
+      operation.progress('Sending announcement to Discord');
       const sentMessage = await this.discord.sendMessage(channelId, message);
       result.messageId = sentMessage.id;
       result.success = true;
 
-      const processingTime = Date.now() - startTime;
-      this.logger.info('✅ Announcement sent successfully', {
-        messageId: sentMessage.id,
-        channelId,
-        contentSummary,
-        processingTimeMs: processingTime,
-      });
-
       // Send mirror message if configured
       if (this.shouldMirrorMessage(channelId, options)) {
-        this.logger.debug('🪞 Sending mirror message', { channelId, supportChannelId: this.supportChannelId });
+        operation.progress('Sending mirror message');
         await this.sendMirrorMessage(channelId, message, options);
       }
 
+      // Mark as successful with automatic timing and metrics
+      operation.success('Content announced successfully', {
+        messageId: sentMessage.id,
+        channelId,
+        messageLength: typeof message === 'string' ? message.length : 'embed',
+      });
+
       return result;
     } catch (error) {
-      const processingTime = Date.now() - startTime;
-      this.logger.error('❌ Announcement failed', {
-        error: error.message,
-        stack: error.stack,
-        contentSummary,
-        options,
-        processingTimeMs: processingTime,
-      });
       result.reason = error.message;
+      operation.error(error, 'Failed to announce content', {
+        channelId: result.channelId,
+      });
       return result;
     }
   }
@@ -591,29 +569,50 @@ export class ContentAnnouncer {
    * @returns {Promise<Array<Object>>} Array of announcement results
    */
   async bulkAnnounce(contentItems, options = {}) {
+    // Create logger for batch operation with correlation ID
+    const batchLogger = this.logger.forOperation('bulkAnnounce');
+    const batchOperation = batchLogger.startOperation('bulkAnnounce', {
+      batchSize: contentItems.length,
+      delay: options.delay || 0,
+    });
+
     const results = [];
-    const delay = options.delay || 0; // Delay between announcements to avoid rate limits
+    const delay = options.delay || 0;
 
-    for (const content of contentItems) {
-      try {
-        const result = await this.announceContent(content, options);
-        results.push({ content, result });
+    try {
+      for (const [index, content] of contentItems.entries()) {
+        batchOperation.progress(`Processing item ${index + 1}/${contentItems.length}`);
 
-        if (delay > 0 && results.length < contentItems.length) {
-          await new Promise(resolve => setTimeout(resolve, delay));
+        try {
+          const result = await this.announceContent(content, options);
+          results.push({ content, result });
+
+          if (delay > 0 && index < contentItems.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        } catch (error) {
+          results.push({
+            content,
+            result: {
+              success: false,
+              reason: error.message,
+            },
+          });
         }
-      } catch (error) {
-        results.push({
-          content,
-          result: {
-            success: false,
-            reason: error.message,
-          },
-        });
       }
-    }
 
-    return results;
+      const successCount = results.filter(r => r.result.success).length;
+      batchOperation.success('Bulk announcement completed', {
+        successCount,
+        failureCount: results.length - successCount,
+        successRate: Math.round((successCount / results.length) * 100),
+      });
+
+      return results;
+    } catch (error) {
+      batchOperation.error(error, 'Bulk announcement failed');
+      return results;
+    }
   }
 
   /**

@@ -12,6 +12,8 @@ import 'winston-daily-rotate-file';
 import { EventBus } from '../infrastructure/event-bus.js';
 import { StateManager } from '../infrastructure/state-manager.js';
 import { PersistentStorage } from '../infrastructure/persistent-storage.js';
+import { DebugFlagManager } from '../infrastructure/debug-flag-manager.js';
+import { MetricsManager } from '../infrastructure/metrics-manager.js';
 
 // Core Logic
 import { DuplicateDetector } from '../duplicate-detector.js';
@@ -98,6 +100,20 @@ async function setupInfrastructureServices(container, config) {
   container.registerSingleton('persistentStorage', c => {
     return new PersistentStorage(c.resolve('logger').child({ service: 'PersistentStorage' }));
   });
+
+  // Debug Flag Manager for enhanced logging control
+  container.registerSingleton('debugFlagManager', c => {
+    return new DebugFlagManager(c.resolve('stateManager'), c.resolve('logger').child({ service: 'DebugFlagManager' }));
+  });
+
+  // Metrics Manager for performance tracking
+  container.registerSingleton('metricsManager', c => {
+    return new MetricsManager({
+      retentionHours: 24,
+      maxSamplesPerMetric: 10000,
+      aggregationWindows: [60, 300, 900, 3600], // 1min, 5min, 15min, 1hour
+    });
+  });
 }
 
 /**
@@ -168,7 +184,12 @@ async function setupExternalServices(container, config) {
 async function setupCoreServices(container, _config) {
   // Command Processor
   container.registerSingleton('commandProcessor', c => {
-    return new CommandProcessor(c.resolve('config'), c.resolve('stateManager'));
+    return new CommandProcessor(
+      c.resolve('config'),
+      c.resolve('stateManager'),
+      c.resolve('debugFlagManager'),
+      c.resolve('metricsManager')
+    );
   });
 
   // Content Classifier
@@ -182,7 +203,9 @@ async function setupCoreServices(container, _config) {
       c.resolve('discordService'),
       c.resolve('config'),
       c.resolve('stateManager'),
-      c.resolve('logger').child({ service: 'ContentAnnouncer' })
+      c.resolve('logger').child({ service: 'ContentAnnouncer' }),
+      c.resolve('debugFlagManager'),
+      c.resolve('metricsManager')
     );
   });
 
