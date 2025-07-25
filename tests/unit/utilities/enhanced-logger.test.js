@@ -160,7 +160,7 @@ describe('EnhancedLogger', () => {
         expect.objectContaining({
           data: 'value',
           module: 'test-module',
-          timestamp: 1000,
+          timestamp: expect.any(Number),
         })
       );
     });

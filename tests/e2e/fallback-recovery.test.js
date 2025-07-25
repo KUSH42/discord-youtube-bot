@@ -50,7 +50,7 @@ describe('End-to-End Fallback Recovery Tests', () => {
       YOUTUBE_API_POLL_INTERVAL_MS: 5000, // Shorter for testing
 
       // State
-      lastSuccessfulCheck: timestampUTC() - 60000, // 1 minute ago
+      lastSuccessfulCheck: new Date(timestampUTC() - 60000), // 1 minute ago
       failedNotifications: new Map(),
       recentFailures: [],
       fallbackInProgress: false,

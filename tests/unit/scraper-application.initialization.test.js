@@ -248,7 +248,7 @@ describe('ScraperApplication Initialization', () => {
   });
 
   describe('isNewContent with improved logic', () => {
-    it('should return false for already known tweets', () => {
+    it('should return false for already known tweets', async () => {
       const tweet = {
         tweetID: '1234567890123456789',
         timestamp: new Date().toISOString(),
@@ -258,24 +258,24 @@ describe('ScraperApplication Initialization', () => {
       // Mark tweet as seen
       scraperApp.duplicateDetector.markAsSeen('https://x.com/testuser/status/1234567890123456789');
 
-      expect(scraperApp.isNewContent(tweet)).toBe(false);
+      expect(await scraperApp.isNewContent(tweet)).toBe(false);
     });
 
-    it('should return false for very old tweets', () => {
+    it('should return false for very old tweets', async () => {
       const oldDate = new Date(timestampUTC() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
       const tweet = { tweetID: '1111111111111111111', timestamp: oldDate.toISOString() };
 
-      expect(scraperApp.isNewContent(tweet)).toBe(false);
+      expect(await scraperApp.isNewContent(tweet)).toBe(false);
     });
 
-    it('should return true for recent unknown tweets', () => {
+    it('should return true for recent unknown tweets', async () => {
       const recentDate = new Date(timestampUTC() - 2 * 60 * 60 * 1000); // 2 hours ago
       const tweet = { tweetID: '2222222222222222222', timestamp: recentDate.toISOString() };
 
-      expect(scraperApp.isNewContent(tweet)).toBe(true);
+      expect(await scraperApp.isNewContent(tweet)).toBe(true);
     });
 
-    it('should be permissive for tweets during bot startup period', () => {
+    it('should be permissive for tweets during bot startup period', async () => {
       const botStartTime = new Date();
       const tweetBeforeStart = new Date(botStartTime.getTime() - 30 * 60 * 1000); // 30 mins before bot start
 
@@ -284,10 +284,10 @@ describe('ScraperApplication Initialization', () => {
       const tweet = { tweetID: '3333333333333333333', timestamp: tweetBeforeStart.toISOString() };
 
       // Should be permissive since bot just started
-      expect(scraperApp.isNewContent(tweet)).toBe(true);
+      expect(await scraperApp.isNewContent(tweet)).toBe(true);
     });
 
-    it('should respect ANNOUNCE_OLD_TWEETS setting', () => {
+    it('should respect ANNOUNCE_OLD_TWEETS setting', async () => {
       mockConfig.getBoolean.mockImplementation(key => {
         if (key === 'ANNOUNCE_OLD_TWEETS') {
           return true;
@@ -300,7 +300,7 @@ describe('ScraperApplication Initialization', () => {
         timestamp: new Date(timestampUTC() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
       };
 
-      expect(scraperApp.isNewContent(veryOldTweet)).toBe(true);
+      expect(await scraperApp.isNewContent(veryOldTweet)).toBe(true);
     });
   });
 });

@@ -189,6 +189,7 @@ describe('Scraper Announcement Flow E2E', () => {
       clearAllContentStates: jest.fn(() => Promise.resolve()),
       markAsSeen: jest.fn(() => Promise.resolve()),
       isDuplicate: jest.fn(() => Promise.resolve(false)),
+      hasUrl: jest.fn(() => Promise.resolve(false)),
       getSeenUrls: jest.fn(() => Promise.resolve([])),
       getStorageStats: jest.fn(() => Promise.resolve({ seenCount: 0 })),
     };
@@ -206,6 +207,7 @@ describe('Scraper Announcement Flow E2E', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
+      verbose: jest.fn(),
       child: jest.fn(() => mockLogger),
     };
 
