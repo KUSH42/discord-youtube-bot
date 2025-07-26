@@ -1289,9 +1289,11 @@ jobs:
             echo "" >> reports/test-summary.md
             
             # Coverage quality assessment using integer comparison
-            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | tr -d '\n')
-            # Ensure COVERAGE_INT is a valid number
-            [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]] && COVERAGE_INT=0
+            COVERAGE_INT=$(echo "$OVERALL_COVERAGE" | sed 's/[^0-9.]//g' | awk '{printf "%.0f", $1 * 100}')
+            # Ensure COVERAGE_INT is a valid number and not empty
+            if [[ -z "$COVERAGE_INT" ]] || [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]]; then
+              COVERAGE_INT=0
+            fi
             if [ "$COVERAGE_INT" -ge 5000 ]; then
               echo "✅ **Coverage Quality:** Meets minimum standards (≥50%)" >> reports/test-summary.md
             elif [ "$COVERAGE_INT" -ge 2500 ]; then
@@ -1311,9 +1313,11 @@ jobs:
             echo "Current coverage: ${COVERAGE}%"
             
             # Set coverage quality gates using integer comparison
-            COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | tr -d '\n')
-            # Ensure COVERAGE_INT is a valid number
-            [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]] && COVERAGE_INT=0
+            COVERAGE_INT=$(echo "$COVERAGE" | sed 's/[^0-9.]//g' | awk '{printf "%.0f", $1 * 100}')
+            # Ensure COVERAGE_INT is a valid number and not empty
+            if [[ -z "$COVERAGE_INT" ]] || [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]]; then
+              COVERAGE_INT=0
+            fi
             if [ "$COVERAGE_INT" -lt 2500 ]; then
               echo "❌ Coverage critically low: $COVERAGE%"
               echo "coverage_status=critical" >> $GITHUB_ENV
