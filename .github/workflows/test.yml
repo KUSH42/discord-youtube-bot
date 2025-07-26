@@ -246,6 +246,7 @@ jobs:
           mkdir -p coverage/unit
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:unit -- \
+            --config=jest.ci.config.js \
             --coverage \
             --coverageDirectory=coverage/unit \
             --coverageReporters=lcov \
@@ -253,7 +254,7 @@ jobs:
             --testTimeout=10000 \
             --forceExit \
             --detectOpenHandles \
-            --verbose=true
+            --verbose=true 2>&1 | tee coverage/unit/test-output-node${{ matrix.node-version }}.log
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -499,10 +500,14 @@ jobs:
           mkdir -p coverage/integration
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
+            --config=jest.ci.config.js \
+            --coverage \
+            --coverageDirectory=coverage/integration \
+            --coverageReporters=lcov \
             --testTimeout=15000 \
             --forceExit \
             --detectOpenHandles \
-            --verbose=true
+            --verbose=true 2>&1 | tee coverage/integration/test-output.log
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -1151,6 +1156,81 @@ jobs:
             echo "## 📊 Detailed LCOV Coverage Report" >> reports/test-summary.md
             echo "You can find a detailed HTML coverage report as a workflow artifact: [LCOV HTML Report Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/lcov-html-report)" >> reports/test-summary.md
           fi
+
+          # Parse test statistics from verbose output
+          echo "" >> reports/test-summary.md
+          echo "## 📊 Test Statistics" >> reports/test-summary.md
+          echo "" >> reports/test-summary.md
+          
+          total_tests=0
+          total_suites=0
+          total_passed=0
+          total_failed=0
+          
+          for test_type in unit integration e2e performance security; do
+            tests_count=0
+            suites_count=0
+            passed_count=0
+            failed_count=0
+            
+            # Parse test output files for statistics
+            output_files=()
+            if [ "$test_type" == "unit" ]; then
+              [ -f "test-results/unit/node18/coverage/unit/test-output-node18.log" ] && output_files+=("test-results/unit/node18/coverage/unit/test-output-node18.log")
+              [ -f "test-results/unit/node20/coverage/unit/test-output-node20.log" ] && output_files+=("test-results/unit/node20/coverage/unit/test-output-node20.log")
+            else
+              [ -f "test-results/$test_type/coverage/$test_type/test-output.log" ] && output_files+=("test-results/$test_type/coverage/$test_type/test-output.log")
+              [ -f "test-results/$test_type/test-output.log" ] && output_files+=("test-results/$test_type/test-output.log")
+            fi
+            
+            for output_file in "${output_files[@]}"; do
+              if [ -f "$output_file" ]; then
+                # Count individual test results (✓ or ✗ patterns)
+                file_passed=$(grep -c "✓\|PASS\|should.*✓" "$output_file" 2>/dev/null || echo "0")
+                file_failed=$(grep -c "✗\|FAIL\|should.*✗" "$output_file" 2>/dev/null || echo "0")
+                file_suites=$(grep -c "describe\|Test Suites:" "$output_file" 2>/dev/null || echo "0")
+                
+                # Extract Jest summary if available
+                if grep -q "Test Suites:" "$output_file" 2>/dev/null; then
+                  jest_summary=$(grep -A 3 "Test Suites:" "$output_file" | tail -3)
+                  jest_passed=$(echo "$jest_summary" | grep -o "[0-9]\+ passed" | grep -o "[0-9]\+" || echo "0")
+                  jest_failed=$(echo "$jest_summary" | grep -o "[0-9]\+ failed" | grep -o "[0-9]\+" || echo "0")
+                  jest_total=$(echo "$jest_summary" | grep -o "[0-9]\+ total" | grep -o "[0-9]\+" || echo "0")
+                  
+                  # Use Jest summary if available, otherwise use pattern matching
+                  [ "$jest_passed" != "0" ] && file_passed="$jest_passed"
+                  [ "$jest_failed" != "0" ] && file_failed="$jest_failed"
+                  [ "$jest_total" != "0" ] && file_tests="$jest_total" || file_tests=$((file_passed + file_failed))
+                else
+                  file_tests=$((file_passed + file_failed))
+                fi
+                
+                passed_count=$((passed_count + file_passed))
+                failed_count=$((failed_count + file_failed))
+                tests_count=$((tests_count + file_tests))
+                suites_count=$((suites_count + file_suites))
+              fi
+            done
+            
+            # Display statistics for this test type if tests were found
+            if [ $tests_count -gt 0 ]; then
+              status_emoji="✅"
+              [ $failed_count -gt 0 ] && status_emoji="❌"
+              
+              echo "**${test_type^} Tests:** $status_emoji $passed_count passed, $failed_count failed ($tests_count total, $suites_count suites)" >> reports/test-summary.md
+              
+              total_tests=$((total_tests + tests_count))
+              total_suites=$((total_suites + suites_count))
+              total_passed=$((total_passed + passed_count))
+              total_failed=$((total_failed + failed_count))
+            fi
+          done
+          
+          # Overall statistics
+          echo "" >> reports/test-summary.md
+          overall_emoji="✅"
+          [ $total_failed -gt 0 ] && overall_emoji="❌"
+          echo "**Overall:** $overall_emoji $total_passed passed, $total_failed failed ($total_tests total tests across $total_suites suites)" >> reports/test-summary.md
 
           echo "" >> reports/test-summary.md
           echo "## Detailed Results" >> reports/test-summary.md
