@@ -385,9 +385,11 @@ async function setupDiscordLogging(container, config) {
     // Add Discord transport to existing logger with balanced rate limiting
     // Only log warn and above to Discord to reduce spam
     const discordTransport = new DiscordTransport({
+      logger,
       level: config.get('LOG_LEVEL', 'info'), // Only log warnings, errors, and above to Discord
       client: discordService.client,
       channelId: supportChannelId,
+      format: winston.format.json(),
       debugFlagManager,
       metricsManager,
       flushInterval: 1000, // 1 second to match send delay
@@ -398,7 +400,7 @@ async function setupDiscordLogging(container, config) {
       testMode: false, // Ensure production mode rate limiting
     });
 
-    discordTransport.transports.add(discordTransport);
+    logger.transports.add(discordTransport);
   }
 }
 
