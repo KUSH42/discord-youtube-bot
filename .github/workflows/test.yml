@@ -1105,7 +1105,7 @@ jobs:
       - name: Generate comprehensive test report
         run: |
           mkdir -p reports
-          OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' || echo "0.00")
+          OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' | head -1 || echo "0.00")
 
           cat > reports/test-summary.md << EOF
           # Test Summary Report
@@ -1289,7 +1289,7 @@ jobs:
             echo "" >> reports/test-summary.md
             
             # Coverage quality assessment using integer comparison
-            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
+            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | head -1)
             if [ "$COVERAGE_INT" -ge 5000 ]; then
               echo "✅ **Coverage Quality:** Meets minimum standards (≥50%)" >> reports/test-summary.md
             elif [ "$COVERAGE_INT" -ge 2500 ]; then
@@ -1309,7 +1309,7 @@ jobs:
             echo "Current coverage: ${COVERAGE}%"
             
             # Set coverage quality gates using integer comparison
-            COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
+            COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | head -1)
             if [ "$COVERAGE_INT" -lt 2500 ]; then
               echo "❌ Coverage critically low: $COVERAGE%"
               echo "coverage_status=critical" >> $GITHUB_ENV
