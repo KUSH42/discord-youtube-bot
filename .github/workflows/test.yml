@@ -253,7 +253,6 @@ jobs:
             --testTimeout=10000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests \
             --coverageThreshold='{}' \
             --verbose=true
 
@@ -505,7 +504,6 @@ jobs:
             --testTimeout=15000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests \
             --coverageThreshold='{}' \
             --verbose=true
 
@@ -611,7 +609,6 @@ jobs:
             --testTimeout=30000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests
 
       - name: Store E2E test results
         uses: actions/upload-artifact@v4
@@ -687,7 +684,6 @@ jobs:
             --testTimeout=60000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests \
             --coverageThreshold='{}' \
             --verbose=true
 
@@ -810,7 +806,6 @@ jobs:
             --testTimeout=20000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests
 
       - name: Run security audit
         run: |
