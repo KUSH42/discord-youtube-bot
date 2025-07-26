@@ -253,8 +253,6 @@ jobs:
             --testTimeout=10000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests \
-            --coverageThreshold='{}' \
             --verbose=true
 
       - name: Upload unit test coverage
@@ -501,12 +499,9 @@ jobs:
           mkdir -p coverage/integration
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
           npm run test:integration -- \
-            --maxWorkers=1 \
             --testTimeout=15000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests \
-            --coverageThreshold='{}' \
             --verbose=true
 
       - name: Upload integration test coverage
@@ -604,14 +599,26 @@ jobs:
         env:
           NODE_ENV: test
         run: |
-          mkdir -p test-results/e2e
+          mkdir -p coverage/e2e
           NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" \
-          npx jest --config tests/configs/jest.e2e.config.js \
-            --maxWorkers=1 \
+          npm run test:e2e -- \
+            --coverage \
+            --coverageDirectory=coverage/e2e \
+            --coverageReporters=lcov \
             --testTimeout=30000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests
+            --verbose=true
+
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/e2e/lcov.info
+          flags: e2e-node${{ matrix.node-version }}
+          name: e2e-tests-node${{ matrix.node-version }}
+          fail_ci_if_error: false
+          plugins: ''
+
 
       - name: Store E2E test results
         uses: actions/upload-artifact@v4
@@ -619,6 +626,7 @@ jobs:
         with:
           name: e2e-test-results
           path: |
+            coverage/e2e/
             logs/
             screenshots/
             .env.e2e
@@ -687,8 +695,6 @@ jobs:
             --testTimeout=60000 \
             --forceExit \
             --detectOpenHandles \
-            --passWithNoTests \
-            --coverageThreshold='{}' \
             --verbose=true
 
       - name: Generate performance report
@@ -809,8 +815,7 @@ jobs:
             --maxWorkers=1 \
             --testTimeout=20000 \
             --forceExit \
-            --detectOpenHandles \
-            --passWithNoTests
+            --detectOpenHandles 
 
       - name: Run security audit
         run: |

@@ -1,5 +1,6 @@
 import { DuplicateDetector } from '../duplicate-detector.js';
 import crypto from 'crypto';
+import { nowUTC, toISOStringUTC } from '../utilities/utc-time.js';
 
 /**
  * YouTube monitoring application orchestrator
@@ -95,7 +96,7 @@ export class MonitorApplication {
 
       // Emit start event
       this.eventBus.emit('monitor.started', {
-        startTime: new Date(),
+        startTime: nowUTC(),
         youtubeChannelId: this.youtubeChannelId,
         callbackUrl: this.callbackUrl,
         fallbackEnabled: this.fallbackEnabled,
@@ -134,7 +135,7 @@ export class MonitorApplication {
 
       // Emit stop event
       this.eventBus.emit('monitor.stopped', {
-        stopTime: new Date(),
+        stopTime: nowUTC(),
         stats: this.getStats(),
       });
     } catch (error) {
@@ -208,7 +209,7 @@ export class MonitorApplication {
       if (this.http.isSuccessResponse(response)) {
         this.subscriptionActive = true;
         this.stats.subscriptions++;
-        this.stats.lastSubscriptionTime = new Date();
+        this.stats.lastSubscriptionTime = nowUTC();
         this.logger.info('Successfully subscribed to PubSubHubbub');
 
         // Schedule subscription renewal
@@ -370,12 +371,12 @@ export class MonitorApplication {
 
     try {
       this.stats.webhooksReceived++;
-      this.stats.lastWebhookTime = new Date();
+      this.stats.lastWebhookTime = nowUTC();
 
       // Enhanced webhook debugging
       this.logWebhookDebug('=== WEBHOOK REQUEST RECEIVED ===', {
         method: request.method,
-        timestamp: new Date().toISOString(),
+        timestamp: toISOStringUTC(),
         headers: this.sanitizeHeaders(request.headers),
         bodyLength: request.body ? request.body.length : 0,
         bodyType: typeof request.body,
@@ -389,20 +390,7 @@ export class MonitorApplication {
         bodyLength: request.body ? request.body.length : 0,
       });
 
-      // Verify webhook signature
-      const signatureResult = this.verifyWebhookSignatureDebug(request.body, request.headers);
-      if (!signatureResult.isValid) {
-        this.logWebhookDebug('WEBHOOK SIGNATURE VERIFICATION FAILED', signatureResult.details);
-        this.logger.warn('Webhook signature verification failed', signatureResult.details);
-        return { status: 403, message: 'Invalid signature' };
-      }
-
-      this.logWebhookDebug('WEBHOOK SIGNATURE VERIFIED', {
-        signatureMethod: signatureResult.details.method,
-        secretLength: this.webhookSecret.length,
-      });
-
-      // Handle verification request
+      // Handle verification request (GET requests don't require signature verification)
       if (request.method === 'GET') {
         const verificationResult = this.handleVerificationRequest(request.query);
         this.logWebhookDebug('WEBHOOK VERIFICATION REQUEST', {
@@ -412,8 +400,21 @@ export class MonitorApplication {
         return verificationResult;
       }
 
-      // Handle notification
+      // Handle notification (POST requests require signature verification)
       if (request.method === 'POST') {
+        // Verify webhook signature for POST requests only
+        const signatureResult = this.verifyWebhookSignatureDebug(request.body, request.headers);
+        if (!signatureResult.isValid) {
+          this.logWebhookDebug('WEBHOOK SIGNATURE VERIFICATION FAILED', signatureResult.details);
+          this.logger.warn('Webhook signature verification failed', signatureResult.details);
+          return { status: 403, message: 'Invalid signature' };
+        }
+
+        this.logWebhookDebug('WEBHOOK SIGNATURE VERIFIED', {
+          signatureMethod: signatureResult.details.method,
+          secretLength: this.webhookSecret.length,
+        });
+
         const notificationResult = await this.handleNotification(request.body);
         this.logWebhookDebug('WEBHOOK NOTIFICATION PROCESSED', {
           bodyPreview: this.getBodyPreview(request.body),
@@ -517,7 +518,7 @@ export class MonitorApplication {
     // Always log webhook debug info at INFO level when debugging is enabled
     this.logger.info(`[WEBHOOK-DEBUG] ${message}`, {
       webhookDebug: true,
-      timestamp: new Date().toISOString(),
+      timestamp: toISOStringUTC(),
       ...data,
     });
   }
@@ -722,6 +723,17 @@ export class MonitorApplication {
    * @returns {Promise<void>}
    */
   async processVideo(video, source = 'unknown') {
+    const videoSummary = {
+      videoId: video.id,
+      title: video.snippet?.title?.substring(0, 50) || 'Unknown title',
+      channelTitle: video.snippet?.channelTitle,
+      publishedAt: video.snippet?.publishedAt,
+      liveBroadcastContent: video.snippet?.liveBroadcastContent,
+      source,
+    };
+
+    const operation = this.logger.startOperation('processVideo', videoSummary);
+
     try {
       this.stats.videosProcessed++;
 
@@ -729,22 +741,32 @@ export class MonitorApplication {
       const title = video.snippet?.title || 'Unknown title';
       const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-      // Check for duplicates
+      operation.progress('Checking for duplicate video');
       if (await this.duplicateDetector.isDuplicate(url)) {
-        this.logger.debug(`Duplicate video detected: ${title} (${videoId})`);
-        return;
+        return operation.success('Duplicate video detected, skipping', {
+          videoId,
+          title: title.substring(0, 50),
+          source,
+          action: 'skipped_duplicate',
+        });
       }
 
-      // Check if video is new enough
+      operation.progress('Checking if video is new enough');
       if (!this.isNewContent(video)) {
-        this.logger.debug(`Video is too old: ${title} (${videoId})`);
-        return;
+        return operation.success('Video is too old, skipping', {
+          videoId,
+          title: title.substring(0, 50),
+          publishedAt: video.snippet?.publishedAt,
+          botStartTime: this.state.get('botStartTime'),
+          source,
+          action: 'skipped_old',
+        });
       }
 
-      // Classify the video
+      operation.progress('Classifying video content');
       const classification = this.classifier.classifyYouTubeContent(video);
 
-      // Create content object
+      operation.progress('Creating content object for announcement');
       const content = {
         platform: 'youtube',
         type: classification.type,
@@ -756,29 +778,59 @@ export class MonitorApplication {
         ...classification.details,
       };
 
-      // Announce the content
-      const result = await this.announcer.announceContent(content);
+      operation.progress('Processing video announcement');
+      let result;
+      if (this.contentCoordinator) {
+        result = await this.contentCoordinator.processContent(videoId, source, content);
+        if (result.action === 'announced') {
+          result = { success: true, ...result.announcementResult };
+        } else {
+          result = { success: false, skipped: true, reason: result.reason };
+        }
+      } else {
+        result = await this.announcer.announceContent(content);
+      }
 
       if (result.success) {
         this.stats.videosAnnounced++;
         this.duplicateDetector.markAsSeen(url);
-        this.logger.info(`Announced ${classification.type}: ${title} (${videoId}) via ${source}`);
-      } else if (result.skipped) {
-        this.logger.debug(`Skipped ${classification.type}: ${title} - ${result.reason}`);
-      } else {
-        this.logger.warn(`Failed to announce ${classification.type}: ${title} - ${result.reason}`);
-      }
 
-      // Emit video processed event
-      this.eventBus.emit('monitor.video.processed', {
-        video: content,
-        classification,
-        result,
-        source,
-        timestamp: new Date(),
-      });
+        // Emit video processed event
+        this.eventBus.emit('monitor.video.processed', {
+          video: content,
+          classification,
+          result,
+          source,
+          timestamp: nowUTC(),
+        });
+
+        return operation.success('Video announcement successful', {
+          videoId,
+          type: classification.type,
+          title: title.substring(0, 50),
+          source,
+          channelId: result.channelId,
+          messageId: result.messageId,
+        });
+      } else if (result.skipped) {
+        return operation.success('Video announcement skipped', {
+          videoId,
+          type: classification.type,
+          title: title.substring(0, 50),
+          reason: result.reason,
+          source,
+        });
+      } else {
+        operation.error(new Error(result.reason || 'Unknown announcement failure'), 'Video announcement failed', {
+          videoId,
+          type: classification.type,
+          title: title.substring(0, 50),
+          source,
+        });
+        throw new Error(`Video announcement failed: ${result.reason}`);
+      }
     } catch (error) {
-      this.logger.error(`Error processing video ${video.id}:`, error);
+      operation.error(error, 'Error processing video', videoSummary);
       throw error;
     }
   }

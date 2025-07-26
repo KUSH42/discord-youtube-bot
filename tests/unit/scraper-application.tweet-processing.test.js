@@ -146,9 +146,9 @@ describe('Tweet Processing and Duplicate Detection', () => {
 
     // Mock duplicate detector to track what gets marked as seen
     const markAsSeenSpy = jest.spyOn(scraperApp.duplicateDetector, 'markAsSeen');
-    const _isDuplicateSpy = jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(false);
+    const _isDuplicateSpy = jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockResolvedValue(false);
 
-    const result = scraperApp.filterNewTweets(mockTweets);
+    const result = await scraperApp.filterNewTweets(mockTweets);
 
     // Should mark both tweets as seen
     expect(markAsSeenSpy).toHaveBeenCalledTimes(2);
@@ -179,9 +179,9 @@ describe('Tweet Processing and Duplicate Detection', () => {
       },
     ];
 
-    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(false);
+    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockResolvedValue(false);
 
-    const result = scraperApp.filterNewTweets(mockTweets);
+    const result = await scraperApp.filterNewTweets(mockTweets);
 
     // Should include the old tweet when ANNOUNCE_OLD_TWEETS is true
     expect(result).toHaveLength(1);
@@ -201,9 +201,9 @@ describe('Tweet Processing and Duplicate Detection', () => {
     ];
 
     const markAsSeenSpy = jest.spyOn(scraperApp.duplicateDetector, 'markAsSeen');
-    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(true);
+    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockResolvedValue(true);
 
-    const result = scraperApp.filterNewTweets(mockTweets);
+    const result = await scraperApp.filterNewTweets(mockTweets);
 
     // Should not mark duplicate tweets as seen again
     expect(markAsSeenSpy).not.toHaveBeenCalled();
@@ -224,9 +224,9 @@ describe('Tweet Processing and Duplicate Detection', () => {
       },
     ];
 
-    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockReturnValue(false);
+    jest.spyOn(scraperApp.duplicateDetector, 'isDuplicate').mockResolvedValue(false);
 
-    const result = scraperApp.filterNewTweets(mockTweets);
+    const result = await scraperApp.filterNewTweets(mockTweets);
 
     // Should include tweets without timestamps (treated as new)
     expect(result).toHaveLength(1);
