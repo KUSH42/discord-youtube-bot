@@ -385,6 +385,7 @@ async function setupDiscordLogging(container, config) {
     const debugFlagManager = container.resolve('debugFlagManager');
     const metricsManager = container.resolve('metricsManager');
     const logLevel = config.get('LOG_LEVEL', 'info');
+    logger.level = logLevel;
 
     // Add Discord transport to existing logger with balanced rate limiting
     // Only log warn and above to Discord to reduce spam
@@ -404,7 +405,7 @@ async function setupDiscordLogging(container, config) {
       testMode: false, // Ensure production mode rate limiting
     });
 
-    discordTransport.logger.transports.add(discordTransport);
+    logger.transports.add(discordTransport);
   }
 }
 
