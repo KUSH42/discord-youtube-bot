@@ -8,7 +8,7 @@ import 'winston-daily-rotate-file';
 // Infrastructure
 // Infrastructure classes imported for JSDoc type annotations
 // import { Configuration } from '../infrastructure/configuration.js';
-// import { DependencyContainer } from '../infrastructure/dependency-container.js';
+import { DependencyContainer } from '../infrastructure/dependency-container.js';
 import { EventBus } from '../infrastructure/event-bus.js';
 import { StateManager } from '../infrastructure/state-manager.js';
 import { PersistentStorage } from '../infrastructure/persistent-storage.js';
@@ -403,7 +403,7 @@ async function setupDiscordLogging(container, config) {
       burstResetTime: 60000, // 1 minute - longer reset for better recovery
       baseSendDelay: 1000, // 1 seconds between sends - functional
       testMode: false, // Ensure production mode rate limiting
-    });
+    })._construct;
 
     logger.transports.add(discordTransport);
   }
