@@ -395,7 +395,6 @@ async function setupDiscordLogging(container, config) {
         level: config.get('LOG_LEVEL', 'info'), // Only log warnings, errors, and above to Discord
         client: discordService.client,
         channelId: supportChannelId,
-        format: winston.format.json(),
         debugFlagManager,
         metricsManager,
         flushInterval: 1000, // 1 second to match send delay
