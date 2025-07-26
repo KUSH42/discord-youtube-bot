@@ -286,7 +286,7 @@ describe('ScraperApplication Initialization', () => {
     });
 
     it('should return true for recent unknown tweets', async () => {
-      const recentDate = new Date(timestampUTC() - 2 * 60 * 60 * 1000); // 2 hours ago
+      const recentDate = new Date(timestampUTC() - 90 * 60 * 1000); // 1.5 hours ago (within 2h backoff)
       const tweet = { tweetID: '2222222222222222222', timestamp: recentDate.toISOString() };
 
       expect(await scraperApp.isNewContent(tweet)).toBe(true);
