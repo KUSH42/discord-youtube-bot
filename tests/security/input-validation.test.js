@@ -483,7 +483,7 @@ describe('Security and Input Validation Tests', () => {
             break;
 
           case 'loglevel': {
-            const validLevels = ['error', 'warn', 'info', 'debug', 'silly'];
+            const validLevels = ['error', 'warn', 'info', 'debug', 'verbose'];
             if (sanitizedArgs.length !== 1 || !validLevels.includes(sanitizedArgs[0])) {
               return { valid: false, error: 'Invalid log level' };
             }

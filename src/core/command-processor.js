@@ -34,7 +34,7 @@ export class CommandProcessor {
     });
 
     this.state.setValidator('logLevel', value => {
-      const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+      const validLevels = ['error', 'warn', 'info', 'debug', 'verbose'];
       return validLevels.includes(value) ? true : `logLevel must be one of: ${validLevels.join(', ')}`;
     });
   }
@@ -119,7 +119,7 @@ export class CommandProcessor {
         return { success: false, error: 'Invalid log level format.' };
       }
 
-      const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+      const validLevels = ['error', 'warn', 'info', 'debug', 'verbose'];
       if (!validLevels.includes(newLevel)) {
         return {
           success: false,

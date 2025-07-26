@@ -245,23 +245,6 @@ args: [
 **Avoid these flags** (trigger detection):
 - `--disable-web-security`, `--disable-extensions`, `--disable-ipc-flooding-protection`
 
-## Anti-Botting Resilience System
-
-### Core Components (Implemented)
-- **UserAgentManager**: Dynamic rotation of 13+ browser/platform combinations
-- **HumanBehaviorSimulator**: Bezier curve mouse movements, reading estimation
-- **IntelligentRateLimiter**: Context-aware timing (1-2min updates)
-- **BrowserProfileManager**: Persistent session management with cookies
-- **DetectionMonitor**: 15+ detection signatures with automated response
-- **PerformanceMonitor**: A-F grading with resource tracking
-
-### Key Features
-- **Stealth**: Dynamic user agents, JavaScript marker removal, fingerprint resistance
-- **Human Behavior**: Realistic mouse/scroll/typing patterns
-- **Rate Limiting**: Active (1min), Idle (2min), Night (5min), Weekend (3min)
-- **Session Persistence**: Cross-restart cookie/localStorage restoration
-- **Real-time Monitoring**: Detection incidents with severity classification
-
 ## Critical Safety Guards
 
 ### Memory Leak Prevention
@@ -312,7 +295,7 @@ sudo systemctl daemon-reload                # Reload after changes
 ### Logging Infrastructure
 - **File Logging**: Winston with daily rotation
 - **Discord Logging**: Optional log mirroring to Discord channel
-- **Log Levels**: error, warn, info, http, verbose, debug, silly
+- **Log Levels**: error, warn, info, debug, verbose
 - **Structured Logging**: JSON format with contextual metadata
 
 ---
