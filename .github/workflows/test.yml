@@ -1105,7 +1105,7 @@ jobs:
       - name: Generate comprehensive test report
         run: |
           mkdir -p reports
-          OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' | head -1 || echo "0.00")
+          OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' | tr -d '\n' || echo "0.00")
 
           cat > reports/test-summary.md << EOF
           # Test Summary Report
@@ -1280,8 +1280,8 @@ jobs:
             echo "## Merged Coverage Breakdown" >> reports/test-summary.md
             echo "" >> reports/test-summary.md
             
-            BRANCH_COVERAGE=$(jq -r '.total.branches.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' || echo "0.00")
-            FUNCTION_COVERAGE=$(jq -r '.total.functions.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' || echo "0.00")
+            BRANCH_COVERAGE=$(jq -r '.total.branches.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' | tr -d '\n' || echo "0.00")
+            FUNCTION_COVERAGE=$(jq -r '.total.functions.pct // 0' coverage-summary.json 2>/dev/null | awk '{printf "%.2f", $1}' | tr -d '\n' || echo "0.00")
             
             echo "- **Lines:** ${OVERALL_COVERAGE}%" >> reports/test-summary.md
             echo "- **Branches:** ${BRANCH_COVERAGE}%" >> reports/test-summary.md  
@@ -1289,7 +1289,9 @@ jobs:
             echo "" >> reports/test-summary.md
             
             # Coverage quality assessment using integer comparison
-            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | head -1)
+            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | tr -d '\n')
+            # Ensure COVERAGE_INT is a valid number
+            [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]] && COVERAGE_INT=0
             if [ "$COVERAGE_INT" -ge 5000 ]; then
               echo "✅ **Coverage Quality:** Meets minimum standards (≥50%)" >> reports/test-summary.md
             elif [ "$COVERAGE_INT" -ge 2500 ]; then
@@ -1309,7 +1311,9 @@ jobs:
             echo "Current coverage: ${COVERAGE}%"
             
             # Set coverage quality gates using integer comparison
-            COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | head -1)
+            COVERAGE_INT=$(awk -v val="$COVERAGE" 'BEGIN {printf "%.0f", val * 100}' | tr -d '\n')
+            # Ensure COVERAGE_INT is a valid number
+            [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]] && COVERAGE_INT=0
             if [ "$COVERAGE_INT" -lt 2500 ]; then
               echo "❌ Coverage critically low: $COVERAGE%"
               echo "coverage_status=critical" >> $GITHUB_ENV
