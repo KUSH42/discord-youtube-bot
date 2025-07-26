@@ -1310,16 +1310,6 @@ jobs:
             # Ensure COVERAGE is a valid number
             COVERAGE=$(echo "$COVERAGE" | awk '{if($1 == "") print "0"; else printf "%.2f", $1}')
             
-            # Calculate OVERALL_COVERAGE robustly
-            OVERALL_COVERAGE=$(jq -r '.total.lines.pct // 0' coverage-summary.json 2>/dev/null)
-            # If jq fails or file is missing, OVERALL_COVERAGE will be empty or '0'.
-            # We need to explicitly set it to a numeric 0.00 if it's not present or invalid.
-            if [[ -z "$OVERALL_COVERAGE" ]] || ! printf "%.2f" "$OVERALL_COVERAGE" &>/dev/null; then
-              OVERALL_COVERAGE="0.00"
-            else
-              OVERALL_COVERAGE=$(awk '{printf "%.2f", $1}' <<< "$OVERALL_COVERAGE")
-            fi
-            
             # Calculate COVERAGE_INT. This needs to be robust.
             # Use 'bc' for floating point arithmetic and then 'printf' for integer conversion.
             # This handles potential leading zeros or other awk output quirks better.
