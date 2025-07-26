@@ -362,9 +362,13 @@ async function setupLogging(container, config) {
     // Note: Discord transport will be added later to avoid circular dependency
     // between logger and discordService
     return winston.createLogger({
-      level: logLevel,
-      format: winston.format.combine(winston.format.timestamp(), winston.format.errors({ stack: true })),
-      transports,
+      level: 'info', // Or 'debug', 'error', etc., perhaps from config
+      format: winston.format.json(), // Or winston.format.simple(), etc.
+      transports: [
+        new winston.transports.Console({
+          format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+        }),
+      ],
     });
   });
 }
