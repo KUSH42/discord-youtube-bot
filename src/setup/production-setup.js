@@ -14,6 +14,7 @@ import { StateManager } from '../infrastructure/state-manager.js';
 import { PersistentStorage } from '../infrastructure/persistent-storage.js';
 import { DebugFlagManager } from '../infrastructure/debug-flag-manager.js';
 import { MetricsManager } from '../infrastructure/metrics-manager.js';
+import { DiscordManager } from '../discord-utils.js';
 
 // Core Logic
 import { DuplicateDetector } from '../duplicate-detector.js';
@@ -390,9 +391,9 @@ async function setupDiscordLogging(container, config) {
 
       // Add Discord transport to existing logger with balanced rate limiting
       // Only log warn and above to Discord to reduce spam
-      const discordTransport = new DiscordTransport({
+      const discordTransport = new DiscordManager({
         logger,
-        level: config.get('LOG_LEVEL', 'info'), // Only log warnings, errors, and above to Discord
+        level: config.get('LOG_LEVEL', logLevel), // Only log warnings, errors, and above to Discord
         client: discordService.client,
         channelId: supportChannelId,
         debugFlagManager,
