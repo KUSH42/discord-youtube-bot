@@ -72,10 +72,6 @@ export async function setupProductionServices(container, config) {
 
   // Validate container
   container.validate();
-
-  const logger = container.resolve('logger').child({ service: 'DiscordTransport' });
-  const discordTransport = container.resolve('discordTransport');
-  logger.transports.add(discordTransport);
 }
 
 /**
@@ -381,11 +377,11 @@ async function setupLogging(container, config) {
  * Configure Discord logging transport after both logger and discordService are created
  */
 async function setupDiscordLogging(container, config) {
-  container.registerSingleton('discordTransport', _c => {
+  container.registerSingleton('discordManager', _c => {
     const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
     // Skip Discord logging setup in test environment to prevent rate limit errors
     if (supportChannelId && process.env.NODE_ENV !== 'test') {
-      const logger = container.resolve('logger').child({ service: 'DiscordTransport' });
+      const logger = container.resolve('logger').child({ service: 'DiscordManager' });
       const discordService = container.resolve('discordService');
       const debugFlagManager = container.resolve('debugFlagManager');
       const metricsManager = container.resolve('metricsManager');
@@ -409,6 +405,8 @@ async function setupDiscordLogging(container, config) {
         baseSendDelay: 1000, // 1 seconds between sends - functional
         testMode: false, // Ensure production mode rate limiting
       });
+
+      logger.transports.add(discordTransport);
     }
   });
 }
