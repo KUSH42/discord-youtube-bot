@@ -184,21 +184,28 @@ describe('Scraper Announcement Flow E2E', () => {
       set: jest.fn(),
     };
 
-    // Mock persistent storage
+    // Mock persistent storage with proper duplicate tracking
+    const storageSeenUrls = new Set();
     const mockPersistentStorage = {
       storeContentState: jest.fn(() => Promise.resolve()),
       getContentState: jest.fn(() => Promise.resolve(null)),
       getAllContentStates: jest.fn(() => Promise.resolve({})),
       removeContentStates: jest.fn(() => Promise.resolve()),
       clearAllContentStates: jest.fn(() => Promise.resolve()),
-      markAsSeen: jest.fn(() => Promise.resolve()),
-      isDuplicate: jest.fn(() => Promise.resolve(false)),
-      hasUrl: jest.fn(() => Promise.resolve(false)),
-      addUrl: jest.fn(() => Promise.resolve()),
+      markAsSeen: jest.fn(url => {
+        storageSeenUrls.add(url);
+        return Promise.resolve();
+      }),
+      isDuplicate: jest.fn(url => Promise.resolve(storageSeenUrls.has(url))),
+      hasUrl: jest.fn(url => Promise.resolve(storageSeenUrls.has(url))),
+      addUrl: jest.fn(url => {
+        storageSeenUrls.add(url);
+        return Promise.resolve();
+      }),
       hasFingerprint: jest.fn(() => Promise.resolve(false)),
       storeFingerprint: jest.fn(() => Promise.resolve()),
-      getSeenUrls: jest.fn(() => Promise.resolve([])),
-      getStorageStats: jest.fn(() => Promise.resolve({ seenCount: 0 })),
+      getSeenUrls: jest.fn(() => Promise.resolve([...storageSeenUrls])),
+      getStorageStats: jest.fn(() => Promise.resolve({ seenCount: storageSeenUrls.size })),
     };
 
     // Mock event bus
@@ -206,6 +213,22 @@ describe('Scraper Announcement Flow E2E', () => {
       emit: jest.fn(),
       on: jest.fn(),
       off: jest.fn(),
+    };
+
+    // Mock enhanced logging dependencies
+    const mockDebugManager = {
+      isEnabled: jest.fn(() => false),
+      getLevel: jest.fn(() => 1),
+      toggleFlag: jest.fn(),
+      setLevel: jest.fn(),
+    };
+
+    const mockMetricsManager = {
+      recordMetric: jest.fn(),
+      startTimer: jest.fn(() => ({ end: jest.fn() })),
+      incrementCounter: jest.fn(),
+      setGauge: jest.fn(),
+      recordHistogram: jest.fn(),
     };
 
     // Mock logger with actual console output for debugging
@@ -216,17 +239,38 @@ describe('Scraper Announcement Flow E2E', () => {
       debug: jest.fn((msg, ...args) => console.log('DEBUG:', msg, ...args)),
       verbose: jest.fn((msg, ...args) => console.log('VERBOSE:', msg, ...args)),
       child: jest.fn(() => mockLogger),
+      startOperation: jest.fn((name, context) => ({
+        progress: jest.fn(),
+        success: jest.fn((message, data) => data),
+        error: jest.fn((error, message, context) => {
+          throw error;
+        }),
+      })),
+      forOperation: jest.fn(() => mockLogger),
     };
 
     // Create core components
     contentClassifier = new ContentClassifier(mockConfig, mockLogger);
+
+    // Set up proper duplicate detection
+    const seenUrls = new Set();
     duplicateDetector = {
-      isDuplicate: jest.fn(() => Promise.resolve(false)),
-      markAsSeen: jest.fn(() => Promise.resolve()),
-      getStats: jest.fn(() => ({ seenCount: 0 })),
+      isDuplicate: jest.fn(url => Promise.resolve(seenUrls.has(url))),
+      markAsSeen: jest.fn(url => {
+        seenUrls.add(url);
+        return Promise.resolve();
+      }),
+      getStats: jest.fn(() => ({ seenCount: seenUrls.size })),
     };
     contentStateManager = new ContentStateManager(mockConfig, mockPersistentStorage, mockLogger, mockStateManager);
-    contentAnnouncer = new ContentAnnouncer(mockDiscordService, mockConfig, mockStateManager, mockLogger, null, null);
+    contentAnnouncer = new ContentAnnouncer(
+      mockDiscordService,
+      mockConfig,
+      mockStateManager,
+      mockLogger,
+      mockDebugManager,
+      mockMetricsManager
+    );
     contentCoordinator = new ContentCoordinator(
       contentStateManager,
       contentAnnouncer,
@@ -250,6 +294,8 @@ describe('Scraper Announcement Flow E2E', () => {
       stateManager: mockStateManager,
       eventBus: mockEventBus,
       logger: mockLogger,
+      debugManager: mockDebugManager,
+      metricsManager: mockMetricsManager,
       authManager: mockAuthManager,
       persistentStorage: mockPersistentStorage,
       livestreamStateMachine: {
@@ -263,7 +309,14 @@ describe('Scraper Announcement Flow E2E', () => {
     scraperApp = new ScraperApplication(mockDependencies);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Ensure applications are properly stopped to prevent background timers
+    if (scraperApp && typeof scraperApp.stop === 'function') {
+      await scraperApp.stop();
+    }
+    if (monitorApp && typeof monitorApp.stop === 'function') {
+      await monitorApp.stop();
+    }
     jest.clearAllMocks();
     announcementCallLog = [];
   });
@@ -375,6 +428,17 @@ describe('Scraper Announcement Flow E2E', () => {
     });
 
     it('should skip old video content based on bot start time', async () => {
+      // Override botStartTime for this test to be AFTER the old video publish time
+      mockDependencies.stateManager.get.mockImplementation((key, defaultValue) => {
+        const state = {
+          postingEnabled: true,
+          announcementEnabled: true,
+          vxTwitterConversionEnabled: false,
+          botStartTime: new Date('2024-01-01T00:00:00Z'), // Set to AFTER old video (2023-01-01)
+        };
+        return state[key] !== undefined ? state[key] : defaultValue;
+      });
+
       const webhookRequest = {
         method: 'POST',
         headers: {
@@ -614,22 +678,34 @@ describe('Scraper Announcement Flow E2E', () => {
     });
 
     it('should perform enhanced retweet detection', async () => {
-      // Mock profile timeline navigation
+      // Mock the sequence of browser.evaluate() calls:
+      // 1. First extractTweets() call on search page
+      // 2. 5 scrolling calls in performEnhancedScrolling()
+      // 3. Second extractTweets() call on profile timeline
       mockBrowserService.evaluate
-        .mockResolvedValueOnce([]) // First call for search
+        .mockResolvedValueOnce([]) // First call for search page extractTweets()
+        .mockResolvedValueOnce(undefined) // Scroll 1
+        .mockResolvedValueOnce(undefined) // Scroll 2
+        .mockResolvedValueOnce(undefined) // Scroll 3
+        .mockResolvedValueOnce(undefined) // Scroll 4
+        .mockResolvedValueOnce(undefined) // Scroll 5
         .mockResolvedValueOnce([
-          // Second call for profile timeline
+          // Second extractTweets() call on profile timeline
           {
-            tweetID: '1234567895',
-            url: 'https://x.com/testuser/status/1234567895',
-            author: 'anotheruser',
+            tweetID: '1234567892', // Use ID that matches the URL
+            url: 'https://x.com/testuser/status/1234567892',
+            author: 'testuser',
             text: 'RT @anotheruser: This is a retweet from profile',
             timestamp: new Date().toISOString(),
             tweetCategory: 'Retweet',
           },
-        ]);
+        ])
+        .mockResolvedValue([]); // All subsequent calls return empty array
 
       await scraperApp.pollXProfile();
+
+      // Wait a short time to ensure any background processing is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Should find and announce the retweet from enhanced detection
       const retweetAnnouncements = announcementCallLog.filter(log => log.channelId === '123456789012345682');
@@ -762,6 +838,17 @@ describe('Scraper Announcement Flow E2E', () => {
 
   describe('Content Analysis and Debug Information', () => {
     it('should provide detailed debug information for announcement failures', async () => {
+      // Override botStartTime for this test to be AFTER the old content publish time
+      mockDependencies.stateManager.get.mockImplementation((key, defaultValue) => {
+        const state = {
+          postingEnabled: true,
+          announcementEnabled: true,
+          vxTwitterConversionEnabled: false,
+          botStartTime: new Date('2024-01-01T00:00:00Z'), // Set to AFTER old content (2023-01-01)
+        };
+        return state[key] !== undefined ? state[key] : defaultValue;
+      });
+
       const mockLoggerWithCapture = {
         ...mockDependencies.logger,
         debug: jest.fn(),

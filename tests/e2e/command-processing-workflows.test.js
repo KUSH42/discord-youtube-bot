@@ -371,7 +371,7 @@ describe('End-to-End Command Processing Workflows', () => {
       const result = await commandProcessor.processCommand('loglevel', ['unknown'], authorizedUser.id);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('❌ Invalid log level. Valid levels are: error, warn, info, debug, verbose');
+      expect(result.message).toBe('❌ Invalid log level. Valid levels are: error, warn, info, debug, verbose.');
     });
 
     it('should reject unknown commands', async () => {
