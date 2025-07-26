@@ -54,7 +54,7 @@ describe('Tweet Processing and Duplicate Detection', () => {
         const values = {
           X_QUERY_INTERVAL_MIN: '300000',
           X_QUERY_INTERVAL_MAX: '600000',
-          CONTENT_BACKOFF_DURATION_HOURS: '2', // 2 hours backoff
+          MAX_CONTENT_AGE_HOURS: '2', // 2 hours backoff
         };
         return values[key] || defaultValue;
       }),
@@ -286,7 +286,7 @@ describe('Tweet Processing Pipeline', () => {
         const values = {
           X_QUERY_INTERVAL_MIN: '300000',
           X_QUERY_INTERVAL_MAX: '600000',
-          CONTENT_BACKOFF_DURATION_HOURS: '2', // 2 hours backoff
+          MAX_CONTENT_AGE_HOURS: '2', // 2 hours backoff
         };
         return values[key] || defaultValue;
       }),

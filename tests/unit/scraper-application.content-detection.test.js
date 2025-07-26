@@ -46,7 +46,7 @@ describe('ScraperApplication Content Detection', () => {
         X_QUERY_INTERVAL_MAX: '600000',
         X_DEBUG_SAMPLING_RATE: '0.1',
         X_VERBOSE_LOG_SAMPLING_RATE: '0.05',
-        CONTENT_BACKOFF_DURATION_HOURS: '2',
+        MAX_CONTENT_AGE_HOURS: '2',
       };
       return defaults[key] || defaultValue;
     });
@@ -262,7 +262,7 @@ describe('ScraperApplication Content Detection', () => {
     it('should return false for content older than backoff duration', async () => {
       mockDuplicateDetector.isDuplicate.mockReturnValue(false);
       mockConfig.get.mockImplementation((key, defaultValue) => {
-        if (key === 'CONTENT_BACKOFF_DURATION_HOURS') {
+        if (key === 'MAX_CONTENT_AGE_HOURS') {
           return '2';
         }
         return defaultValue;
@@ -288,7 +288,7 @@ describe('ScraperApplication Content Detection', () => {
     it('should return true for content within backoff duration', async () => {
       mockDuplicateDetector.isDuplicate.mockReturnValue(false);
       mockConfig.get.mockImplementation((key, defaultValue) => {
-        if (key === 'CONTENT_BACKOFF_DURATION_HOURS') {
+        if (key === 'MAX_CONTENT_AGE_HOURS') {
           return '2';
         }
         return defaultValue;
@@ -334,7 +334,7 @@ describe('ScraperApplication Content Detection', () => {
     it('should use default backoff duration when not configured', async () => {
       mockDuplicateDetector.isDuplicate.mockReturnValue(false);
       mockConfig.get.mockImplementation((key, defaultValue) => {
-        if (key === 'CONTENT_BACKOFF_DURATION_HOURS') {
+        if (key === 'MAX_CONTENT_AGE_HOURS') {
           return defaultValue;
         }
         return defaultValue;
@@ -349,7 +349,7 @@ describe('ScraperApplication Content Detection', () => {
       const result = await scraperApp.isNewContent(tweet);
 
       expect(result).toBe(false); // Should be false because default is 2 hours and tweet is 3 hours old
-      expect(mockConfig.get).toHaveBeenCalledWith('CONTENT_BACKOFF_DURATION_HOURS', '2');
+      expect(mockConfig.get).toHaveBeenCalledWith('MAX_CONTENT_AGE_HOURS', '2');
     });
   });
 

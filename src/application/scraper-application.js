@@ -864,7 +864,7 @@ export class ScraperApplication {
     }
 
     // Check: Is the content too old based on configurable backoff duration?
-    const backoffHours = this.config.get('CONTENT_BACKOFF_DURATION_HOURS', '2'); // Default 2 hours
+    const backoffHours = this.config.get('MAX_CONTENT_AGE_HOURS', '2'); // Default 2 hours
     const backoffMs = parseInt(backoffHours) * 60 * 60 * 1000;
     const cutoffTime = new Date(Date.now() - backoffMs);
 
