@@ -36,8 +36,12 @@ describe('Announcement Debug Scenarios', () => {
       // Add enhanced logger methods
       startOperation: jest.fn().mockReturnValue({
         progress: jest.fn(),
-        success: jest.fn(),
-        error: jest.fn(),
+        success: jest.fn((message, context) => {
+          logCapture.info.push([message, context]);
+        }),
+        error: jest.fn((error, message, context) => {
+          logCapture.error.push([message, context, error]);
+        }),
       }),
     };
 

@@ -147,7 +147,7 @@ export class ContentCoordinator {
         // Check if already announced
         if (existingState.announced) {
           this.metrics.duplicatesSkipped++;
-          this.logger.info('⏭️ Content already announced, skipping', {
+          this.logger.debug('⏭️ Content already announced, skipping', {
             contentId,
             existingSource: existingState.source,
             newSource: source,
@@ -171,7 +171,7 @@ export class ContentCoordinator {
 
       if (isDuplicate) {
         this.metrics.duplicatesSkipped++;
-        this.logger.info('⏭️ Duplicate content detected, skipping', {
+        this.logger.debug('⏭️ Duplicate content detected, skipping', {
           contentId,
           source,
           url: contentData.url,
@@ -194,7 +194,7 @@ export class ContentCoordinator {
       const isNew = this.contentStateManager.isNewContent(contentId, contentData.publishedAt, nowUTC());
 
       if (!isNew) {
-        this.logger.info('⏭️ Content too old, skipping', {
+        this.logger.debug('⏭️ Content too old, skipping', {
           contentId,
           source,
           publishedAt: contentData.publishedAt,
