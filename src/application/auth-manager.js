@@ -49,10 +49,12 @@ export class AuthManager {
 
             if (await this.isAuthenticated()) {
               this.clearSensitiveData();
-              return operation.success('Successfully authenticated using saved cookies', {
+              this.logger.info('✅ Successfully authenticated using saved cookies.');
+              operation.success('Successfully authenticated using saved cookies', {
                 method: 'saved_cookies',
                 attempt,
               });
+              return;
             } else {
               operation.progress('Saved cookies expired, attempting fresh login');
               try {
@@ -60,20 +62,24 @@ export class AuthManager {
               } catch (deleteError) {
                 this.logger.error('Failed to delete session cookies from state:', deleteError);
               }
+              this.logger.warn('Saved cookies failed, attempting login');
               await this.loginToX();
-              return operation.success('Authentication successful after fresh login', {
+              operation.success('Authentication successful after fresh login', {
                 method: 'fresh_login_after_expired_cookies',
                 attempt,
               });
+              return;
             }
           } catch (error) {
             operation.progress('Cookie validation failed, falling back to login');
+            this.logger.error('Error validating saved cookies, falling back to login:', error.message);
             await this.loginToX();
-            return operation.success('Authentication successful after cookie fallback', {
+            operation.success('Authentication successful after cookie fallback', {
               method: 'login_after_cookie_error',
               attempt,
               cookieError: this.sanitizeErrorMessage(error.message),
             });
+            return;
           }
         } else if (savedCookies) {
           operation.progress('Invalid cookie format, performing fresh login');
@@ -82,18 +88,22 @@ export class AuthManager {
           } catch (deleteError) {
             this.logger.error('Failed to delete session cookies from state:', deleteError);
           }
+          this.logger.warn('Invalid saved cookies format, performing login');
           await this.loginToX();
-          return operation.success('Authentication successful after invalid cookie cleanup', {
+          operation.success('Authentication successful after invalid cookie cleanup', {
             method: 'login_after_invalid_cookies',
             attempt,
           });
+          return;
         } else {
           operation.progress('No saved cookies found, performing fresh login');
+          this.logger.info('No saved cookies found, performing login');
           await this.loginToX();
-          return operation.success('Authentication successful with fresh login', {
+          operation.success('Authentication successful with fresh login', {
             method: 'fresh_login',
             attempt,
           });
+          return;
         }
       } catch (error) {
         const sanitizedMessage =
@@ -102,19 +112,23 @@ export class AuthManager {
             : 'An unknown authentication error occurred.';
 
         if (attempt === maxRetries) {
-          return operation.error(error, `Authentication failed after ${maxRetries} attempts`, {
+          this.logger.error('Non-recoverable authentication error:', sanitizedMessage);
+          operation.error(error, `Authentication failed after ${maxRetries} attempts`, {
             attempts: maxRetries,
             finalError: sanitizedMessage,
           });
+          throw new Error('Authentication failed');
         }
 
         // Check if this is a recoverable error
         const isRecoverable = this.isRecoverableError(error);
         if (!isRecoverable) {
-          return operation.error(error, 'Non-recoverable authentication error', {
+          this.logger.error('Non-recoverable authentication error:', sanitizedMessage);
+          operation.error(error, 'Non-recoverable authentication error', {
             attempt,
             errorType: 'non_recoverable',
           });
+          throw new Error('Authentication failed');
         }
 
         const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
@@ -186,10 +200,13 @@ export class AuthManager {
         operation.progress('Saving authentication state');
         await this.saveAuthenticationState();
         this.clearSensitiveData();
-        return operation.success('Login successful, new session established', {
+        this.logger.info('✅ Login successful, a new session has been established.');
+        operation.success('Login successful, new session established', {
           method: 'credential_login',
         });
+        return true;
       } else {
+        this.logger.error('Credential-based login failed.');
         operation.error(new Error('Credential-based login failed'), 'Login verification failed');
         throw new Error('Authentication failed');
       }
@@ -248,10 +265,12 @@ export class AuthManager {
 
     try {
       if (!this.browser || !this.browser.page) {
-        return operation.success('Browser service not available', {
+        this.logger.warn('Browser service or page not available for authentication check.');
+        operation.success('Browser service not available', {
           authenticated: false,
           reason: 'no_browser_service',
         });
+        return false;
       }
 
       operation.progress('Checking authentication cookies');
@@ -269,31 +288,35 @@ export class AuthManager {
           const currentUrl = await this.browser.getUrl();
           const isOnHomePage = currentUrl.includes('/home') || currentUrl === 'https://x.com/';
 
-          return operation.success('Authentication verification completed', {
+          operation.success('Authentication verification completed', {
             authenticated: isOnHomePage,
             method: 'navigation_test',
             currentUrl: currentUrl.substring(0, 50),
             cookiesPresent: true,
           });
+          return isOnHomePage;
         } catch (navError) {
           // If navigation fails but cookies are present, assume authenticated
-          return operation.success('Authentication verified by cookies (navigation failed)', {
+          operation.success('Authentication verified by cookies (navigation failed)', {
             authenticated: true,
             method: 'cookies_only',
             navigationError: this.sanitizeErrorMessage(navError.message),
             cookiesPresent: true,
           });
+          return true;
         }
       }
 
-      return operation.success('Authentication check completed', {
+      operation.success('Authentication check completed', {
         authenticated: false,
         reason: 'missing_or_invalid_cookies',
         cookiesFound: cookies.length,
         hasAuthToken: !!authToken,
         hasCt0Token: !!ct0Token,
       });
+      return false;
     } catch (error) {
+      this.logger.warn('Error checking authentication status:', error.message);
       operation.error(error, 'Error checking authentication status');
       return false;
     }

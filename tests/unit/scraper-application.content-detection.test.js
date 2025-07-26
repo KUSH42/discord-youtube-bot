@@ -1,6 +1,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { ScraperApplication } from '../../src/application/scraper-application.js';
 import { timestampUTC } from '../../src/utilities/utc-time.js';
+import { createMockDependenciesWithEnhancedLogging } from '../utils/enhanced-logging-mocks.js';
 
 describe('ScraperApplication Content Detection', () => {
   let scraperApp;
@@ -11,6 +12,9 @@ describe('ScraperApplication Content Detection', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Create enhanced logging mocks
+    const enhancedLoggingMocks = createMockDependenciesWithEnhancedLogging();
 
     mockConfig = {
       getRequired: jest.fn(),
@@ -24,14 +28,7 @@ describe('ScraperApplication Content Detection', () => {
       getStats: jest.fn().mockReturnValue({ totalSeen: 0, totalChecked: 0 }),
     };
 
-    mockLogger = {
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      debug: jest.fn(),
-      verbose: jest.fn(),
-      child: jest.fn().mockReturnThis(),
-    };
+    mockLogger = enhancedLoggingMocks.logger;
 
     // Configure default mock returns
     mockConfig.getRequired.mockImplementation(key => {
@@ -81,6 +78,8 @@ describe('ScraperApplication Content Detection', () => {
       discordService: { login: jest.fn() },
       eventBus: { emit: jest.fn(), on: jest.fn(), off: jest.fn() },
       logger: mockLogger,
+      debugManager: enhancedLoggingMocks.debugManager,
+      metricsManager: enhancedLoggingMocks.metricsManager,
       authManager: {
         login: jest.fn(),
         clickNextButton: jest.fn(),
@@ -123,7 +122,12 @@ describe('ScraperApplication Content Detection', () => {
       expect(newTweets).toHaveLength(1);
       expect(newTweets[0].tweetID).toBe('2');
       expect(mockDuplicateDetector.markAsSeen).toHaveBeenCalledWith(tweets[1].url);
-      expect(mockLogger.debug).toHaveBeenCalledWith('Filtering results: 1 new, 1 duplicates, 0 old content');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Filtering results: 1 new, 1 duplicates, 0 old content',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should filter out old content', async () => {
@@ -152,7 +156,12 @@ describe('ScraperApplication Content Detection', () => {
 
       expect(newTweets).toHaveLength(1);
       expect(newTweets[0].tweetID).toBe('2');
-      expect(mockLogger.debug).toHaveBeenCalledWith('Filtering results: 1 new, 0 duplicates, 1 old content');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Filtering results: 1 new, 0 duplicates, 1 old content',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should log debug information with sampling', async () => {
@@ -171,8 +180,11 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.filterNewTweets(tweets);
 
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        expect.stringContaining('Added new tweet: 1 - This is a long tweet that should be truncated')
+      expect(mockLogger.verbose).toHaveBeenCalledWith(
+        expect.stringContaining('Added new tweet: 1 - This is a long tweet that should be truncated'),
+        expect.objectContaining({
+          module: 'scraper',
+        })
       );
     });
 
@@ -192,7 +204,12 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.filterNewTweets(tweets);
 
-      expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('Filtered out old tweet: 1 - timestamp:'));
+      expect(mockLogger.verbose).toHaveBeenCalledWith(
+        expect.stringContaining('Filtered out old tweet: 1 - timestamp:'),
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
   });
 
@@ -214,7 +231,12 @@ describe('ScraperApplication Content Detection', () => {
       const result = await scraperApp.isNewContent(tweet);
 
       expect(result).toBe(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('ANNOUNCE_OLD_TWEETS=true, considering tweet 1 as new');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'ANNOUNCE_OLD_TWEETS=true, considering tweet 1 as new',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should return false for duplicate content', async () => {
@@ -229,7 +251,12 @@ describe('ScraperApplication Content Detection', () => {
       const result = await scraperApp.isNewContent(tweet);
 
       expect(result).toBe(false);
-      expect(mockLogger.debug).toHaveBeenCalledWith('Tweet 1 already known (duplicate), not new');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Tweet 1 already known (duplicate), not new',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should return false for content older than backoff duration', async () => {
@@ -250,7 +277,12 @@ describe('ScraperApplication Content Detection', () => {
       const result = await scraperApp.isNewContent(tweet);
 
       expect(result).toBe(false);
-      expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('Tweet 1 is too old'));
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Tweet 1 is too old'),
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should return true for content within backoff duration', async () => {
@@ -271,7 +303,12 @@ describe('ScraperApplication Content Detection', () => {
       const result = await scraperApp.isNewContent(tweet);
 
       expect(result).toBe(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('Tweet 1 passed all checks, considering as new');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Tweet 1 passed all checks, considering as new',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should return true for content without timestamp', async () => {
@@ -286,7 +323,12 @@ describe('ScraperApplication Content Detection', () => {
       const result = await scraperApp.isNewContent(tweet);
 
       expect(result).toBe(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('No timestamp for tweet 1, considering as new');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'No timestamp for tweet 1, considering as new',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should use default backoff duration when not configured', async () => {
@@ -339,7 +381,12 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.performEnhancedRetweetDetection();
 
-      expect(mockLogger.debug).toHaveBeenCalledWith('Performing enhanced retweet detection...');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Performing enhanced retweet detection...',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
       expect(scraperApp.navigateToProfileTimeline).toHaveBeenCalledWith('testuser');
       expect(scraperApp.processNewTweet).toHaveBeenCalled();
       expect(scraperApp.stats.totalTweetsAnnounced).toBe(1);
@@ -359,7 +406,12 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.performEnhancedRetweetDetection();
 
-      expect(mockLogger.debug).toHaveBeenCalledWith('Checking tweet 1, category: Post');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Checking tweet 1, category: Post',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should log verbose information for old tweets with sampling', async () => {
@@ -376,7 +428,12 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.performEnhancedRetweetDetection();
 
-      expect(mockLogger.debug).toHaveBeenCalledWith('Skipping tweet 1 as it is old.');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Skipping tweet 1 as it is old.',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should handle errors during enhanced retweet detection', async () => {
@@ -386,7 +443,12 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.performEnhancedRetweetDetection();
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error during enhanced retweet detection:', retweetError);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error during enhanced retweet detection:',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
       // Should not rethrow error
     });
   });
@@ -424,7 +486,12 @@ describe('ScraperApplication Content Detection', () => {
 
       expect(mockDuplicateDetector.markAsSeen).toHaveBeenCalledWith(recentTweet.url);
       expect(mockDuplicateDetector.markAsSeen).toHaveBeenCalledTimes(2); // Once for each call
-      expect(mockLogger.info).toHaveBeenCalledWith('✅ Initialization complete: marked 2 recent posts as seen');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        '✅ Initialization complete: marked 2 recent posts as seen',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should handle errors during initialization gracefully', async () => {
@@ -433,8 +500,18 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.initializeRecentContent();
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error during recent content initialization:', initError);
-      expect(mockLogger.warn).toHaveBeenCalledWith('Continuing with normal operation despite initialization error');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error during recent content initialization:',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Continuing with normal operation despite initialization error',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
       // Should not rethrow error
     });
 
@@ -445,7 +522,12 @@ describe('ScraperApplication Content Detection', () => {
 
       await scraperApp.initializeRecentContent();
 
-      expect(mockLogger.warn).toHaveBeenCalledWith('Error during retweet initialization scan:', 'Retweet scan failed');
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Error during retweet initialization scan:',
+        expect.objectContaining({
+          module: 'scraper',
+        })
+      );
     });
 
     it('should skip retweet initialization when retweet processing is disabled', async () => {
