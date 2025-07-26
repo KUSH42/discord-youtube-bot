@@ -380,7 +380,7 @@ async function setupDiscordLogging(container, config) {
   const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
   // Skip Discord logging setup in test environment to prevent rate limit errors
   if (supportChannelId && process.env.NODE_ENV !== 'test') {
-    const logger = container.resolve('logger');
+    const logger = container.resolve('logger').child({ service: 'DiscordTransport' });
     const discordService = container.resolve('discordService');
     const debugFlagManager = container.resolve('debugFlagManager');
     const metricsManager = container.resolve('metricsManager');
