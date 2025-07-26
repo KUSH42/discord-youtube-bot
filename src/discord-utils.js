@@ -110,11 +110,12 @@ export class DiscordManager {
 
 /**
  * Helper function to create a Discord manager instance
- * @param {Object} client - Discord client instance
+ * @param {Object} container - DI instance
+ instance
  * @param {Object} logger - Winston logger instance
  * @param {Object} config - Configuration options
  * @returns {DiscordManager} New Discord manager instance
  */
-export function createDiscordManager(client, logger, config = {}) {
-  return new DiscordManager(client, logger, config);
+export function createDiscordManager(container, config = {}) {
+  return new DiscordManager(container, config);
 }

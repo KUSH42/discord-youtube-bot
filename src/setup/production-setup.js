@@ -377,12 +377,11 @@ async function setupLogging(container, config) {
 /**
  * Configure Discord logging transport after both logger and discordService are created
  */
-async function setupDiscordLogging(container, config) {
+async function setupDiscordLogging(container, config, logger) {
   container.registerSingleton('discordManager', _c => {
     const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
     // Skip Discord logging setup in test environment to prevent rate limit errors
     if (supportChannelId && process.env.NODE_ENV !== 'test') {
-      const logger = container.resolve('logger').child({ service: 'DiscordManager' });
       const discordService = container.resolve('discordService');
       const debugFlagManager = container.resolve('debugFlagManager');
       const metricsManager = container.resolve('metricsManager');
