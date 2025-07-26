@@ -378,7 +378,7 @@ async function setupDiscordLogging(container, config) {
   if (supportChannelId && process.env.NODE_ENV !== 'test') {
     const logger = container.resolve('logger');
     const discordService = container.resolve('discordService');
-    const debugManager = container.resolve('debugManager');
+    const debugFlagManager = container.resolve('debugFlagManager');
     const metricsManager = container.resolve('metricsManager');
     const logLevel = config.get('LOG_LEVEL', 'info');
 
@@ -388,7 +388,7 @@ async function setupDiscordLogging(container, config) {
       level: config.get('LOG_LEVEL', 'info'), // Only log warnings, errors, and above to Discord
       client: discordService.client,
       channelId: supportChannelId,
-      debugManager,
+      debugFlagManager,
       metricsManager,
       flushInterval: 1000, // 1 second to match send delay
       maxBufferSize: 20, // Match burst allowance
