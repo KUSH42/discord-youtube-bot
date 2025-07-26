@@ -1,6 +1,6 @@
 # Discord Content Announcement Bot
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/KUSH42/discord-bot/test.yml?branch=dev&style=for-the-badge)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/KUSH42/discord-bot/test.yml?branch=fix%2Fbugfixes&style=for-the-badge)
 ![Codecov (with branch)](https://img.shields.io/codecov/c/github/KUSH42/discord-bot/dev?style=for-the-badge&link=https%3A%2F%2Fapp.codecov.io%2Fgh%2FKUSH42%2Fdiscord-bot%2Ftree%2Fdev%2F)
 ![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=for-the-badge)
 ![Discord.js](https://img.shields.io/badge/discord.js-v14-7289DA?style=for-the-badge)
