@@ -400,7 +400,7 @@ async function setupDiscordLogging(container, config) {
       testMode: false, // Ensure production mode rate limiting
     });
 
-    discordService.logger.transports.add(discordTransport);
+    discordTransport.logger.transports.add(discordTransport);
   }
 }
 
