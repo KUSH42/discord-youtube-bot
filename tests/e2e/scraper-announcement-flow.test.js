@@ -679,16 +679,20 @@ describe('Scraper Announcement Flow E2E', () => {
 
     it('should perform enhanced retweet detection', async () => {
       // Mock the sequence of browser.evaluate() calls:
-      // 1. First extractTweets() call on search page
-      // 2. 5 scrolling calls in performEnhancedScrolling()
-      // 3. Second extractTweets() call on profile timeline
+      // 1. 3 scrolling calls in main pollXProfile
+      // 2. First extractTweets() call on search page
+      // 3. 5 scrolling calls in performEnhancedScrolling()
+      // 4. Second extractTweets() call on profile timeline
       mockBrowserService.evaluate
-        .mockResolvedValueOnce([]) // First call for search page extractTweets()
-        .mockResolvedValueOnce(undefined) // Scroll 1
-        .mockResolvedValueOnce(undefined) // Scroll 2
-        .mockResolvedValueOnce(undefined) // Scroll 3
-        .mockResolvedValueOnce(undefined) // Scroll 4
-        .mockResolvedValueOnce(undefined) // Scroll 5
+        .mockResolvedValueOnce(undefined) // Scroll 1 (main pollXProfile)
+        .mockResolvedValueOnce(undefined) // Scroll 2 (main pollXProfile)
+        .mockResolvedValueOnce(undefined) // Scroll 3 (main pollXProfile)
+        .mockResolvedValueOnce([]) // First extractTweets() call on search page
+        .mockResolvedValueOnce(undefined) // Scroll 1 (performEnhancedScrolling)
+        .mockResolvedValueOnce(undefined) // Scroll 2 (performEnhancedScrolling)
+        .mockResolvedValueOnce(undefined) // Scroll 3 (performEnhancedScrolling)
+        .mockResolvedValueOnce(undefined) // Scroll 4 (performEnhancedScrolling)
+        .mockResolvedValueOnce(undefined) // Scroll 5 (performEnhancedScrolling)
         .mockResolvedValueOnce([
           // Second extractTweets() call on profile timeline
           {

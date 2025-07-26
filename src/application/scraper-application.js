@@ -648,149 +648,158 @@ export class ScraperApplication {
    */
   async extractTweets() {
     const monitoredUser = this.xUser; // Pass the monitored user to browser context
-    return await this.browser.evaluate(monitoredUser => {
-      /* eslint-disable no-undef */
-      const tweets = [];
+    try {
+      const result = await this.browser.evaluate(monitoredUser => {
+        /* eslint-disable no-undef */
+        const tweets = [];
 
-      // Try multiple selectors for tweet articles (X keeps changing these)
-      const articleSelectors = [
-        'article[data-testid="tweet"]',
-        'article[role="article"]',
-        'div[data-testid="cellInnerDiv"] article',
-        'article',
-      ];
+        // Try multiple selectors for tweet articles (X keeps changing these)
+        const articleSelectors = [
+          'article[data-testid="tweet"]',
+          'article[role="article"]',
+          'div[data-testid="cellInnerDiv"] article',
+          'article',
+        ];
 
-      let articles = [];
-      for (const selector of articleSelectors) {
-        articles = document.querySelectorAll(selector);
-        if (articles.length > 0) {
-          break;
+        let articles = [];
+        for (const selector of articleSelectors) {
+          articles = document.querySelectorAll(selector);
+          if (articles.length > 0) {
+            break;
+          }
         }
-      }
 
-      if (articles.length === 0) {
-        return tweets;
-      }
+        if (articles.length === 0) {
+          return tweets;
+        }
 
-      for (const article of articles) {
-        try {
-          // Extract tweet URL with multiple selectors
-          const linkSelectors = ['a[href*="/status/"]', 'time[datetime] + a', 'a[role="link"][href*="/status/"]'];
+        for (const article of articles) {
+          try {
+            // Extract tweet URL with multiple selectors
+            const linkSelectors = ['a[href*="/status/"]', 'time[datetime] + a', 'a[role="link"][href*="/status/"]'];
 
-          let tweetLink = null;
-          for (const selector of linkSelectors) {
-            tweetLink = article.querySelector(selector);
-            if (tweetLink) {
-              break;
+            let tweetLink = null;
+            for (const selector of linkSelectors) {
+              tweetLink = article.querySelector(selector);
+              if (tweetLink) {
+                break;
+              }
             }
-          }
 
-          if (!tweetLink) {
-            continue;
-          }
-
-          const url = tweetLink.href;
-          const tweetIdMatch = url.match(/status\/(\d+)/);
-          if (!tweetIdMatch) {
-            continue;
-          }
-
-          const tweetID = tweetIdMatch[1];
-
-          // Extract author with multiple selectors
-          const authorSelectors = [
-            '[data-testid="User-Name"] a',
-            '[data-testid="User-Names"] a',
-            'a[role="link"][href^="/"]',
-            'div[dir="ltr"] span',
-          ];
-
-          let author = 'Unknown';
-          for (const selector of authorSelectors) {
-            const authorElement = article.querySelector(selector);
-            if (authorElement && authorElement.textContent.trim()) {
-              author = authorElement.textContent.trim();
-              break;
+            if (!tweetLink) {
+              continue;
             }
-          }
 
-          // Extract text content with multiple selectors
-          const textSelectors = ['[data-testid="tweetText"]', '[lang] span', 'div[dir="ltr"]', 'span[dir="ltr"]'];
-
-          let text = '';
-          for (const selector of textSelectors) {
-            const textElement = article.querySelector(selector);
-            if (textElement && textElement.innerText) {
-              text = textElement.innerText;
-              break;
+            const url = tweetLink.href;
+            const tweetIdMatch = url.match(/status\/(\d+)/);
+            if (!tweetIdMatch) {
+              continue;
             }
-          }
 
-          // Extract timestamp
-          const timeElement = article.querySelector('time');
-          const timestamp = timeElement ? timeElement.getAttribute('datetime') : null;
+            const tweetID = tweetIdMatch[1];
 
-          // Determine tweet category
-          let tweetCategory = 'Post';
+            // Extract author with multiple selectors
+            const authorSelectors = [
+              '[data-testid="User-Name"] a',
+              '[data-testid="User-Names"] a',
+              'a[role="link"][href^="/"]',
+              'div[dir="ltr"] span',
+            ];
 
-          // Check for reply indicators
-          let isReply = text.startsWith('@');
-          if (!isReply) {
-            // Check for "Replying to" text content in the article
-            const allText = article.innerText || '';
-            isReply = allText.includes('Replying to') || allText.includes('Show this thread');
-          }
+            let author = 'Unknown';
+            for (const selector of authorSelectors) {
+              const authorElement = article.querySelector(selector);
+              if (authorElement && authorElement.textContent.trim()) {
+                author = authorElement.textContent.trim();
+                break;
+              }
+            }
 
-          if (isReply) {
-            tweetCategory = 'Reply';
-          }
+            // Extract text content with multiple selectors
+            const textSelectors = ['[data-testid="tweetText"]', '[lang] span', 'div[dir="ltr"]', 'span[dir="ltr"]'];
 
-          // Check for quote tweet
-          const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
-          if (quoteTweetBlock && quoteTweetBlock.href !== url) {
-            tweetCategory = 'Quote';
-          }
+            let text = '';
+            for (const selector of textSelectors) {
+              const textElement = article.querySelector(selector);
+              if (textElement && textElement.innerText) {
+                text = textElement.innerText;
+                break;
+              }
+            }
 
-          // Check for retweet - enhanced detection with author comparison
-          let isRetweet = false;
+            // Extract timestamp
+            const timeElement = article.querySelector('time');
+            const timestamp = timeElement ? timeElement.getAttribute('datetime') : null;
 
-          // Method 1: Check if author is different from monitored user
-          if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
-            isRetweet = true;
-          }
+            // Determine tweet category
+            let tweetCategory = 'Post';
 
-          // Method 2: Check for social context element (modern retweet indicator)
-          if (!isRetweet) {
-            const socialContext = article.querySelector('[data-testid="socialContext"]');
-            if (socialContext && socialContext.innerText.includes('reposted')) {
+            // Check for reply indicators
+            let isReply = text.startsWith('@');
+            if (!isReply) {
+              // Check for "Replying to" text content in the article
+              const allText = article.innerText || '';
+              isReply = allText.includes('Replying to') || allText.includes('Show this thread');
+            }
+
+            if (isReply) {
+              tweetCategory = 'Reply';
+            }
+
+            // Check for quote tweet
+            const quoteTweetBlock = article.querySelector('div[role="link"][tabindex="0"] a[href*="/status/"]');
+            if (quoteTweetBlock && quoteTweetBlock.href !== url) {
+              tweetCategory = 'Quote';
+            }
+
+            // Check for retweet - enhanced detection with author comparison
+            let isRetweet = false;
+
+            // Method 1: Check if author is different from monitored user
+            if (author !== monitoredUser && author !== `@${monitoredUser}` && author !== 'Unknown') {
               isRetweet = true;
             }
-          }
 
-          // Method 3: Check for classic RT @ pattern
-          if (!isRetweet && text.startsWith('RT @')) {
-            isRetweet = true;
-          }
+            // Method 2: Check for social context element (modern retweet indicator)
+            if (!isRetweet) {
+              const socialContext = article.querySelector('[data-testid="socialContext"]');
+              if (socialContext && socialContext.innerText.includes('reposted')) {
+                isRetweet = true;
+              }
+            }
 
-          if (isRetweet) {
-            tweetCategory = 'Retweet';
-          }
+            // Method 3: Check for classic RT @ pattern
+            if (!isRetweet && text.startsWith('RT @')) {
+              isRetweet = true;
+            }
 
-          tweets.push({
-            tweetID,
-            url,
-            author,
-            text,
-            timestamp,
-            tweetCategory,
-          });
-        } catch (_err) {
-          // console.error('Error extracting tweet:', _err);
+            if (isRetweet) {
+              tweetCategory = 'Retweet';
+            }
+
+            tweets.push({
+              tweetID,
+              url,
+              author,
+              text,
+              timestamp,
+              tweetCategory,
+            });
+          } catch (_err) {
+            // console.error('Error extracting tweet:', _err);
+          }
         }
-      }
-      return tweets;
-      /* eslint-enable no-undef */
-    }, monitoredUser);
+        return tweets;
+        /* eslint-enable no-undef */
+      }, monitoredUser);
+
+      // Ensure we always return an array, even if browser.evaluate returns undefined
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      this.logger.error('Error extracting tweets', { error: error.message, stack: error.stack });
+      // Return empty array on error to prevent undefined issues
+      return [];
+    }
   }
 
   /**
