@@ -72,6 +72,10 @@ export async function setupProductionServices(container, config) {
 
   // Validate container
   container.validate();
+
+  const logger = container.resolve('logger').child({ service: 'DiscordTransport' });
+  const discordTransport = container.resolve('discordTransport');
+  logger.transports.add(discordTransport);
 }
 
 /**
@@ -377,36 +381,36 @@ async function setupLogging(container, config) {
  * Configure Discord logging transport after both logger and discordService are created
  */
 async function setupDiscordLogging(container, config) {
-  const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
-  // Skip Discord logging setup in test environment to prevent rate limit errors
-  if (supportChannelId && process.env.NODE_ENV !== 'test') {
-    const logger = container.resolve('logger').child({ service: 'DiscordTransport' });
-    const discordService = container.resolve('discordService');
-    const debugFlagManager = container.resolve('debugFlagManager');
-    const metricsManager = container.resolve('metricsManager');
-    const logLevel = config.get('LOG_LEVEL', 'info');
-    logger.level = logLevel;
+  container.registerSingleton('discordTransport', _c => {
+    const supportChannelId = config.get('DISCORD_BOT_SUPPORT_LOG_CHANNEL');
+    // Skip Discord logging setup in test environment to prevent rate limit errors
+    if (supportChannelId && process.env.NODE_ENV !== 'test') {
+      const logger = container.resolve('logger').child({ service: 'DiscordTransport' });
+      const discordService = container.resolve('discordService');
+      const debugFlagManager = container.resolve('debugFlagManager');
+      const metricsManager = container.resolve('metricsManager');
+      const logLevel = config.get('LOG_LEVEL', 'info');
+      logger.level = logLevel;
 
-    // Add Discord transport to existing logger with balanced rate limiting
-    // Only log warn and above to Discord to reduce spam
-    const discordTransport = new DiscordTransport({
-      logger,
-      level: config.get('LOG_LEVEL', 'info'), // Only log warnings, errors, and above to Discord
-      client: discordService.client,
-      channelId: supportChannelId,
-      format: winston.format.json(),
-      debugFlagManager,
-      metricsManager,
-      flushInterval: 1000, // 1 second to match send delay
-      maxBufferSize: 20, // Match burst allowance
-      burstAllowance: 30, // Allow reasonable burst for startup logging
-      burstResetTime: 60000, // 1 minute - longer reset for better recovery
-      baseSendDelay: 1000, // 1 seconds between sends - functional
-      testMode: false, // Ensure production mode rate limiting
-    })._construct;
-
-    logger.transports.add(discordTransport);
-  }
+      // Add Discord transport to existing logger with balanced rate limiting
+      // Only log warn and above to Discord to reduce spam
+      const discordTransport = new DiscordTransport({
+        logger,
+        level: config.get('LOG_LEVEL', 'info'), // Only log warnings, errors, and above to Discord
+        client: discordService.client,
+        channelId: supportChannelId,
+        format: winston.format.json(),
+        debugFlagManager,
+        metricsManager,
+        flushInterval: 1000, // 1 second to match send delay
+        maxBufferSize: 20, // Match burst allowance
+        burstAllowance: 30, // Allow reasonable burst for startup logging
+        burstResetTime: 60000, // 1 minute - longer reset for better recovery
+        baseSendDelay: 1000, // 1 seconds between sends - functional
+        testMode: false, // Ensure production mode rate limiting
+      });
+    }
+  });
 }
 
 /**
