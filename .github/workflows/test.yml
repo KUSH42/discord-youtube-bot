@@ -1218,8 +1218,20 @@ jobs:
             echo "- **Functions:** ${FUNCTION_COVERAGE}%" >> reports/test-summary.md
             echo "" >> reports/test-summary.md
             
-            # Coverage quality assessment using integer comparison
-            COVERAGE_INT=$(awk -v val="$OVERALL_COVERAGE" 'BEGIN {printf "%.0f", val * 100}')
+            # Calculate COVERAGE_INT. This needs to be robust.
+            # Use 'bc' for floating point arithmetic and then 'printf' for integer conversion.
+            # This handles potential leading zeros or other awk output quirks better.
+            COVERAGE_INT=$(echo "$OVERALL_COVERAGE * 100" | bc | awk '{printf "%.0f", $1}')
+            
+            # Add a check for COVERAGE_INT's value right before the if statement
+            # This will help diagnose if the problem persists
+            # echo "DEBUG: COVERAGE_INT = '$COVERAGE_INT'"
+            
+            # Ensure COVERAGE_INT is a valid number, specifically an integer
+            # This regex check `^[0-9]+$` is good, but let's make sure it's an integer before comparison.
+            if [[ ! "$COVERAGE_INT" =~ ^[0-9]+$ ]]; then
+              COVERAGE_INT=0 # Fallback to 0 if it's not a pure positive integer
+            fi
             if [ "$COVERAGE_INT" -ge 5000 ]; then
               echo "✅ **Coverage Quality:** Meets minimum standards (≥50%)" >> reports/test-summary.md
             elif [ "$COVERAGE_INT" -ge 2500 ]; then
