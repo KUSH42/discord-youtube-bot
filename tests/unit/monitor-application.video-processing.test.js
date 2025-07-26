@@ -16,6 +16,7 @@ describe('MonitorApplication - Video Processing', () => {
   let mockContentCoordinator;
   let mockPersistentStorage;
   let mockDuplicateDetector;
+  let mockOperation;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -82,12 +83,28 @@ describe('MonitorApplication - Video Processing', () => {
       emit: jest.fn(),
     };
 
+    // Create mock operation object that mimics enhanced logger behavior
+    mockOperation = {
+      progress: jest.fn(),
+      success: jest.fn((message, data) => {
+        // Mock the enhanced logger's behavior of calling the base logger
+        mockLogger.info(message, data);
+        return data;
+      }),
+      error: jest.fn((error, message, context) => {
+        mockLogger.error(message, context);
+        throw error;
+      }),
+    };
+
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
       child: jest.fn().mockReturnThis(),
+      startOperation: jest.fn(() => mockOperation),
+      forOperation: jest.fn().mockReturnThis(),
     };
 
     mockContentStateManager = {
@@ -181,7 +198,7 @@ describe('MonitorApplication - Video Processing', () => {
       expect(monitorApp.stats.videosAnnounced).toBe(1);
       expect(mockDuplicateDetector.markAsSeen).toHaveBeenCalledWith('https://www.youtube.com/watch?v=test123');
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '🎉 Video announcement successful',
+        'Video announcement successful',
         expect.objectContaining({
           videoId: 'test123',
           source: 'webhook',
@@ -196,7 +213,7 @@ describe('MonitorApplication - Video Processing', () => {
 
       expect(monitorApp.stats.videosProcessed).toBe(1);
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '⏭️ Duplicate video detected, skipping',
+        'Duplicate video detected, skipping',
         expect.objectContaining({
           videoId: 'test123',
         })
@@ -213,7 +230,7 @@ describe('MonitorApplication - Video Processing', () => {
 
       expect(monitorApp.stats.videosProcessed).toBe(1);
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '⏭️ Video is too old, skipping',
+        'Video is too old, skipping',
         expect.objectContaining({
           videoId: 'test123',
         })
@@ -284,10 +301,9 @@ describe('MonitorApplication - Video Processing', () => {
 
       await expect(monitorApp.processVideo(mockVideo, 'webhook')).rejects.toThrow('Processing failed');
       expect(mockLogger.error).toHaveBeenCalledWith(
-        '❌ Error processing video',
+        'Error processing video',
         expect.objectContaining({
           videoId: 'test123',
-          error: 'Processing failed',
         })
       );
     });
